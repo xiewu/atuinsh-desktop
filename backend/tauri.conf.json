@@ -34,7 +34,10 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "targets": "all"
+    "targets": "all",
+    "macOS": {
+      "signingIdentity": "-"
+    }
   },
   "identifier": "sh.atuin.app",
   "plugins": {

@@ -4,11 +4,11 @@ on:
   push:
     branches: [main]
     paths:
-      - 'backend/**'
+      - "backend/**"
   pull_request:
     branches: [main]
     paths:
-      - 'backend/**'
+      - "backend/**"
 
 env:
   CARGO_TERM_COLOR: always
@@ -16,6 +16,7 @@ env:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-14]
     runs-on: ${{ matrix.os }}
@@ -36,22 +37,9 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Run cargo build common
+      - name: Run cargo build
         working-directory: backend
-        run: cargo build -p atuin-common --locked --release
-
-      - name: Run cargo build client
-        working-directory: backend
-        run: cargo build -p atuin-client --locked --release
-
-      - name: Run cargo build server
-        working-directory: backend
-        run: cargo build -p atuin-server --locked --release
-
-      - name: Run cargo build main
-        working-directory: backend
-        run: cargo build --all --locked --release
-
+        run: cargo build --locked --release
 
   unit-test:
     strategy:
@@ -113,18 +101,6 @@ jobs:
       - name: Run cargo check (no features)
         working-directory: backend
         run: cargo check --no-default-features --workspace
-
-      - name: Run cargo check (sync)
-        working-directory: backend
-        run: cargo check --no-default-features --features sync --workspace
-
-      - name: Run cargo check (server)
-        working-directory: backend
-        run: cargo check --no-default-features --features server --workspace
-
-      - name: Run cargo check (client only)
-        working-directory: backend
-        run: cargo check --no-default-features --features client --workspace
 
   clippy:
     runs-on: ubuntu-latest

@@ -1,11 +1,6 @@
 name: Rust
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "backend/**"
-      - ".github/**"
   pull_request:
     branches: [main]
     paths:

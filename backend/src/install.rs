@@ -12,7 +12,7 @@ use atuin_common::shell::Shell;
 
 #[tauri::command]
 pub(crate) async fn install_cli() -> Result<(), String> {
-    let output = Command::new("sh")
+    let _= Command::new("sh")
         .arg("-c")
         .arg("curl --proto '=https' --tlsv1.2 -LsSf https://github.com/atuinsh/atuin/releases/latest/download/atuin-installer.sh | sh")
         .output().map_err(|e|format!("Failed to execute Atuin installer: {e}"));
@@ -25,12 +25,12 @@ pub(crate) async fn is_cli_installed() -> Result<bool, String> {
     let shell = Shell::default_shell().map_err(|e| format!("Failed to get default shell: {e}"))?;
     let output = if shell == Shell::Powershell {
         shell
-            .run_interactive(&["atuin --version; if ($?) {echo 'ATUIN FOUND'}"])
-            .map_err(|e| format!("Failed to run interactive command"))?
+            .run_interactive(["atuin --version; if ($?) {echo 'ATUIN FOUND'}"])
+            .map_err(|e| format!("Failed to run interactive command: {e}"))?
     } else {
         shell
-            .run_interactive(&["atuin --version && echo 'ATUIN FOUND'"])
-            .map_err(|e| format!("Failed to run interactive command"))?
+            .run_interactive(["atuin --version && echo 'ATUIN FOUND'"])
+            .map_err(|e| format!("Failed to run interactive command: {e}"))?
     };
 
     Ok(output.contains("ATUIN FOUND"))
@@ -63,11 +63,11 @@ pub(crate) async fn setup_cli() -> Result<(), String> {
 
     let config = format!(
         "if [ -x \"$(command -v atuin)\" ]; then eval \"$(atuin init {})\"; fi",
-        shell.to_string()
+        shell
     );
     file.write_all(config.as_bytes())
         .await
-        .map_err(|e| format!("Failed to write Atuin shell init: {e}"));
+        .map_err(|e| format!("Failed to write Atuin shell init: {e}"))?;
 
     Ok(())
 }

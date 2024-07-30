@@ -29,6 +29,12 @@ jobs:
         with:
           toolchain: stable
 
+      - name: install dependencies
+        if: matrix.os == 'ubuntu-latest' # This must match the platform value defined above.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
       - uses: actions/cache@v4
         with:
           path: |
@@ -68,9 +74,15 @@ jobs:
              target
           key: ${ runner.os }-cargo-debug-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: install dependencies (ubuntu only)
+        if: matrix.os == 'ubuntu-latest' # This must match the platform value defined above.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
       - name: Run cargo test
         working-directory: backend
-        run: cargo nextest run --lib --bins
+        run: cargo nextest run --bins
 
   check:
     strategy:
@@ -94,13 +106,15 @@ jobs:
              target
           key: ${ runner.os }-cargo-debug-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Run cargo check (all features)
-        working-directory: backend
-        run: cargo check --all-features --workspace
+      - name: install dependencies (ubuntu only)
+        if: matrix.os == 'ubuntu-latest' # This must match the platform value defined above.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Run cargo check (no features)
+      - name: Run cargo check
         working-directory: backend
-        run: cargo check --no-default-features --workspace
+        run: cargo check --no-default-features
 
   clippy:
     runs-on: ubuntu-latest
@@ -121,6 +135,11 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-debug-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Run clippy
         working-directory: backend

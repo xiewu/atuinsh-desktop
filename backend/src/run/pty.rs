@@ -1,16 +1,12 @@
-use eyre::{Result, WrapErr};
-use std::io::BufRead;
-use std::path::PathBuf;
+use eyre::Result;
 
 use crate::state::AtuinState;
-use tauri::{Emitter, Manager, State};
-
-use atuin_client::{database::Sqlite, record::sqlite_store::SqliteStore, settings::Settings};
+use tauri::{Emitter, State};
 
 #[tauri::command]
-pub async fn pty_open<'a>(
+pub async fn pty_open(
     app: tauri::AppHandle,
-    state: State<'a, AtuinState>,
+    state: State<'_, AtuinState>,
     cwd: Option<String>,
 ) -> Result<uuid::Uuid, String> {
     let id = uuid::Uuid::new_v4();
@@ -91,12 +87,9 @@ pub(crate) async fn pty_kill(
 ) -> Result<(), String> {
     let pty = state.pty_sessions.write().await.remove(&pid);
 
-    match pty {
-        Some(pty) => {
-            pty.kill_child().await.map_err(|e| e.to_string())?;
-            println!("RIP {pid:?}");
-        }
-        None => {}
+    if let Some(pty) = pty {
+        pty.kill_child().await.map_err(|e| e.to_string())?;
+        println!("RIP {pid:?}");
     }
 
     Ok(())

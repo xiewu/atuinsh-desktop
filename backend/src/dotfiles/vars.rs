@@ -1,11 +1,7 @@
 use std::path::PathBuf;
 
 use atuin_client::{encryption, record::sqlite_store::SqliteStore, settings::Settings};
-use atuin_common::shell::Shell;
-use atuin_dotfiles::{
-    shell::{existing_aliases, Alias, Var},
-    store::var::VarStore,
-};
+use atuin_dotfiles::{shell::Var, store::var::VarStore};
 
 async fn var_store() -> eyre::Result<VarStore> {
     let settings = Settings::new()?;

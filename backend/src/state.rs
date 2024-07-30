@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::Mutex;
 use tauri::async_runtime::RwLock;
 
 use crate::pty::Pty;

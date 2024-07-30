@@ -93,6 +93,7 @@ impl Pty {
             .map_err(|e| eyre!("Failed to write to master tx: {}", e))
     }
 
+    #[allow(dead_code)]
     pub async fn send_string(&self, cmd: &str) -> Result<()> {
         let bytes: Vec<u8> = cmd.bytes().collect();
         let bytes = Bytes::from(bytes);
@@ -100,6 +101,7 @@ impl Pty {
         self.send_bytes(bytes).await
     }
 
+    #[allow(dead_code)]
     pub async fn send_single_string(&self, cmd: &str) -> Result<()> {
         let mut bytes: Vec<u8> = cmd.bytes().collect();
         bytes.push(0x04);

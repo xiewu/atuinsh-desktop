@@ -1,8 +1,6 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::State;
-
 use std::path::PathBuf;
 
 use tauri::{AppHandle, Manager};
@@ -17,9 +15,7 @@ mod state;
 mod store;
 
 use atuin_client::settings::Settings;
-use atuin_client::{
-    encryption, history::HISTORY_TAG, record::sqlite_store::SqliteStore, record::store::Store,
-};
+use atuin_client::{history::HISTORY_TAG, record::sqlite_store::SqliteStore, record::store::Store};
 use atuin_history::stats;
 use db::{GlobalStats, HistoryDB, UIHistory};
 use dotfiles::aliases::aliases;
@@ -319,11 +315,11 @@ fn main() {
                 .build(),
         )
         .plugin(tauri_plugin_http::init())
-        .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
-            let _ = show_window(app);
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            show_window(app);
         }))
         .manage(state::AtuinState::default())
-        .setup(|app| Ok(()))
+        .setup(|_| Ok(()))
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

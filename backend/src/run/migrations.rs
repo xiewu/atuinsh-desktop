@@ -1,5 +1,4 @@
-use lazy_static::lazy_static;
-use tauri_plugin_sql::{Builder, Migration, MigrationKind};
+use tauri_plugin_sql::{Migration, MigrationKind};
 
 pub fn migrations() -> Vec<Migration> {
     vec![

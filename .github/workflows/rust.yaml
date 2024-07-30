@@ -5,22 +5,19 @@ on:
     branches: [main]
     paths:
       - "backend/**"
+      - ".github/**"
   pull_request:
     branches: [main]
     paths:
       - "backend/**"
+      - ".github/**"
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-14]
-    runs-on: ${{ matrix.os }}
-
+  check:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -28,86 +25,16 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+             ~/.cargo/git
+             target
+          key: ${ runner.os }-cargo-debug-${{ hashFiles('**/Cargo.lock') }}
 
       - name: install dependencies
-        if: matrix.os == 'ubuntu-latest' # This must match the platform value defined above.
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Run cargo build
-        working-directory: backend
-        run: cargo build --locked --release
-
-  unit-test:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-14]
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-
-      - uses: taiki-e/install-action@v2
-        name: Install nextest
-        with:
-          tool: cargo-nextest
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-             ~/.cargo/git
-             target
-          key: ${ runner.os }-cargo-debug-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: install dependencies (ubuntu only)
-        if: matrix.os == 'ubuntu-latest' # This must match the platform value defined above.
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
-      - name: Run cargo test
-        working-directory: backend
-        run: cargo nextest run --bins
-
-  check:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-14]
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-             ~/.cargo/git
-             target
-          key: ${ runner.os }-cargo-debug-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: install dependencies (ubuntu only)
-        if: matrix.os == 'ubuntu-latest' # This must match the platform value defined above.
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf

@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     io::Write,
     sync::{Arc, Mutex},
 };
@@ -16,7 +17,12 @@ pub struct Pty {
 }
 
 impl Pty {
-    pub async fn open<'a>(rows: u16, cols: u16, cwd: Option<String>) -> Result<Self> {
+    pub async fn open<'a>(
+        rows: u16,
+        cols: u16,
+        cwd: Option<String>,
+        env: HashMap<String, String>,
+    ) -> Result<Self> {
         let sys = portable_pty::native_pty_system();
 
         let pair = sys
@@ -32,6 +38,10 @@ impl Pty {
 
         if let Some(cwd) = cwd {
             cmd.cwd(cwd);
+        }
+
+        for (key, value) in env {
+            cmd.env(key, value);
         }
 
         let child = pair.slave.spawn_command(cmd).unwrap();

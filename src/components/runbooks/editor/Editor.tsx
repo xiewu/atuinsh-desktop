@@ -36,11 +36,12 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 
-import { CodeIcon, FolderOpenIcon } from "lucide-react";
+import { CodeIcon, FolderOpenIcon, VariableIcon } from "lucide-react";
 import { useDebounceCallback } from "usehooks-ts";
 
 import Run from "@/components/runbooks/editor/blocks/Run";
 import Directory from "@/components/runbooks/editor/blocks/Directory";
+import Env from "@/components/runbooks/editor/blocks/Env";
 
 import { DeleteBlock } from "@/components/runbooks/editor/ui/DeleteBlockButton";
 import { AtuinState, useStore } from "@/state/store";
@@ -56,6 +57,7 @@ const schema = BlockNoteSchema.create({
     // Adds the code block.
     run: Run,
     directory: Directory,
+    env: Env,
   },
 });
 
@@ -81,6 +83,18 @@ const insertDirectory = (editor: typeof schema.BlockNoteEditor) => ({
   },
   icon: <FolderOpenIcon size={18} />,
   aliases: ["directory", "dir", "folder"],
+  group: "Execute",
+});
+
+const insertEnv = (editor: typeof schema.BlockNoteEditor) => ({
+  title: "Env",
+  onItemClick: () => {
+    insertOrUpdateBlock(editor, {
+      type: "env",
+    });
+  },
+  icon: <VariableIcon size={18} />,
+  aliases: ["var", "envvar", "export"],
   group: "Execute",
 });
 
@@ -180,6 +194,7 @@ export default function Editor() {
                 ...getDefaultReactSlashMenuItems(editor),
                 insertRun(editor),
                 insertDirectory(editor),
+                insertEnv(editor),
               ],
               query,
             )

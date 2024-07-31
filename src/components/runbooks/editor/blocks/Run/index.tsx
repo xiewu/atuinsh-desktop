@@ -46,6 +46,20 @@ const findFirstParentOfType = (editor: any, id: string, type: string): any => {
   return lastOfType;
 };
 
+const findAllParentsOfType = (editor: any, id: string, type: string): any[] => {
+  const document = editor.document;
+  let blocks: any[] = [];
+
+  // Iterate through ALL of the blocks.
+  for (let i = 0; i < document.length; i++) {
+    if (document[i].id == id) return blocks;
+
+    if (document[i].type == type) blocks.push(document[i]);
+  }
+
+  return blocks;
+};
+
 const RunBlock = ({
   onChange,
   id,
@@ -95,7 +109,14 @@ const RunBlock = ({
         cwd = "~";
       }
 
-      let pty = await invoke<string>("pty_open", { cwd });
+      let vars = findAllParentsOfType(editor, id, "env");
+      let env: { [key: string]: string } = {};
+
+      for (var i = 0; i < vars.length; i++) {
+        env[vars[i].props.name] = vars[i].props.value;
+      }
+
+      let pty = await invoke<string>("pty_open", { cwd, env });
       if (onRun) onRun(pty);
 
       if (currentRunbook) incRunbookPty(currentRunbook);

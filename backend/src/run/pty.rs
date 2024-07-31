@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use eyre::Result;
 
 use crate::state::AtuinState;
@@ -8,11 +10,14 @@ pub async fn pty_open(
     app: tauri::AppHandle,
     state: State<'_, AtuinState>,
     cwd: Option<String>,
+    env: Option<HashMap<String, String>>,
 ) -> Result<uuid::Uuid, String> {
     let id = uuid::Uuid::new_v4();
 
     let cwd = cwd.map(|c| shellexpand::tilde(c.as_str()).to_string());
-    let pty = crate::pty::Pty::open(24, 80, cwd).await.unwrap();
+    let pty = crate::pty::Pty::open(24, 80, cwd, env.unwrap_or_default())
+        .await
+        .unwrap();
 
     let reader = pty.reader.clone();
 

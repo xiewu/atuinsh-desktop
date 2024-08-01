@@ -7,6 +7,9 @@ import {
   type ListboxSectionProps,
   type Selection,
 } from "@nextui-org/react";
+
+import { useNavigate } from "react-router-dom";
+
 import React from "react";
 import {
   Listbox,
@@ -63,6 +66,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     },
     ref,
   ) => {
+    const navigate = useNavigate();
+
     const [selected, setSelected] =
       React.useState<React.Key>(defaultSelectedKey);
 

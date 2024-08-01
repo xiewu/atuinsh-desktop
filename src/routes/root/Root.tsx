@@ -1,18 +1,19 @@
-import "./App.css";
+import "./Root.css";
 import { open } from "@tauri-apps/plugin-shell";
 
 import { useState, ReactElement } from "react";
+import { Outlet, useNavigate } from "react-router-dom";
 import { useStore } from "@/state/store";
 
 import { Toaster } from "@/components/ui/toaster";
 import { KeyRoundIcon } from "lucide-react";
 import { Icon } from "@iconify/react";
 
-import Home from "./pages/Home.tsx";
-import History from "./pages/History.tsx";
-import Dotfiles from "./pages/Dotfiles.tsx";
-import LoginOrRegister from "./components/LoginOrRegister.tsx";
-import Runbooks from "./pages/Runbooks.tsx";
+import Home from "@/routes/home";
+import History from "@/routes/History.tsx";
+import Dotfiles from "@/routes/Dotfiles.tsx";
+import Runbooks from "@/routes/Runbooks.tsx";
+import LoginOrRegister from "@/components/LoginOrRegister.tsx";
 
 import {
   Avatar,
@@ -31,7 +32,7 @@ import {
 } from "@nextui-org/react";
 import Sidebar, { SidebarItem } from "@/components/Sidebar";
 import icon from "@/assets/icon.svg";
-import { logout } from "./state/client.ts";
+import { logout } from "@/state/client.ts";
 
 enum Section {
   Home,
@@ -40,24 +41,8 @@ enum Section {
   Runbooks,
 }
 
-function renderMain(section: Section): ReactElement {
-  switch (section) {
-    case Section.Home:
-      return <Home />;
-    case Section.History:
-      return <History />;
-    case Section.Dotfiles:
-      return <Dotfiles />;
-    case Section.Runbooks:
-      return <Runbooks />;
-  }
-}
-
 function App() {
-  // routers don't really work in Tauri. It's not a browser!
-  // I think hashrouter may work, but I'd rather avoiding thinking of them as
-  // pages
-  const [section, setSection] = useState(Section.Home);
+  const navigate = useNavigate();
   const user = useStore((state: any) => state.user);
   const refreshUser = useStore((state: any) => state.refreshUser);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
@@ -71,28 +56,33 @@ function App() {
           key: "home",
           icon: "solar:home-2-linear",
           title: "Home",
-          onPress: () => setSection(Section.Home),
+          onPress: () => {
+            navigate("/");
+          },
         },
         {
           key: "runbooks",
           icon: "solar:notebook-linear",
           title: "Runbooks",
           onPress: () => {
-            console.log("runbooks");
-            setSection(Section.Runbooks);
+            navigate("/runbooks");
           },
         },
         {
           key: "history",
           icon: "solar:history-outline",
           title: "History",
-          onPress: () => setSection(Section.History),
+          onPress: () => {
+            navigate("/history");
+          },
         },
         {
           key: "dotfiles",
           icon: "solar:file-smile-linear",
           title: "Dotfiles",
-          onPress: () => setSection(Section.Dotfiles),
+          onPress: () => {
+            navigate("/dotfiles");
+          },
         },
       ],
     },
@@ -213,7 +203,7 @@ function App() {
           </div>
         </div>
 
-        {renderMain(section)}
+        <Outlet />
 
         <Toaster />
         <Modal

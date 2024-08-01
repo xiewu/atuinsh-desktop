@@ -1,8 +1,42 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { createHashRouter, RouterProvider } from "react-router-dom";
 import { NextUIProvider } from "@nextui-org/react";
-import App from "./App";
 import "./styles.css";
+
+import Root from "@/routes/root/Root";
+import Home from "@/routes/home/Home";
+import Dotfiles from "@/routes/dotfiles/Dotfiles";
+import Runbooks from "@/routes/runbooks/Runbooks";
+import History from "@/routes/history/History";
+
+const router = createHashRouter([
+  {
+    path: "/",
+    element: <Root />,
+    children: [
+      {
+        index: true,
+        element: <Home />,
+      },
+
+      {
+        path: "runbooks",
+        element: <Runbooks />,
+      },
+
+      {
+        path: "dotfiles",
+        element: <Dotfiles />,
+      },
+
+      {
+        path: "history",
+        element: <History />,
+      },
+    ],
+  },
+]);
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
@@ -14,7 +48,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
         />
 
         <div className="z-20 ">
-          <App />
+          <RouterProvider router={router} />
         </div>
       </main>
     </NextUIProvider>

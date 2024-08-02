@@ -1,7 +1,6 @@
 import "./Root.css";
 import { open } from "@tauri-apps/plugin-shell";
 
-import { useState, ReactElement } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { useStore } from "@/state/store";
 
@@ -9,10 +8,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { KeyRoundIcon } from "lucide-react";
 import { Icon } from "@iconify/react";
 
-import Home from "@/routes/home";
-import History from "@/routes/History.tsx";
-import Dotfiles from "@/routes/Dotfiles.tsx";
-import Runbooks from "@/routes/Runbooks.tsx";
 import LoginOrRegister from "@/components/LoginOrRegister.tsx";
 
 import {
@@ -33,13 +28,6 @@ import {
 import Sidebar, { SidebarItem } from "@/components/Sidebar";
 import icon from "@/assets/icon.svg";
 import { logout } from "@/state/client.ts";
-
-enum Section {
-  Home,
-  History,
-  Dotfiles,
-  Runbooks,
-}
 
 function App() {
   const navigate = useNavigate();

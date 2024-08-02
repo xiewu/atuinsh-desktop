@@ -8,9 +8,7 @@ import {
   type Selection,
 } from "@nextui-org/react";
 
-import { useNavigate } from "react-router-dom";
-
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Listbox,
   Tooltip,
@@ -20,6 +18,7 @@ import {
 import { Icon } from "@iconify/react";
 
 import { cn } from "@/lib/utils";
+import { useLocation, useNavigate } from "react-router-dom";
 
 export enum SidebarItemType {
   Nest = "nest",
@@ -39,7 +38,6 @@ export type SidebarItem = {
 };
 
 export type SidebarProps = Omit<ListboxProps<SidebarItem>, "children"> & {
-  items: SidebarItem[];
   isCompact?: boolean;
   hideEndContent?: boolean;
   iconClassName?: string;
@@ -52,7 +50,6 @@ export type SidebarProps = Omit<ListboxProps<SidebarItem>, "children"> & {
 const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
   (
     {
-      items,
       isCompact,
       defaultSelectedKey,
       onSelect,
@@ -66,7 +63,61 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     },
     ref,
   ) => {
+    const location = useLocation();
     const navigate = useNavigate();
+
+    const items: SidebarItem[] = [
+      {
+        key: "personal",
+        title: "Personal",
+        items: [
+          {
+            key: "home",
+            icon: "solar:home-2-linear",
+            title: "Home",
+            onPress: () => {
+              navigate("/");
+            },
+          },
+          {
+            key: "runbooks",
+            icon: "solar:notebook-linear",
+            title: "Runbooks",
+            onPress: () => {
+              navigate("/runbooks");
+            },
+          },
+          {
+            key: "history",
+            icon: "solar:history-outline",
+            title: "History",
+            onPress: () => {
+              navigate("/history");
+            },
+          },
+          {
+            key: "dotfiles",
+            icon: "solar:file-smile-linear",
+            title: "Dotfiles",
+            onPress: () => {
+              navigate("/dotfiles");
+            },
+          },
+        ],
+      },
+    ];
+
+    useEffect(() => {
+      if (location.pathname == "/runbooks") {
+        setSelected("runbooks");
+      } else if (location.pathname == "/history") {
+        setSelected("history");
+      } else if (location.pathname == "/dotfiles") {
+        setSelected("dotfiles");
+      } else {
+        setSelected("home");
+      }
+    }, [location]);
 
     const [selected, setSelected] =
       React.useState<React.Key>(defaultSelectedKey);

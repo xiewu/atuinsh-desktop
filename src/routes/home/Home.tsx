@@ -29,6 +29,7 @@ import { Clock, Terminal } from "lucide-react";
 import ActivityCalendar from "react-activity-calendar";
 import HistoryRow from "@/components/history/HistoryRow";
 import { ShellHistory } from "@/state/models";
+import { useNavigate } from "react-router-dom";
 
 function StatCard({ name, stat }: any) {
   return (
@@ -124,6 +125,7 @@ const explicitTheme = {
 };
 
 export default function Home() {
+  const navigate = useNavigate();
   const homeInfo = useStore((state: AtuinState) => state.homeInfo);
   const user = useStore((state: AtuinState) => state.user);
   const calendar = useStore((state: AtuinState) => state.calendar);
@@ -148,8 +150,6 @@ export default function Home() {
     refreshUser();
     refreshCalendar();
     refreshRunbooks();
-
-    console.log(homeInfo);
 
     let setup = async () => {
       let installed = await invoke("is_cli_installed");
@@ -263,6 +263,7 @@ export default function Home() {
                 key="shell-history"
                 description="Search and explore shell history"
                 startContent={<Clock />}
+                onPress={() => navigate("/history")}
               >
                 Shell History
               </ListboxItem>

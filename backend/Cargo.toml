@@ -9,16 +9,16 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "2.0.0-beta", features = [] }
+tauri-build = { version = "2.0.0-rc.0", features = [] }
 
 [dependencies]
-atuin-client = { version = "18.4.0-beta.3" }
-atuin-common = { version = "18.4.0-beta.3" }
-atuin-dotfiles = { version = "18.4.0-beta.3" }
-atuin-history = { version = "18.4.0-beta.3" }
+atuin-client = { git = "https://github.com/atuinsh/atuin.git" }
+atuin-common = { git = "https://github.com/atuinsh/atuin.git" }
+atuin-dotfiles = { git = "https://github.com/atuinsh/atuin.git" }
+atuin-history = { git = "https://github.com/atuinsh/atuin.git" }
 
 eyre = "0.6"
-tauri = { version = "2.0.0-beta", features = ["tray-icon"] }
+tauri = { version = "2.0.0-rc.0", features = ["tray-icon"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 time = "0.3.36"
@@ -33,17 +33,17 @@ nix = "0.29.0"
 lazy_static = "1.5.0"
 shellexpand = "3.1.0"
 
-tauri-plugin-http = "2.0.0-beta"
-tauri-plugin-single-instance = "2.0.0-beta"
-tauri-plugin-os = "2.0.0-beta.8"
-tauri-plugin-shell = "2.0.0-beta.7"
-tauri-plugin-dialog = "2.0.0-beta.11"
+tauri-plugin-http = "2.0.0-rc.0"
+tauri-plugin-single-instance = "2.0.0-rc.0"
+tauri-plugin-os = "2.0.0-rc.0"
+tauri-plugin-shell = "2.0.0-rc.0"
+tauri-plugin-dialog = "2.0.0-rc.0"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 cocoa = "0.25"
 
 [dependencies.sqlx]
-version = "0.7"
+version = "0.8"
 features = ["runtime-tokio-rustls", "time", "postgres", "uuid"]
 
 [features]
@@ -56,4 +56,4 @@ custom-protocol = ["tauri/custom-protocol"]
 
 [dependencies.tauri-plugin-sql]
 features = ["sqlite"]  # or "postgres", or "mysql"
-version = "2.0.0-beta"
+version = "2.0.0-rc.0"

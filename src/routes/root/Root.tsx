@@ -28,12 +28,25 @@ import {
 import Sidebar, { SidebarItem } from "@/components/Sidebar";
 import icon from "@/assets/icon.svg";
 import { logout } from "@/state/client.ts";
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { useToast } from "@/components/ui/use-toast";
 
 function App() {
   const navigate = useNavigate();
   const user = useStore((state: any) => state.user);
   const refreshUser = useStore((state: any) => state.refreshUser);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
+
+  const [isCliInstalled, setIsCliInstalled] = useState(false);
+  let { toast } = useToast();
+
+  useEffect(() => {
+    (async () => {
+      let cliInstalled = await invoke<boolean>("is_cli_installed");
+      setIsCliInstalled(cliInstalled);
+    })();
+  }, []);
 
   const navigation: SidebarItem[] = [
     {
@@ -183,6 +196,34 @@ function App() {
                       onPress={onOpen}
                     >
                       Log in or Register
+                    </DropdownItem>
+                  )}
+
+                  {isCliInstalled || (
+                    <DropdownItem
+                      key="install_cli"
+                      startContent={
+                        <Icon width={24} icon="iconoir:terminal-tag" />
+                      }
+                      onClick={async () => {
+                        toast({
+                          title: "Atuin CLI",
+                          description: "Install in progress...",
+                        });
+
+                        console.log("Installing CLI...");
+                        await invoke("install_cli");
+
+                        console.log("Setting up plugin...");
+                        await invoke("setup_cli");
+
+                        toast({
+                          title: "Atuin CLI",
+                          description: "Installation complete",
+                        });
+                      }}
+                    >
+                      Install Atuin CLI
                     </DropdownItem>
                   )}
                 </DropdownSection>

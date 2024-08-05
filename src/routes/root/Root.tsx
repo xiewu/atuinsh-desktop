@@ -221,6 +221,8 @@ function App() {
                           title: "Atuin CLI",
                           description: "Installation complete",
                         });
+
+                        setIsCliInstalled(true);
                       }}
                     >
                       Install Atuin CLI

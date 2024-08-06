@@ -2,9 +2,7 @@
   "identifier": "migrated",
   "description": "permissions that were migrated from v1",
   "context": "local",
-  "windows": [
-    "main"
-  ],
+  "windows": ["main"],
   "permissions": [
     "core:path:default",
     "core:event:default",
@@ -21,16 +19,10 @@
     "core:window:allow-start-dragging",
     {
       "identifier": "http:default",
-      "allow": [
-        "https://api.atuin.sh/*"
-      ]
+      "allow": ["https://api.atuin.sh/*"]
     },
     "os:default",
     "dialog:default"
   ],
-  "platforms": [
-    "linux",
-    "macOS",
-    "windows"
-  ]
+  "platforms": ["linux", "macOS", "windows"]
 }

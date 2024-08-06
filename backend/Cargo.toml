@@ -1,9 +1,9 @@
 [package]
-name = "ui"
+name = "atuin-desktop"
 version = "0.0.0"
-description = "A Tauri App"
+description = "Atuin Desktop"
 publish = false
-authors = ["you"]
+authors = ["ellie@atuin.sh"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -38,6 +38,7 @@ tauri-plugin-single-instance = "2.0.0-rc.0"
 tauri-plugin-os = "2.0.0-rc.0"
 tauri-plugin-shell = "2.0.0-rc.0"
 tauri-plugin-dialog = "2.0.0-rc.0"
+tauri-plugin-updater = "2.0.0-rc.0"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 cocoa = "0.25"

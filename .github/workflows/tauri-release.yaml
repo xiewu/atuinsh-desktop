@@ -1,13 +1,36 @@
-name: "publish"
+name: publish
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - release
+    inputs:
+      app-slug:
+        type: string
+        description: Slug of the application
+        required: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CN_APP_SLUG: ${{ github.event.inputs.app-slug }}
 
 jobs:
-  publish-tauri:
+  draft:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: create draft release
+        uses: crabnebula-dev/cloud-release@v0.1.0
+        with:
+          command: release draft ${{ env.CN_APP_SLUG }} --framework tauri
+          api-key: ${{ secrets.CN_API_KEY }}
+
+  build:
+    needs: draft
+
     permissions:
       contents: write
 
@@ -59,9 +82,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
-          releaseName: "App v__VERSION__"
-          releaseBody: "See the assets to download this version and install."
-          releaseDraft: true
-          prerelease: false
           args: ${{ matrix.args }}
+
+      - name: upload assets
+        uses: crabnebula-dev/cloud-release@v0.1.0
+        with:
+          command: release upload ${{ env.CN_APP_SLUG }} --framework tauri
+          api-key: ${{ secrets.CN_API_KEY }}
+          path: ./backend

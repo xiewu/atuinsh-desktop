@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { formatRelative } from "date-fns";
 import { Tooltip as ReactTooltip } from "react-tooltip";
 
@@ -30,6 +30,8 @@ import ActivityCalendar from "react-activity-calendar";
 import HistoryRow from "@/components/history/HistoryRow";
 import { ShellHistory } from "@/state/models";
 import { useNavigate } from "react-router-dom";
+import Onboarding from "@/components/Onboarding/Onboarding";
+import { KVStore } from "@/state/kv";
 
 function StatCard({ name, stat }: any) {
   return (
@@ -124,6 +126,11 @@ const explicitTheme = {
   dark: ["#f0f0f0", "#c4edde", "#7ac7c4", "#f73859", "#384259"],
 };
 
+const isOnboardingComplete = async () => {
+  let db = await KVStore.open();
+  return await db.get("onboarding_complete");
+};
+
 export default function Home() {
   const navigate = useNavigate();
   const homeInfo = useStore((state: AtuinState) => state.homeInfo);
@@ -144,6 +151,7 @@ export default function Home() {
   );
 
   const { toast } = useToast();
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     refreshHomeInfo();
@@ -154,6 +162,9 @@ export default function Home() {
     let setup = async () => {
       let installed = await invoke("is_cli_installed");
       console.log("CLI installation status:", installed);
+
+      const onboardingComplete = await isOnboardingComplete();
+      setShowOnboarding(!onboardingComplete);
 
       if (!installed) {
         toast({
@@ -291,6 +302,8 @@ export default function Home() {
           </CardBody>
         </Card>
       </div>
+
+      {showOnboarding && <Onboarding />}
     </div>
   );
 }

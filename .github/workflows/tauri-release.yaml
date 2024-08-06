@@ -1,51 +1,36 @@
-name: Tauri Workflow Release Process
+name: "publish"
 
 on:
   workflow_dispatch:
-    inputs:
-      app-slug:
-        type: string
-        description: Slug of the application
-        required: true
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  CN_APP_SLUG: ${{ github.event.inputs.app-slug }}
+  push:
+    branches:
+      - release
 
 jobs:
-  draft:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: create draft release
-        uses: crabnebula-dev/cloud-release@v0.1.0
-        with:
-          command: release draft ${{ env.CN_APP_SLUG }} --framework tauri
-          api-key: ${{ secrets.CN_API_KEY }}
-
-  build:
-    needs: draft
+  publish-tauri:
+    permissions:
+      contents: write
 
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: "macos-14" # for Arm based macs (M1 and above).
-            target: "aarch64-apple-darwin"
+            args: "--target aarch64-apple-darwin"
           - platform: "macos-13" # for Intel based macs.
-            target: "x86_64-apple-darwin"
+            args: "--target x86_64-apple-darwin"
 
     runs-on: ${{ matrix.platform }}
-
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - name: install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - uses: pnpm/action-setup@v2
         with:
           version: latest
 
@@ -61,47 +46,22 @@ jobs:
           # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
           targets: ${{ (matrix.platform == 'macos-14' || matrix.platform == 'macos-13') && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
-      - name: install Linux dependencies
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.0
-
-      - name: Install x86_64-apple-darwin for mac and build Tauri binaries
-        if: matrix.platform == 'macos-14' || matrix.platform == 'macos-13'
-        run: |
-          pnpm i
-          pnpm run tauri build --verbose -- --target ${{ matrix.target }} || ls -la ./backend/target/release
-        env:
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-
-      - name: build Tauri app for Windows, Linux
-        if: matrix.platform != 'macos-13' && matrix.platform != 'macos-14'
-        run: |
-          pnpm i
-          pnpm run tauri build || ls -la ./backend/target/release
-        env:
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-
-      - name: upload assets
-        uses: crabnebula-dev/cloud-release@v0.1.0
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
         with:
-          command: release upload ${{ env.CN_APP_SLUG }} --framework tauri
-          api-key: ${{ secrets.CN_API_KEY }}
-          path: ./backend
+          workspaces: "./src-tauri -> target"
 
-  publish:
-    needs: build
+      - name: install frontend dependencies
+        # If you don't have `beforeBuildCommand` configured you may want to build your frontend here too.
+        run: pnpm install # change this to npm or pnpm depending on which one you use.
 
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: publish release
-        uses: crabnebula-dev/cloud-release@v0.1.0
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          command: release publish ${{ env.CN_APP_SLUG }} --framework tauri
-          api-key: ${{ secrets.CN_API_KEY }}
+          tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
+          releaseName: "App v__VERSION__"
+          releaseBody: "See the assets to download this version and install."
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}

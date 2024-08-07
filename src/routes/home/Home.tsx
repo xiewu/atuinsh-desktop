@@ -33,7 +33,6 @@ import { useNavigate } from "react-router-dom";
 import Onboarding from "@/components/Onboarding/Onboarding";
 
 import { KVStore } from "@/state/kv";
-import { checkForAppUpdates } from "@/updater";
 
 function StatCard({ name, stat }: any) {
   return (
@@ -168,8 +167,6 @@ export default function Home() {
       const onboardingComplete = await isOnboardingComplete();
       setShowOnboarding(!onboardingComplete);
 
-      await checkForAppUpdates();
-
       if (!installed) {
         toast({
           title: "Atuin CLI",
@@ -271,6 +268,9 @@ export default function Home() {
                 key="new-runbook"
                 description="Create an executable runbook"
                 startContent={<Terminal />}
+                onPress={() =>
+                  navigate("/runbooks", { state: { createNew: true } })
+                }
               >
                 New runbook
               </ListboxItem>

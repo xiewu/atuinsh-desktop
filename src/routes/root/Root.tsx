@@ -31,6 +31,7 @@ import { logout } from "@/state/client.ts";
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useToast } from "@/components/ui/use-toast";
+import { checkForAppUpdates } from "@/updater";
 
 function App() {
   const navigate = useNavigate();
@@ -45,6 +46,8 @@ function App() {
     (async () => {
       let cliInstalled = await invoke<boolean>("is_cli_installed");
       setIsCliInstalled(cliInstalled);
+
+      await checkForAppUpdates();
     })();
   }, []);
 

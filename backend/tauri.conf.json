@@ -13,7 +13,7 @@
         "resizable": true,
         "title": "Atuin",
         "width": 1200,
-        "height": 800,
+        "height": 1000,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true
       }
@@ -47,6 +47,7 @@
     },
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlGNUQ5Rjc5NDhCRkY2RjkKUldUNTlyOUllWjlkbjNVMlVoYWJJaGxOZ3FqdWkycE1TSzhTVERYWUdIekFYQ0FtUGc2UTh2a1kK",
+      "dialog": true,
       "endpoints": [
         "https://releases.atuin.sh/{{target}}/{{arch}}/{{current_version}}",
         "https://github.com/atuinsh/desktop/releases/latest/download/latest.json",
@@ -55,5 +56,5 @@
     }
   },
   "productName": "Atuin",
-  "version": "0.0.0"
+  "version": "0.0.1"
 }

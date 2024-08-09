@@ -50,7 +50,7 @@
     "clsx": "^2.1.1",
     "core": "link:@tauri-apps/api/core",
     "date-fns": "^3.6.0",
-    "framer-motion": "^11.3.8",
+    "framer-motion": "^11.3.24",
     "highlight.js": "^11.10.0",
     "lucide-react": "^0.402.0",
     "luxon": "^3.4.4",

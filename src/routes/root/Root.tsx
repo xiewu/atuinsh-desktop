@@ -43,12 +43,19 @@ function App() {
   let { toast } = useToast();
 
   useEffect(() => {
-    (async () => {
-      let cliInstalled = await invoke<boolean>("is_cli_installed");
+    invoke<boolean>("is_cli_installed").then((cliInstalled) => {
       setIsCliInstalled(cliInstalled);
+    });
 
-      await checkForAppUpdates();
-    })();
+    const check = () => {
+      (async () => {
+        await checkForAppUpdates();
+      })();
+
+      setTimeout(check, 1000 * 60 * 60);
+    };
+
+    check();
   }, []);
 
   const navigation: SidebarItem[] = [

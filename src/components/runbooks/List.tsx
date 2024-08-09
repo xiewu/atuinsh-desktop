@@ -144,7 +144,11 @@ const NoteSidebar = () => {
               }
             >
               <div className="flex flex-col">
-                <div className="text-md">{runbook.name || "Untitled"}</div>
+                <Tooltip content={runbook.name} placement="right-end">
+                  <div className="text-md text-ellipsis overflow-hidden whitespace-nowrap">
+                    {runbook.name || "Untitled"}
+                  </div>
+                </Tooltip>
                 <div className="text-xs text-gray-500">
                   <em>
                     {DateTime.fromJSDate(runbook.updated).toLocaleString(

@@ -63,7 +63,7 @@ const schema = BlockNoteSchema.create({
 
 // Slash menu item to insert an Alert block
 const insertRun = (editor: typeof schema.BlockNoteEditor) => ({
-  title: "Code",
+  title: "Script",
   onItemClick: () => {
     insertOrUpdateBlock(editor, {
       type: "run",
@@ -179,7 +179,7 @@ export default function Editor() {
 
   // Renders the editor instance.
   return (
-    <div className="overflow-y-scroll w-full">
+    <div className="overflow-y-scroll w-full editor">
       <BlockNoteView
         editor={editor}
         slashMenu={false}

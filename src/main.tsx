@@ -13,6 +13,9 @@ import * as Sentry from "@sentry/react";
 import { KVStore } from "./state/kv";
 
 (async () => {
+  // don't need to spam sentry with my dumbass mistakes
+  if (import.meta.env.MODE === "development") return;
+
   let db = await KVStore.open_default();
   let track_errors = await db.get("usage_tracking");
 

@@ -19,6 +19,8 @@ import { DateTime } from "luxon";
 import { NotebookPenIcon } from "lucide-react";
 import Runbook from "@/state/runbooks/runbook";
 import { AtuinState, useStore } from "@/state/store";
+import { KVStore } from "@/state/kv";
+import welcome from "./welcome.json";
 
 const NoteSidebar = () => {
   const runbooks = useStore((state: AtuinState) => state.runbooks);
@@ -34,6 +36,27 @@ const NoteSidebar = () => {
 
   useEffect(() => {
     refreshRunbooks();
+
+    // Ensure that the user has the welcome Runbook setup
+    // Do this once per install :)
+    (async () => {
+      let db = await KVStore.open_default();
+      let welcome_doc = await db.get("welcome_doc");
+
+      const hasWelcomeDoc = runbooks.some(
+        (rb) => rb.name === "Welcome to Atuin!",
+      );
+
+      if (!welcome_doc && !hasWelcomeDoc) {
+        await db.set("welcome_doc", true);
+        let rb = await Runbook.create();
+        rb.name = "Welcome to Atuin!";
+        rb.content = JSON.stringify(welcome);
+
+        rb.save();
+        refreshRunbooks();
+      }
+    })();
   }, []);
 
   return (

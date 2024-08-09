@@ -58,7 +58,6 @@ const Env = ({ name = "", value = "", onUpdate }: EnvProps) => {
                 autoCorrect="off"
                 spellCheck="false"
                 className="flex-1"
-                autoFocus
               />
             </div>
           </div>

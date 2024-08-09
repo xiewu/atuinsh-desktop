@@ -164,11 +164,10 @@ const RunBlock = ({
         <div className="flex-1 min-w-0 w-40">
           <CodeMirror
             id={id}
-            placeholder={"Write your code here..."}
+            placeholder={"Write your script here..."}
             className="!pt-0 max-w-full border border-gray-300 rounded"
             value={code}
             editable={isEditable}
-            autoFocus
             onChange={(val) => {
               setValue(val);
               onChange(val);

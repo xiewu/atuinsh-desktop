@@ -14,7 +14,7 @@ export class KVStore {
     this.db = db;
   }
 
-  static async open(): Promise<KVStore> {
+  static async open_default(): Promise<KVStore> {
     const db = await Database.load("sqlite:kv.db");
 
     db.execute(

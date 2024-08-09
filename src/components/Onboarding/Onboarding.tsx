@@ -5,8 +5,11 @@ import {
   ModalBody,
   ModalFooter,
   Button,
+  Switch,
+  cn,
   useDisclosure,
 } from "@nextui-org/react";
+
 import { useEffect, useState } from "react";
 import HorizontalSteps from "./horizontal-steps";
 import { Icon } from "@iconify/react";
@@ -14,9 +17,11 @@ import { invoke } from "@tauri-apps/api/core";
 import LoginOrRegister from "../LoginOrRegister";
 import { useStore } from "@/state/store";
 import { KVStore } from "@/state/kv";
+import { relaunch } from "@tauri-apps/plugin-process";
+import { ask } from "@tauri-apps/plugin-dialog";
 
 const completeOnboarding = async () => {
-  let db = await KVStore.open();
+  let db = await KVStore.open_default();
   await db.set("onboarding_complete", true);
 };
 
@@ -39,6 +44,8 @@ const Onboarding = () => {
   const [isCliInstalled, setIsCliInstalled] = useState(false);
   const [installInProgress, setInstallInProgress] = useState(false);
   const [justInstalled, setJustInstalled] = useState(false);
+  const [trackingOptIn, setTrackingOptIn] = useState(false);
+  const [restartNeeded, setRestartNeeded] = useState(false);
 
   useEffect(() => {
     onOnboardingOpen();
@@ -188,10 +195,61 @@ const Onboarding = () => {
                 )}
 
                 {currentStep == 3 && (
-                  <p>
-                    There's currently nothing to opt-in to, but soon this will
-                    have error reporting and analytics
-                  </p>
+                  <div>
+                    <h2 className="text-xl text-center pb-1">
+                      Opt-in to help us make Atuin better!
+                    </h2>
+
+                    <p className="text-xs text-center pb-4">
+                      By default, Atuin collects no data. However, if you
+                      opt-in, we collect data to help us improve the product.
+                    </p>
+
+                    <Switch
+                      isSelected={trackingOptIn}
+                      onValueChange={(value) => {
+                        (async () => {
+                          let db = await KVStore.open_default();
+                          await db.set("usage_tracking", value);
+
+                          // Regardless, restart. While we could remove all hooks when tracking is disabled, it's safer
+                          // to just restart the app and never initialize the hooks at all.
+                          setRestartNeeded(true);
+                        })();
+
+                        setTrackingOptIn(value);
+                      }}
+                      classNames={{
+                        base: cn(
+                          "inline-flex flex-row-reverse w-full max-w-md bg-content1 hover:bg-content2 items-center",
+                          "justify-between cursor-pointer rounded-lg gap-2 p-4 border-2 border-transparent",
+                          "data-[selected=true]:border-primary",
+                        ),
+                        wrapper: "p-0 h-4 overflow-visible",
+                        thumb: cn(
+                          "w-6 h-6 border-2 shadow-lg",
+                          "group-data-[hover=true]:border-primary",
+                          //selected
+                          "group-data-[selected=true]:ml-6",
+                          // pressed
+                          "group-data-[pressed=true]:w-7",
+                          "group-data-[selected]:group-data-[pressed]:ml-4",
+                        ),
+                      }}
+                    >
+                      <div className="flex flex-col gap-1">
+                        <p className="text-medium">Enable usage tracking</p>
+                        <p className="text-tiny text-default-400">
+                          Track usage and errors
+                        </p>
+                      </div>
+                    </Switch>
+
+                    <p className="text-tiny text-default-400 mt-4 text-center">
+                      You can change these settings at any time in the settings
+                      menu. We never share your terminal data.
+                    </p>
+                  </div>
                 )}
               </ModalBody>
               <ModalFooter>
@@ -214,9 +272,27 @@ const Onboarding = () => {
                       setCurrentStep(currentStep + 1);
                     } else {
                       onClose();
-                    }
 
-                    await completeOnboarding();
+                      await completeOnboarding();
+
+                      if (restartNeeded) {
+                        const restart = await ask(
+                          `
+                        Atuin needs to restart to apply your changes. This won't take long!
+                        `,
+                          {
+                            title: "Restart required",
+                            kind: "info",
+                            okLabel: "Restart",
+                            cancelLabel: "Later",
+                          },
+                        );
+
+                        if (restart) {
+                          await relaunch();
+                        }
+                      }
+                    }
                   }}
                 >
                   {currentStep < steps.length - 1 && "Next"}

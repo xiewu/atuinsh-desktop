@@ -128,7 +128,7 @@ const explicitTheme = {
 };
 
 const isOnboardingComplete = async () => {
-  let db = await KVStore.open();
+  let db = await KVStore.open_default();
   return await db.get("onboarding_complete");
 };
 

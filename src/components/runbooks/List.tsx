@@ -60,7 +60,7 @@ const NoteSidebar = () => {
   }, []);
 
   return (
-    <div className="w-48 flex flex-col border-r-1">
+    <div className="w-48 flex flex-col border-r-1 ">
       <div className="overflow-y-auto flex-grow">
         <Listbox
           hideSelectedIcon

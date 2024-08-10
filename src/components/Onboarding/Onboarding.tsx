@@ -17,8 +17,6 @@ import { invoke } from "@tauri-apps/api/core";
 import LoginOrRegister from "../LoginOrRegister";
 import { useStore } from "@/state/store";
 import { KVStore } from "@/state/kv";
-import { relaunch } from "@tauri-apps/plugin-process";
-import { ask } from "@tauri-apps/plugin-dialog";
 
 const completeOnboarding = async () => {
   let db = await KVStore.open_default();
@@ -276,21 +274,6 @@ const Onboarding = () => {
                       await completeOnboarding();
 
                       if (restartNeeded) {
-                        const restart = await ask(
-                          `
-                        Atuin needs to restart to apply your changes. This won't take long!
-                        `,
-                          {
-                            title: "Restart required",
-                            kind: "info",
-                            okLabel: "Restart",
-                            cancelLabel: "Later",
-                          },
-                        );
-
-                        if (restart) {
-                          await relaunch();
-                        }
                       }
                     }
                   }}

@@ -179,7 +179,7 @@ export default function Editor() {
 
   // Renders the editor instance.
   return (
-    <div className="overflow-y-scroll w-full editor">
+    <div className="overflow-y-scroll editor flex-grow">
       <BlockNoteView
         editor={editor}
         slashMenu={false}

@@ -9,6 +9,7 @@ import { KeyRoundIcon } from "lucide-react";
 import { Icon } from "@iconify/react";
 
 import LoginOrRegister from "@/components/LoginOrRegister.tsx";
+import Settings from "@/components/Settings/Settings.tsx";
 
 import {
   Avatar,
@@ -38,6 +39,11 @@ function App() {
   const user = useStore((state: any) => state.user);
   const refreshUser = useStore((state: any) => state.refreshUser);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const {
+    isOpen: isSettingsOpen,
+    onOpen: onSettingsOpen,
+    onOpenChange: onSettingsOpenChange,
+  } = useDisclosure();
 
   const [isCliInstalled, setIsCliInstalled] = useState(false);
   let { toast } = useToast();
@@ -165,6 +171,7 @@ function App() {
                 <DropdownItem
                   key="settings"
                   description="Configure Atuin"
+                  onPress={onSettingsOpen}
                   startContent={
                     <Icon icon="solar:settings-linear" width={24} />
                   }
@@ -260,6 +267,11 @@ function App() {
             )}
           </ModalContent>
         </Modal>
+        <Settings
+          onOpen={onSettingsOpen}
+          onOpenChange={onSettingsOpenChange}
+          isOpen={isSettingsOpen}
+        />
       </div>
     </div>
   );

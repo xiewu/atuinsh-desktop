@@ -93,8 +93,8 @@ importers:
         specifier: 2.0.0-rc.0
         version: 2.0.0-rc.0
       '@tauri-apps/plugin-sql':
-        specifier: 2.0.0-beta.5
-        version: 2.0.0-beta.5
+        specifier: 2.0.0-rc.0
+        version: 2.0.0-rc.0
       '@tauri-apps/plugin-updater':
         specifier: 2.0.0-rc.0
         version: 2.0.0-rc.0
@@ -2323,10 +2323,6 @@ packages:
   '@tanstack/virtual-core@3.8.3':
     resolution: {integrity: sha512-vd2A2TnM5lbnWZnHi9B+L2gPtkSeOtJOAw358JqokIH1+v2J7vUAzFVPwB/wrye12RFOurffXu33plm4uQ+JBQ==}
 
-  '@tauri-apps/api@2.0.0-beta.13':
-    resolution: {integrity: sha512-Np1opKANzRMF3lgJ9gDquBCB9SxlE2lRmNpVx1+L6RyzAmigkuh0ZulT5jMnDA3JLsuSDU135r/s4t/Pmx4atg==}
-    engines: {node: '>= 18', npm: '>= 6.6.0', yarn: '>= 1.19.1'}
-
   '@tauri-apps/api@2.0.0-beta.15':
     resolution: {integrity: sha512-H9w6iISmR+NvH4XuyCZB4zDN10tf9RFt6i/9JHEjaRhAowdAaJ+oiXq/3kedizNClHMtbTQ5j0oqDVPkZDAI8g==}
     engines: {node: '>= 18.18', npm: '>= 6.6.0', yarn: '>= 1.19.1'}
@@ -2415,8 +2411,8 @@ packages:
   '@tauri-apps/plugin-shell@2.0.0-rc.0':
     resolution: {integrity: sha512-bhUcQcrqZoK8H1DFXapr5r1Z75oh6Kd5Tltz97XpZFLREEqp+KhN2Fvyh8r/fKAyenYsTYUIsDsyGdjdueuF9g==}
 
-  '@tauri-apps/plugin-sql@2.0.0-beta.5':
-    resolution: {integrity: sha512-EuhrMeIGmIQmGYuzxk6i+PPqIMMgT+nApNsjYbpuVwYuav60RiI0pIC76B77BfmO5J7Sj9ueJyhiugwUevsYmQ==}
+  '@tauri-apps/plugin-sql@2.0.0-rc.0':
+    resolution: {integrity: sha512-K8I6+zHNsnCWzLlDfF0uj2rHTAlRqA6ddsoh+h7pn6DNXbZDX7y/vqcWQzT57hf9b9/g2w8QWX3bCCMGxZA2Zw==}
 
   '@tauri-apps/plugin-updater@2.0.0-rc.0':
     resolution: {integrity: sha512-EKajf/sBpFif0cwXhTo3BmNvTZ2t2DDLRyhA8FFKugZNoOeqU97bHhPT5DIqMUPRE1tyDk9o7sXm8dKf7oz+EA==}
@@ -7448,8 +7444,6 @@ snapshots:
 
   '@tanstack/virtual-core@3.8.3': {}
 
-  '@tauri-apps/api@2.0.0-beta.13': {}
-
   '@tauri-apps/api@2.0.0-beta.15': {}
 
   '@tauri-apps/api@2.0.0-rc.0': {}
@@ -7517,9 +7511,9 @@ snapshots:
     dependencies:
       '@tauri-apps/api': 2.0.0-rc.0
 
-  '@tauri-apps/plugin-sql@2.0.0-beta.5':
+  '@tauri-apps/plugin-sql@2.0.0-rc.0':
     dependencies:
-      '@tauri-apps/api': 2.0.0-beta.13
+      '@tauri-apps/api': 2.0.0-rc.0
 
   '@tauri-apps/plugin-updater@2.0.0-rc.0':
     dependencies:

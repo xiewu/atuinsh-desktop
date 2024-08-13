@@ -3,7 +3,8 @@
 
 use std::path::PathBuf;
 
-use tauri::{AppHandle, Manager};
+use tauri::menu::{AboutMetadataBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder};
+use tauri::{AppHandle, Emitter, Manager};
 use time::format_description::well_known::Rfc3339;
 
 mod db;
@@ -19,6 +20,8 @@ use atuin_client::{history::HISTORY_TAG, record::sqlite_store::SqliteStore, reco
 use atuin_history::stats;
 use db::{GlobalStats, HistoryDB, UIHistory};
 use dotfiles::aliases::aliases;
+
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Debug, serde::Serialize)]
 struct HomeInfo {
@@ -278,6 +281,7 @@ fn show_window(app: &AppHandle) {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
@@ -321,7 +325,46 @@ fn main() {
             show_window(app);
         }))
         .manage(state::AtuinState::default())
-        .setup(|_| Ok(()))
+        .setup(|app| {
+            // in theory we can have multiple windows, but atm Atuin will only have the one
+            let windows = app.webview_windows();
+            assert!(windows.len() == 1, "Expected one window");
+
+            let handle = app.handle();
+
+            // add a menuitem that when clicked prints "hello"
+            let update_check = MenuItemBuilder::new("Check for updates")
+                .id("update-check")
+                .build(handle)?;
+
+            handle.on_menu_event(move |window, event| {
+                if event.id().0 == "update-check" {
+                    window
+                        .emit("update-check", 0)
+                        .expect("Failed to emit menu event");
+                }
+            });
+
+            let sm = SubmenuBuilder::new(handle, "Atuin")
+                .about(Some(
+                    AboutMetadataBuilder::new()
+                        .name(Some("Atuin"))
+                        .version(Some(VERSION))
+                        .copyright(Some("Atuin, Inc"))
+                        .build(),
+                ))
+                .item(&update_check)
+                .build()?;
+
+            let menu = MenuBuilder::new(handle)
+                .text("foo", "Foo")
+                .item(&sm)
+                .build()?;
+
+            app.set_menu(menu)?;
+
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

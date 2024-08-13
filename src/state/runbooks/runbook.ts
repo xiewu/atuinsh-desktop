@@ -1,5 +1,19 @@
+import { save } from "@tauri-apps/plugin-dialog";
 import Database from "@tauri-apps/plugin-sql";
+import { writeTextFile, readTextFile } from "@tauri-apps/plugin-fs";
 import { uuidv7 } from "uuidv7";
+
+// Definition of an atrb file
+// This is JSON encoded for ease of access, and may change in the future
+interface RunbookFile {
+  version: number;
+
+  id: string;
+  name: string;
+  created: Date;
+
+  content: string;
+}
 
 export default class Runbook {
   id: string;
@@ -47,6 +61,40 @@ export default class Runbook {
 
     // Initialize with the same value for created/updated, to avoid needing null.
     let runbook = new Runbook(uuidv7(), "", "", now, now);
+    await runbook.save();
+
+    return runbook;
+  }
+
+  public async export() {
+    let filePath = await save({
+      defaultPath: this.name + ".atrb",
+    });
+
+    if (!filePath) return;
+    let exportFile: RunbookFile = {
+      version: 0,
+      id: this.id,
+      name: this.name,
+      created: this.created,
+      content: this.content,
+    };
+
+    await writeTextFile(filePath, JSON.stringify(exportFile));
+  }
+
+  public static async import(filePath: string) {
+    let file = await readTextFile(filePath);
+    let importFile = JSON.parse(file) as RunbookFile;
+
+    let runbook = new Runbook(
+      importFile.id,
+      importFile.name,
+      importFile.content,
+      new Date(importFile.created),
+      new Date(),
+    );
+
     await runbook.save();
 
     return runbook;

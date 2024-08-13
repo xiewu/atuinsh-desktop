@@ -16,11 +16,12 @@ import { EllipsisVerticalIcon } from "lucide-react";
 
 import { DateTime } from "luxon";
 
-import { NotebookPenIcon } from "lucide-react";
+import { NotebookPenIcon, ImportIcon } from "lucide-react";
 import Runbook from "@/state/runbooks/runbook";
 import { AtuinState, useStore } from "@/state/store";
 import { KVStore } from "@/state/kv";
 import welcome from "./welcome.json";
+import { open } from "@tauri-apps/plugin-dialog";
 
 const NoteSidebar = () => {
   const runbooks = useStore((state: AtuinState) => state.runbooks);
@@ -77,7 +78,7 @@ const NoteSidebar = () => {
               <Tooltip showArrow content="New Runbook" closeDelay={50}>
                 <Button
                   isIconOnly
-                  aria-label="New note"
+                  aria-label="New Runbook"
                   variant="light"
                   size="sm"
                   onPress={async () => {
@@ -90,6 +91,30 @@ const NoteSidebar = () => {
                   }}
                 >
                   <NotebookPenIcon className="p-[0.15rem]" />
+                </Button>
+              </Tooltip>
+
+              <Tooltip showArrow content="Import Runbook" closeDelay={50}>
+                <Button
+                  isIconOnly
+                  aria-label="Import Runbook"
+                  variant="light"
+                  size="sm"
+                  onPress={async () => {
+                    let filePath = await open({
+                      multiple: false,
+                      directory: false,
+                    });
+
+                    if (!filePath) return;
+
+                    let runbook = await Runbook.import(filePath.path);
+
+                    setCurrentRunbook(runbook.id);
+                    refreshRunbooks();
+                  }}
+                >
+                  <ImportIcon className="p-[0.15rem]" />
                 </Button>
               </Tooltip>
             </ButtonGroup>
@@ -125,6 +150,18 @@ const NoteSidebar = () => {
                     </DropdownTrigger>
                   </Badge>
                   <DropdownMenu aria-label="Dynamic Actions">
+                    <DropdownItem
+                      key={"export"}
+                      color="primary"
+                      className="text-primary"
+                      onPress={async () => {
+                        let rb = await Runbook.load(runbook.id);
+                        rb?.export();
+                      }}
+                    >
+                      Export
+                    </DropdownItem>
+
                     <DropdownItem
                       key={"delete"}
                       color="danger"

@@ -29,12 +29,14 @@ import {
 import Sidebar, { SidebarItem } from "@/components/Sidebar";
 import icon from "@/assets/icon.svg";
 import { logout } from "@/state/client.ts";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useToast } from "@/components/ui/use-toast";
 import { checkForAppUpdates } from "@/updater";
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
 
 function App() {
+  const cleanupUpdateListener = useRef<UnlistenFn | null>(null);
   const navigate = useNavigate();
   const user = useStore((state: any) => state.user);
   const refreshUser = useStore((state: any) => state.refreshUser);
@@ -62,6 +64,16 @@ function App() {
     };
 
     check();
+
+    listen("update-check", () => {
+      checkForAppUpdates();
+    }).then((unlisten) => {
+      cleanupUpdateListener.current = unlisten;
+    });
+
+    return () => {
+      if (cleanupUpdateListener.current) cleanupUpdateListener.current();
+    };
   }, []);
 
   const navigation: SidebarItem[] = [

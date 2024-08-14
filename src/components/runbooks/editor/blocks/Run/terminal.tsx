@@ -4,6 +4,7 @@ import "@xterm/xterm/css/xterm.css";
 import { useStore } from "@/state/store";
 import { invoke } from "@tauri-apps/api/core";
 import { IDisposable } from "@xterm/xterm";
+import { platform } from "@tauri-apps/plugin-os";
 
 const usePersistentTerminal = (pty: string) => {
   const newPtyTerm = useStore((store) => store.newPtyTerm);
@@ -27,7 +28,7 @@ const usePersistentTerminal = (pty: string) => {
   return { terminalData: terminals[pty], isReady };
 };
 
-const TerminalComponent = ({ pty }: any) => {
+const TerminalComponent = ({ pty, script }: any) => {
   const terminalRef = useRef(null);
   const { terminalData, isReady } = usePersistentTerminal(pty);
   const [isAttached, setIsAttached] = useState(false);
@@ -67,6 +68,11 @@ const TerminalComponent = ({ pty }: any) => {
       const disposeOnKey = terminalData.terminal.onKey(async (event) => {
         await invoke("pty_write", { pid: pty, data: event.key });
       });
+
+      let isWindows = platform() == "windows";
+      let cmdEnd = isWindows ? "\r\n" : "\n";
+      let val = !script.endsWith("\n") ? script + cmdEnd : script;
+      invoke("pty_write", { pid: pty, data: val });
 
       keyDispose.current = disposeOnKey;
     }

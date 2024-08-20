@@ -1,26 +1,14 @@
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
-import { DateTime } from "luxon";
+// @ts-ignore
 import { EChart } from "@kbox-labs/react-echarts";
 
-import {
-  ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
-import { generateColorSet } from "@/lib/utils";
-import { useMemo } from "react";
+import { ChartConfig } from "@/components/ui/chart";
 
 interface PromLineChartProps {
   data: any[];
   config: ChartConfig;
 }
 
-export function PromLineChart({ data, config }: PromLineChartProps) {
-  let colourSet = useMemo(() => {
-    return generateColorSet(new Set(Object.keys(config)));
-  }, [config]);
-
+export function PromLineChart({ data }: PromLineChartProps) {
   return (
     <div className="flex h-full w-full">
       <EChart

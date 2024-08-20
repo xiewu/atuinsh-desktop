@@ -356,7 +356,7 @@ fn main() {
                 .item(&update_check)
                 .build()?;
 
-            let menu = MenuBuilder::new(handle)
+            let _menu = MenuBuilder::new(handle)
                 .text("foo", "Foo")
                 .item(&sm)
                 .build()?;

@@ -35,9 +35,6 @@
       "icons/icon.ico"
     ],
     "targets": "all",
-    "macOS": {
-      "signingIdentity": "-"
-    },
     "createUpdaterArtifacts": true
   },
   "identifier": "sh.atuin.app",

@@ -43,6 +43,10 @@ import Run from "@/components/runbooks/editor/blocks/Run";
 import Directory from "@/components/runbooks/editor/blocks/Directory";
 import Env from "@/components/runbooks/editor/blocks/Env";
 
+import Prometheus, {
+  insertPrometheus,
+} from "@/components/runbooks/editor/blocks/Prometheus/Prometheus";
+
 import { DeleteBlock } from "@/components/runbooks/editor/ui/DeleteBlockButton";
 import { AtuinState, useStore } from "@/state/store";
 import Runbook from "@/state/runbooks/runbook";
@@ -58,6 +62,7 @@ const schema = BlockNoteSchema.create({
     run: Run,
     directory: Directory,
     env: Env,
+    prometheus: Prometheus,
   },
 });
 
@@ -195,6 +200,7 @@ export default function Editor() {
                 insertRun(editor),
                 insertDirectory(editor),
                 insertEnv(editor),
+                insertPrometheus(schema)(editor),
               ],
               query,
             )

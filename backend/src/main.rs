@@ -361,7 +361,7 @@ fn main() {
                 .item(&sm)
                 .build()?;
 
-            app.set_menu(menu)?;
+            //app.set_menu(menu)?;
 
             Ok(())
         })

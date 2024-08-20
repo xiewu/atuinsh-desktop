@@ -28,7 +28,7 @@ const usePersistentTerminal = (pty: string) => {
   return { terminalData: terminals[pty], isReady };
 };
 
-const TerminalComponent = ({ pty, script }: any) => {
+const TerminalComponent = ({ pty, script, runScript }: any) => {
   const terminalRef = useRef(null);
   const { terminalData, isReady } = usePersistentTerminal(pty);
   const [isAttached, setIsAttached] = useState(false);
@@ -69,10 +69,12 @@ const TerminalComponent = ({ pty, script }: any) => {
         await invoke("pty_write", { pid: pty, data: event.key });
       });
 
-      let isWindows = platform() == "windows";
-      let cmdEnd = isWindows ? "\r\n" : "\n";
-      let val = !script.endsWith("\n") ? script + cmdEnd : script;
-      invoke("pty_write", { pid: pty, data: val });
+      if (runScript) {
+        let isWindows = platform() == "windows";
+        let cmdEnd = isWindows ? "\r\n" : "\n";
+        let val = !script.endsWith("\n") ? script + cmdEnd : script;
+        invoke("pty_write", { pid: pty, data: val });
+      }
 
       keyDispose.current = disposeOnKey;
     }

@@ -73,6 +73,12 @@ const RunBlock = ({
   const cleanupPtyTerm = useStore((store: AtuinState) => store.cleanupPtyTerm);
   const terminals = useStore((store: AtuinState) => store.terminals);
 
+  // This ensures that the first time we run a block, it executes the code. But subsequent mounts of an already-existing pty
+  // don't run the code again.
+  // We have to write to the pty from the terminal component atm, because it needs to be listening for data from the pty before
+  // we write to it.
+  const [firstOpen, setFirstOpen] = useState<boolean>(false);
+
   const [currentRunbook, incRunbookPty, decRunbookPty] = useStore(
     (store: AtuinState) => [
       store.currentRunbook,
@@ -115,7 +121,11 @@ const RunBlock = ({
         env[vars[i].props.name] = vars[i].props.value;
       }
 
+      // TODO: make the terminal _also_ handle opening the pty?
+      // I think that would make more sense lol
       let pty = await invoke<string>("pty_open", { cwd, env });
+      setFirstOpen(true);
+
       if (onRun) onRun(pty);
 
       if (currentRunbook) incRunbookPty(currentRunbook);
@@ -173,7 +183,7 @@ const RunBlock = ({
               isRunning ? "block" : "hidden"
             }`}
           >
-            {pty && <Terminal pty={pty} script={value} />}
+            {pty && <Terminal pty={pty} script={value} runScript={firstOpen} />}
           </div>
         </div>
       </div>

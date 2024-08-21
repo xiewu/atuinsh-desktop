@@ -26,10 +26,10 @@ export default function Runbooks() {
   }, []);
 
   return (
-    <div className="flex w-full !max-w-full flex-row ">
+    <div className="flex !w-full !max-w-full flex-row overflow-hidden">
       <List />
       {currentRunbook && (
-        <div className="flex w-full">
+        <div className="flex w-full max-w-full overflow-hidden">
           <Editor />
         </div>
       )}

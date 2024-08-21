@@ -4,9 +4,13 @@ import {
   ModalHeader,
   ModalBody,
   Button,
+  Tabs,
+  Tab,
 } from "@nextui-org/react";
 import { Icon } from "@iconify/react";
+
 import GeneralSettings from "./GeneralSettings";
+import RunbookSettings from "./RunbookSettings";
 
 export default function Settings({ isOpen, onOpenChange }: any) {
   return (
@@ -42,15 +46,21 @@ export default function Settings({ isOpen, onOpenChange }: any) {
                 </div>
               </ModalHeader>
               <ModalBody>
-                {/*  Tabs
                 <Tabs
                   fullWidth
                   classNames={{
                     cursor: "bg-content1 dark:bg-content1",
                     panel: "w-full p-0 ",
                   }}
-                  >*/}
-                <GeneralSettings />
+                >
+                  <Tab key="general" title="General">
+                    <GeneralSettings />
+                  </Tab>
+
+                  <Tab key="runbooks" title="Runbooks">
+                    <RunbookSettings />
+                  </Tab>
+                </Tabs>
               </ModalBody>
             </>
           )}

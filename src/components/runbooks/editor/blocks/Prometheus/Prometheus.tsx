@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Button,
   Card,
@@ -10,13 +10,15 @@ import {
   DropdownMenu,
   DropdownTrigger,
   ButtonGroup,
+  Spinner,
+  Switch,
 } from "@nextui-org/react";
 
 import { ClockIcon, LineChartIcon, RefreshCwIcon } from "lucide-react";
 import CodeMirror from "@uiw/react-codemirror";
 import { PromQLExtension } from "@prometheus-io/codemirror-promql";
 import { PrometheusDriver } from "prometheus-query";
-import { useDebounceCallback } from "usehooks-ts";
+import { useDebounceCallback, useInterval } from "usehooks-ts";
 
 // @ts-ignore
 import { createReactBlockSpec } from "@blocknote/react";
@@ -25,6 +27,8 @@ import { createReactBlockSpec } from "@blocknote/react";
 import { insertOrUpdateBlock } from "@blocknote/core";
 
 import { PromLineChart } from "./lineChart";
+import PromSettings from "./promSettings";
+import { Settings } from "@/state/settings";
 
 interface PromProps {
   query: string;
@@ -79,22 +83,22 @@ const Prometheus = ({ query, onChange }: PromProps) => {
   const [data, setData] = useState<any[]>([]);
   const [config, _setConfig] = useState<{}>({});
   const [timeFrame, setTimeFrame] = useState<TimeFrame>(timeOptions[3]);
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(false);
 
-  const prom = useMemo(
-    () =>
-      new PrometheusDriver({
-        endpoint: "http://localhost:9090",
-        baseURL: "/api/v1", // default value
-      }),
-    [],
+  const [prometheusUrl, setPrometheusUrl] = useState<string | null>(null);
+  const [promClient, setPromClient] = useState<PrometheusDriver | null>(null);
+  const [promExtension, setPromExtension] = useState<PromQLExtension | null>(
+    null,
   );
 
   const runQuery = async (val: any) => {
+    if (!promClient) return;
+
     const start = new Date().getTime() - timeFrame.seconds * 1000;
     const end = new Date();
     const step = calculateStepSize(timeFrame.seconds);
 
-    const res = await prom.rangeQuery(val, start, end, step);
+    const res = await promClient.rangeQuery(val, start, end, step);
 
     const series = res.result;
 
@@ -113,8 +117,34 @@ const Prometheus = ({ query, onChange }: PromProps) => {
       };
     });
 
+    console.log(data[0].data.length);
+
     setData(data);
   };
+
+  useEffect(() => {
+    (async () => {
+      let url = await Settings.runbookPrometheusUrl();
+
+      setPrometheusUrl(url);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!prometheusUrl) return;
+
+    let prom = new PrometheusDriver({
+      endpoint: prometheusUrl,
+      baseURL: "/api/v1", // default value
+    });
+
+    let promExt = new PromQLExtension().setComplete({
+      remote: { url: prometheusUrl },
+    });
+
+    setPromClient(prom);
+    setPromExtension(promExt);
+  }, [prometheusUrl]);
 
   useEffect(() => {
     if (!query) return;
@@ -122,20 +152,30 @@ const Prometheus = ({ query, onChange }: PromProps) => {
     (async () => {
       await runQuery(query);
     })();
-  }, [timeFrame]);
+  }, [timeFrame, promClient]);
 
   let debouncedRunQuery = useDebounceCallback(runQuery, 500);
 
-  let promql = useMemo(() => {
-    let prom = new PromQLExtension().setComplete({
-      remote: { url: "http://localhost:9090" },
-    });
+  useInterval(
+    () => {
+      (async () => {
+        console.log("tick", timeFrame);
+        await runQuery(value);
+      })();
+    },
+    autoRefresh ? 5000 : null,
+  );
 
-    return prom;
-  }, []);
+  if (!prometheusUrl || !promClient || !promExtension) {
+    return (
+      <Card className="w-full resize-y justify-center align-middle h-52">
+        <Spinner />
+      </Card>
+    );
+  }
 
   return (
-    <Card className="w-full resize-y">
+    <Card className="w-full !max-w-full !outline-none overflow-none">
       <CardHeader>
         <div className="w-full !max-w-full !outline-none overflow-none flex flex-row">
           <CodeMirror
@@ -143,11 +183,11 @@ const Prometheus = ({ query, onChange }: PromProps) => {
             className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
             value={value}
             onChange={(val) => {
-              runQuery(val);
+              debouncedRunQuery(val);
               setValue(val);
               onChange(val);
             }}
-            extensions={[promql.asExtension()]}
+            extensions={[promExtension.asExtension()]}
             basicSetup={true}
           />
         </div>
@@ -155,42 +195,58 @@ const Prometheus = ({ query, onChange }: PromProps) => {
       <CardBody className="min-h-64 overflow-x-scroll">
         <PromLineChart data={data} config={config} />
       </CardBody>
-      <CardFooter>
-        <ButtonGroup>
-          <Button
-            onPress={async () => {
-              await debouncedRunQuery(value);
-            }}
-            variant="flat"
-            isIconOnly
-            startContent={<RefreshCwIcon />}
-          />
+      <CardFooter className="justify-between">
+        <div>
+          <ButtonGroup className="mr-2">
+            <Button
+              onPress={async () => {
+                await debouncedRunQuery(value);
+              }}
+              variant="flat"
+              isIconOnly
+              startContent={<RefreshCwIcon />}
+            />
 
-          <Dropdown showArrow>
-            <DropdownTrigger>
-              <Button variant="flat" startContent={<ClockIcon />}>
-                {timeFrame.name}
-              </Button>
-            </DropdownTrigger>
-            <DropdownMenu
-              variant="faded"
-              aria-label="Select time frame for chart"
-            >
-              {timeOptions.map((timeOption) => {
-                return (
-                  <DropdownItem
-                    key={timeOption.name}
-                    onPress={() => {
-                      setTimeFrame(timeOption);
-                    }}
-                  >
-                    {timeOption.name}
-                  </DropdownItem>
-                );
-              })}
-            </DropdownMenu>
-          </Dropdown>
-        </ButtonGroup>
+            <Dropdown showArrow>
+              <DropdownTrigger>
+                <Button variant="flat" startContent={<ClockIcon />}>
+                  {timeFrame.name}
+                </Button>
+              </DropdownTrigger>
+              <DropdownMenu
+                variant="faded"
+                aria-label="Select time frame for chart"
+              >
+                {timeOptions.map((timeOption) => {
+                  return (
+                    <DropdownItem
+                      key={timeOption.name}
+                      onPress={() => {
+                        setTimeFrame(timeOption);
+                      }}
+                    >
+                      {timeOption.name}
+                    </DropdownItem>
+                  );
+                })}
+              </DropdownMenu>
+            </Dropdown>
+          </ButtonGroup>
+
+          <Switch
+            isSelected={autoRefresh}
+            onValueChange={(value) => {
+              setAutoRefresh(value);
+            }}
+          >
+            <h3 className="text-sm">Auto refresh</h3>
+          </Switch>
+        </div>
+
+        <PromSettings
+          promEndpoint={prometheusUrl}
+          setPromEndpoint={setPrometheusUrl}
+        />
       </CardFooter>
     </Card>
   );

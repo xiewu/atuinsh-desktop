@@ -190,6 +190,7 @@ export default function Editor() {
         slashMenu={false}
         sideMenu={false}
         onChange={debouncedOnChange}
+        theme="light"
       >
         <SuggestionMenuController
           triggerCharacter={"/"}

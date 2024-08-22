@@ -188,7 +188,10 @@ const Prometheus = (props: PromProps) => {
   }
 
   return (
-    <Card className="w-full !max-w-full !outline-none overflow-none">
+    <Card
+      className="w-full !max-w-full !outline-none overflow-none"
+      shadow="sm"
+    >
       <CardHeader>
         <div className="w-full !max-w-full !outline-none overflow-none flex flex-row">
           <CodeMirror

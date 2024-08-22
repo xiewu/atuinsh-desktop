@@ -16,6 +16,8 @@ import Terminal from "./terminal.tsx";
 
 import "@xterm/xterm/css/xterm.css";
 import { AtuinState, useStore } from "@/state/store.ts";
+import { Card, CardBody, CardHeader } from "@nextui-org/react";
+import { cn } from "@/lib/utils.ts";
 
 interface RunBlockProps {
   onChange: (val: string) => void;
@@ -145,49 +147,54 @@ const RunBlock = ({
   ]);
 
   return (
-    <div className="w-full !max-w-full !outline-none overflow-none">
-      <div className="flex flex-row items-start">
-        <div className="flex">
-          <button
-            onClick={handleToggle}
-            className={`flex items-center justify-center flex-shrink-0 w-8 h-8 mr-2 rounded border focus:outline-none focus:ring-2 transition-all duration-300 ease-in-out ${
-              isRunning
-                ? "border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-300 focus:ring-red-300"
-                : "border-green-200 bg-green-50 text-green-600 hover:bg-green-100 hover:border-green-300 focus:ring-green-300"
-            }`}
-            aria-label={isRunning ? "Stop code" : "Run code"}
+    <Card
+      className="w-full !max-w-full !outline-none overflow-none"
+      shadow="sm"
+    >
+      <CardHeader className="flex flex-row items-start">
+        <button
+          onClick={handleToggle}
+          className={`flex items-center justify-center flex-shrink-0 w-8 h-8 mr-2 rounded border focus:outline-none focus:ring-2 transition-all duration-300 ease-in-out ${
+            isRunning
+              ? "border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-300 focus:ring-red-300"
+              : "border-green-200 bg-green-50 text-green-600 hover:bg-green-100 hover:border-green-300 focus:ring-green-300"
+          }`}
+          aria-label={isRunning ? "Stop code" : "Run code"}
+        >
+          <span
+            className={`inline-block transition-transform duration-300 ease-in-out ${isRunning ? "rotate-180" : ""}`}
           >
-            <span
-              className={`inline-block transition-transform duration-300 ease-in-out ${isRunning ? "rotate-180" : ""}`}
-            >
-              {isRunning ? <Square size={16} /> : <Play size={16} />}
-            </span>
-          </button>
+            {isRunning ? <Square size={16} /> : <Play size={16} />}
+          </span>
+        </button>
+        <CodeMirror
+          id={id}
+          placeholder={"Write your script here..."}
+          className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
+          value={code}
+          editable={isEditable}
+          onChange={(val) => {
+            setValue(val);
+            onChange(val);
+          }}
+          extensions={[customKeymap, ...extensions(), langs.shell()]}
+          basicSetup={false}
+        />
+      </CardHeader>
+      <CardBody
+        className={cn({
+          hidden: !isRunning,
+        })}
+      >
+        <div
+          className={`overflow-hidden transition-all duration-300 ease-in-out min-w-0 ${
+            isRunning ? "block" : "hidden"
+          }`}
+        >
+          {pty && <Terminal pty={pty} script={value} runScript={firstOpen} />}
         </div>
-        <div className="flex-1 min-w-0 w-40">
-          <CodeMirror
-            id={id}
-            placeholder={"Write your script here..."}
-            className="!pt-0 max-w-full border border-gray-300 rounded"
-            value={code}
-            editable={isEditable}
-            onChange={(val) => {
-              setValue(val);
-              onChange(val);
-            }}
-            extensions={[customKeymap, ...extensions(), langs.shell()]}
-            basicSetup={false}
-          />
-          <div
-            className={`overflow-hidden transition-all duration-300 ease-in-out min-w-0 ${
-              isRunning ? "block" : "hidden"
-            }`}
-          >
-            {pty && <Terminal pty={pty} script={value} runScript={firstOpen} />}
-          </div>
-        </div>
-      </div>
-    </div>
+      </CardBody>
+    </Card>
   );
 };
 

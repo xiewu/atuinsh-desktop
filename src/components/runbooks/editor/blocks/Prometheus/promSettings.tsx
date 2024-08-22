@@ -1,3 +1,4 @@
+import { Settings } from "@/state/settings";
 import {
   Modal,
   ModalContent,
@@ -9,9 +10,16 @@ import {
   Input,
 } from "@nextui-org/react";
 import { SettingsIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
-export default function PromSettings({ promEndpoint, setPromEndpoint }: any) {
+export interface PrometheusConfig {
+  endpoint: string;
+}
+
+export default function PromSettings({ config, onSave }: any) {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
+
+  const [endpoint, setEndpoint] = useState<string>(config.endpoint);
 
   return (
     <>
@@ -20,7 +28,7 @@ export default function PromSettings({ promEndpoint, setPromEndpoint }: any) {
       </Button>
       <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="2xl">
         <ModalContent>
-          {(_onClose) => (
+          {(onClose) => (
             <>
               <ModalHeader className="flex flex-col gap-1">
                 Prometheus Settings
@@ -28,15 +36,25 @@ export default function PromSettings({ promEndpoint, setPromEndpoint }: any) {
               <ModalBody>
                 <div>
                   <Input
-                    value={promEndpoint}
-                    onValueChange={setPromEndpoint}
-                    placeholder="http://localhost:9090"
+                    value={endpoint}
+                    onValueChange={setEndpoint}
                     label="Prometheus Endpoint"
                     description="The URL of the Prometheus server"
                   />
                 </div>
               </ModalBody>
-              <ModalFooter></ModalFooter>
+              <ModalFooter>
+                <Button
+                  variant="flat"
+                  color="primary"
+                  onPress={() => {
+                    onSave({ endpoint });
+                    onClose();
+                  }}
+                >
+                  Save
+                </Button>
+              </ModalFooter>
             </>
           )}
         </ModalContent>

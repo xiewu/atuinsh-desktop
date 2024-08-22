@@ -27,31 +27,36 @@ import { createReactBlockSpec } from "@blocknote/react";
 import { insertOrUpdateBlock } from "@blocknote/core";
 
 import { PromLineChart } from "./lineChart";
-import PromSettings from "./promSettings";
+import PromSettings, { PrometheusConfig } from "./promSettings";
 import { Settings } from "@/state/settings";
 
 interface PromProps {
   query: string;
-  onChange: (val: string) => void;
+  endpoint: string;
+  autoRefresh: boolean;
+  period: string;
+
+  onPropsChange: (val: any) => void;
 }
 
 interface TimeFrame {
   name: string;
   seconds: number;
+  short: string;
 }
 
 const timeOptions: TimeFrame[] = [
-  { name: "Last 5 mins", seconds: 5 * 60 },
-  { name: "Last 15 mins", seconds: 15 * 60 },
-  { name: "Last 30 mins", seconds: 30 * 60 },
-  { name: "Last 1 hr", seconds: 60 * 60 },
-  { name: "Last 3 hrs", seconds: 3 * 60 * 60 },
-  { name: "Last 6 hrs", seconds: 6 * 60 * 60 },
-  { name: "Last 24 hrs", seconds: 24 * 60 * 60 },
-  { name: "Last 2 days", seconds: 2 * 24 * 60 * 60 },
-  { name: "Last 7 days", seconds: 7 * 24 * 60 * 60 },
-  { name: "Last 30 days", seconds: 30 * 24 * 60 * 60 },
-  { name: "Last 90 days", seconds: 90 * 24 * 60 * 60 },
+  { name: "Last 5 mins", seconds: 5 * 60, short: "5m" },
+  { name: "Last 15 mins", seconds: 15 * 60, short: "15m" },
+  { name: "Last 30 mins", seconds: 30 * 60, short: "30m" },
+  { name: "Last 1 hr", seconds: 60 * 60, short: "1h" },
+  { name: "Last 3 hrs", seconds: 3 * 60 * 60, short: "3h" },
+  { name: "Last 6 hrs", seconds: 6 * 60 * 60, short: "6h" },
+  { name: "Last 24 hrs", seconds: 24 * 60 * 60, short: "24h" },
+  { name: "Last 2 days", seconds: 2 * 24 * 60 * 60, short: "2d" },
+  { name: "Last 7 days", seconds: 7 * 24 * 60 * 60, short: "7d" },
+  { name: "Last 30 days", seconds: 30 * 24 * 60 * 60, short: "30d" },
+  { name: "Last 90 days", seconds: 90 * 24 * 60 * 60, short: "90d" },
 ];
 
 // map prometheus query time frames (eg last 24hrs) to an ideal step value
@@ -78,12 +83,14 @@ const calculateStepSize = (ago: any, maxDataPoints = 11000) => {
   return stepSize;
 };
 
-const Prometheus = ({ query, onChange }: PromProps) => {
-  const [value, setValue] = useState<string>(query);
+const Prometheus = (props: PromProps) => {
+  const [value, setValue] = useState<string>(props.query);
   const [data, setData] = useState<any[]>([]);
   const [config, _setConfig] = useState<{}>({});
-  const [timeFrame, setTimeFrame] = useState<TimeFrame>(timeOptions[3]);
-  const [autoRefresh, setAutoRefresh] = useState<boolean>(false);
+  const [timeFrame, setTimeFrame] = useState<TimeFrame>(
+    timeOptions.find((t) => t.short === props.period) || timeOptions[3],
+  );
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(props.autoRefresh);
 
   const [prometheusUrl, setPrometheusUrl] = useState<string | null>(null);
   const [promClient, setPromClient] = useState<PrometheusDriver | null>(null);
@@ -124,6 +131,13 @@ const Prometheus = ({ query, onChange }: PromProps) => {
 
   useEffect(() => {
     (async () => {
+      // if have passed in an endpoint via props directly, use it
+      if (props.endpoint) {
+        setPrometheusUrl(props.endpoint);
+        return;
+      }
+
+      // otherwise fetch the default endpoint from settings
       let url = await Settings.runbookPrometheusUrl();
 
       setPrometheusUrl(url);
@@ -147,10 +161,10 @@ const Prometheus = ({ query, onChange }: PromProps) => {
   }, [prometheusUrl]);
 
   useEffect(() => {
-    if (!query) return;
+    if (!props.query) return;
 
     (async () => {
-      await runQuery(query);
+      await runQuery(props.query);
     })();
   }, [timeFrame, promClient]);
 
@@ -159,7 +173,6 @@ const Prometheus = ({ query, onChange }: PromProps) => {
   useInterval(
     () => {
       (async () => {
-        console.log("tick", timeFrame);
         await runQuery(value);
       })();
     },
@@ -185,7 +198,7 @@ const Prometheus = ({ query, onChange }: PromProps) => {
             onChange={(val) => {
               debouncedRunQuery(val);
               setValue(val);
-              onChange(val);
+              props.onPropsChange({ query: val });
             }}
             extensions={[promExtension.asExtension()]}
             basicSetup={true}
@@ -223,6 +236,7 @@ const Prometheus = ({ query, onChange }: PromProps) => {
                       key={timeOption.name}
                       onPress={() => {
                         setTimeFrame(timeOption);
+                        props.onPropsChange({ period: timeOption.short });
                       }}
                     >
                       {timeOption.name}
@@ -237,6 +251,7 @@ const Prometheus = ({ query, onChange }: PromProps) => {
             isSelected={autoRefresh}
             onValueChange={(value) => {
               setAutoRefresh(value);
+              props.onPropsChange({ autoRefresh: value });
             }}
           >
             <h3 className="text-sm">Auto refresh</h3>
@@ -244,8 +259,16 @@ const Prometheus = ({ query, onChange }: PromProps) => {
         </div>
 
         <PromSettings
-          promEndpoint={prometheusUrl}
-          setPromEndpoint={setPrometheusUrl}
+          config={{
+            endpoint: prometheusUrl,
+          }}
+          onSave={(config: PrometheusConfig) => {
+            if (config.endpoint) setPrometheusUrl(config.endpoint);
+
+            if (config.endpoint != props.endpoint) {
+              props.onPropsChange({ endpoint: config.endpoint });
+            }
+          }}
         />
       </CardFooter>
     </Card>
@@ -257,22 +280,31 @@ export default createReactBlockSpec(
     type: "prometheus",
     propSchema: {
       query: { default: "" },
+      endpoint: { default: "" },
+      period: { default: "" },
+      autoRefresh: { default: false },
     },
     content: "none",
   },
   {
     // @ts-ignore
     render: ({ block, editor }) => {
-      const onInputChange = (val: string) => {
-        console.log("onchange", val, editor);
+      const onPropsChange = (props: any) => {
         editor.updateBlock(block, {
           // @ts-ignore
-          props: { ...block.props, query: val },
+          props: { ...block.props, ...props },
         });
-        console.log(editor.document);
       };
 
-      return <Prometheus query={block.props.query} onChange={onInputChange} />;
+      return (
+        <Prometheus
+          query={block.props.query}
+          endpoint={block.props.endpoint}
+          period={block.props.period}
+          autoRefresh={block.props.autoRefresh}
+          onPropsChange={onPropsChange}
+        />
+      );
     },
   },
 );

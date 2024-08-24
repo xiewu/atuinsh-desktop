@@ -1,4 +1,3 @@
-import { Settings } from "@/state/settings";
 import {
   Modal,
   ModalContent,
@@ -10,7 +9,7 @@ import {
   Input,
 } from "@nextui-org/react";
 import { SettingsIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export interface PrometheusConfig {
   endpoint: string;

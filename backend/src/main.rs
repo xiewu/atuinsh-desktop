@@ -1,6 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use tauri::menu::{AboutMetadataBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder};
@@ -10,6 +11,7 @@ use time::format_description::well_known::Rfc3339;
 mod db;
 mod dotfiles;
 mod install;
+mod menu;
 mod pty;
 mod run;
 mod state;
@@ -326,42 +328,9 @@ fn main() {
         }))
         .manage(state::AtuinState::default())
         .setup(|app| {
-            // in theory we can have multiple windows, but atm Atuin will only have the one
-            let windows = app.webview_windows();
-            assert!(windows.len() == 1, "Expected one window");
-
             let handle = app.handle();
 
-            // add a menuitem that when clicked prints "hello"
-            let update_check = MenuItemBuilder::new("Check for updates")
-                .id("update-check")
-                .build(handle)?;
-
-            handle.on_menu_event(move |window, event| {
-                if event.id().0 == "update-check" {
-                    window
-                        .emit("update-check", 0)
-                        .expect("Failed to emit menu event");
-                }
-            });
-
-            let sm = SubmenuBuilder::new(handle, "Atuin")
-                .about(Some(
-                    AboutMetadataBuilder::new()
-                        .name(Some("Atuin"))
-                        .version(Some(VERSION))
-                        .copyright(Some("Atuin, Inc"))
-                        .build(),
-                ))
-                .item(&update_check)
-                .build()?;
-
-            let _menu = MenuBuilder::new(handle)
-                .text("foo", "Foo")
-                .item(&sm)
-                .build()?;
-
-            //app.set_menu(menu)?;
+            handle.set_menu(menu::menu(handle).expect("Failed to build menu"));
 
             Ok(())
         })

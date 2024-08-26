@@ -451,7 +451,7 @@ dependencies = [
 
 [[package]]
 name = "atuin-desktop"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "atuin-client",
  "atuin-common",

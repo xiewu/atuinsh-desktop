@@ -1,11 +1,9 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::collections::HashMap;
 use std::path::PathBuf;
 
-use tauri::menu::{AboutMetadataBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 use time::format_description::well_known::Rfc3339;
 
 mod db;
@@ -22,8 +20,6 @@ use atuin_client::{history::HISTORY_TAG, record::sqlite_store::SqliteStore, reco
 use atuin_history::stats;
 use db::{GlobalStats, HistoryDB, UIHistory};
 use dotfiles::aliases::aliases;
-
-const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Debug, serde::Serialize)]
 struct HomeInfo {
@@ -330,7 +326,7 @@ fn main() {
         .setup(|app| {
             let handle = app.handle();
 
-            handle.set_menu(menu::menu(handle).expect("Failed to build menu"));
+            handle.set_menu(menu::menu(handle).expect("Failed to build menu"))?;
 
             Ok(())
         })

@@ -56,6 +56,7 @@ const NoteSidebar = () => {
 
         rb.save();
         refreshRunbooks();
+        setCurrentRunbook(rb.id);
       }
     })();
   }, []);

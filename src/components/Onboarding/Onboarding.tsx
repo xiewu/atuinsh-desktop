@@ -13,10 +13,9 @@ import {
 import { useEffect, useState } from "react";
 import HorizontalSteps from "./horizontal-steps";
 import { Icon } from "@iconify/react";
-import { invoke } from "@tauri-apps/api/core";
-import LoginOrRegister from "../LoginOrRegister";
-import { useStore } from "@/state/store";
 import { KVStore } from "@/state/kv";
+import { ask } from "@tauri-apps/plugin-dialog";
+import { relaunch } from "@tauri-apps/plugin-process";
 
 const completeOnboarding = async () => {
   let db = await KVStore.open_default();
@@ -24,41 +23,21 @@ const completeOnboarding = async () => {
 };
 
 const Onboarding = () => {
-  const user = useStore((state) => state.user);
-
   let {
     isOpen: isOnboardingOpen,
     onOpen: onOnboardingOpen,
     onOpenChange: onOnboardingOpenChange,
   } = useDisclosure();
 
-  let {
-    isOpen: isRegisterOpen,
-    onOpen: onRegisterOpen,
-    onOpenChange: onRegisterOpenChange,
-  } = useDisclosure();
-
   const [currentStep, setCurrentStep] = useState(0);
-  const [isCliInstalled, setIsCliInstalled] = useState(false);
-  const [installInProgress, setInstallInProgress] = useState(false);
-  const [justInstalled, setJustInstalled] = useState(false);
   const [trackingOptIn, setTrackingOptIn] = useState(false);
   const [restartNeeded, setRestartNeeded] = useState(false);
 
   useEffect(() => {
     onOnboardingOpen();
-    (async () => {
-      let cliInstalled = await invoke<boolean>("is_cli_installed");
-      setIsCliInstalled(cliInstalled);
-    })();
   }, []);
 
-  const steps = [
-    { title: <div>Welcome</div> },
-    { title: "Install CLI" },
-    { title: "Register" },
-    { title: "Opt-in" },
-  ];
+  const steps = [{ title: <div>Welcome</div> }, { title: "Opt-in" }];
 
   return (
     <>
@@ -84,13 +63,10 @@ const Onboarding = () => {
               <ModalBody>
                 {currentStep == 0 && (
                   <>
+                    <p>Welcome to Atuin!</p>
                     <p>
-                      Welcome to Atuin! This is a quick onboarding guide to get
-                      you started
-                    </p>
-                    <p>
-                      While Atuin works best with the CLI installed, you can use
-                      Runbooks without it{" "}
+                      While Atuin works best with the `atuin` CLI installed, you
+                      can use Runbooks without it{" "}
                     </p>
                     <p>
                       Select the{" "}
@@ -101,98 +77,6 @@ const Onboarding = () => {
                 )}
 
                 {currentStep == 1 && (
-                  <>
-                    {isCliInstalled && (
-                      <>
-                        <p>
-                          {justInstalled ? (
-                            <>Atuin CLI installed!</>
-                          ) : (
-                            <>
-                              Looks like you already have the Atuin CLI.
-                              Fantastic!
-                            </>
-                          )}
-                        </p>
-                        <p>
-                          Browse your history with the{" "}
-                          <Icon
-                            className="inline"
-                            icon="solar:history-outline"
-                          />{" "}
-                          on the sidebar
-                        </p>
-                      </>
-                    )}
-                    {!isCliInstalled && (
-                      <>
-                        <p>
-                          We couldn't find the Atuin CLI installed on your
-                          system
-                        </p>
-                        <p>
-                          It's not required to use Runbooks, but provides
-                          several enhancements - such as better shell history
-                        </p>
-                        <Button
-                          variant="shadow"
-                          isLoading={installInProgress}
-                          onPress={async () => {
-                            setInstallInProgress(true);
-                            console.log("Installing CLI...");
-                            await invoke("install_cli");
-
-                            console.log("Setting up plugin...");
-                            await invoke("setup_cli");
-
-                            setIsCliInstalled(true);
-                            setInstallInProgress(false);
-                            setJustInstalled(true);
-                          }}
-                        >
-                          Install CLI
-                        </Button>
-                      </>
-                    )}
-                  </>
-                )}
-
-                {currentStep == 2 && (
-                  <>
-                    {!user.username && (
-                      <>
-                        <p>
-                          Optionally registering with Atuin allows you to sync
-                          and backup your shell history across devices
-                        </p>
-                        <p>
-                          Your commands are end-to-end encrypted and only
-                          accessible by you
-                        </p>
-
-                        <Button
-                          variant="shadow"
-                          onPress={async () => {
-                            onRegisterOpen();
-                          }}
-                        >
-                          Register
-                        </Button>
-                      </>
-                    )}
-
-                    {user.username && (
-                      <>
-                        <p>
-                          You're already registered as{" "}
-                          <span>@{user.username}</span>!
-                        </p>
-                      </>
-                    )}
-                  </>
-                )}
-
-                {currentStep == 3 && (
                   <div>
                     <h2 className="text-xl text-center pb-1">
                       Opt-in to help us make Atuin better!
@@ -274,6 +158,18 @@ const Onboarding = () => {
                       await completeOnboarding();
 
                       if (restartNeeded) {
+                        const yes = await ask(
+                          `
+                          To apply your changes, Atuin needs to restart. This won't take long!
+                          `,
+                          {
+                            title: "Restart now?",
+                            kind: "info",
+                            okLabel: "Restart now",
+                            cancelLabel: "Restart later",
+                          },
+                        );
+                        if (yes) relaunch();
                       }
                     }
                   }}
@@ -282,20 +178,6 @@ const Onboarding = () => {
                   {currentStep == steps.length - 1 && "Finish"}
                 </Button>
               </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
-
-      <Modal
-        isOpen={isRegisterOpen}
-        onOpenChange={onRegisterOpenChange}
-        className="w-full p-8"
-      >
-        <ModalContent className="w-full">
-          {(onClose) => (
-            <>
-              <LoginOrRegister onClose={onClose} />
             </>
           )}
         </ModalContent>

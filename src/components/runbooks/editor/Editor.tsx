@@ -42,6 +42,7 @@ import { useDebounceCallback } from "usehooks-ts";
 import Run from "@/components/runbooks/editor/blocks/Run";
 import Directory from "@/components/runbooks/editor/blocks/Directory";
 import Env from "@/components/runbooks/editor/blocks/Env";
+import SQL, { insertSQL } from "@/components/runbooks/editor/blocks/SQL/SQL";
 
 import Prometheus, {
   insertPrometheus,
@@ -63,6 +64,7 @@ const schema = BlockNoteSchema.create({
     directory: Directory,
     env: Env,
     prometheus: Prometheus,
+    sql: SQL,
   },
 });
 
@@ -202,6 +204,7 @@ export default function Editor() {
                 insertDirectory(editor),
                 insertEnv(editor),
                 insertPrometheus(schema)(editor),
+                insertSQL(schema)(editor),
               ],
               query,
             )

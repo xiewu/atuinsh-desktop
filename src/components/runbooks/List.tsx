@@ -25,6 +25,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 
 const NoteSidebar = () => {
   const runbooks = useStore((state: AtuinState) => state.runbooks);
+  const getRunbookInfo = useStore((state: AtuinState) => state.getRunbookInfo);
   const refreshRunbooks = useStore(
     (state: AtuinState) => state.refreshRunbooks,
   );
@@ -33,7 +34,6 @@ const NoteSidebar = () => {
   const setCurrentRunbook = useStore(
     (state: AtuinState) => state.setCurrentRunbook,
   );
-  const runbookInfo = useStore((state: AtuinState) => state.runbookInfo);
 
   useEffect(() => {
     refreshRunbooks();
@@ -67,7 +67,10 @@ const NoteSidebar = () => {
         <Listbox
           hideSelectedIcon
           items={runbooks.map((runbook: any): any => {
-            return [runbook, runbookInfo[runbook.id]];
+            let rbi = getRunbookInfo(runbook.id);
+            let ptyLength = rbi?.ptyLength() || 0;
+
+            return [runbook, ptyLength];
           })}
           variant="flat"
           aria-label="Runbook list"
@@ -121,7 +124,7 @@ const NoteSidebar = () => {
             </ButtonGroup>
           }
         >
-          {([runbook, info]: [Runbook, { ptys: number }]) => (
+          {([runbook, info]: [Runbook, number]) => (
             <ListboxItem
               key={runbook.id}
               onPress={() => {
@@ -131,10 +134,10 @@ const NoteSidebar = () => {
               endContent={
                 <Dropdown>
                   <Badge
-                    content={info?.ptys}
+                    content={info}
                     color="primary"
                     style={
-                      info && info?.ptys > 0
+                      info > 0
                         ? {}
                         : {
                             display: "none",

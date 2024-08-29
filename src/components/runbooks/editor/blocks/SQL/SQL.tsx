@@ -1,6 +1,17 @@
 import { useRef, useState } from "react";
-import { Input, Card, CardBody } from "@nextui-org/react";
-import { DatabaseIcon, Play, Square } from "lucide-react";
+import {
+  Input,
+  Card,
+  CardBody,
+  CardFooter,
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  Button,
+  DropdownItem,
+  ButtonGroup,
+} from "@nextui-org/react";
+import { DatabaseIcon, Play, RefreshCwIcon, Square } from "lucide-react";
 import CodeMirror from "@uiw/react-codemirror";
 import {
   DataEditor,
@@ -18,21 +29,53 @@ import { insertOrUpdateBlock } from "@blocknote/core";
 import { CardHeader } from "@/components/ui/card";
 
 import { runQuery } from "./query";
+import { useDebounceCallback, useInterval } from "usehooks-ts";
+import { postgresSchema, sqliteSchema } from "./schema";
+import Database from "@tauri-apps/plugin-sql";
 
 interface SQLProps {
-  driver: string;
   uri: string;
   query: string;
+  autoRefresh: number;
+  driver: string;
+
+  setQuery: (query: string) => void;
+  setUri: (uri: string) => void;
+  setAutoRefresh: (autoRefresh: number) => void;
+  setDriver: (driver: string) => void;
 }
 
-const SQL = ({ query }: SQLProps) => {
-  const [q, setQ] = useState<string>("");
+const autoRefreshChoices = [
+  { label: "Off", value: 0 },
+  { label: "1s", value: 1000 },
+  { label: "5s", value: 5000 },
+  { label: "10s", value: 10000 },
+  { label: "30s", value: 30000 },
+  { label: "1m", value: 60000 },
+  { label: "2m", value: 120000 },
+  { label: "5m", value: 300000 },
+  { label: "10m", value: 600000 },
+  { label: "30m", value: 1800000 },
+];
+
+const driverChoices = [{ label: "SQLite", value: "sqlite" }];
+
+const SQL = ({
+  query,
+  setQuery,
+  uri,
+  setUri,
+  autoRefresh,
+  setAutoRefresh,
+  driver,
+  setDriver,
+}: SQLProps) => {
   const [isRunning, setIsRunning] = useState<boolean>(false);
 
   const [lastInsertID, setLastInsertID] = useState<number | null>(null);
   const [rowsAffected, setRowsAffected] = useState<number | null>(null);
 
-  //const [schema, setSchema] = useState<any | null>(null);
+  const [schema, setSchema] = useState<any | null>(null);
   const [results, setResults] = useState<any[] | null>(null);
   const [columns, setColumns] = useState<GridColumn[]>([]);
 
@@ -94,12 +137,11 @@ const SQL = ({ query }: SQLProps) => {
   };
 
   const handlePlay = async () => {
-    setIsRunning(!isRunning);
+    setIsRunning(true);
 
-    let app_db =
-      "sqlite:///Users/ellie/Library/Application Support/sh.atuin.app/kv.db";
+    let res = await runQuery(uri, query);
 
-    let res = await runQuery(app_db, q);
+    setIsRunning(false);
 
     try {
       if (res.lastInsertID || res.rowsAffected) {
@@ -130,9 +172,19 @@ const SQL = ({ query }: SQLProps) => {
       console.error(e);
       setError(e);
     }
-
-    setIsRunning(false);
   };
+
+  useInterval(
+    () => {
+      // let's not stack queries
+      if (isRunning) return;
+
+      (async () => {
+        await handlePlay();
+      })();
+    },
+    autoRefresh > 0 ? autoRefresh : null,
+  );
 
   return (
     <Card
@@ -145,6 +197,10 @@ const SQL = ({ query }: SQLProps) => {
           label="Database"
           isRequired
           startContent={<DatabaseIcon size={18} />}
+          value={uri}
+          onValueChange={(val) => {
+            setUri(val);
+          }}
         />
 
         <div className="flex flex-row">
@@ -167,10 +223,8 @@ const SQL = ({ query }: SQLProps) => {
             placeholder={"Write your query here..."}
             className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
             basicSetup={true}
-            value={q}
-            onChange={(val) => {
-              setQ(val);
-            }}
+            value={query}
+            onChange={setQuery}
           />
         </div>
       </CardHeader>
@@ -199,6 +253,65 @@ const SQL = ({ query }: SQLProps) => {
           )}
         </div>
       </CardBody>
+      <CardFooter>
+        <ButtonGroup>
+          <Dropdown showArrow>
+            <DropdownTrigger>
+              <Button variant="flat" startContent={<DatabaseIcon />}>
+                {driverChoices.find((a) => a.value == driver)?.label}
+              </Button>
+            </DropdownTrigger>
+            <DropdownMenu variant="faded" aria-label="Select database driver">
+              {driverChoices.map((setting) => {
+                return (
+                  <DropdownItem
+                    key={setting.label}
+                    onPress={() => {
+                      setDriver(setting.value);
+                    }}
+                  >
+                    {setting.label}
+                  </DropdownItem>
+                );
+              })}
+            </DropdownMenu>
+          </Dropdown>
+
+          <Dropdown showArrow>
+            <DropdownTrigger>
+              <Button variant="flat" startContent={<RefreshCwIcon />}>
+                Auto refresh:{" "}
+                {autoRefresh == 0
+                  ? "Off"
+                  : (
+                      autoRefreshChoices.find(
+                        (a) => a.value == autoRefresh,
+                      ) || {
+                        label: "Off",
+                      }
+                    ).label}
+              </Button>
+            </DropdownTrigger>
+            <DropdownMenu
+              variant="faded"
+              aria-label="Select time frame for chart"
+            >
+              {autoRefreshChoices.map((setting) => {
+                return (
+                  <DropdownItem
+                    key={setting.label}
+                    onPress={() => {
+                      setAutoRefresh(setting.value);
+                    }}
+                  >
+                    {setting.label}
+                  </DropdownItem>
+                );
+              })}
+            </DropdownMenu>
+          </Dropdown>
+        </ButtonGroup>
+      </CardFooter>
     </Card>
   );
 };
@@ -206,13 +319,57 @@ const SQL = ({ query }: SQLProps) => {
 export default createReactBlockSpec(
   {
     type: "sql",
-    propSchema: {},
+    propSchema: {
+      query: { default: "" },
+      uri: { default: "" },
+      driver: { default: "sqlite" },
+      autoRefresh: { default: 0 },
+    },
     content: "none",
   },
   {
     // @ts-ignore
     render: ({ block, editor, code, type }) => {
-      return <SQL />;
+      const setQuery = (query: string) => {
+        editor.updateBlock(block, {
+          // @ts-ignore
+          props: { ...block.props, query: query },
+        });
+      };
+
+      const setUri = (uri: string) => {
+        editor.updateBlock(block, {
+          // @ts-ignore
+          props: { ...block.props, uri: uri },
+        });
+      };
+
+      const setAutoRefresh = (autoRefresh: number) => {
+        editor.updateBlock(block, {
+          // @ts-ignore
+          props: { ...block.props, autoRefresh: autoRefresh },
+        });
+      };
+
+      const setDriver = (driver: string) => {
+        editor.updateBlock(block, {
+          // @ts-ignore
+          props: { ...block.props, driver: driver },
+        });
+      };
+
+      return (
+        <SQL
+          query={block.props.query}
+          uri={block.props.uri}
+          setUri={setUri}
+          setQuery={setQuery}
+          autoRefresh={block.props.autoRefresh}
+          setAutoRefresh={setAutoRefresh}
+          driver={block.props.driver}
+          setDriver={setDriver}
+        />
+      );
     },
   },
 );

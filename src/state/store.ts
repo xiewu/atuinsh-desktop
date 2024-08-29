@@ -33,9 +33,47 @@ export class TerminalData {
   }
 }
 
+export interface RunbookPtyInfo {
+  id: string;
+  block: string;
+}
+
+export class RunbookInfo {
+  id: string;
+  private ptys: { [block: string]: RunbookPtyInfo };
+
+  constructor(id: string, ptys: { [block: string]: RunbookPtyInfo }) {
+    this.id = id;
+    this.ptys = ptys;
+  }
+
+  addPty(block: string, id: string) {
+    this.ptys[block] = { id: id, block: block };
+  }
+
+  getPty(block: string): RunbookPtyInfo | null {
+    return this.ptys[block] || null;
+  }
+
+  removePty(block: string) {
+    delete this.ptys[block];
+  }
+
+  ptyLength(): number {
+    return Object.keys(this.ptys).length;
+  }
+
+  // Zustand and React don't like it when you mutate stuff
+  clone(): RunbookInfo {
+    return new RunbookInfo(this.id, this.ptys);
+  }
+}
+
 // I'll probs want to slice this up at some point, but for now a
 // big blobby lump of state is fine.
 // Totally just hoping that structure will be emergent in the future.
+//
+// me, 4mo later: thanks I hate it
 export interface AtuinState {
   user: User;
   homeInfo: HomeInfo;
@@ -64,9 +102,9 @@ export interface AtuinState {
   terminals: { [pty: string]: TerminalData };
 
   // Store ephemeral state for runbooks, that is not persisted to the database
-  runbookInfo: { [runbook: string]: { ptys: number } };
-  incRunbookPty: (runbook: string) => void;
-  decRunbookPty: (runbook: string) => void;
+  runbookInfo: { [runbook: string]: RunbookInfo };
+  getRunbookInfo: (runbook: string) => RunbookInfo | null;
+  setRunbookInfo: (info: RunbookInfo) => void;
 }
 
 let state = (set: any, get: any): AtuinState => ({
@@ -241,36 +279,13 @@ let state = (set: any, get: any): AtuinState => ({
     return td;
   },
 
-  incRunbookPty: (runbook: string) => {
-    set((state: AtuinState) => {
-      let oldVal = state.runbookInfo[runbook] || { ptys: 0 };
-      let newVal = { ptys: oldVal.ptys + 1 };
-      console.log(newVal);
-
-      return {
-        runbookInfo: {
-          ...state.runbookInfo,
-          [runbook]: newVal,
-        },
-      };
-    });
+  getRunbookInfo: (runbook: string): RunbookInfo | null => {
+    return get().runbookInfo[runbook];
   },
 
-  decRunbookPty: (runbook: string) => {
-    set((state: AtuinState) => {
-      let newVal = state.runbookInfo[runbook];
-      if (!newVal) {
-        return;
-      }
-
-      newVal.ptys--;
-
-      return {
-        runbookInfo: {
-          ...state.runbookInfo,
-          [runbook]: newVal,
-        },
-      };
+  setRunbookInfo: (info: RunbookInfo) => {
+    set({
+      runbookInfo: { ...get().runbookInfo, [info.id]: info },
     });
   },
 });
@@ -283,7 +298,9 @@ export const useStore = create<AtuinState>()(
     // it won't work as JSON. too cyclical
     partialize: (state) =>
       Object.fromEntries(
-        Object.entries(state).filter(([key]) => !["terminals"].includes(key)),
+        Object.entries(state).filter(
+          ([key]) => !["terminals", "runbookInfo"].includes(key),
+        ),
       ),
   }),
 );

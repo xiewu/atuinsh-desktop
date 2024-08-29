@@ -10,31 +10,61 @@ export interface TableSchema {
   columns: ColumnSchema[];
 }
 
-// Fetch the schema for the SQLite database
 export const sqliteSchema = async (
   database: Database,
 ): Promise<TableSchema[]> => {
-  // Get a list of all tables in the database
-  const tables: any[] = await database.select(
-    "SELECT name FROM sqlite_master WHERE type='table';",
-  );
+  const query = `
+    SELECT
+      m.name AS table_name,
+      json_group_array(
+        json_object(
+          'name', p.name,
+          'type', p.type
+        )
+      ) AS columns
+    FROM
+      sqlite_master m
+    LEFT JOIN
+      pragma_table_info(m.name) p
+    WHERE
+      m.type = 'table'
+    GROUP BY
+      m.name
+    ORDER BY
+      m.name;
+  `;
 
-  // For each table, fetch the column names and types
-  const tableSchemas = await Promise.all(
-    tables.map(async (table) => {
-      const columns: any[] = await database.select(
-        `PRAGMA table_info(${table.name});`,
-      );
+  const results: any[] = await database.select(query);
 
-      return {
-        name: table.name,
-        columns: columns.map((column) => ({
-          name: column.name,
-          type: column.type,
-        })),
-      };
-    }),
-  );
+  return results.map((row) => ({
+    name: row.table_name,
+    columns: JSON.parse(row.columns),
+  }));
+};
 
-  return tableSchemas;
+export const postgresSchema = async (
+  database: Database,
+): Promise<TableSchema[]> => {
+  const query = `
+    SELECT
+      t.table_name,
+      array_agg(json_build_object('name', c.column_name, 'type', c.data_type) ORDER BY c.ordinal_position) as columns
+    FROM
+      information_schema.tables t
+    JOIN
+      information_schema.columns c ON t.table_name = c.table_name
+    WHERE
+      t.table_schema = 'public'
+    GROUP BY
+      t.table_name
+    ORDER BY
+      t.table_name;
+  `;
+
+  const result: any[] = await database.select(query);
+
+  return result.map((row) => ({
+    name: row.table_name,
+    columns: row.columns,
+  }));
 };

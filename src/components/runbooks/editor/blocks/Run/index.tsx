@@ -15,7 +15,7 @@ import { invoke } from "@tauri-apps/api/core";
 import Terminal from "./terminal.tsx";
 
 import "@xterm/xterm/css/xterm.css";
-import { AtuinState, useStore } from "@/state/store.ts";
+import { AtuinState, RunbookInfo, useStore } from "@/state/store.ts";
 import { Card, CardBody, CardHeader } from "@nextui-org/react";
 import { cn } from "@/lib/utils.ts";
 
@@ -68,7 +68,6 @@ const RunBlock = ({
   isEditable,
   onRun,
   onStop,
-  pty,
   editor,
 }: RunBlockProps) => {
   const [value, setValue] = useState<String>(code);
@@ -81,15 +80,16 @@ const RunBlock = ({
   // we write to it.
   const [firstOpen, setFirstOpen] = useState<boolean>(false);
 
-  const [currentRunbook, incRunbookPty, decRunbookPty] = useStore(
+  const [currentRunbook, runbookInfo, setRunbookInfo] = useStore(
     (store: AtuinState) => [
       store.currentRunbook,
-      store.incRunbookPty,
-      store.decRunbookPty,
+      store.getRunbookInfo(store.currentRunbook!),
+      store.setRunbookInfo,
     ],
   );
 
-  const isRunning = pty !== null && pty !== "";
+  const pty = runbookInfo?.getPty(id);
+  const isRunning = pty != null;
 
   const handleToggle = async (event: any | null) => {
     if (event) event.stopPropagation();
@@ -98,13 +98,18 @@ const RunBlock = ({
     if (!value) return;
 
     if (isRunning) {
-      await invoke("pty_kill", { pid: pty });
+      await invoke("pty_kill", { pid: pty.id });
 
-      terminals[pty].terminal.dispose();
-      cleanupPtyTerm(pty);
+      terminals[pty.id].terminal.dispose();
+      cleanupPtyTerm(pty.id);
 
-      if (onStop) onStop(pty);
-      if (currentRunbook) decRunbookPty(currentRunbook);
+      if (onStop) onStop(pty.id);
+
+      if (runbookInfo) {
+        let rbi = runbookInfo.clone();
+        rbi.removePty(id);
+        setRunbookInfo(rbi);
+      }
     }
 
     if (!isRunning) {
@@ -130,7 +135,17 @@ const RunBlock = ({
 
       if (onRun) onRun(pty);
 
-      if (currentRunbook) incRunbookPty(currentRunbook);
+      if (runbookInfo) {
+        let rbi = runbookInfo.clone();
+        rbi.addPty(id, pty);
+        setRunbookInfo(rbi);
+      } else {
+        let rbi = new RunbookInfo(currentRunbook!, {
+          [id]: { id: pty, block: id },
+        });
+        rbi.addPty(id, pty);
+        setRunbookInfo(rbi);
+      }
     }
   };
 
@@ -191,7 +206,9 @@ const RunBlock = ({
             isRunning ? "block" : "hidden"
           }`}
         >
-          {pty && <Terminal pty={pty} script={value} runScript={firstOpen} />}
+          {pty && (
+            <Terminal pty={pty.id} script={value} runScript={firstOpen} />
+          )}
         </div>
       </CardBody>
     </Card>

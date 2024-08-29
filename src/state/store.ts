@@ -47,6 +47,10 @@ export class RunbookInfo {
     this.ptys = ptys;
   }
 
+  ptyList(): RunbookPtyInfo[] {
+    return Object.values(this.ptys);
+  }
+
   addPty(block: string, id: string) {
     this.ptys[block] = { id: id, block: block };
   }

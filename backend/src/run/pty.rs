@@ -2,8 +2,11 @@ use std::collections::HashMap;
 
 use eyre::Result;
 
-use crate::state::AtuinState;
+use crate::{pty::PtyMetadata, state::AtuinState};
 use tauri::{Emitter, State};
+
+const PTY_OPEN_CHANNEL: &str = "pty_open";
+const PTY_KILL_CHANNEL: &str = "pty_kill";
 
 #[tauri::command]
 pub async fn pty_open(
@@ -11,16 +14,25 @@ pub async fn pty_open(
     state: State<'_, AtuinState>,
     cwd: Option<String>,
     env: Option<HashMap<String, String>>,
+    runbook: String,
+    block: String,
 ) -> Result<uuid::Uuid, String> {
     let id = uuid::Uuid::new_v4();
 
+    let metadata = PtyMetadata {
+        pid: id,
+        runbook,
+        block,
+    };
     let cwd = cwd.map(|c| shellexpand::tilde(c.as_str()).to_string());
-    let pty = crate::pty::Pty::open(24, 80, cwd, env.unwrap_or_default())
+
+    let pty = crate::pty::Pty::open(24, 80, cwd, env.unwrap_or_default(), metadata.clone())
         .await
         .unwrap();
 
     let reader = pty.reader.clone();
 
+    let app_inner = app.clone();
     tauri::async_runtime::spawn_blocking(move || loop {
         let mut buf = [0u8; 512];
 
@@ -39,7 +51,7 @@ pub async fn pty_open(
                 let out = out.trim_matches(char::from(0));
                 let channel = format!("pty-{id}");
 
-                app.emit(channel.as_str(), out).unwrap();
+                app_inner.emit(channel.as_str(), out).unwrap();
             }
 
             Err(e) => {
@@ -50,6 +62,9 @@ pub async fn pty_open(
     });
 
     state.pty_sessions.write().await.insert(id, pty);
+
+    app.emit(PTY_OPEN_CHANNEL, metadata)
+        .map_err(|e| e.to_string())?;
 
     Ok(id)
 }
@@ -87,6 +102,7 @@ pub(crate) async fn pty_resize(
 
 #[tauri::command]
 pub(crate) async fn pty_kill(
+    app: tauri::AppHandle,
     pid: uuid::Uuid,
     state: tauri::State<'_, AtuinState>,
 ) -> Result<(), String> {
@@ -95,7 +111,20 @@ pub(crate) async fn pty_kill(
     if let Some(pty) = pty {
         pty.kill_child().await.map_err(|e| e.to_string())?;
         println!("RIP {pid:?}");
+
+        app.emit(PTY_KILL_CHANNEL, pty.metadata)
+            .map_err(|e| e.to_string())?;
     }
 
     Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn pty_list(
+    state: tauri::State<'_, AtuinState>,
+) -> Result<Vec<PtyMetadata>, String> {
+    let ptys = state.pty_sessions.read().await;
+    let ptys = ptys.values().map(|p| p.metadata.clone()).collect();
+
+    Ok(ptys)
 }

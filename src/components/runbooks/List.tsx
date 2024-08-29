@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import {
   Button,
   ButtonGroup,
@@ -19,13 +18,11 @@ import { DateTime } from "luxon";
 import { NotebookPenIcon, ImportIcon } from "lucide-react";
 import Runbook from "@/state/runbooks/runbook";
 import { AtuinState, useStore } from "@/state/store";
-import { KVStore } from "@/state/kv";
-import welcome from "./welcome.json";
 import { open } from "@tauri-apps/plugin-dialog";
+import { PtyMetadata, usePtyStore } from "@/state/ptyStore";
 
 const NoteSidebar = () => {
   const runbooks = useStore((state: AtuinState) => state.runbooks);
-  const getRunbookInfo = useStore((state: AtuinState) => state.getRunbookInfo);
   const refreshRunbooks = useStore(
     (state: AtuinState) => state.refreshRunbooks,
   );
@@ -34,32 +31,9 @@ const NoteSidebar = () => {
   const setCurrentRunbook = useStore(
     (state: AtuinState) => state.setCurrentRunbook,
   );
-
-  useEffect(() => {
-    refreshRunbooks();
-
-    // Ensure that the user has the welcome Runbook setup
-    // Do this once per install :)
-    (async () => {
-      let db = await KVStore.open_default();
-      let welcome_doc = await db.get("welcome_doc");
-
-      const hasWelcomeDoc = runbooks.some(
-        (rb) => rb.name === "Welcome to Atuin!",
-      );
-
-      if (!welcome_doc && !hasWelcomeDoc) {
-        await db.set("welcome_doc", true);
-        let rb = await Runbook.create();
-        rb.name = "Welcome to Atuin!";
-        rb.content = JSON.stringify(welcome);
-
-        rb.save();
-        refreshRunbooks();
-        setCurrentRunbook(rb.id);
-      }
-    })();
-  }, []);
+  const ptys: { [pid: string]: PtyMetadata } = usePtyStore(
+    (state) => state.ptys,
+  );
 
   return (
     <div className="w-48 flex flex-col border-r-1 ">
@@ -67,10 +41,10 @@ const NoteSidebar = () => {
         <Listbox
           hideSelectedIcon
           items={runbooks.map((runbook: any): any => {
-            let rbi = getRunbookInfo(runbook.id);
-            let ptyLength = rbi?.ptyLength() || 0;
-
-            return [runbook, ptyLength];
+            let count = Object.entries(ptys).filter(
+              ([_, pty]) => pty.runbook == runbook.id,
+            ).length;
+            return [runbook, count];
           })}
           variant="flat"
           aria-label="Runbook list"

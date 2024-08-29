@@ -7,10 +7,20 @@ use std::{
 use bytes::Bytes;
 use eyre::{eyre, Result};
 use portable_pty::{CommandBuilder, MasterPty, PtySize};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub struct PtyMetadata {
+    pub pid: Uuid,
+    pub runbook: String,
+    pub block: String,
+}
 
 pub struct Pty {
     tx: tokio::sync::mpsc::Sender<Bytes>,
 
+    pub metadata: PtyMetadata,
     pub master: Arc<Mutex<Box<dyn MasterPty + Send>>>,
     pub reader: Arc<Mutex<Box<dyn std::io::Read + Send>>>,
     pub child: Arc<Mutex<Box<dyn portable_pty::Child + Send>>>,
@@ -22,6 +32,7 @@ impl Pty {
         cols: u16,
         cwd: Option<String>,
         env: HashMap<String, String>,
+        metadata: PtyMetadata,
     ) -> Result<Self> {
         let sys = portable_pty::native_pty_system();
 
@@ -71,6 +82,7 @@ impl Pty {
         });
 
         Ok(Pty {
+            metadata,
             tx: master_tx,
             master: Arc::new(Mutex::new(pair.master)),
             reader: Arc::new(Mutex::new(reader)),

@@ -124,8 +124,6 @@ const Prometheus = (props: PromProps) => {
       };
     });
 
-    console.log(data[0].data.length);
-
     setData(data);
   };
 

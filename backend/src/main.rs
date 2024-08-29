@@ -303,6 +303,7 @@ fn main() {
             run::pty::pty_write,
             run::pty::pty_resize,
             run::pty::pty_kill,
+            run::pty::pty_list,
             install::install_cli,
             install::is_cli_installed,
             install::setup_cli,

@@ -18,6 +18,7 @@ import "@xterm/xterm/css/xterm.css";
 import { AtuinState, RunbookInfo, useStore } from "@/state/store.ts";
 import { Card, CardBody, CardHeader } from "@nextui-org/react";
 import { cn } from "@/lib/utils.ts";
+import { ptyForBlock } from "@/state/ptyStore.ts";
 
 interface RunBlockProps {
   onChange: (val: string) => void;
@@ -88,7 +89,7 @@ const RunBlock = ({
     ],
   );
 
-  const pty = runbookInfo?.getPty(id);
+  const pty = ptyForBlock(id);
   const isRunning = pty != null;
 
   const handleToggle = async (event: any | null) => {
@@ -98,12 +99,12 @@ const RunBlock = ({
     if (!value) return;
 
     if (isRunning) {
-      await invoke("pty_kill", { pid: pty.id });
+      await invoke("pty_kill", { pid: pty.pid });
 
-      terminals[pty.id].terminal.dispose();
-      cleanupPtyTerm(pty.id);
+      terminals[pty.pid].terminal.dispose();
+      cleanupPtyTerm(pty.pid);
 
-      if (onStop) onStop(pty.id);
+      if (onStop) onStop(pty.pid);
 
       if (runbookInfo) {
         let rbi = runbookInfo.clone();
@@ -130,7 +131,12 @@ const RunBlock = ({
 
       // TODO: make the terminal _also_ handle opening the pty?
       // I think that would make more sense lol
-      let pty = await invoke<string>("pty_open", { cwd, env });
+      let pty = await invoke<string>("pty_open", {
+        cwd,
+        env,
+        runbook: currentRunbook,
+        block: id,
+      });
       setFirstOpen(true);
 
       if (onRun) onRun(pty);
@@ -207,7 +213,7 @@ const RunBlock = ({
           }`}
         >
           {pty && (
-            <Terminal pty={pty.id} script={value} runScript={firstOpen} />
+            <Terminal pty={pty.pid} script={value} runScript={firstOpen} />
           )}
         </div>
       </CardBody>

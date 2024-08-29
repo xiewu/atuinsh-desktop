@@ -1,5 +1,6 @@
 import Editor from "@/components/runbooks/editor/Editor";
 import List from "@/components/runbooks/List";
+import { usePtyStore } from "@/state/ptyStore";
 import Runbook from "@/state/runbooks/runbook";
 
 import { useStore } from "@/state/store";
@@ -13,8 +14,13 @@ export default function Runbooks() {
 
   const location = useLocation();
 
+  const listenPtyBackend = usePtyStore((state) => state.listenBackend);
+  const unlistenPtyBackend = usePtyStore((state) => state.unlistenBackend);
+
   useEffect(() => {
     (async () => {
+      await listenPtyBackend();
+
       if (location.state?.createNew) {
         window.getSelection()?.removeAllRanges();
 
@@ -23,6 +29,10 @@ export default function Runbooks() {
         refreshRunbooks();
       }
     })();
+
+    return () => {
+      unlistenPtyBackend();
+    };
   }, []);
 
   return (

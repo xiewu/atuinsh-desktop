@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 use time::format_description::well_known::Rfc3339;
 
+mod blocks;
 mod db;
 mod dotfiles;
 mod install;
@@ -307,6 +308,8 @@ fn main() {
             install::install_cli,
             install::is_cli_installed,
             install::setup_cli,
+            blocks::postgres::command::postgres_query,
+            blocks::postgres::command::postgres_execute,
             dotfiles::aliases::import_aliases,
             dotfiles::aliases::delete_alias,
             dotfiles::aliases::set_alias,

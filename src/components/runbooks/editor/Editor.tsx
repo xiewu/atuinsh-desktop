@@ -42,7 +42,9 @@ import { useDebounceCallback } from "usehooks-ts";
 import Run from "@/components/runbooks/editor/blocks/Run";
 import Directory from "@/components/runbooks/editor/blocks/Directory";
 import Env from "@/components/runbooks/editor/blocks/Env";
-import SQL, { insertSQL } from "@/components/runbooks/editor/blocks/SQL/SQL";
+import SQLite, {
+  insertSQLite,
+} from "@/components/runbooks/editor/blocks/SQLite/SQLite";
 
 import Prometheus, {
   insertPrometheus,
@@ -64,7 +66,7 @@ const schema = BlockNoteSchema.create({
     directory: Directory,
     env: Env,
     prometheus: Prometheus,
-    sql: SQL,
+    sqlite: SQLite,
   },
 });
 
@@ -130,6 +132,7 @@ export default function Editor() {
     console.log("saved!");
     runbook.name = fetchName();
     if (editor) runbook.content = JSON.stringify(editor.document);
+    console.log(JSON.parse(runbook.content));
 
     await runbook.save();
     refreshRunbooks();
@@ -139,14 +142,21 @@ export default function Editor() {
 
   const editor = useMemo(() => {
     if (!runbook) return undefined;
-    if (runbook.content) {
-      return BlockNoteEditor.create({
-        initialContent: JSON.parse(runbook.content),
-        schema,
-      });
+    if (!runbook.content) return BlockNoteEditor.create({ schema });
+
+    let content = JSON.parse(runbook.content);
+
+    // convert any block of type sql -> sqlite
+    for (var i = 0; i < content.length; i++) {
+      if (content[i].type == "sql") {
+        content[i].type = "sqlite";
+      }
     }
 
-    return BlockNoteEditor.create({ schema });
+    return BlockNoteEditor.create({
+      initialContent: content,
+      schema,
+    });
   }, [runbook]);
 
   const fetchName = (): string => {
@@ -158,7 +168,7 @@ export default function Editor() {
       if (block.type == "heading" || block.type == "paragraph") {
         if (block.content.length == 0) continue;
         // @ts-ignore
-        if (block.content[0].text.length == 0) continue;
+        if (block.content[0].text.length == 0) continae;
 
         // @ts-ignore
         return block.content[0].text;
@@ -204,7 +214,7 @@ export default function Editor() {
                 insertDirectory(editor),
                 insertEnv(editor),
                 insertPrometheus(schema)(editor),
-                insertSQL(schema)(editor),
+                insertSQLite(schema)(editor),
               ],
               query,
             )

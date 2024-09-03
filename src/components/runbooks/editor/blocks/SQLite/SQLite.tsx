@@ -29,9 +29,7 @@ import { insertOrUpdateBlock } from "@blocknote/core";
 import { CardHeader } from "@/components/ui/card";
 
 import { runQuery } from "./query";
-import { useDebounceCallback, useInterval } from "usehooks-ts";
-import { postgresSchema, sqliteSchema } from "./schema";
-import Database from "@tauri-apps/plugin-sql";
+import { useInterval } from "usehooks-ts";
 
 interface SQLProps {
   uri: string;
@@ -75,7 +73,6 @@ const SQL = ({
   const [lastInsertID, setLastInsertID] = useState<number | null>(null);
   const [rowsAffected, setRowsAffected] = useState<number | null>(null);
 
-  const [schema, setSchema] = useState<any | null>(null);
   const [results, setResults] = useState<any[] | null>(null);
   const [columns, setColumns] = useState<GridColumn[]>([]);
 
@@ -318,7 +315,7 @@ const SQL = ({
 
 export default createReactBlockSpec(
   {
-    type: "sql",
+    type: "sqlite",
     propSchema: {
       query: { default: "" },
       uri: { default: "" },
@@ -374,15 +371,14 @@ export default createReactBlockSpec(
   },
 );
 
-export const insertSQL =
+export const insertSQLite =
   (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
-    title: "SQL",
+    title: "SQLite",
     onItemClick: () => {
       insertOrUpdateBlock(editor, {
-        type: "sql",
+        type: "sqlite",
       });
     },
     icon: <DatabaseIcon size={18} />,
-    aliases: ["sql", "postgres", "sqlite", "mysql"],
-    group: "Monitor",
+    group: "Database",
   });

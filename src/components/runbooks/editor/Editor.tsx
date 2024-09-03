@@ -45,6 +45,9 @@ import Env from "@/components/runbooks/editor/blocks/Env";
 import SQLite, {
   insertSQLite,
 } from "@/components/runbooks/editor/blocks/SQLite/SQLite";
+import Postgres, {
+  insertPostgres,
+} from "@/components/runbooks/editor/blocks/Postgres/Postgres";
 
 import Prometheus, {
   insertPrometheus,
@@ -61,12 +64,17 @@ const schema = BlockNoteSchema.create({
     // Adds all default blocks.
     ...defaultBlockSpecs,
 
-    // Adds the code block.
+    // Execution
     run: Run,
     directory: Directory,
     env: Env,
+
+    // Monitoring
     prometheus: Prometheus,
+
+    // Databases
     sqlite: SQLite,
+    postgres: Postgres,
   },
 });
 
@@ -132,7 +140,6 @@ export default function Editor() {
     console.log("saved!");
     runbook.name = fetchName();
     if (editor) runbook.content = JSON.stringify(editor.document);
-    console.log(JSON.parse(runbook.content));
 
     await runbook.save();
     refreshRunbooks();
@@ -170,8 +177,12 @@ export default function Editor() {
         // @ts-ignore
         if (block.content[0].text.length == 0) continae;
 
+        let name = block.content
+          .filter((i) => i.type === "text")
+          .map((i) => i.text);
+
         // @ts-ignore
-        return block.content[0].text;
+        return name.join(" ");
       }
     }
 
@@ -215,6 +226,7 @@ export default function Editor() {
                 insertEnv(editor),
                 insertPrometheus(schema)(editor),
                 insertSQLite(schema)(editor),
+                insertPostgres(schema)(editor),
               ],
               query,
             )

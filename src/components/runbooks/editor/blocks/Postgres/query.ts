@@ -1,4 +1,4 @@
-import Database from "@tauri-apps/plugin-sql";
+import { invoke } from "@tauri-apps/api/core";
 import { QueryResult } from "../common/database";
 
 export const runQuery = async (
@@ -20,35 +20,28 @@ export const runQuery = async (
 
   // Determine if we run a select or an execute, based on if the first word is select or not
 
-  let db = await Database.load(uri);
-
   const firstWord = query.split(" ")[0].toLowerCase();
 
   if (firstWord === "select") {
-    let res = await db.select<any[]>(query);
-
-    if (res.length === 0)
-      return {
-        columns: null,
-        rows: null,
-        rowsAffected: null,
-        lastInsertID: null,
-      };
+    let res = await invoke<any>("postgres_query", {
+      uri,
+      query,
+    });
 
     return {
-      columns: Object.keys(res[0]),
-      rows: res.map((i) => Object.values(i)),
+      rows: res.rows,
+      columns: res.columns,
       rowsAffected: null,
       lastInsertID: null,
     };
   }
 
-  let res = await db.execute(query);
+  let res = await invoke<any>("postgres_execute", { uri, query });
 
   return {
-    columns: null,
     rows: null,
-    lastInsertID: res.lastInsertId,
+    columns: null,
     rowsAffected: res.rowsAffected,
+    lastInsertID: null,
   };
 };

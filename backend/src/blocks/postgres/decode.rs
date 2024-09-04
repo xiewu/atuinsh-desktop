@@ -95,6 +95,13 @@ pub(crate) fn to_json(v: PgValueRef) -> Result<JsonValue> {
             }
         }
         "VOID" => JsonValue::Null,
+        "UUID" => {
+            if let Ok(v) = ValueRef::to_owned(&v).try_decode::<uuid::Uuid>() {
+                JsonValue::String(v.to_string())
+            } else {
+                JsonValue::Null
+            }
+        }
         _ => {
             return Err(eyre!(
                 "Unsupported data type: {}",

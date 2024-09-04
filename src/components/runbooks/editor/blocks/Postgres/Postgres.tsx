@@ -86,11 +86,10 @@ const SQL = ({
         if (res.rows?.length == 0) return;
         if (!res.columns) return;
 
-        // Turn the columns into GridColumns
-        let columns = res.columns.map((key) => {
+        let columns = res.columns.map((key: any) => {
           return {
-            id: key,
-            title: key,
+            id: key.name,
+            title: key.name,
             grow: 1,
             width: Math.floor(
               (bodyRef.current?.clientWidth || 0) / res.columns!.length,
@@ -127,7 +126,7 @@ const SQL = ({
     >
       <CardHeader className="p-3 gap-2">
         <Input
-          placeholder="sqlite:///Users/me/file.db"
+          placeholder="postgres://user:password@localhost:5432/dbname"
           label="Database"
           isRequired
           startContent={<DatabaseIcon size={18} />}
@@ -229,7 +228,7 @@ const SQL = ({
 
 export default createReactBlockSpec(
   {
-    type: "sqlite",
+    type: "postgres",
     propSchema: {
       query: { default: "" },
       uri: { default: "" },
@@ -275,12 +274,12 @@ export default createReactBlockSpec(
   },
 );
 
-export const insertSQLite =
+export const insertPostgres =
   (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
-    title: "SQLite",
+    title: "PostgreSQL",
     onItemClick: () => {
       insertOrUpdateBlock(editor, {
-        type: "sqlite",
+        type: "postgres",
       });
     },
     icon: <DatabaseIcon size={18} />,

@@ -20,6 +20,7 @@ import Runbook from "@/state/runbooks/runbook";
 import { AtuinState, useStore } from "@/state/store";
 import { open } from "@tauri-apps/plugin-dialog";
 import { PtyMetadata, usePtyStore } from "@/state/ptyStore";
+import { useEffect } from "react";
 
 const NoteSidebar = () => {
   const runbooks = useStore((state: AtuinState) => state.runbooks);
@@ -34,6 +35,10 @@ const NoteSidebar = () => {
   const ptys: { [pid: string]: PtyMetadata } = usePtyStore(
     (state) => state.ptys,
   );
+
+  useEffect(() => {
+    refreshRunbooks();
+  }, []);
 
   return (
     <div className="w-48 flex flex-col border-r-1 ">

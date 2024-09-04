@@ -11,8 +11,7 @@ export async function checkForAppUpdates() {
 
     const yes = await ask(
       `
-Update to ${update.version} is available!
-Release notes: ${update.body}
+${update.version} is available!
         `,
       {
         title: "Update Now!",

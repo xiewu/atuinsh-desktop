@@ -19,8 +19,9 @@ import { NotebookPenIcon, ImportIcon } from "lucide-react";
 import Runbook from "@/state/runbooks/runbook";
 import { AtuinState, useStore } from "@/state/store";
 import { open } from "@tauri-apps/plugin-dialog";
-import { PtyMetadata, usePtyStore } from "@/state/ptyStore";
+import { ptyForRunbook, PtyMetadata, usePtyStore } from "@/state/ptyStore";
 import { useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 const NoteSidebar = () => {
   const runbooks = useStore((state: AtuinState) => state.runbooks);
@@ -143,6 +144,20 @@ const NoteSidebar = () => {
                       }}
                     >
                       Export
+                    </DropdownItem>
+
+                    <DropdownItem
+                      key={"kill"}
+                      color="danger"
+                      className="text-danger"
+                      onPress={async () => {
+                        let ptys = ptyForRunbook(runbook.id);
+                        ptys.forEach(async (pty) => {
+                          await invoke("pty_kill", { pid: pty.pid });
+                        });
+                      }}
+                    >
+                      Kill all terminals
                     </DropdownItem>
 
                     <DropdownItem

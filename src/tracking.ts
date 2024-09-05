@@ -5,7 +5,7 @@ import { KVStore } from "./state/kv";
 
 export const init_tracking = async () => {
   // don't need to spam sentry with my dumbass mistakes
-  //if (import.meta.env.MODE === "development") return;
+  if (import.meta.env.MODE === "development") return;
 
   let db = await KVStore.open_default();
   let track = await db.get("usage_tracking");

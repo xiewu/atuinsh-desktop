@@ -19,10 +19,11 @@ export interface PtyStore {
   listenBackend: () => void;
   unlistenBackend: () => void;
   createPty: (cwd: string, env: any, runbook: string, block: string) => void;
+  ptyForBlock: (block: string) => PtyMetadata | null;
 }
 
 export const usePtyStore = create<PtyStore>(
-  (set): PtyStore => ({
+  (set, get): PtyStore => ({
     ptys: {},
     unlistenOpen: null,
     unlistenKill: null,
@@ -47,8 +48,6 @@ export const usePtyStore = create<PtyStore>(
           let newPtys = Object.fromEntries(
             Object.entries(state.ptys).filter(([pid, _]) => pid !== data.pid),
           );
-
-          console.log(newPtys);
 
           return {
             ptys: newPtys,
@@ -98,16 +97,24 @@ export const usePtyStore = create<PtyStore>(
 
       return pid as string;
     },
+
+    ptyForBlock: (block: string): PtyMetadata | null => {
+      let ptys = Object.entries(get().ptys)
+        .filter(([_, pty]) => pty.block === block)
+        .map(([_, pty]) => pty);
+
+      if (ptys.length >= 1) return ptys[0];
+
+      return null;
+    },
   }),
 );
 
-export const ptyForBlock = (block: string): PtyMetadata | null => {
+export const ptyForRunbook = (runbook: string): PtyMetadata[] => {
   let all = usePtyStore.getState().ptys;
   let ptys = Object.entries(all)
-    .filter(([_, pty]) => pty.block === block)
+    .filter(([_, pty]) => pty.runbook === runbook)
     .map(([_, pty]) => pty);
 
-  if (ptys.length >= 1) return ptys[0];
-
-  return null;
+  return ptys;
 };

@@ -8,7 +8,7 @@ import { keymap } from "@codemirror/view";
 import { langs } from "@uiw/codemirror-extensions-langs";
 
 import { Play, Square } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { extensions } from "./extensions";
 import { invoke } from "@tauri-apps/api/core";
@@ -18,7 +18,7 @@ import "@xterm/xterm/css/xterm.css";
 import { AtuinState, RunbookInfo, useStore } from "@/state/store.ts";
 import { Card, CardBody, CardHeader } from "@nextui-org/react";
 import { cn } from "@/lib/utils.ts";
-import { ptyForBlock } from "@/state/ptyStore.ts";
+import { usePtyStore } from "@/state/ptyStore.ts";
 import track_event from "@/tracking.ts";
 
 interface RunBlockProps {
@@ -75,6 +75,7 @@ const RunBlock = ({
   const [value, setValue] = useState<String>(code);
   const cleanupPtyTerm = useStore((store: AtuinState) => store.cleanupPtyTerm);
   const terminals = useStore((store: AtuinState) => store.terminals);
+  const [isRunning, setIsRunning] = useState<boolean>(false);
 
   // This ensures that the first time we run a block, it executes the code. But subsequent mounts of an already-existing pty
   // don't run the code again.
@@ -90,8 +91,11 @@ const RunBlock = ({
     ],
   );
 
-  const pty = ptyForBlock(id);
-  const isRunning = pty != null;
+  const pty = usePtyStore((store) => store.ptyForBlock(id));
+
+  useEffect(() => {
+    setIsRunning(pty != null);
+  }, [pty]);
 
   const handleToggle = async (event: any | null) => {
     if (event) event.stopPropagation();

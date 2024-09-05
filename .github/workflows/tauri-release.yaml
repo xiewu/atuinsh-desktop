@@ -2,18 +2,13 @@ name: publish
 
 on:
   workflow_dispatch:
-    inputs:
-      app-slug:
-        type: string
-        description: Slug of the application
-        required: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  CN_APP_SLUG: ${{ github.event.inputs.app-slug }}
+  CN_APP_SLUG: atuin-desktop
 
 jobs:
   draft:

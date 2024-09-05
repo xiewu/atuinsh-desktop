@@ -19,6 +19,7 @@ import { AtuinState, RunbookInfo, useStore } from "@/state/store.ts";
 import { Card, CardBody, CardHeader } from "@nextui-org/react";
 import { cn } from "@/lib/utils.ts";
 import { ptyForBlock } from "@/state/ptyStore.ts";
+import track_event from "@/tracking.ts";
 
 interface RunBlockProps {
   onChange: (val: string) => void;
@@ -140,6 +141,8 @@ const RunBlock = ({
       setFirstOpen(true);
 
       if (onRun) onRun(pty);
+
+      track_event("runbooks.script.run", {});
 
       if (runbookInfo) {
         let rbi = runbookInfo.clone();

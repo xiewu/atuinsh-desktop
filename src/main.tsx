@@ -9,26 +9,10 @@ import Home from "@/routes/home/Home";
 import Dotfiles from "@/routes/dotfiles/Dotfiles";
 import Runbooks from "@/routes/runbooks/Runbooks";
 import History from "@/routes/history/History";
-import * as Sentry from "@sentry/react";
-import { KVStore } from "./state/kv";
+import { init_tracking } from "./tracking";
 
-(async () => {
-  // don't need to spam sentry with my dumbass mistakes
-  if (import.meta.env.MODE === "development") return;
-
-  let db = await KVStore.open_default();
-  let track_errors = await db.get("usage_tracking");
-
-  if (track_errors) {
-    console.log("User opted-in to error tracking");
-
-    Sentry.init({
-      dsn: "https://ac8c00adf29c329694a0b105e1981ca3@o4507730431442944.ingest.us.sentry.io/4507741947232256",
-    });
-  } else {
-    console.log("User did not opt-in to error tracking");
-  }
-})();
+// If the user has opted in, we will setup sentry/posthog
+init_tracking();
 
 const router = createHashRouter([
   {

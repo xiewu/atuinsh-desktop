@@ -103,7 +103,7 @@ const RunBlock = ({
     // If there's no code, don't do anything
     if (!value) return;
 
-    if (isRunning) {
+    if (isRunning && pty != null) {
       await invoke("pty_kill", { pid: pty.pid });
 
       terminals[pty.pid].terminal.dispose();

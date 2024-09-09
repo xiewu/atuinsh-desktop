@@ -1,0 +1,65 @@
+import React from "react";
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+  Button,
+} from "@nextui-org/react";
+import { ChevronDown } from "lucide-react";
+
+enum HttpVerb {
+  GET = "GET",
+  POST = "POST",
+  PUT = "PUT",
+  DELETE = "DELETE",
+  PATCH = "PATCH",
+  HEAD = "HEAD",
+}
+
+interface HttpVerbDropdownProps {
+  selectedVerb: HttpVerb;
+  onVerbChange: (verb: HttpVerb) => void;
+}
+
+const HttpVerbDropdown: React.FC<HttpVerbDropdownProps> = ({
+  selectedVerb,
+  onVerbChange,
+}) => {
+  const verbColors: Record<HttpVerb, string> = {
+    [HttpVerb.GET]: "success",
+    [HttpVerb.POST]: "primary",
+    [HttpVerb.PUT]: "warning",
+    [HttpVerb.DELETE]: "danger",
+    [HttpVerb.PATCH]: "secondary",
+    [HttpVerb.HEAD]: "default",
+  };
+
+  return (
+    <Dropdown>
+      <DropdownTrigger>
+        <Button
+          variant="bordered"
+          color={verbColors[selectedVerb] as any}
+          endContent={<ChevronDown size={16} />}
+          size="sm"
+          className="px-3 py-1"
+        >
+          {selectedVerb}
+        </Button>
+      </DropdownTrigger>
+      <DropdownMenu
+        aria-label="HTTP Verb selection"
+        onAction={(key) => onVerbChange(key as HttpVerb)}
+      >
+        {Object.values(HttpVerb).map((verb) => (
+          <DropdownItem key={verb} color={verbColors[verb] as any}>
+            {verb}
+          </DropdownItem>
+        ))}
+      </DropdownMenu>
+    </Dropdown>
+  );
+};
+
+export default HttpVerbDropdown;

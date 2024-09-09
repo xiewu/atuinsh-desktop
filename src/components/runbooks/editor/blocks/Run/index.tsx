@@ -7,7 +7,6 @@ import CodeMirror from "@uiw/react-codemirror";
 import { keymap } from "@codemirror/view";
 import { langs } from "@uiw/codemirror-extensions-langs";
 
-import { Play, Square } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { extensions } from "./extensions";
@@ -20,6 +19,7 @@ import { Card, CardBody, CardHeader } from "@nextui-org/react";
 import { cn } from "@/lib/utils.ts";
 import { usePtyStore } from "@/state/ptyStore.ts";
 import track_event from "@/tracking.ts";
+import PlayButton from "../common/PlayButton.tsx";
 
 interface RunBlockProps {
   onChange: (val: string) => void;
@@ -97,7 +97,7 @@ const RunBlock = ({
     setIsRunning(pty != null);
   }, [pty]);
 
-  const handleToggle = async (event: any | null) => {
+  const handleToggle = async () => {
     if (event) event.stopPropagation();
 
     // If there's no code, don't do anything
@@ -163,7 +163,7 @@ const RunBlock = ({
   };
 
   const handleCmdEnter = () => {
-    handleToggle(null);
+    handleToggle();
     return true;
   };
 
@@ -179,22 +179,12 @@ const RunBlock = ({
       className="w-full !max-w-full !outline-none overflow-none"
       shadow="sm"
     >
-      <CardHeader className="flex flex-row items-start">
-        <button
-          onClick={handleToggle}
-          className={`flex items-center justify-center flex-shrink-0 w-8 h-8 mr-2 rounded border focus:outline-none focus:ring-2 transition-all duration-300 ease-in-out ${
-            isRunning
-              ? "border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-300 focus:ring-red-300"
-              : "border-green-200 bg-green-50 text-green-600 hover:bg-green-100 hover:border-green-300 focus:ring-green-300"
-          }`}
-          aria-label={isRunning ? "Stop code" : "Run code"}
-        >
-          <span
-            className={`inline-block transition-transform duration-300 ease-in-out ${isRunning ? "rotate-180" : ""}`}
-          >
-            {isRunning ? <Square size={16} /> : <Play size={16} />}
-          </span>
-        </button>
+      <CardHeader className="flex flex-row items-start gap-2 bg-default-50">
+        <PlayButton
+          isRunning={isRunning}
+          cancellable={true}
+          onPlay={() => handleToggle()}
+        />
         <CodeMirror
           id={id}
           placeholder={"Write your script here..."}

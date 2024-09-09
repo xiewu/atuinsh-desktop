@@ -56,6 +56,7 @@ import Prometheus, {
 import { DeleteBlock } from "@/components/runbooks/editor/ui/DeleteBlockButton";
 import { AtuinState, useStore } from "@/state/store";
 import Runbook from "@/state/runbooks/runbook";
+import Http, { insertHttp } from "./blocks/Http/Http";
 
 // Our schema with block specs, which contain the configs and implementations for blocks
 // that we want our editor to use.
@@ -75,6 +76,9 @@ const schema = BlockNoteSchema.create({
     // Databases
     sqlite: SQLite,
     postgres: Postgres,
+
+    // Network
+    http: Http,
   },
 });
 
@@ -227,6 +231,7 @@ export default function Editor() {
                 insertPrometheus(schema)(editor),
                 insertSQLite(schema)(editor),
                 insertPostgres(schema)(editor),
+                insertHttp(schema)(editor),
               ],
               query,
             )

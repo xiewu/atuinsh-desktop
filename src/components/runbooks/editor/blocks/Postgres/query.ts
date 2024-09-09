@@ -23,25 +23,32 @@ export const runQuery = async (
   const firstWord = query.split(" ")[0].toLowerCase();
 
   if (firstWord === "select") {
+    let start = performance.now();
+
     let res = await invoke<any>("postgres_query", {
       uri,
       query,
     });
 
     return {
+      time: new Date(),
       rows: res.rows,
       columns: res.columns,
       rowsAffected: null,
       lastInsertID: null,
+      duration: performance.now() - start,
     };
   }
 
+  let start = performance.now();
   let res = await invoke<any>("postgres_execute", { uri, query });
 
   return {
+    time: new Date(),
     rows: null,
     columns: null,
     rowsAffected: res.rowsAffected,
     lastInsertID: null,
+    duration: performance.now() - start,
   };
 };

@@ -105,21 +105,13 @@ function App() {
             navigate("/history");
           },
         },
-        {
-          key: "dotfiles",
-          icon: "solar:file-smile-linear",
-          title: "Dotfiles",
-          onPress: () => {
-            navigate("/dotfiles");
-          },
-        },
       ],
     },
   ];
 
   return (
     <div
-      className="flex w-screen select-none"
+      className="flex w-screen "
       style={{ maxWidth: "100vw", height: "calc(100dvh - 2rem)" }}
     >
       <div className="flex w-full">

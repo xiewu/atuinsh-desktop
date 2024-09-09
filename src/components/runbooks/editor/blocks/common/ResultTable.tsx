@@ -27,7 +27,7 @@ export const getCellContent =
         kind: GridCellKind.Number,
         data: value,
         displayData: value.toString(),
-        allowOverlay: false,
+        allowOverlay: true,
         readonly: true,
       };
     } else if (typeof value === "boolean") {
@@ -42,7 +42,7 @@ export const getCellContent =
         kind: GridCellKind.Text,
         data: value.join(", "),
         displayData: value.join(", "),
-        allowOverlay: false,
+        allowOverlay: true,
         readonly: true,
       };
     } else if (typeof value === "object" && value !== null) {
@@ -50,7 +50,7 @@ export const getCellContent =
         kind: GridCellKind.Text,
         data: JSON.stringify(value),
         displayData: JSON.stringify(value),
-        allowOverlay: false,
+        allowOverlay: true,
         readonly: true,
       };
     } else {
@@ -58,24 +58,34 @@ export const getCellContent =
         kind: GridCellKind.Text,
         data: String(value),
         displayData: String(value),
-        allowOverlay: false,
+        allowOverlay: true,
         readonly: true,
       };
     }
   };
 
-export default function ResultTable({ columns, results, setColumns }: any) {
+export default function ResultTable({
+  columns,
+  results,
+  setColumns,
+  width,
+}: any) {
   const cellContent = useMemo(
     () => getCellContent(results, columns),
     [results, columns],
   );
 
+  // PERF: Note that getCellsForSelection can be a bit slow with a LOT of rows
+  // Optimise in the future. Would be cool as fuck to render millions of rows.
+
   return (
     <DataEditor
-      className="w-full"
+      className="w-full p-0 m-0"
       getCellContent={cellContent}
+      getCellsForSelection={true}
       columns={columns}
       rows={results.length}
+      width={width}
       onColumnResize={(_col, newSize, index) => {
         setColumns((prev: GridColumn[]) => {
           const newColumns = [...prev];

@@ -6,7 +6,6 @@ import "./styles.css";
 
 import Root from "@/routes/root/Root";
 import Home from "@/routes/home/Home";
-import Dotfiles from "@/routes/dotfiles/Dotfiles";
 import Runbooks from "@/routes/runbooks/Runbooks";
 import History from "@/routes/history/History";
 import { init_tracking } from "./tracking";
@@ -27,11 +26,6 @@ const router = createHashRouter([
       {
         path: "runbooks",
         element: <Runbooks />,
-      },
-
-      {
-        path: "dotfiles",
-        element: <Dotfiles />,
       },
 
       {
@@ -56,5 +50,6 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
         </div>
       </main>
     </NextUIProvider>
+    <div id="portal" />
   </React.StrictMode>,
 );

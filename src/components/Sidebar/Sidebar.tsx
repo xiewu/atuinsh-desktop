@@ -95,14 +95,6 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
               navigate("/history");
             },
           },
-          {
-            key: "dotfiles",
-            icon: "solar:file-smile-linear",
-            title: "Dotfiles",
-            onPress: () => {
-              navigate("/dotfiles");
-            },
-          },
         ],
       },
     ];

@@ -1,0 +1,18 @@
+/* Make the most of the fact nextjs gives aria labels
+ * Annoyingly, blocknote styles are overriding nextjs
+ *
+ */
+
+.atuin-table[aria-label] {
+    width: 100% !important;
+}
+
+.atuin-table th[role="columnheader"] {
+    min-width: unset;
+    font-weight: unset;
+    text-align: unset;
+    border: unset;
+    padding: unset;
+    vertical-align: unset;
+    position: unset;
+}

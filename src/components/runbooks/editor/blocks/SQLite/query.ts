@@ -25,30 +25,39 @@ export const runQuery = async (
   const firstWord = query.split(" ")[0].toLowerCase();
 
   if (firstWord === "select") {
+    let start = performance.now();
     let res = await db.select<any[]>(query);
 
-    if (res.length === 0)
+    if (res.length === 0) {
       return {
+        time: new Date(),
         columns: null,
         rows: null,
         rowsAffected: null,
         lastInsertID: null,
+        duration: performance.now() - start,
       };
+    }
 
     return {
-      columns: Object.keys(res[0]),
+      time: new Date(),
+      columns: Object.keys(res[0]).map((col) => ({ name: col, type: "" })),
       rows: res.map((i) => Object.values(i)),
       rowsAffected: null,
       lastInsertID: null,
+      duration: performance.now() - start,
     };
   }
 
+  let start = performance.now();
   let res = await db.execute(query);
 
   return {
+    time: new Date(),
     columns: null,
     rows: null,
     lastInsertID: res.lastInsertId,
     rowsAffected: res.rowsAffected,
+    duration: performance.now() - start,
   };
 };

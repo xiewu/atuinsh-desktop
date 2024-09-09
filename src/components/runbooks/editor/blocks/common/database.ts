@@ -9,8 +9,10 @@ export interface TableSchema {
 }
 
 export interface QueryResult {
-  columns: string[] | null;
+  columns: ColumnSchema[] | null;
   rows: any[] | null;
   rowsAffected: number | null;
   lastInsertID: number | null;
+  duration: number;
+  time: Date;
 }

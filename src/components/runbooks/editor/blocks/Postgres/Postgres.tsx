@@ -28,6 +28,7 @@ const Postgres = ({
 }: SQLProps) => {
   return (
     <SQL
+      name="PostgreSQL"
       query={query}
       setQuery={setQuery}
       uri={uri}

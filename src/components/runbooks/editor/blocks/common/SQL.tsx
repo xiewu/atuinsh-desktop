@@ -30,6 +30,9 @@ import { QueryResult } from "./database";
 import SQLResults from "./SQLResults";
 
 interface SQLProps {
+  name?: string;
+  placeholder?: string;
+
   uri: string;
   query: string;
   autoRefresh: number;
@@ -54,6 +57,8 @@ const autoRefreshChoices = [
 ];
 
 const SQL = ({
+  name,
+  placeholder,
   query,
   setQuery,
   uri,
@@ -82,7 +87,10 @@ const SQL = ({
       setResults(res);
       setError(null);
     } catch (e: any) {
-      console.error(e);
+      if (e.message) {
+        e = e.message;
+      }
+
       setError(e);
       setIsRunning(false);
     }
@@ -106,9 +114,10 @@ const SQL = ({
       shadow="sm"
     >
       <CardHeader className="p-3 gap-2 bg-default-50">
+        {name && <span className="text-default-700 font-semibold">{name}</span>}
         <Input
-          placeholder="postgres://user:password@localhost:5432/dbname"
-          label="Database"
+          placeholder={placeholder || "protocol://user:password@host:port/db"}
+          label="URI"
           isRequired
           startContent={<DatabaseIcon size={18} />}
           value={uri}

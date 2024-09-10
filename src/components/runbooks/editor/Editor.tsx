@@ -48,6 +48,9 @@ import SQLite, {
 import Postgres, {
   insertPostgres,
 } from "@/components/runbooks/editor/blocks/Postgres/Postgres";
+import Clickhouse, {
+  insertClickhouse,
+} from "@/components/runbooks/editor/blocks/Clickhouse/Clickhouse";
 
 import Prometheus, {
   insertPrometheus,
@@ -76,6 +79,7 @@ const schema = BlockNoteSchema.create({
     // Databases
     sqlite: SQLite,
     postgres: Postgres,
+    clickhouse: Clickhouse,
 
     // Network
     http: Http,
@@ -231,6 +235,7 @@ export default function Editor() {
                 insertPrometheus(schema)(editor),
                 insertSQLite(schema)(editor),
                 insertPostgres(schema)(editor),
+                insertClickhouse(schema)(editor),
                 insertHttp(schema)(editor),
               ],
               query,

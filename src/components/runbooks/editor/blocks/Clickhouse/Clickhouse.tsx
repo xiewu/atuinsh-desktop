@@ -1,15 +1,14 @@
 import { DatabaseIcon } from "lucide-react";
 
-import "@glideapps/glide-data-grid/dist/index.css";
-
 // @ts-ignore
 import { createReactBlockSpec } from "@blocknote/react";
 import { insertOrUpdateBlock } from "@blocknote/core";
 
 import { runQuery } from "./query";
+
 import SQL from "../common/SQL";
 
-interface SQLiteProps {
+interface SQLProps {
   uri: string;
   query: string;
   autoRefresh: number;
@@ -19,17 +18,18 @@ interface SQLiteProps {
   setAutoRefresh: (autoRefresh: number) => void;
 }
 
-const SQLite = ({
+const Clickhouse = ({
   query,
   setQuery,
   uri,
   setUri,
   autoRefresh,
   setAutoRefresh,
-}: SQLiteProps) => {
+}: SQLProps) => {
   return (
     <SQL
-      name="SQLite"
+      name="Clickhouse"
+      placeholder="http://username:password@localhost:8123/?database=default"
       query={query}
       setQuery={setQuery}
       uri={uri}
@@ -43,7 +43,7 @@ const SQLite = ({
 
 export default createReactBlockSpec(
   {
-    type: "sqlite",
+    type: "clickhouse",
     propSchema: {
       query: { default: "" },
       uri: { default: "" },
@@ -76,7 +76,7 @@ export default createReactBlockSpec(
       };
 
       return (
-        <SQLite
+        <Clickhouse
           query={block.props.query}
           uri={block.props.uri}
           setUri={setUri}
@@ -89,12 +89,12 @@ export default createReactBlockSpec(
   },
 );
 
-export const insertSQLite =
+export const insertClickhouse =
   (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
-    title: "SQLite",
+    title: "Clickhouse",
     onItemClick: () => {
       insertOrUpdateBlock(editor, {
-        type: "sqlite",
+        type: "clickhouse",
       });
     },
     icon: <DatabaseIcon size={18} />,

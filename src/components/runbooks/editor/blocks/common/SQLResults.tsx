@@ -3,7 +3,14 @@ import { QueryResult } from "./database";
 import ResultTable from "./ResultTable";
 import { GridColumn } from "@glideapps/glide-data-grid";
 import { Card, CardBody, CardHeader, Chip, Tooltip } from "@nextui-org/react";
-import { CheckCircle, CircleXIcon, Clock } from "lucide-react";
+import {
+  CheckCircle,
+  CircleXIcon,
+  Clock,
+  HardDriveIcon,
+  Rows4Icon,
+} from "lucide-react";
+import { formatBytes } from "@/lib/utils";
 
 interface SQLProps {
   error: any;
@@ -83,6 +90,31 @@ const SQLResults = ({ results, error }: SQLProps) => {
           )}
         </div>
         <div className="flex items-center gap-4">
+          {results.rowsRead && (
+            <Tooltip content="Rows read">
+              <div className="flex items-center gap-1 text-default-500">
+                <Rows4Icon size={14} />
+
+                <span className="text-sm select-text">
+                  {results.rowsRead?.toLocaleString()}{" "}
+                  {results.rowsRead > 1 ? "rows" : "row"}
+                </span>
+              </div>
+            </Tooltip>
+          )}
+
+          {results.bytesRead && (
+            <Tooltip content="Bytes read">
+              <div className="flex items-center gap-1 text-default-500">
+                <HardDriveIcon size={14} />
+
+                <span className="text-sm select-text">
+                  {formatBytes(results.bytesRead)}
+                </span>
+              </div>
+            </Tooltip>
+          )}
+
           <Tooltip content="Request duration">
             <div className="flex items-center gap-1 text-default-500">
               <Clock size={14} />
@@ -91,6 +123,7 @@ const SQLResults = ({ results, error }: SQLProps) => {
               </span>
             </div>
           </Tooltip>
+
           <span className="text-sm text-default-400 select-text">
             {results.time.toLocaleString()}
           </span>

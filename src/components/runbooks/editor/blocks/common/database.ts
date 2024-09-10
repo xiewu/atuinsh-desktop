@@ -9,10 +9,14 @@ export interface TableSchema {
 }
 
 export interface QueryResult {
-  columns: ColumnSchema[] | null;
-  rows: any[] | null;
-  rowsAffected: number | null;
-  lastInsertID: number | null;
+  columns?: ColumnSchema[] | null;
+  rows?: any[] | null;
+
+  rowsRead?: number | null;
+  bytesRead?: number | null;
+  rowsAffected?: number | null;
+  lastInsertID?: number | null;
+
   duration: number;
   time: Date;
 }

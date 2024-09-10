@@ -14,6 +14,9 @@ dependencies:
   '@blocknote/react':
     specifier: ^0.15.6
     version: 0.15.6(@tiptap/pm@2.5.9)(react-dom@18.3.1)(react@18.3.1)
+  '@clickhouse/client-web':
+    specifier: ^1.5.0
+    version: 1.5.0
   '@codemirror/autocomplete':
     specifier: ^6.18.0
     version: 6.18.0(@codemirror/language@6.10.2)(@codemirror/state@6.4.1)(@codemirror/view@6.32.0)(@lezer/common@1.2.1)
@@ -50,9 +53,6 @@ dependencies:
   '@nextui-org/react':
     specifier: ^2.4.6
     version: 2.4.6(@types/react@18.3.3)(framer-motion@11.3.28)(react-dom@18.3.1)(react@18.3.1)(tailwindcss@3.4.9)
-  '@nextui-org/table':
-    specifier: ^2.0.39
-    version: 2.0.39(@nextui-org/system@2.2.5)(@nextui-org/theme@2.2.9)(react-dom@18.3.1)(react@18.3.1)
   '@prometheus-io/codemirror-promql':
     specifier: ^0.53.2
     version: 0.53.2(@codemirror/autocomplete@6.18.0)(@codemirror/language@6.10.2)(@codemirror/lint@6.8.1)(@codemirror/state@6.4.1)(@codemirror/view@6.32.0)(@lezer/common@1.2.1)(@lezer/highlight@1.2.0)(@lezer/lr@1.4.2)
@@ -573,6 +573,16 @@ packages:
     transitivePeerDependencies:
       - '@tiptap/pm'
       - supports-color
+    dev: false
+
+  /@clickhouse/client-common@1.5.0:
+    resolution: {integrity: sha512-U3vDp+PDnNVEv6kia+Mq5ygnlMZzsYU+3TX+0da3XvL926jzYLMBlIvFUxe2+/5k47ySvnINRC/2QxVK7PC2/A==}
+    dev: false
+
+  /@clickhouse/client-web@1.5.0:
+    resolution: {integrity: sha512-21+c2UJ4cx9SPiIWQThCLULb8h/zng0pNrtTwbbnaoCqMbasyRCyRTHs3wRr7fqRUcZ3p9krIPuN0gnJw3GJ6Q==}
+    dependencies:
+      '@clickhouse/client-common': 1.5.0
     dev: false
 
   /@codemirror/autocomplete@6.18.0(@codemirror/language@6.10.2)(@codemirror/state@6.4.1)(@codemirror/view@6.32.0)(@lezer/common@1.2.1):

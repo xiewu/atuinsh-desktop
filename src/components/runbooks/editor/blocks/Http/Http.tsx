@@ -116,6 +116,7 @@ const Http = ({
       shadow="sm"
     >
       <CardHeader className="p-3 gap-2 bg-default-50">
+        <span className="text-default-700 font-semibold">HTTP</span>
         <div className="flex flex-row items-center gap-2">
           <PlayButton
             isRunning={isRunning}

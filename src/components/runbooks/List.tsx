@@ -126,6 +126,7 @@ const NoteSidebar = () => {
                       </DropdownItem>
                       <DropdownItem
                         key="kill"
+                        isDisabled={count === 0}
                         className="text-danger"
                         color="danger"
                         onPress={() =>

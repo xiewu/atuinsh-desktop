@@ -22,7 +22,7 @@ export default function PromSettings({ config, onSave }: any) {
 
   return (
     <>
-      <Button variant="flat" onPress={onOpen} isIconOnly>
+      <Button variant="flat" size="sm" onPress={onOpen} isIconOnly>
         <SettingsIcon />
       </Button>
       <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="2xl">
@@ -45,7 +45,7 @@ export default function PromSettings({ config, onSave }: any) {
               <ModalFooter>
                 <Button
                   variant="flat"
-                  color="primary"
+                  color="success"
                   onPress={() => {
                     onSave({ endpoint });
                     onClose();

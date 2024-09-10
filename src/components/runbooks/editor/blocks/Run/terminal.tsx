@@ -6,6 +6,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { IDisposable } from "@xterm/xterm";
 import { platform } from "@tauri-apps/plugin-os";
 
+const endMarkerRegex = /\x1b\]633;ATUIN_COMMAND_END;(\d+)\x1b\\/;
+
 const usePersistentTerminal = (pty: string) => {
   const newPtyTerm = useStore((store) => store.newPtyTerm);
   const terminals = useStore((store) => store.terminals);
@@ -28,10 +30,19 @@ const usePersistentTerminal = (pty: string) => {
   return { terminalData: terminals[pty], isReady };
 };
 
-const TerminalComponent = ({ pty, script, runScript }: any) => {
+const TerminalComponent = ({
+  pty,
+  script,
+  runScript,
+  setCommandRunning,
+  setExitCode,
+  setCommandDuration,
+}: any) => {
   const terminalRef = useRef(null);
   const { terminalData, isReady } = usePersistentTerminal(pty);
   const [isAttached, setIsAttached] = useState(false);
+  const startTime = useRef<number | null>(null);
+
   const cleanupListenerRef = useRef<(() => void) | null>(null);
   const keyDispose = useRef<IDisposable | null>(null);
 
@@ -80,6 +91,26 @@ const TerminalComponent = ({ pty, script, runScript }: any) => {
     }
 
     listen(`pty-${pty}`, (event: any) => {
+      if (event.payload.indexOf("ATUIN_COMMAND_START") >= 0) {
+        setCommandRunning(true);
+        setCommandDuration(null);
+        startTime.current = performance.now();
+      }
+
+      const endMatch = endMarkerRegex.exec(event.payload);
+      if (endMatch) {
+        setCommandRunning(false);
+        let exitCode = parseInt(endMatch[1], 10);
+        setExitCode(exitCode);
+
+        if (startTime.current) {
+          setCommandDuration(performance.now() - startTime.current);
+          console.log(performance.now() - startTime.current);
+
+          startTime.current = null;
+        }
+      }
+
       terminalData.terminal.write(event.payload);
     }).then((ul) => {
       cleanupListenerRef.current = ul;

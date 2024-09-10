@@ -15,11 +15,12 @@ import Terminal from "./terminal.tsx";
 
 import "@xterm/xterm/css/xterm.css";
 import { AtuinState, RunbookInfo, useStore } from "@/state/store.ts";
-import { Card, CardBody, CardHeader } from "@nextui-org/react";
-import { cn } from "@/lib/utils.ts";
+import { Card, CardBody, CardHeader, Chip, Spinner } from "@nextui-org/react";
+import { cn, formatDuration } from "@/lib/utils.ts";
 import { usePtyStore } from "@/state/ptyStore.ts";
 import track_event from "@/tracking.ts";
 import PlayButton from "../common/PlayButton.tsx";
+import { Clock } from "lucide-react";
 
 interface RunBlockProps {
   onChange: (val: string) => void;
@@ -75,7 +76,13 @@ const RunBlock = ({
   const [value, setValue] = useState<String>(code);
   const cleanupPtyTerm = useStore((store: AtuinState) => store.cleanupPtyTerm);
   const terminals = useStore((store: AtuinState) => store.terminals);
+
+  // isRunning = a terminal is running
   const [isRunning, setIsRunning] = useState<boolean>(false);
+  // commandRunning = an individual command is running
+  const [commandRunning, setCommandRunning] = useState<boolean>(false);
+  const [exitCode, setExitCode] = useState<number | null>(null);
+  const [commandDuration, setCommandDuration] = useState<number | null>(null);
 
   // This ensures that the first time we run a block, it executes the code. But subsequent mounts of an already-existing pty
   // don't run the code again.
@@ -116,6 +123,10 @@ const RunBlock = ({
         rbi.removePty(id);
         setRunbookInfo(rbi);
       }
+
+      setCommandRunning(false);
+      setExitCode(null);
+      setCommandDuration(null);
     }
 
     if (!isRunning) {
@@ -179,25 +190,43 @@ const RunBlock = ({
       className="w-full !max-w-full !outline-none overflow-none"
       shadow="sm"
     >
-      <CardHeader className="flex flex-row items-start gap-2 bg-default-50">
-        <PlayButton
-          isRunning={isRunning}
-          cancellable={true}
-          onPlay={() => handleToggle()}
-        />
-        <CodeMirror
-          id={id}
-          placeholder={"Write your script here..."}
-          className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
-          value={code}
-          editable={isEditable}
-          onChange={(val) => {
-            setValue(val);
-            onChange(val);
-          }}
-          extensions={[customKeymap, ...extensions(), langs.shell()]}
-          basicSetup={false}
-        />
+      <CardHeader className={cn("flex flex-col items-start gap-2", {})}>
+        <div className="flex flex-row justify-between w-full">
+          <span className="text-default-700 font-semibold">Script</span>
+          {commandRunning && <Spinner size="sm" />}
+          {commandDuration && (
+            <Chip
+              variant="flat"
+              size="sm"
+              className="pl-3 py-2"
+              startContent={<Clock size={14} />}
+              color={exitCode == 0 ? "success" : "danger"}
+            >
+              {formatDuration(commandDuration)}
+            </Chip>
+          )}
+        </div>
+
+        <div className="flex flex-row items-center gap-2 flex-grow w-full">
+          <PlayButton
+            isRunning={isRunning}
+            cancellable={true}
+            onPlay={() => handleToggle()}
+          />
+          <CodeMirror
+            id={id}
+            placeholder={"Write your script here..."}
+            className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
+            value={code}
+            editable={isEditable}
+            onChange={(val) => {
+              setValue(val);
+              onChange(val);
+            }}
+            extensions={[customKeymap, ...extensions(), langs.shell()]}
+            basicSetup={false}
+          />
+        </div>
       </CardHeader>
       <CardBody
         className={cn({
@@ -210,7 +239,14 @@ const RunBlock = ({
           }`}
         >
           {pty && (
-            <Terminal pty={pty.pid} script={value} runScript={firstOpen} />
+            <Terminal
+              pty={pty.pid}
+              script={value}
+              runScript={firstOpen}
+              setCommandRunning={setCommandRunning}
+              setExitCode={setExitCode}
+              setCommandDuration={setCommandDuration}
+            />
           )}
         </div>
       </CardBody>

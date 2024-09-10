@@ -29,6 +29,7 @@ import { insertOrUpdateBlock } from "@blocknote/core";
 import { PromLineChart } from "./lineChart";
 import PromSettings, { PrometheusConfig } from "./promSettings";
 import { Settings } from "@/state/settings";
+import ErrorCard from "../common/ErrorCard";
 
 interface PromProps {
   query: string;
@@ -97,6 +98,7 @@ const Prometheus = (props: PromProps) => {
   const [promExtension, setPromExtension] = useState<PromQLExtension | null>(
     null,
   );
+  const [error, setError] = useState<string | null>(null);
 
   const runQuery = async (val: any) => {
     if (!promClient) return;
@@ -162,7 +164,12 @@ const Prometheus = (props: PromProps) => {
     if (!props.query) return;
 
     (async () => {
-      await runQuery(props.query);
+      try {
+        await runQuery(props.query);
+        setError(null);
+      } catch (e: any) {
+        setError(JSON.stringify(e));
+      }
     })();
   }, [timeFrame, promClient]);
 
@@ -207,7 +214,8 @@ const Prometheus = (props: PromProps) => {
         </div>
       </CardHeader>
       <CardBody className="min-h-64 overflow-x-scroll">
-        <PromLineChart data={data} config={config} />
+        {error && <ErrorCard error={error} />}
+        {!error && <PromLineChart data={data} config={config} />}
       </CardBody>
       <CardFooter className="justify-between">
         <div>

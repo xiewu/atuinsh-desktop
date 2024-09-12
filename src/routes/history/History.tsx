@@ -79,7 +79,7 @@ export default function Search() {
           />
         </main>
 
-        {cliInstalled === true && <InstallCLI />}
+        {cliInstalled !== true && <InstallCLI />}
       </div>
     </>
   );

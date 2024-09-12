@@ -18,7 +18,7 @@ export default function Search() {
   );
 
   let [query, setQuery] = useState("");
-  let [cliInstalled, setCLIInstalled] = useState(false);
+  let [cliInstalled, setCLIInstalled] = useState<boolean | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -79,7 +79,7 @@ export default function Search() {
           />
         </main>
 
-        {!cliInstalled && <InstallCLI />}
+        {cliInstalled === true && <InstallCLI />}
       </div>
     </>
   );

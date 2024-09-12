@@ -171,10 +171,6 @@ const Onboarding = () => {
               </CardBody>
             </Card>
 
-            <p className="text-center text-sm text-gray-500">
-              For advanced features, check out our CLI version.
-            </p>
-
             <Button
               color="success"
               className="w-full"

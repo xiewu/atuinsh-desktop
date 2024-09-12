@@ -43,12 +43,21 @@ const InstallCLI = () => {
               Search, sync, and explore your shell history
             </h3>
 
-            <video
-              src={cliDemo}
-              className="w-full rounded-lg"
-              autoPlay
-              loop
-            ></video>
+            <div style={{ position: "relative", paddingTop: "56.25%" }}>
+              <iframe
+                src="https://iframe.mediadelivery.net/embed/207337/2e21ead8-7c95-4ee8-b3a4-ffa5efaaecca?autoplay=true&loop=true&muted=true&preload=true&responsive=true"
+                loading="lazy"
+                style={{
+                  border: 0,
+                  position: "absolute",
+                  top: 0,
+                  height: "100%",
+                  width: "100%",
+                }}
+                allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
+                allowfullscreen="true"
+              ></iframe>
+            </div>
 
             <Card>
               <CardBody>

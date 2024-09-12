@@ -4,7 +4,7 @@ export default function HistoryList(props: any) {
   return (
     <div
       role="list"
-      className="divide-y divide-gray-100 bg-white shadow-sm ring-1 ring-gray-900/5 overflow-auto"
+      className="divide-y divide-gray-100 bg-white shadow-sm ring-1 ring-gray-900/5 overflow-auto select-none"
       style={{
         height: `${props.height}px`,
         position: "relative",

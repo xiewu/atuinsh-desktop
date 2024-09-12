@@ -1,11 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { formatRelative } from "date-fns";
 import { Tooltip as ReactTooltip } from "react-tooltip";
 
 import { AtuinState, useStore } from "@/state/store";
-import { useToast } from "@/components/ui/use-toast";
-import { ToastAction } from "@/components/ui/toast";
-import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import {
   Card,
   CardHeader,
@@ -24,7 +21,7 @@ import {
 } from "recharts";
 import { ChartConfig, ChartContainer } from "@/components/ui/chart";
 
-import { Clock, Terminal } from "lucide-react";
+import { Clock, Terminal, UsersIcon } from "lucide-react";
 
 import ActivityCalendar from "react-activity-calendar";
 import HistoryRow from "@/components/history/HistoryRow";
@@ -97,31 +94,6 @@ function TopChart({ chartData }: any) {
   );
 }
 
-function Header({ name }: any) {
-  let greeting = name && name.length > 0 ? "Hey, " + name + "!" : "Hey!";
-
-  return (
-    <div className="md:flex md:items-center md:justify-between">
-      <div className="flex-1">
-        <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
-          {greeting}
-        </h2>
-        <h3 className="text-xl leading-7 text-gray-900 pt-4">
-          Welcome to{" "}
-          <a
-            href="https://atuin.sh"
-            target="_blank"
-            rel="noopener noreferrer nofollow"
-          >
-            Atuin
-          </a>
-          .
-        </h3>
-      </div>
-    </div>
-  );
-}
-
 const explicitTheme = {
   light: ["#f0f0f0", "#c4edde", "#7ac7c4", "#f73859", "#384259"],
   dark: ["#f0f0f0", "#c4edde", "#7ac7c4", "#f73859", "#384259"],
@@ -135,7 +107,6 @@ const isOnboardingComplete = async () => {
 export default function Home() {
   const navigate = useNavigate();
   const homeInfo = useStore((state: AtuinState) => state.homeInfo);
-  const user = useStore((state: AtuinState) => state.user);
   const calendar = useStore((state: AtuinState) => state.calendar);
   const runbooks = useStore((state: AtuinState) => state.runbooks);
   const weekStart = useStore((state: AtuinState) => state.weekStart);
@@ -151,8 +122,8 @@ export default function Home() {
     (state: AtuinState) => state.refreshRunbooks,
   );
 
-  const { toast } = useToast();
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [version, setVersion] = useState<string | null>(null);
 
   useEffect(() => {
     refreshHomeInfo();
@@ -161,45 +132,11 @@ export default function Home() {
     refreshRunbooks();
 
     let setup = async () => {
-      let installed = await invoke("is_cli_installed");
-      console.log("CLI installation status:", installed);
+      let ver = await getVersion();
+      setVersion(ver);
 
       const onboardingComplete = await isOnboardingComplete();
       setShowOnboarding(!onboardingComplete);
-
-      if (!installed) {
-        toast({
-          title: "Atuin CLI",
-          description: "CLI not detected - install?",
-          action: (
-            <ToastAction
-              altText="Install"
-              onClick={() => {
-                let install = async () => {
-                  toast({
-                    title: "Atuin CLI",
-                    description: "Install in progress...",
-                  });
-
-                  console.log("Installing CLI...");
-                  await invoke("install_cli");
-
-                  console.log("Setting up plugin...");
-                  await invoke("setup_cli");
-
-                  toast({
-                    title: "Atuin CLI",
-                    description: "Installation complete",
-                  });
-                };
-                install();
-              }}
-            >
-              Install
-            </ToastAction>
-          ),
-        });
-      }
     };
 
     setup();
@@ -210,19 +147,8 @@ export default function Home() {
   }
 
   return (
-    <div className="w-full flex-1 flex-col p-4 overflow-y-auto">
-      <div className="pl-10">
-        <Header name={user.username} />
-      </div>
+    <div className="w-full flex-1 flex-col p-4 overflow-y-auto select-none">
       <div className="p-10 grid grid-cols-4 gap-4">
-        <StatCard
-          name="Last Sync"
-          stat={
-            (homeInfo.lastSyncTime &&
-              formatRelative(homeInfo.lastSyncTime, new Date())) ||
-            "Never"
-          }
-        />
         <StatCard
           name="Total Commands"
           stat={homeInfo.historyCount.toLocaleString()}
@@ -231,10 +157,7 @@ export default function Home() {
           name="Total Runbooks"
           stat={runbooks.length.toLocaleString()}
         />
-        <StatCard
-          name="Other Records"
-          stat={homeInfo.recordCount - homeInfo.historyCount}
-        />
+        <StatCard name="Version" stat={version} />
 
         <Card shadow="sm" className="col-span-3">
           <CardHeader>
@@ -281,6 +204,15 @@ export default function Home() {
                 onPress={() => navigate("/history")}
               >
                 Shell History
+              </ListboxItem>
+              <ListboxItem
+                key="community"
+                description="Join the community"
+                startContent={<UsersIcon />}
+                href={"https://dub.sh/atuin-desktop-beta"}
+                target="_blank"
+              >
+                Community
               </ListboxItem>
             </Listbox>
           </CardBody>

@@ -192,7 +192,7 @@ const RunBlock = ({
     >
       <CardHeader className={cn("flex flex-col items-start gap-2", {})}>
         <div className="flex flex-row justify-between w-full">
-          <span className="text-default-700 font-semibold">Script</span>
+          <span className="text-default-700 font-semibold">Terminal</span>
           {commandRunning && <Spinner size="sm" />}
           {commandDuration && (
             <Chip

@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import type { ClassValue } from "clsx";
 
 import clsx from "clsx";
@@ -86,4 +87,12 @@ export function formatDuration(ms: number) {
   const remainingHours = hours % 24;
 
   return `${days}d ${remainingHours}h ${remainingMinutes}m ${remainingSeconds}s`;
+}
+
+export async function installAtuinCLI() {
+  console.log("Installing CLI...");
+  await invoke("install_cli");
+
+  console.log("Setting up plugin...");
+  await invoke("setup_cli");
 }

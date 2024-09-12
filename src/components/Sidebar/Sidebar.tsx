@@ -319,7 +319,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
         ref={ref}
         hideSelectedIcon
         as="nav"
-        className={cn("list-none", className)}
+        className={cn("list-none select-none", className)}
         classNames={{
           ...classNames,
           list: cn("items-center", classNames?.list),

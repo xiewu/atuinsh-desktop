@@ -95,7 +95,7 @@ const insertRun = (editor: typeof schema.BlockNoteEditor) => ({
     });
   },
   icon: <CodeIcon size={18} />,
-  aliases: ["code", "run"],
+  aliases: ["terminal", "run"],
   group: "Execute",
 });
 

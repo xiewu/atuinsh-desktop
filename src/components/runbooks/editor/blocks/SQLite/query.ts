@@ -5,6 +5,10 @@ export const runQuery = async (
   uri: string,
   query: string,
 ): Promise<QueryResult> => {
+  if (!uri.startsWith("sqlite://")) {
+    uri = `sqlite://${uri}`;
+  }
+
   // Firsts up, let's process the query a little. This is probably too naive, but we shall see.
   // 1. Only run the _first_ statement in the input
   // 2. If the statement is a SELECT, run it and display the results

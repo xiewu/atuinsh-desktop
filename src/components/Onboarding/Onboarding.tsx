@@ -1,17 +1,16 @@
 import {
   Modal,
   ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
   Button,
   Switch,
-  cn,
   useDisclosure,
+  Card,
+  CardBody,
+  CardHeader,
+  Divider,
 } from "@nextui-org/react";
 
 import { useEffect, useState } from "react";
-import HorizontalSteps from "./horizontal-steps";
 import { Icon } from "@iconify/react";
 import { KVStore } from "@/state/kv";
 import { ask } from "@tauri-apps/plugin-dialog";
@@ -22,6 +21,15 @@ const completeOnboarding = async () => {
   await db.set("onboarding_complete", true);
 };
 
+const FeatureCard = ({ title, description }: any) => (
+  <Card>
+    <CardBody>
+      <h4 className="text-lg font-semibold mb-2">{title}</h4>
+      <p className="text-sm text-gray-600">{description}</p>
+    </CardBody>
+  </Card>
+);
+
 const Onboarding = () => {
   let {
     isOpen: isOnboardingOpen,
@@ -29,7 +37,6 @@ const Onboarding = () => {
     onOpenChange: onOnboardingOpenChange,
   } = useDisclosure();
 
-  const [currentStep, setCurrentStep] = useState(0);
   const [trackingOptIn, setTrackingOptIn] = useState(false);
   const [restartNeeded, setRestartNeeded] = useState(false);
 
@@ -37,152 +44,148 @@ const Onboarding = () => {
     onOnboardingOpen();
   }, []);
 
-  const steps = [{ title: <div>Welcome</div> }, { title: "Opt-in" }];
+  const close = async (onClose: any) => {
+    onClose();
+
+    await completeOnboarding();
+
+    if (restartNeeded) {
+      const yes = await ask(
+        "To apply your changes, Atuin needs to restart. This won't take long!",
+        {
+          title: "Restart now?",
+          kind: "info",
+          okLabel: "Restart now",
+          cancelLabel: "I'll do it later",
+        },
+      );
+      if (yes) relaunch();
+    }
+  };
 
   return (
-    <>
-      <Modal
-        isDismissable={false}
-        hideCloseButton
-        isOpen={isOnboardingOpen}
-        onOpenChange={onOnboardingOpenChange}
-        className="w-full"
-      >
-        <ModalContent className="w-full">
-          {(onClose) => (
-            <>
-              <ModalHeader className="flex flex-col gap-1 w-full">
-                <HorizontalSteps
-                  className="w-full"
-                  currentStep={currentStep}
-                  onStepChange={setCurrentStep}
-                  steps={steps}
-                  hideProgressBars
-                />
-              </ModalHeader>
-              <ModalBody>
-                {currentStep == 0 && (
-                  <>
-                    <p>Welcome to Atuin!</p>
-                    <p>
-                      While Atuin works best with the `atuin` CLI installed, you
-                      can use Runbooks without it{" "}
-                    </p>
-                    <p>
-                      Select the{" "}
-                      <Icon className="inline" icon="solar:notebook-linear" />{" "}
-                      on the sidebar to get started with Runbooks
-                    </p>
-                  </>
-                )}
+    <Modal
+      isDismissable={false}
+      hideCloseButton
+      isOpen={isOnboardingOpen}
+      onOpenChange={onOnboardingOpenChange}
+      className="w-full select-none"
+      size="2xl"
+    >
+      <ModalContent className="w-full">
+        {(onClose) => (
+          <div className="max-w-[900px] mx-auto p-6 space-y-6">
+            <h1 className="text-4xl font-bold text-center">
+              Welcome to Atuin Desktop
+            </h1>
 
-                {currentStep == 1 && (
-                  <div>
-                    <h2 className="text-xl text-center pb-1">
-                      Opt-in to help us make Atuin better!
-                    </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FeatureCard
+                title="Runbooks that Run"
+                description="Create and run notebooks that integrate seamlessly with your infrastructure"
+              />
+              <FeatureCard
+                title="Shell History Explorer"
+                description="Easily search and analyze your past commands"
+              />
+            </div>
 
-                    <p className="text-xs text-center pb-4">
-                      By default, Atuin collects no data. However, if you
-                      opt-in, we collect data to help us improve the product.
-                    </p>
-
-                    <Switch
-                      isSelected={trackingOptIn}
-                      onValueChange={(value) => {
-                        (async () => {
-                          let db = await KVStore.open_default();
-                          await db.set("usage_tracking", value);
-
-                          // Regardless, restart. While we could remove all hooks when tracking is disabled, it's safer
-                          // to just restart the app and never initialize the hooks at all.
-                          setRestartNeeded(true);
-                        })();
-
-                        setTrackingOptIn(value);
-                      }}
-                      classNames={{
-                        base: cn(
-                          "inline-flex flex-row-reverse w-full max-w-md bg-content1 hover:bg-content2 items-center",
-                          "justify-between cursor-pointer rounded-lg gap-2 p-4 border-2 border-transparent",
-                          "data-[selected=true]:border-primary",
-                        ),
-                        wrapper: "p-0 h-4 overflow-visible",
-                        thumb: cn(
-                          "w-6 h-6 border-2 shadow-lg",
-                          "group-data-[hover=true]:border-primary",
-                          //selected
-                          "group-data-[selected=true]:ml-6",
-                          // pressed
-                          "group-data-[pressed=true]:w-7",
-                          "group-data-[selected]:group-data-[pressed]:ml-4",
-                        ),
-                      }}
+            <Card>
+              <CardHeader className="flex gap-3">
+                <div className="flex flex-col">
+                  <p className="text-md">Getting Started</p>
+                </div>
+              </CardHeader>
+              <Divider />
+              <CardBody>
+                <ul className="list-disc pl-6 space-y-2">
+                  <li>
+                    Click the{" "}
+                    <Icon
+                      className="inline-block"
+                      icon="solar:notebook-linear"
+                    />{" "}
+                    icon to start working with Runbooks
+                  </li>
+                  <li>
+                    Use the{" "}
+                    <Icon
+                      className="inline-block"
+                      icon="solar:history-outline"
+                    />{" "}
+                    icon to explore your shell history
+                  </li>
+                  <li>
+                    Join the{" "}
+                    <a
+                      href="https://dub.sh/atuin-desktop-beta"
+                      target="_blank"
+                      className="text-blue-400 underline"
                     >
-                      <div className="flex flex-col gap-1">
-                        <p className="text-medium">Enable usage tracking</p>
-                        <p className="text-tiny text-default-400">
-                          Track usage and errors
-                        </p>
-                      </div>
-                    </Switch>
+                      community
+                    </a>{" "}
+                    to get help and share feedback
+                  </li>
+                </ul>
+              </CardBody>
+            </Card>
 
-                    <p className="text-tiny text-default-400 mt-4 text-center">
-                      You can change these settings at any time in the settings
-                      menu. We never share your terminal data.
-                    </p>
-                  </div>
-                )}
-              </ModalBody>
-              <ModalFooter>
-                {currentStep < steps.length - 1 && (
-                  <Button
-                    color="danger"
-                    variant="light"
-                    onPress={async () => {
-                      await completeOnboarding();
-                      onClose();
+            <Card>
+              <CardBody className="gap-4">
+                <h2 className="text-xl font-bold">Usage Tracking</h2>
+                <p className="text-gray-600">
+                  To help improve Atuin, we'd like to collect anonymous usage
+                  data and error reports. We respect your privacy and only track
+                  with your permission.
+                </p>
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold">Enable tracking</p>
+                  <Switch
+                    isSelected={trackingOptIn}
+                    onValueChange={(value) => {
+                      (async () => {
+                        let db = await KVStore.open_default();
+                        await db.set("usage_tracking", value);
+
+                        // Regardless, restart. While we could remove all hooks when tracking is disabled, it's safer
+                        // to just restart the app and never initialize the hooks at all.
+                        setRestartNeeded(true);
+                      })();
+
+                      setTrackingOptIn(value);
                     }}
-                  >
-                    Skip onboarding
-                  </Button>
+                    aria-label="Toggle tracking"
+                  />
+                </div>
+                {trackingOptIn && (
+                  <p className="text-sm text-gray-500">
+                    Thank you for helping us improve Atuin. You can change this
+                    setting anytime.
+                  </p>
                 )}
-                <Button
-                  color="primary"
-                  onPress={async () => {
-                    if (currentStep < steps.length - 1) {
-                      setCurrentStep(currentStep + 1);
-                    } else {
-                      onClose();
+                {!trackingOptIn && (
+                  <p className="text-sm text-gray-500">
+                    Tracking is disabled. No data will be collected.
+                  </p>
+                )}
+              </CardBody>
+            </Card>
 
-                      await completeOnboarding();
+            <p className="text-center text-sm text-gray-500">
+              For advanced features, check out our CLI version.
+            </p>
 
-                      if (restartNeeded) {
-                        const yes = await ask(
-                          `
-                          To apply your changes, Atuin needs to restart. This won't take long!
-                          `,
-                          {
-                            title: "Restart now?",
-                            kind: "info",
-                            okLabel: "Restart now",
-                            cancelLabel: "Restart later",
-                          },
-                        );
-                        if (yes) relaunch();
-                      }
-                    }
-                  }}
-                >
-                  {currentStep < steps.length - 1 && "Next"}
-                  {currentStep == steps.length - 1 && "Finish"}
-                </Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
-    </>
+            <Button
+              color="success"
+              className="w-full"
+              onClick={() => close(onClose)}
+            >
+              Get Started
+            </Button>
+          </div>
+        )}
+      </ModalContent>
+    </Modal>
   );
 };
 

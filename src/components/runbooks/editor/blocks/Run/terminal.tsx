@@ -76,8 +76,8 @@ const TerminalComponent = ({
 
       window.addEventListener("resize", windowResize);
 
-      const disposeOnKey = terminalData.terminal.onKey(async (event) => {
-        await invoke("pty_write", { pid: pty, data: event.key });
+      const disposeOnKey = terminalData.terminal.onData(async (event) => {
+        await invoke("pty_write", { pid: pty, data: event });
       });
 
       if (runScript) {

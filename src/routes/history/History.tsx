@@ -5,6 +5,8 @@ import HistoryList from "@/components/HistoryList.tsx";
 import HistorySearch from "@/components/HistorySearch.tsx";
 
 import { AtuinState, useStore } from "@/state/store";
+import { invoke } from "@tauri-apps/api/core";
+import InstallCLI from "@/components/history/InstallCLI";
 
 export default function Search() {
   const history = useStore((state: AtuinState) => state.shellHistory);
@@ -16,6 +18,7 @@ export default function Search() {
   );
 
   let [query, setQuery] = useState("");
+  let [cliInstalled, setCLIInstalled] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -44,6 +47,14 @@ export default function Search() {
     historyNextPage(query);
   }, [rowVirtualizer.getVirtualItems()]);
 
+  useEffect(() => {
+    (async () => {
+      let installed = await invoke<boolean>("is_cli_installed");
+      console.log("CLI installation status:", installed);
+      setCLIInstalled(installed);
+    })();
+  }, []);
+
   return (
     <>
       <div className="w-full flex-1 flex-col">
@@ -67,6 +78,8 @@ export default function Search() {
             height={rowVirtualizer.getTotalSize()}
           />
         </main>
+
+        {!cliInstalled && <InstallCLI />}
       </div>
     </>
   );

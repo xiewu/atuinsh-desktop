@@ -5,7 +5,6 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { useStore } from "@/state/store";
 
 import { Toaster } from "@/components/ui/toaster";
-import { KeyRoundIcon } from "lucide-react";
 import { Icon } from "@iconify/react";
 
 import LoginOrRegister from "@/components/LoginOrRegister.tsx";
@@ -28,33 +27,23 @@ import {
 } from "@nextui-org/react";
 import Sidebar, { SidebarItem } from "@/components/Sidebar";
 import icon from "@/assets/icon.svg";
-import { logout } from "@/state/client.ts";
-import { useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { useToast } from "@/components/ui/use-toast";
+import { useEffect, useRef } from "react";
 import { checkForAppUpdates } from "@/updater";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { message } from "@tauri-apps/plugin-dialog";
 
 function App() {
   const cleanupUpdateListener = useRef<UnlistenFn | null>(null);
   const navigate = useNavigate();
   const user = useStore((state: any) => state.user);
-  const refreshUser = useStore((state: any) => state.refreshUser);
-  const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const { isOpen, onOpenChange } = useDisclosure();
   const {
     isOpen: isSettingsOpen,
     onOpen: onSettingsOpen,
     onOpenChange: onSettingsOpenChange,
   } = useDisclosure();
 
-  const [isCliInstalled, setIsCliInstalled] = useState(false);
-  let { toast } = useToast();
-
   useEffect(() => {
-    invoke<boolean>("is_cli_installed").then((cliInstalled) => {
-      setIsCliInstalled(cliInstalled);
-    });
-
     const check = () => {
       (async () => {
         await checkForAppUpdates();
@@ -65,8 +54,17 @@ function App() {
 
     check();
 
-    listen("update-check", () => {
-      checkForAppUpdates();
+    listen("update-check", async () => {
+      let updateAvailable = await checkForAppUpdates();
+
+      if (!updateAvailable) {
+        console.log("No updates available");
+        let res = await message("No updates available", {
+          title: "Atuin",
+          kind: "info",
+        });
+        console.log(res);
+      }
     }).then((unlisten) => {
       cleanupUpdateListener.current = unlisten;
     });
@@ -115,7 +113,7 @@ function App() {
       style={{ maxWidth: "100vw", height: "calc(100dvh - 2rem)" }}
     >
       <div className="flex w-full">
-        <div className="relative flex flex-col !border-r-small border-divider transition-width pb-6 pt-4 items-center">
+        <div className="relative flex flex-col !border-r-small border-divider transition-width pb-6 pt-4 items-center select-none">
           <div className="flex items-center gap-0 px-3 justify-center">
             <div className="flex h-8 w-8">
               <img src={icon} alt="icon" className="h-8 w-8" />
@@ -155,7 +153,7 @@ function App() {
                   <User
                     avatarProps={{
                       size: "sm",
-                      name: user.username || "Anonymous User",
+                      name: "Anonymous User",
                       showFallback: true,
                       imgProps: {
                         className: "transition-none",
@@ -165,10 +163,7 @@ function App() {
                       name: "text-default-600",
                       description: "text-default-500",
                     }}
-                    description={
-                      user.bio || (user.username && "No bio") || "Sign up now"
-                    }
-                    name={user.username || "Anonymous User"}
+                    name={"Anonymous User"}
                   />
                 </DropdownItem>
 
@@ -187,68 +182,13 @@ function App() {
                   <DropdownItem
                     key="help_and_feedback"
                     description="Get in touch"
-                    onPress={() => open("https://forum.atuin.sh")}
+                    onPress={() => open("https://dub.sh/atuin-desktop-beta")}
                     startContent={
                       <Icon width={24} icon="solar:question-circle-linear" />
                     }
                   >
                     Help & Feedback
                   </DropdownItem>
-
-                  {(user.username && (
-                    <DropdownItem
-                      key="logout"
-                      startContent={
-                        <Icon width={24} icon="solar:logout-broken" />
-                      }
-                      onClick={() => {
-                        logout();
-                        refreshUser();
-                      }}
-                    >
-                      Log Out
-                    </DropdownItem>
-                  )) || (
-                    <DropdownItem
-                      key="signup"
-                      description="Sync, backup and share your data"
-                      className="bg-emerald-100"
-                      startContent={<KeyRoundIcon size="18px" />}
-                      onPress={onOpen}
-                    >
-                      Log in or Register
-                    </DropdownItem>
-                  )}
-
-                  {isCliInstalled || (
-                    <DropdownItem
-                      key="install_cli"
-                      startContent={
-                        <Icon width={24} icon="iconoir:terminal-tag" />
-                      }
-                      onClick={async () => {
-                        toast({
-                          title: "Atuin CLI",
-                          description: "Install in progress...",
-                        });
-
-                        console.log("Installing CLI...");
-                        await invoke("install_cli");
-
-                        console.log("Setting up plugin...");
-                        await invoke("setup_cli");
-
-                        toast({
-                          title: "Atuin CLI",
-                          description: "Installation complete",
-                        });
-
-                        setIsCliInstalled(true);
-                      }}
-                    >
-                      Install Atuin CLI
-                    </DropdownItem>
-                  )}
                 </DropdownSection>
               </DropdownMenu>
             </Dropdown>

@@ -9,7 +9,6 @@ import {
 
 import { useEffect, useState } from "react";
 import { installAtuinCLI } from "@/lib/utils";
-import cliDemo from "@/assets/cli_demo.mp4";
 
 const InstallCLI = () => {
   let {
@@ -55,7 +54,7 @@ const InstallCLI = () => {
                   width: "100%",
                 }}
                 allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
-                allowfullscreen="true"
+                allowFullScreen
               ></iframe>
             </div>
 

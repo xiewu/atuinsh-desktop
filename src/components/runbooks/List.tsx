@@ -14,6 +14,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { ptyForRunbook, PtyMetadata, usePtyStore } from "@/state/ptyStore";
 import { useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import welcome from "./welcome.json";
 
 const NoteSidebar = () => {
   const runbooks = useStore((state: AtuinState) => state.runbooks);
@@ -30,6 +31,19 @@ const NoteSidebar = () => {
 
   useEffect(() => {
     refreshRunbooks();
+
+    (async () => {
+      if (runbooks.length === 0) {
+        let runbook = await Runbook.create();
+
+        runbook.name = "Welcome to Atuin!";
+        runbook.content = JSON.stringify(welcome);
+        runbook.save();
+
+        refreshRunbooks();
+        setCurrentRunbook(runbook.id);
+      }
+    })();
   }, []);
 
   const handleNewRunbook = async () => {

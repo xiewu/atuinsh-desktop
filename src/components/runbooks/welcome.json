@@ -221,7 +221,7 @@
     "type": "run",
     "props": {
       "type": "bash",
-      "code": "echo 'Welcome to Atuin!'\necho 'This is a script block'\necho 'Try clicking the green play button on the left'",
+      "code": "echo 'Welcome to Atuin!'\necho 'This is a terminal block'\necho 'Try clicking the green play button on the left'",
       "pty": "",
       "global": false
     },
@@ -424,7 +424,7 @@
       },
       {
         "type": "text",
-        "text": ". These set the directory that all subsequent code blocks should use. Try changing directory, and then running the script block.",
+        "text": ". These set the directory that all subsequent code blocks should use. Try changing directory, and then running the terminal block.",
         "styles": {}
       }
     ],

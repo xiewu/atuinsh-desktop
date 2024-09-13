@@ -15,7 +15,8 @@
         "width": 1200,
         "height": 1000,
         "titleBarStyle": "Overlay",
-        "hiddenTitle": true
+        "hiddenTitle": true,
+        "dragDropEnabled": false
       }
     ]
   },

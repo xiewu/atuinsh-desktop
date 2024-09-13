@@ -30,6 +30,7 @@ import {
   SideMenu,
   // @ts-ignore
   SideMenuController,
+  DragHandleButton,
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 
@@ -56,7 +57,6 @@ import Prometheus, {
   insertPrometheus,
 } from "@/components/runbooks/editor/blocks/Prometheus/Prometheus";
 
-import { DeleteBlock } from "@/components/runbooks/editor/ui/DeleteBlockButton";
 import { AtuinState, useStore } from "@/state/store";
 import Runbook from "@/state/runbooks/runbook";
 import Http, { insertHttp } from "./blocks/Http/Http";
@@ -247,7 +247,7 @@ export default function Editor() {
           sideMenu={(props: any) => (
             <SideMenu {...props}>
               <AddBlockButton {...props} />
-              <DeleteBlock {...props} />
+              <DragHandleButton {...props} />
             </SideMenu>
           )}
         />

@@ -245,9 +245,10 @@ export default function Editor() {
 
         <SideMenuController
           sideMenu={(props: any) => (
-            <SideMenu {...props}>
-              <AddBlockButton {...props} />
-              <DragHandleButton {...props} />
+            <SideMenu {...props} style={{ zIndex: 0 }}>
+              <AddBlockButton {...props} style={{ zIndex: 0 }} />
+              <DragHandleButton {...props} style={{ zIndex: 0 }}
+              />
             </SideMenu>
           )}
         />

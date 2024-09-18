@@ -11,10 +11,11 @@ import { useEffect, useState } from "react";
 
 import { extensions } from "./extensions";
 import { invoke } from "@tauri-apps/api/core";
+import { platform } from "@tauri-apps/plugin-os";
 import Terminal from "./terminal.tsx";
 
 import "@xterm/xterm/css/xterm.css";
-import { AtuinState, RunbookInfo, useStore } from "@/state/store.ts";
+import { AtuinState, useStore } from "@/state/store.ts";
 import { Card, CardBody, CardHeader, Chip, Spinner } from "@nextui-org/react";
 import { cn, formatDuration } from "@/lib/utils.ts";
 import { usePtyStore } from "@/state/ptyStore.ts";
@@ -73,7 +74,7 @@ const RunBlock = ({
   onStop,
   editor,
 }: RunBlockProps) => {
-  const [value, setValue] = useState<String>(code);
+  const [value, setValue] = useState<string>(code);
   const cleanupPtyTerm = useStore((store: AtuinState) => store.cleanupPtyTerm);
   const terminals = useStore((store: AtuinState) => store.terminals);
 
@@ -90,11 +91,9 @@ const RunBlock = ({
   // we write to it.
   const [firstOpen, setFirstOpen] = useState<boolean>(false);
 
-  const [currentRunbook, runbookInfo, setRunbookInfo] = useStore(
+  const [currentRunbook] = useStore(
     (store: AtuinState) => [
       store.currentRunbook,
-      store.getRunbookInfo(store.currentRunbook!),
-      store.setRunbookInfo,
     ],
   );
 
@@ -104,77 +103,85 @@ const RunBlock = ({
     setIsRunning(pty != null);
   }, [pty]);
 
-  const handleToggle = async () => {
-    if (event) event.stopPropagation();
+  const handleStop = async () => {
+    if (pty === null) return;
 
-    // If there's no code, don't do anything
-    if (!value) return;
+    await invoke("pty_kill", { pid: pty.pid });
 
-    if (isRunning && pty != null) {
-      await invoke("pty_kill", { pid: pty.pid });
+    terminals[pty.pid].dispose();
+    cleanupPtyTerm(pty.pid);
 
-      terminals[pty.pid].terminal.dispose();
-      cleanupPtyTerm(pty.pid);
+    if (onStop) onStop(pty.pid);
 
-      if (onStop) onStop(pty.pid);
-
-      if (runbookInfo) {
-        let rbi = runbookInfo.clone();
-        rbi.removePty(id);
-        setRunbookInfo(rbi);
-      }
-
-      setCommandRunning(false);
-      setExitCode(null);
-      setCommandDuration(null);
-    }
-
-    if (!isRunning) {
-      let cwd = findFirstParentOfType(editor, id, "directory");
-
-      if (cwd) {
-        cwd = cwd.props.path;
-      } else {
-        cwd = "~";
-      }
-
-      let vars = findAllParentsOfType(editor, id, "env");
-      let env: { [key: string]: string } = {};
-
-      for (var i = 0; i < vars.length; i++) {
-        env[vars[i].props.name] = vars[i].props.value;
-      }
-
-      // TODO: make the terminal _also_ handle opening the pty?
-      // I think that would make more sense lol
-      let pty = await invoke<string>("pty_open", {
-        cwd,
-        env,
-        runbook: currentRunbook,
-        block: id,
-      });
-      setFirstOpen(true);
-
-      if (onRun) onRun(pty);
-
-      track_event("runbooks.script.run", {});
-
-      if (runbookInfo) {
-        let rbi = runbookInfo.clone();
-        rbi.addPty(id, pty);
-        setRunbookInfo(rbi);
-      } else {
-        let rbi = new RunbookInfo(currentRunbook!, {
-          [id]: { id: pty, block: id },
-        });
-        rbi.addPty(id, pty);
-        setRunbookInfo(rbi);
-      }
-    }
+    setCommandRunning(false);
+    setExitCode(null);
+    setCommandDuration(null);
   };
 
+  const openPty = async (): Promise<string> => {
+    let cwd = findFirstParentOfType(editor, id, "directory");
+
+    if (cwd) {
+      cwd = cwd.props.path;
+    } else {
+      cwd = "~";
+    }
+
+    let vars = findAllParentsOfType(editor, id, "env");
+    let env: { [key: string]: string } = {};
+
+    for (var i = 0; i < vars.length; i++) {
+      env[vars[i].props.name] = vars[i].props.value;
+    }
+
+    // TODO: make the terminal _also_ handle opening the pty?
+    // I think that would make more sense lol
+    let pty = await invoke<string>("pty_open", {
+      cwd,
+      env,
+      runbook: currentRunbook,
+      block: id,
+    });
+
+    return pty;
+  };
+
+  const handlePlay = async (force: boolean = false) => {
+    if (isRunning && !force) return;
+    if (!value) return;
+
+    let pty = await openPty();
+    setFirstOpen(true);
+
+    if (onRun) onRun(pty);
+
+    track_event("runbooks.script.run", {});
+
+  };
+
+  const handleRefresh = async () => {
+    if (!isRunning) return;
+    if (pty === null) return;
+
+    let terminalData = terminals[pty.pid];
+
+    let isWindows = platform() == "windows";
+    let cmdEnd = isWindows ? "\r\n" : "\n";
+    let val = !value.endsWith("\n") ? value + cmdEnd : value;
+
+    terminalData.terminal.clear();
+    terminalData.write(val);
+  };
+
+  console.log(pty);
+
   const handleCmdEnter = () => {
-    handleToggle();
+    if (isRunning) {
+      handlePlay();
+    } else {
+      handleStop();
+    }
+
     return true;
   };
 
@@ -211,7 +218,9 @@ const RunBlock = ({
           <PlayButton
             isRunning={isRunning}
             cancellable={true}
-            onPlay={() => handleToggle()}
+            onPlay={handlePlay}
+            onStop={handleStop}
+            onRefresh={handleRefresh}
           />
           <CodeMirror
             id={id}
@@ -234,9 +243,8 @@ const RunBlock = ({
         })}
       >
         <div
-          className={`overflow-hidden transition-all duration-300 ease-in-out min-w-0 ${
-            isRunning ? "block" : "hidden"
-          }`}
+          className={`overflow-hidden transition-all duration-300 ease-in-out min-w-0 ${isRunning ? "block" : "hidden"
+            }`}
         >
           {pty && (
             <Terminal

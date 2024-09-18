@@ -12,6 +12,7 @@ import "prismjs/components/prism-bash";
 import Drawer from "../Drawer";
 import HistoryInspect from "./HistoryInspect";
 import { cn } from "@/lib/utils";
+import { Tooltip } from "@nextui-org/react";
 
 function msToTime(ms: number) {
   let milliseconds = parseInt(ms.toFixed(1));
@@ -90,7 +91,9 @@ export default function HistoryRow({ h, compact }: any) {
       </div>
       <div className="flex shrink-0 items-center gap-x-4">
         <div className="hidden sm:flex sm:flex-col sm:items-end">
-          <p className="text-sm leading-6 text-gray-900">{h.exit}</p>
+          <Tooltip content="Exit code">
+            <p className="text-sm leading-6 text-gray-900">{h.exit}</p>
+          </Tooltip>
           {h.duration ? (
             <p className="mt-1 text-xs leading-5 text-gray-500">
               <time dateTime={h.duration}>

@@ -19,7 +19,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { sessionToken, settings } from "./client";
 import { getWeekInfo } from "@/lib/utils";
 import Runbook from "./runbooks/runbook";
-import { Terminal } from "@xterm/xterm";
+import { IDisposable, Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import RunbookIndexService from "./runbooks/search";
@@ -28,51 +28,56 @@ import { Settings } from "./settings";
 export class TerminalData {
   terminal: Terminal;
   fitAddon: FitAddon;
+  pty: string;
 
-  constructor(terminal: Terminal, fit: FitAddon) {
+  disposeResize: IDisposable;
+  disposeOnData: IDisposable;
+
+  constructor(pty: string, terminal: Terminal, fit: FitAddon) {
     this.terminal = terminal;
     this.fitAddon = fit;
+    this.pty = pty;
+
+    this.disposeResize = this.terminal.onResize((e) => this.onResize(e));
+    this.disposeOnData = this.terminal.onData((e) => this.onData(e));
+  }
+
+  async onData(event: any) {
+    await invoke("pty_write", { pid: this.pty, data: event });
+  }
+
+  async onResize(size: { cols: number; rows: number }) {
+    if (!this || !this.pty) return;
+    await invoke("pty_resize", {
+      pid: this.pty,
+      cols: size.cols,
+      rows: size.rows,
+    });
+  }
+
+  async write(data: string) {
+    await invoke("pty_write", { pid: this.pty, data: data });
+  }
+
+  dispose() {
+    this.disposeResize.dispose();
+    this.disposeOnData.dispose();
+    this.terminal.dispose();
+  }
+
+  relisten(pty: string) {
+    this.pty = pty;
+
+    this.dispose();
+
+    this.disposeResize = this.terminal.onResize(this.onResize);
+    this.disposeOnData = this.terminal.onData(this.onData);
   }
 }
 
 export interface RunbookPtyInfo {
   id: string;
   block: string;
-}
-
-export class RunbookInfo {
-  id: string;
-  private ptys: { [block: string]: RunbookPtyInfo };
-
-  constructor(id: string, ptys: { [block: string]: RunbookPtyInfo }) {
-    this.id = id;
-    this.ptys = ptys;
-  }
-
-  ptyList(): RunbookPtyInfo[] {
-    return Object.values(this.ptys);
-  }
-
-  addPty(block: string, id: string) {
-    this.ptys[block] = { id: id, block: block };
-  }
-
-  getPty(block: string): RunbookPtyInfo | null {
-    return this.ptys[block] || null;
-  }
-
-  removePty(block: string) {
-    delete this.ptys[block];
-  }
-
-  ptyLength(): number {
-    return Object.keys(this.ptys).length;
-  }
-
-  // Zustand and React don't like it when you mutate stuff
-  clone(): RunbookInfo {
-    return new RunbookInfo(this.id, this.ptys);
-  }
 }
 
 // I'll probs want to slice this up at some point, but for now a
@@ -111,10 +116,6 @@ export interface AtuinState {
 
   terminals: { [pty: string]: TerminalData };
 
-  // Store ephemeral state for runbooks, that is not persisted to the database
-  runbookInfo: { [runbook: string]: RunbookInfo };
-  getRunbookInfo: (runbook: string) => RunbookInfo | null;
-  setRunbookInfo: (info: RunbookInfo) => void;
 }
 
 let state = (set: any, get: any): AtuinState => ({
@@ -127,7 +128,6 @@ let state = (set: any, get: any): AtuinState => ({
   runbooks: [],
   currentRunbook: "",
   terminals: {},
-  runbookInfo: {},
   runbookIndex: new RunbookIndexService(),
 
   weekStart: getWeekInfo().firstDay,
@@ -271,7 +271,6 @@ let state = (set: any, get: any): AtuinState => ({
   newPtyTerm: async (pty: string) => {
     let font = await Settings.terminalFont();
     let gl = await Settings.terminalGL();
-    console.log("term settings", font, gl);
 
     let terminal = new Terminal({
       fontFamily: `${font}, monospace`,
@@ -282,40 +281,19 @@ let state = (set: any, get: any): AtuinState => ({
     // probs fine for now though, it's widely supported. maybe issues on linux.
     if (gl) {
       // May have font issues
-      console.log(gl);
       terminal.loadAddon(new WebglAddon());
     }
 
     let fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
 
-    const onResize = (size: { cols: number; rows: number }) => {
-      invoke("pty_resize", {
-        pid: pty,
-        cols: size.cols,
-        rows: size.rows,
-      });
-    };
-
-    terminal.onResize(onResize);
-
-    let td = new TerminalData(terminal, fitAddon);
+    let td = new TerminalData(pty, terminal, fitAddon);
 
     set({
       terminals: { ...get().terminals, [pty]: td },
     });
 
     return td;
-  },
-
-  getRunbookInfo: (runbook: string): RunbookInfo | null => {
-    return get().runbookInfo[runbook];
-  },
-
-  setRunbookInfo: (info: RunbookInfo) => {
-    set({
-      runbookInfo: { ...get().runbookInfo, [info.id]: info },
-    });
   },
 });
 
@@ -331,7 +309,6 @@ export const useStore = create<AtuinState>()(
           ([key]) =>
             ![
               "terminals",
-              "runbookInfo",
               "runbooks",
               "history_calendar",
               "home_info",

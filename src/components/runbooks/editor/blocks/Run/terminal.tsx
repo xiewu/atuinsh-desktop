@@ -2,8 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import "@xterm/xterm/css/xterm.css";
 import { useStore } from "@/state/store";
-import { invoke } from "@tauri-apps/api/core";
-import { IDisposable } from "@xterm/xterm";
 import { platform } from "@tauri-apps/plugin-os";
 
 const endMarkerRegex = /\x1b\]633;ATUIN_COMMAND_END;(\d+)\x1b\\/;
@@ -46,7 +44,6 @@ const TerminalComponent = ({
   const startTime = useRef<number | null>(null);
 
   const cleanupListenerRef = useRef<(() => void) | null>(null);
-  const keyDispose = useRef<IDisposable | null>(null);
 
   useEffect(() => {
     // no pty? no terminal
@@ -78,18 +75,13 @@ const TerminalComponent = ({
 
       window.addEventListener("resize", windowResize);
 
-      const disposeOnKey = terminalData.terminal.onData(async (event) => {
-        await invoke("pty_write", { pid: pty, data: event });
-      });
-
       if (runScript) {
         let isWindows = platform() == "windows";
         let cmdEnd = isWindows ? "\r\n" : "\n";
         let val = !script.endsWith("\n") ? script + cmdEnd : script;
-        invoke("pty_write", { pid: pty, data: val });
+        terminalData.write(val);
       }
 
-      keyDispose.current = disposeOnKey;
     }
 
     listen(`pty-${pty}`, (event: any) => {
@@ -138,7 +130,6 @@ const TerminalComponent = ({
         cleanupListenerRef.current();
       }
 
-      if (keyDispose.current) keyDispose.current.dispose();
 
       window.removeEventListener("resize", windowResize);
     };

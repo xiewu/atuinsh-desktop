@@ -103,7 +103,7 @@ export const usePtyStore = create<PtyStore>(
         .filter(([_, pty]) => pty.block === block)
         .map(([_, pty]) => pty);
 
-      if (ptys.length >= 1) return ptys[0];
+      if (ptys.length >= 1) return ptys[ptys.length - 1];
 
       return null;
     },

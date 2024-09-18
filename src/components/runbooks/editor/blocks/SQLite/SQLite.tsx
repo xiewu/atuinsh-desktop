@@ -29,6 +29,7 @@ const SQLite = ({
 }: SQLiteProps) => {
   return (
     <SQL
+      eventName="runbooks.sqlite"
       name="SQLite"
       query={query}
       setQuery={setQuery}

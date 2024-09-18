@@ -16,8 +16,6 @@ const runSelect = async (
   // @ts-ignore
   const rows = data?.data.map((obj) => columns.map((key) => obj[key]));
 
-  console.log(data);
-
   return {
     time: new Date(),
     rows: rows,

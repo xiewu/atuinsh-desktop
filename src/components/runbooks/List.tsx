@@ -6,7 +6,7 @@ import {
   DropdownMenu,
   DropdownItem,
 } from "@nextui-org/react";
-import { Import, MoreVertical, Plus, Terminal } from "lucide-react";
+import { Import, MoreVertical, Plus, SearchIcon, Terminal } from "lucide-react";
 import { DateTime } from "luxon";
 import Runbook from "@/state/runbooks/runbook";
 import { AtuinState, useStore } from "@/state/store";
@@ -15,6 +15,7 @@ import { ptyForRunbook, PtyMetadata, usePtyStore } from "@/state/ptyStore";
 import { useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import welcome from "./welcome.json";
+import track_event from "@/tracking";
 
 const NoteSidebar = () => {
   const runbooks = useStore((state: AtuinState) => state.runbooks);
@@ -22,6 +23,11 @@ const NoteSidebar = () => {
     (state: AtuinState) => state.refreshRunbooks,
   );
   const currentRunbook = useStore((state: AtuinState) => state.currentRunbook);
+  const [isSearchOpen, setSearchOpen] = useStore((store: AtuinState) => [
+    store.searchOpen,
+    store.setSearchOpen,
+  ]);
+
   const setCurrentRunbook = useStore(
     (state: AtuinState) => state.setCurrentRunbook,
   );
@@ -33,7 +39,7 @@ const NoteSidebar = () => {
     refreshRunbooks();
 
     (async () => {
-      if (runbooks.length === 0) {
+      if ((await Runbook.count()) === 0) {
         let runbook = await Runbook.create();
 
         runbook.name = "Welcome to Atuin!";
@@ -51,6 +57,10 @@ const NoteSidebar = () => {
     let runbook = await Runbook.create();
     setCurrentRunbook(runbook.id);
     refreshRunbooks();
+
+    track_event("runbooks.create", {
+      total: await Runbook.count(),
+    });
   };
 
   const handleImportRunbook = async () => {
@@ -59,6 +69,14 @@ const NoteSidebar = () => {
     let runbook = await Runbook.import(filePath.path);
     setCurrentRunbook(runbook.id);
     refreshRunbooks();
+
+    track_event("runbooks.import", {
+      total: await Runbook.count(),
+    });
+  };
+
+  const handleOpenSearch = async () => {
+    if (!isSearchOpen) setSearchOpen(true);
   };
 
   return (
@@ -66,7 +84,7 @@ const NoteSidebar = () => {
       <div className="p-2 flex justify-between items-center border-b border-gray-200">
         <h2 className="text-lg font-semibold">Runbooks</h2>
         <div className="flex space-x-1">
-          <Tooltip content="New Runbook">
+          <Tooltip content="New">
             <Button
               isIconOnly
               size="sm"
@@ -76,7 +94,8 @@ const NoteSidebar = () => {
               <Plus size={18} />
             </Button>
           </Tooltip>
-          <Tooltip content="Import Runbook">
+
+          <Tooltip content="Import">
             <Button
               isIconOnly
               size="sm"
@@ -84,6 +103,17 @@ const NoteSidebar = () => {
               onPress={handleImportRunbook}
             >
               <Import size={18} />
+            </Button>
+          </Tooltip>
+
+          <Tooltip content="Search">
+            <Button
+              isIconOnly
+              size="sm"
+              variant="light"
+              onPress={handleOpenSearch}
+            >
+              <SearchIcon size={18} />
             </Button>
           </Tooltip>
         </div>

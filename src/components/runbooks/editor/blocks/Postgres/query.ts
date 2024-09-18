@@ -30,8 +30,6 @@ export const runQuery = async (
       query,
     });
 
-    console.log(res);
-
     return {
       time: new Date(),
       rows: res.rows,

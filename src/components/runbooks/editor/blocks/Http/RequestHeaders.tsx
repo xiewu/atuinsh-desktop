@@ -6,8 +6,6 @@ const RequestHeaders = ({ pairs, setPairs }: any) => {
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
 
-  console.log(pairs);
-
   const handleAddPair = () => {
     if (newKey && newValue) {
       setPairs({

@@ -205,6 +205,7 @@ const Prometheus = (props: PromProps) => {
 
         <div className="w-full !max-w-full !outline-none overflow-none flex flex-row gap-2">
           <PlayButton
+            eventName="runbooks.prometheus.run"
             onPlay={async () => {
               try {
                 setIsRunning(true);

@@ -21,7 +21,6 @@ const SQLResults = ({ results, error }: SQLProps) => {
   const [columns, setColumns] = useState<GridColumn[] | null>(null);
 
   useEffect(() => {
-    console.log(results);
     if (!results) return;
     if (!results.columns) return;
 

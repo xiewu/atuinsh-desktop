@@ -65,6 +65,7 @@ const Onboarding = () => {
 
   return (
     <Modal
+      disableAnimation
       isDismissable={false}
       hideCloseButton
       isOpen={isOnboardingOpen}

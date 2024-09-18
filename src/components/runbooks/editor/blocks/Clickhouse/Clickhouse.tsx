@@ -28,6 +28,7 @@ const Clickhouse = ({
 }: SQLProps) => {
   return (
     <SQL
+      eventName="runbooks.clickhouse"
       name="Clickhouse"
       placeholder="http://username:password@localhost:8123/?database=default"
       query={query}

@@ -32,6 +32,7 @@ import SQLResults from "./SQLResults";
 interface SQLProps {
   name?: string;
   placeholder?: string;
+  eventName?: string;
 
   uri: string;
   query: string;
@@ -66,6 +67,7 @@ const SQL = ({
   autoRefresh,
   setAutoRefresh,
   runQuery,
+  eventName,
 }: SQLProps) => {
   const [isRunning, setIsRunning] = useState<boolean>(false);
 
@@ -79,7 +81,6 @@ const SQL = ({
 
     try {
       let res = await runQuery(uri, query);
-      console.log(res);
 
       setIsRunning(false);
 
@@ -128,6 +129,7 @@ const SQL = ({
 
         <div className="flex flex-row gap-2">
           <PlayButton
+            eventName={`${eventName}.run`}
             isRunning={isRunning}
             onPlay={handlePlay}
             cancellable={false}

@@ -28,6 +28,7 @@ const Postgres = ({
 }: SQLProps) => {
   return (
     <SQL
+      eventName="runbooks.postgresql"
       name="PostgreSQL"
       query={query}
       setQuery={setQuery}

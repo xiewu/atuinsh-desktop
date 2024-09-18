@@ -28,6 +28,10 @@ export const init_tracking = async () => {
 };
 
 export default function track_event(event: string, properties: any) {
-  let res = posthog.capture(event, properties || {});
-  console.log(res);
+  if (import.meta.env.MODE === "development") {
+    console.log(`[dev] track_event: ${event} -> ${JSON.stringify(properties)}`);
+    return;
+  }
+
+  posthog.capture(event, properties || {});
 }

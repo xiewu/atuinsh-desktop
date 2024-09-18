@@ -22,6 +22,8 @@ import Runbook from "./runbooks/runbook";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
+import RunbookIndexService from "./runbooks/search";
+import { Settings } from "./settings";
 
 export class TerminalData {
   terminal: Terminal;
@@ -87,7 +89,11 @@ export interface AtuinState {
   calendar: any[];
   weekStart: number;
   runbooks: Runbook[];
+  runbookIndex: RunbookIndexService;
   currentRunbook: string | null;
+
+  searchOpen: boolean;
+  setSearchOpen: (open: boolean) => void;
 
   refreshHomeInfo: () => void;
   refreshCalendar: () => void;
@@ -100,7 +106,7 @@ export interface AtuinState {
 
   setCurrentRunbook: (id: String) => void;
   setPtyTerm: (pty: string, terminal: any) => void;
-  newPtyTerm: (pty: string) => TerminalData;
+  newPtyTerm: (pty: string) => Promise<TerminalData>;
   cleanupPtyTerm: (pty: string) => void;
 
   terminals: { [pty: string]: TerminalData };
@@ -122,8 +128,12 @@ let state = (set: any, get: any): AtuinState => ({
   currentRunbook: "",
   terminals: {},
   runbookInfo: {},
+  runbookIndex: new RunbookIndexService(),
 
   weekStart: getWeekInfo().firstDay,
+
+  searchOpen: false,
+  setSearchOpen: (open) => set(() => ({ searchOpen: open })),
 
   refreshAliases: () => {
     invoke("aliases").then((aliases: any) => {
@@ -143,9 +153,13 @@ let state = (set: any, get: any): AtuinState => ({
     });
   },
 
+  // PERF: Yeah this won't work long term. Let's see how many runbooks people have in reality and optimize for 10x that
   refreshRunbooks: async () => {
     let runbooks = await Runbook.all();
-    set({ runbooks });
+    let index = new RunbookIndexService();
+    index.bulkAddRunbooks(runbooks);
+
+    set({ runbooks, runbookIndex: index });
   },
 
   refreshShellHistory: (query?: string) => {
@@ -254,12 +268,23 @@ let state = (set: any, get: any): AtuinState => ({
     });
   },
 
-  newPtyTerm: (pty: string) => {
-    let terminal = new Terminal();
+  newPtyTerm: async (pty: string) => {
+    let font = await Settings.terminalFont();
+    let gl = await Settings.terminalGL();
+    console.log("term settings", font, gl);
+
+    let terminal = new Terminal({
+      fontFamily: `${font}, monospace`,
+      customGlyphs: false,
+    });
 
     // TODO: fallback to canvas, also some sort of setting to allow disabling webgl usage
     // probs fine for now though, it's widely supported. maybe issues on linux.
-    terminal.loadAddon(new WebglAddon());
+    if (gl) {
+      // May have font issues
+      console.log(gl);
+      terminal.loadAddon(new WebglAddon());
+    }
 
     let fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
@@ -303,7 +328,15 @@ export const useStore = create<AtuinState>()(
     partialize: (state) =>
       Object.fromEntries(
         Object.entries(state).filter(
-          ([key]) => !["terminals", "runbookInfo"].includes(key),
+          ([key]) =>
+            ![
+              "terminals",
+              "runbookInfo",
+              "runbooks",
+              "history_calendar",
+              "home_info",
+              "runbookIndex",
+            ].includes(key),
         ),
       ),
   }),

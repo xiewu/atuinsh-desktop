@@ -119,6 +119,7 @@ const Http = ({
         <span className="text-default-700 font-semibold">HTTP</span>
         <div className="flex flex-row items-center gap-2">
           <PlayButton
+            eventName="runbooks.http.run"
             isRunning={isRunning}
             onPlay={onPlay}
             cancellable={false}

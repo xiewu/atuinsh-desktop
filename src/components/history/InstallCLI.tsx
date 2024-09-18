@@ -25,6 +25,7 @@ const InstallCLI = () => {
 
   return (
     <Modal
+      disableAnimation
       isDismissable={true}
       isOpen={isInstallCLIOpen}
       onOpenChange={onInstallCLIOpenChange}

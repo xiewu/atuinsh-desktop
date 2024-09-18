@@ -25,7 +25,7 @@ export default function PromSettings({ config, onSave }: any) {
       <Button variant="flat" size="sm" onPress={onOpen} isIconOnly>
         <SettingsIcon />
       </Button>
-      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="2xl">
+      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="2xl" disableAnimation>
         <ModalContent>
           {(onClose) => (
             <>

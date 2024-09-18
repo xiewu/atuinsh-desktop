@@ -82,8 +82,6 @@ export default function Stats() {
 
     invoke("global_stats")
       .then((s: any) => {
-        console.log(s.daily);
-
         setStats([
           {
             name: "Total history",

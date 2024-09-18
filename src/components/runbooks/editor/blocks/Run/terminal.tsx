@@ -14,13 +14,15 @@ const usePersistentTerminal = (pty: string) => {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    if (!terminals.hasOwnProperty(pty)) {
-      // create a new terminal and store it in the store.
-      // this means we can resume the same instance even across mount/dismount
-      newPtyTerm(pty);
-    }
+    (async () => {
+      if (!terminals.hasOwnProperty(pty)) {
+        // create a new terminal and store it in the store.
+        // this means we can resume the same instance even across mount/dismount
+        await newPtyTerm(pty);
+      }
 
-    setIsReady(true);
+      setIsReady(true);
+    })();
 
     return () => {
       // We don't dispose of the terminal when the component unmounts

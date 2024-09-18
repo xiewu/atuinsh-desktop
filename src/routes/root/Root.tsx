@@ -1,36 +1,38 @@
-import "./Root.css";
 import { open } from "@tauri-apps/plugin-shell";
+import "./Root.css";
 
-import { Outlet, useNavigate } from "react-router-dom";
 import { useStore } from "@/state/store";
+import { Outlet, useNavigate } from "react-router-dom";
 
 import { Toaster } from "@/components/ui/toaster";
-import { Icon } from "@iconify/react";
 
 import LoginOrRegister from "@/components/LoginOrRegister.tsx";
 import Settings from "@/components/Settings/Settings.tsx";
 
+import icon from "@/assets/icon.svg";
+import CommandMenu from "@/components/CommandMenu/CommandMenu";
+import Sidebar, { SidebarItem } from "@/components/Sidebar";
+import { checkForAppUpdates } from "@/updater";
 import {
   Avatar,
-  User,
   Button,
-  ScrollShadow,
-  Spacer,
   Dropdown,
   DropdownItem,
   DropdownMenu,
   DropdownSection,
   DropdownTrigger,
+  Kbd,
   Modal,
   ModalContent,
+  ScrollShadow,
+  Spacer,
   useDisclosure,
+  User,
 } from "@nextui-org/react";
-import Sidebar, { SidebarItem } from "@/components/Sidebar";
-import icon from "@/assets/icon.svg";
-import { useEffect, useRef } from "react";
-import { checkForAppUpdates } from "@/updater";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { message } from "@tauri-apps/plugin-dialog";
+import { useEffect, useRef } from "react";
+import { isAppleDevice } from "@react-aria/utils";
 
 function App() {
   const cleanupUpdateListener = useRef<UnlistenFn | null>(null);
@@ -42,6 +44,23 @@ function App() {
     onOpen: onSettingsOpen,
     onOpenChange: onSettingsOpenChange,
   } = useDisclosure();
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const hotkey = isAppleDevice() ? "metaKey" : "ctrlKey";
+
+      if (e?.key?.toLowerCase() === "," && e[hotkey]) {
+        e.preventDefault();
+        onSettingsOpenChange();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onSettingsOpenChange]);
 
   useEffect(() => {
     const check = () => {
@@ -112,6 +131,8 @@ function App() {
       className="flex w-screen "
       style={{ maxWidth: "100vw", height: "calc(100dvh - 2rem)" }}
     >
+      <CommandMenu />
+
       <div className="flex w-full">
         <div className="relative flex flex-col !border-r-small border-divider transition-width pb-6 pt-4 items-center select-none">
           <div className="flex items-center gap-0 px-3 justify-center">
@@ -171,8 +192,8 @@ function App() {
                   key="settings"
                   description="Configure Atuin"
                   onPress={onSettingsOpen}
-                  startContent={
-                    <Icon icon="solar:settings-linear" width={24} />
+                  endContent={
+                    <Kbd className="px-1 py-0.5 text-xs font-semibold text-gray-600 bg-gray-100 border border-gray-200 rounded-md" keys={["command"]}>,</Kbd>
                   }
                 >
                   Settings
@@ -183,9 +204,6 @@ function App() {
                     key="help_and_feedback"
                     description="Get in touch"
                     onPress={() => open("https://dub.sh/atuin-desktop-beta")}
-                    startContent={
-                      <Icon width={24} icon="solar:question-circle-linear" />
-                    }
                   >
                     Help & Feedback
                   </DropdownItem>
@@ -202,6 +220,7 @@ function App() {
           isOpen={isOpen}
           onOpenChange={onOpenChange}
           placement="top-center"
+          disableAnimation
         >
           <ModalContent className="p-8">
             {(onClose) => (
@@ -212,7 +231,6 @@ function App() {
           </ModalContent>
         </Modal>
         <Settings
-          onOpen={onSettingsOpen}
           onOpenChange={onSettingsOpenChange}
           isOpen={isSettingsOpen}
         />

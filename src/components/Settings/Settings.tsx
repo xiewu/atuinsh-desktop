@@ -1,71 +1,235 @@
+import { useState, useEffect } from "react";
 import {
+  Input,
+  Switch,
+  Card,
+  CardBody,
+  Spinner,
+  cn,
   Modal,
+  ModalBody,
   ModalContent,
   ModalHeader,
-  ModalBody,
-  Button,
-  Tabs,
-  Tab,
 } from "@nextui-org/react";
-import { Icon } from "@iconify/react";
+import { Settings } from "@/state/settings";
+import { KVStore } from "@/state/kv";
+import { ask } from "@tauri-apps/plugin-dialog";
+import { relaunch } from "@tauri-apps/plugin-process";
 
-import GeneralSettings from "./GeneralSettings";
-import RunbookSettings from "./RunbookSettings";
+// Custom hook for managing settings
+const useSettingsState = (
+  _key: any,
+  initialValue: any,
+  settingsGetter: any,
+  settingsSetter: any,
+) => {
+  const [value, setValue] = useState(initialValue);
+  const [isLoading, setIsLoading] = useState(true);
 
-export default function Settings({ isOpen, onOpenChange }: any) {
+  useEffect(() => {
+    const loadSetting = async () => {
+      const savedValue = await settingsGetter();
+      setValue(savedValue || initialValue);
+      setIsLoading(false);
+    };
+    loadSetting();
+  }, [settingsGetter, initialValue]);
+
+  const updateSetting = async (newValue: any) => {
+    setValue(newValue);
+    await settingsSetter(newValue);
+    console.log("SET", newValue);
+  };
+
+  return [value, updateSetting, isLoading];
+};
+
+interface SettingsInputProps {
+  label: string;
+  value: string;
+  onChange: (e: string) => void;
+  placeholder: string;
+  description: string;
+}
+
+// Reusable setting components
+const SettingInput = ({ label, value, onChange, placeholder, description }: SettingsInputProps) => (
+  <Input
+    label={label}
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+    placeholder={placeholder}
+    description={description}
+  />
+);
+
+interface SettingsSwitchProps {
+  label: string;
+  isSelected: boolean;
+  onValueChange: (e: boolean) => void;
+  description: string;
+  className?: string;
+}
+
+const SettingSwitch = ({
+  label,
+  isSelected,
+  onValueChange,
+  description,
+  className,
+}: SettingsSwitchProps) => (
+  <Switch
+    isSelected={isSelected}
+    onValueChange={onValueChange}
+    className={cn("flex justify-between items-center w-full", className)}
+  >
+    <div className="flex flex-col">
+      <span>{label}</span>
+      {description && (
+        <span className="text-tiny text-default-400">{description}</span>
+      )}
+    </div>
+  </Switch>
+);
+
+// Settings sections
+const GeneralSettings = () => {
+  const [trackingOptIn, setTrackingOptIn, isLoading] = useSettingsState(
+    "usage_tracking",
+    false,
+    async () => {
+      const db = await KVStore.open_default();
+      return await db.get("usage_tracking");
+    },
+    async (value: boolean) => {
+      const db = await KVStore.open_default();
+      await db.set("usage_tracking", value);
+      const restart = await ask(
+        "Atuin needs to restart to apply your changes. This won't take long!",
+        {
+          title: "Restart required",
+          kind: "info",
+          okLabel: "Restart",
+          cancelLabel: "Later",
+        },
+      );
+      if (restart) await relaunch();
+    },
+  );
+
+  if (isLoading) return <Spinner />;
+
+  return (
+    <Card shadow="sm">
+      <CardBody>
+        <h2 className="text-xl font-semibold">General</h2>
+
+        <SettingSwitch
+          className="mt-4"
+          label="Enable usage tracking"
+          isSelected={trackingOptIn}
+          onValueChange={setTrackingOptIn}
+          description="Track usage and errors to improve Atuin"
+        />
+      </CardBody>
+    </Card>
+  );
+};
+
+const RunbookSettings = () => {
+  const [terminalFont, setTerminalFont, fontLoading] = useSettingsState(
+    "terminal_font",
+    "",
+    Settings.terminalFont,
+    Settings.terminalFont,
+  );
+  const [terminalGl, setTerminalGl, glLoading] = useSettingsState(
+    "terminal_gl",
+    false,
+    Settings.terminalGL,
+    Settings.terminalGL,
+  );
+  const [prometheusUrl, setPrometheusUrl, urlLoading] = useSettingsState(
+    "prometheus_url",
+    "http://localhost:9090",
+    Settings.runbookPrometheusUrl,
+    Settings.runbookPrometheusUrl,
+  );
+
+  if (fontLoading || glLoading || urlLoading) return <Spinner />;
+
   return (
     <>
-      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="4xl">
-        <ModalContent>
-          {(_) => (
-            <>
-              <ModalHeader className="flex flex-col gap-1">
-                <div className="w-full max-w-2xl flex-1 p-4">
-                  {/* Title */}
-                  <div className="flex items-center gap-x-3">
-                    <Button
-                      isIconOnly
-                      className="sm:hidden"
-                      size="sm"
-                      variant="flat"
-                      onPress={onOpenChange}
-                    >
-                      <Icon
-                        className="text-default-500"
-                        icon="solar:sidebar-minimalistic-linear"
-                        width={20}
-                      />
-                    </Button>
-                    <h1 className="text-3xl font-bold leading-9 text-default-foreground">
-                      Settings
-                    </h1>
-                  </div>
-                  <h2 className="mt-2 text-small text-default-500">
-                    Customize settings
-                  </h2>
-                </div>
-              </ModalHeader>
-              <ModalBody>
-                <Tabs
-                  fullWidth
-                  classNames={{
-                    cursor: "bg-content1 dark:bg-content1",
-                    panel: "w-full p-0 ",
-                  }}
-                >
-                  <Tab key="general" title="General">
-                    <GeneralSettings />
-                  </Tab>
+      <Card shadow="sm">
+        <CardBody className="flex flex-col gap-4">
+          <h2 className="text-xl font-semibold">Terminal</h2>
+          <SettingInput
+            label="Terminal font"
+            value={terminalFont}
+            onChange={setTerminalFont}
+            placeholder="Enter font name"
+            description="Font to use for the terminal"
+          />
+          <SettingSwitch
+            label="Enable WebGL rendering"
+            isSelected={terminalGl}
+            onValueChange={setTerminalGl}
+            description="May have issues with some fonts"
+          />
+        </CardBody>
+      </Card>
 
-                  <Tab key="runbooks" title="Runbooks">
-                    <RunbookSettings />
-                  </Tab>
-                </Tabs>
-              </ModalBody>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
+      <Card shadow="sm">
+        <CardBody className="flex flex-col gap-4">
+          <h2 className="text-xl font-semibold">Prometheus</h2>
+          <SettingInput
+            label="Prometheus server URL"
+            value={prometheusUrl}
+            onChange={setPrometheusUrl}
+            placeholder="http://localhost:9090"
+            description="URL for querying metrics (can be overridden per-block)"
+          />
+        </CardBody>
+      </Card>
     </>
   );
+};
+
+interface SettingsModalProps {
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
 }
+
+// Main Settings component
+const SettingsModal = ({ isOpen, onOpenChange }: SettingsModalProps) => {
+  return (
+    <Modal
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+      size="2xl"
+      scrollBehavior="normal"
+      disableAnimation
+    >
+      <ModalContent className="pb-4 max-h-[60vh]">
+        {(_onClose) => (
+          <>
+            <ModalHeader className="flex flex-col gap-1">
+              <h1 className="text-2xl font-bold">Settings</h1>
+              <p className="text-small text-default-500">
+                Customize your experience
+              </p>
+            </ModalHeader>
+            <ModalBody className="overflow-scroll">
+              <div className="flex flex-col gap-4">
+                <GeneralSettings />
+                <RunbookSettings />
+              </div>
+            </ModalBody>
+          </>
+        )}
+      </ModalContent>
+    </Modal>
+  );
+};
+
+export default SettingsModal;

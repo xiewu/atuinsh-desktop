@@ -8,7 +8,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CN_APP_SLUG: atuin-desktop
+  CN_APP_SLUG: atuin/atuin-desktop
 
 jobs:
   draft:

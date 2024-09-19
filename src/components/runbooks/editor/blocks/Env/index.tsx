@@ -34,7 +34,7 @@ const Env = ({ name = "", value = "", onUpdate }: EnvProps) => {
   };
 
   return (
-    <div className="!outline-none w-full !max-w-full overflow-none">
+    <div className="!outline-none w-full !max-w-full overflow-none" onClick={(e) => e.stopPropagation()}>
       <Tooltip
         content="Set an environment variable for all subsequent code blocks"
         delay={1000}

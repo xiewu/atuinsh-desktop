@@ -110,85 +110,88 @@ const SQL = ({
   );
 
   return (
-    <Card
-      className="w-full !max-w-full !outline-none overflow-none"
-      shadow="sm"
-    >
-      <CardHeader className="p-3 gap-2 bg-default-50">
-        {name && <span className="text-default-700 font-semibold">{name}</span>}
-        <Input
-          placeholder={placeholder || "protocol://user:password@host:port/db"}
-          label="URI"
-          isRequired
-          startContent={<DatabaseIcon size={18} />}
-          value={uri}
-          onValueChange={(val) => {
-            setUri(val);
-          }}
-        />
+    <div className="w-full outline-none !max-w-full overflow-none" onClick={(e) => e.stopPropagation()} >
+      <Card
+        className="w-full !max-w-full !outline-none overflow-none"
+        shadow="sm"
+      >
+        <CardHeader className="p-3 gap-2 bg-default-50">
+          {name && <span className="text-default-700 font-semibold">{name}</span>}
+          <Input
+            placeholder={placeholder || "protocol://user:password@host:port/db"}
+            label="URI"
+            isRequired
+            startContent={<DatabaseIcon size={18} />}
+            value={uri}
+            onValueChange={(val) => {
+              setUri(val);
+            }}
+          />
 
-        <div className="flex flex-row gap-2">
-          <PlayButton
-            eventName={`${eventName}.run`}
-            isRunning={isRunning}
-            onPlay={handlePlay}
-            cancellable={false}
-          />
-          <CodeMirror
-            placeholder={"Write your query here..."}
-            className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
-            basicSetup={true}
-            value={query}
-            onChange={setQuery}
-          />
-        </div>
-      </CardHeader>
-      <CardBody className="overflow-x-scroll">
-        <SQLResults results={results} error={error} />
-      </CardBody>
-      <CardFooter>
-        <ButtonGroup>
-          <Dropdown showArrow>
-            <DropdownTrigger>
-              <Button
-                size="sm"
-                variant="bordered"
-                startContent={<RefreshCwIcon size={16} />}
-                endContent={<ChevronDown size={16} />}
-              >
-                Auto refresh:{" "}
-                {autoRefresh == 0
-                  ? "Off"
-                  : (
+          <div className="flex flex-row gap-2">
+            <PlayButton
+              eventName={`${eventName}.run`}
+              isRunning={isRunning}
+              onPlay={handlePlay}
+              cancellable={false}
+            />
+            <CodeMirror
+              placeholder={"Write your query here..."}
+              className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
+              basicSetup={true}
+              value={query}
+              onChange={setQuery}
+              onClick={(e) => { e.stopPropagation() }}
+            />
+          </div>
+        </CardHeader>
+        <CardBody className="overflow-x-scroll">
+          <SQLResults results={results} error={error} />
+        </CardBody>
+        <CardFooter>
+          <ButtonGroup>
+            <Dropdown showArrow>
+              <DropdownTrigger>
+                <Button
+                  size="sm"
+                  variant="bordered"
+                  startContent={<RefreshCwIcon size={16} />}
+                  endContent={<ChevronDown size={16} />}
+                >
+                  Auto refresh:{" "}
+                  {autoRefresh == 0
+                    ? "Off"
+                    : (
                       autoRefreshChoices.find(
                         (a) => a.value == autoRefresh,
                       ) || {
                         label: "Off",
                       }
                     ).label}
-              </Button>
-            </DropdownTrigger>
-            <DropdownMenu
-              variant="faded"
-              aria-label="Select time frame for chart"
-            >
-              {autoRefreshChoices.map((setting) => {
-                return (
-                  <DropdownItem
-                    key={setting.label}
-                    onPress={() => {
-                      setAutoRefresh(setting.value);
-                    }}
-                  >
-                    {setting.label}
-                  </DropdownItem>
-                );
-              })}
-            </DropdownMenu>
-          </Dropdown>
-        </ButtonGroup>
-      </CardFooter>
-    </Card>
+                </Button>
+              </DropdownTrigger>
+              <DropdownMenu
+                variant="faded"
+                aria-label="Select time frame for chart"
+              >
+                {autoRefreshChoices.map((setting) => {
+                  return (
+                    <DropdownItem
+                      key={setting.label}
+                      onPress={() => {
+                        setAutoRefresh(setting.value);
+                      }}
+                    >
+                      {setting.label}
+                    </DropdownItem>
+                  );
+                })}
+              </DropdownMenu>
+            </Dropdown>
+          </ButtonGroup>
+        </CardFooter>
+      </Card>
+    </div>
   );
 };
 

@@ -23,7 +23,9 @@ const RequestHeaders = ({ pairs, setPairs }: any) => {
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4"
+      onClick={(e) => { e.stopPropagation() }}
+    >
       {Object.entries(pairs).map(([key, value]) => (
         <div key={key} className="flex items-center gap-2">
           <Input

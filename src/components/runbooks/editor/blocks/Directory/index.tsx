@@ -26,7 +26,7 @@ const Directory = ({ path, onInputChange }: DirectoryProps) => {
   };
 
   return (
-    <div className="w-full !max-w-full !outline-none overflow-none">
+    <div className="w-full !max-w-full !outline-none overflow-none" onClick={(e) => e.stopPropagation()}>
       <Tooltip
         content="Change working directory for all subsequent code blocks"
         delay={1000}

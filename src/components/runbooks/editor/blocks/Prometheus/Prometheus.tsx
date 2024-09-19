@@ -196,107 +196,109 @@ const Prometheus = (props: PromProps) => {
   }
 
   return (
-    <Card
-      className="w-full !max-w-full !outline-none overflow-none"
-      shadow="sm"
-    >
-      <CardHeader className="flex flex-col items-start gap-2 bg-default-50">
-        <span className="text-default-700 font-semibold">Prometheus</span>
+    <div className="w-full !max-w-full !outline-none overflow-none" onClick={(e) => e.stopPropagation()}>
+      <Card
+        className="w-full !max-w-full !outline-none overflow-none"
+        shadow="sm"
+      >
+        <CardHeader className="flex flex-col items-start gap-2 bg-default-50">
+          <span className="text-default-700 font-semibold">Prometheus</span>
 
-        <div className="w-full !max-w-full !outline-none overflow-none flex flex-row gap-2">
-          <PlayButton
-            eventName="runbooks.prometheus.run"
-            onPlay={async () => {
-              try {
-                setIsRunning(true);
-                await runQuery(props.query);
-                setIsRunning(false);
-                setError(null);
-              } catch (e: any) {
-                setError(JSON.stringify(e));
-              }
-            }}
-            isRunning={isRunning}
-            cancellable={false}
-          />
-          <CodeMirror
-            placeholder={"Write your query here..."}
-            className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
-            value={value}
-            onChange={(val) => {
-              setValue(val);
-              props.onPropsChange({ query: val });
-            }}
-            extensions={[promExtension.asExtension()]}
-            basicSetup={true}
-          />
-        </div>
-      </CardHeader>
-      <CardBody className="min-h-64 overflow-x-scroll">
-        {error && <ErrorCard error={error} />}
-        {!error && <PromLineChart data={data} config={config} />}
-      </CardBody>
-      <CardFooter className="justify-between">
-        <div className="flex-row content-center items-center justify-center">
-          <ButtonGroup className="mr-2">
-            <Dropdown showArrow>
-              <DropdownTrigger>
-                <Button
-                  variant="flat"
-                  size="sm"
-                  startContent={<ClockIcon />}
-                  endContent={<ChevronDownIcon />}
-                >
-                  {timeFrame.short}
-                </Button>
-              </DropdownTrigger>
-              <DropdownMenu
-                variant="faded"
-                aria-label="Select time frame for chart"
-              >
-                {timeOptions.map((timeOption) => {
-                  return (
-                    <DropdownItem
-                      key={timeOption.name}
-                      onPress={() => {
-                        setTimeFrame(timeOption);
-                        props.onPropsChange({ period: timeOption.short });
-                      }}
-                    >
-                      {timeOption.name}
-                    </DropdownItem>
-                  );
-                })}
-              </DropdownMenu>
-            </Dropdown>
-
-            <PromSettings
-              config={{
-                endpoint: prometheusUrl,
-              }}
-              onSave={(config: PrometheusConfig) => {
-                if (config.endpoint) setPrometheusUrl(config.endpoint);
-
-                if (config.endpoint != props.endpoint) {
-                  props.onPropsChange({ endpoint: config.endpoint });
+          <div className="w-full !max-w-full !outline-none overflow-none flex flex-row gap-2">
+            <PlayButton
+              eventName="runbooks.prometheus.run"
+              onPlay={async () => {
+                try {
+                  setIsRunning(true);
+                  await runQuery(props.query);
+                  setIsRunning(false);
+                  setError(null);
+                } catch (e: any) {
+                  setError(JSON.stringify(e));
                 }
               }}
+              isRunning={isRunning}
+              cancellable={false}
             />
-          </ButtonGroup>
-        </div>
+            <CodeMirror
+              placeholder={"Write your query here..."}
+              className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
+              value={value}
+              onChange={(val) => {
+                setValue(val);
+                props.onPropsChange({ query: val });
+              }}
+              extensions={[promExtension.asExtension()]}
+              basicSetup={true}
+            />
+          </div>
+        </CardHeader>
+        <CardBody className="min-h-64 overflow-x-scroll">
+          {error && <ErrorCard error={error} />}
+          {!error && <PromLineChart data={data} config={config} />}
+        </CardBody>
+        <CardFooter className="justify-between">
+          <div className="flex-row content-center items-center justify-center">
+            <ButtonGroup className="mr-2">
+              <Dropdown showArrow>
+                <DropdownTrigger>
+                  <Button
+                    variant="flat"
+                    size="sm"
+                    startContent={<ClockIcon />}
+                    endContent={<ChevronDownIcon />}
+                  >
+                    {timeFrame.short}
+                  </Button>
+                </DropdownTrigger>
+                <DropdownMenu
+                  variant="faded"
+                  aria-label="Select time frame for chart"
+                >
+                  {timeOptions.map((timeOption) => {
+                    return (
+                      <DropdownItem
+                        key={timeOption.name}
+                        onPress={() => {
+                          setTimeFrame(timeOption);
+                          props.onPropsChange({ period: timeOption.short });
+                        }}
+                      >
+                        {timeOption.name}
+                      </DropdownItem>
+                    );
+                  })}
+                </DropdownMenu>
+              </Dropdown>
 
-        <Switch
-          isSelected={autoRefresh}
-          size="sm"
-          onValueChange={(value) => {
-            setAutoRefresh(value);
-            props.onPropsChange({ autoRefresh: value });
-          }}
-        >
-          <h3 className="text-sm">Auto refresh</h3>
-        </Switch>
-      </CardFooter>
-    </Card>
+              <PromSettings
+                config={{
+                  endpoint: prometheusUrl,
+                }}
+                onSave={(config: PrometheusConfig) => {
+                  if (config.endpoint) setPrometheusUrl(config.endpoint);
+
+                  if (config.endpoint != props.endpoint) {
+                    props.onPropsChange({ endpoint: config.endpoint });
+                  }
+                }}
+              />
+            </ButtonGroup>
+          </div>
+
+          <Switch
+            isSelected={autoRefresh}
+            size="sm"
+            onValueChange={(value) => {
+              setAutoRefresh(value);
+              props.onPropsChange({ autoRefresh: value });
+            }}
+          >
+            <h3 className="text-sm">Auto refresh</h3>
+          </Switch>
+        </CardFooter>
+      </Card>
+    </div>
   );
 };
 

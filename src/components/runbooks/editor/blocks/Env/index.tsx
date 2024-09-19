@@ -34,39 +34,24 @@ const Env = ({ name = "", value = "", onUpdate }: EnvProps) => {
   };
 
   return (
-    <div className="!outline-none w-full !max-w-full overflow-none" onClick={(e) => e.stopPropagation()}>
-      <Tooltip
-        content="Set an environment variable for all subsequent code blocks"
-        delay={1000}
-        className="outline-none"
-      >
-        <div className="flex flex-row items-center space-x-2 w-full ">
-          <div className="flex flex-1 flex-row gap-2 ">
-            <div className="">
-              <Button isIconOnly isDisabled variant="light">
-                <VariableIcon />
-              </Button>
-            </div>
-
-            <div className="flex-grow">
-              <Input
-                placeholder="Name"
-                value={nameState}
-                onChange={handleKeyChange}
-                autoComplete="off"
-                autoCapitalize="off"
-                autoCorrect="off"
-                spellCheck="false"
-                className="flex-1"
-              />
-            </div>
+    <Tooltip
+      content="Set an environment variable for all subsequent code blocks"
+      delay={1000}
+      className="outline-none"
+    >
+      <div className="flex flex-row items-center space-x-2 w-full ">
+        <div className="flex flex-1 flex-row gap-2 ">
+          <div className="">
+            <Button isIconOnly isDisabled variant="light">
+              <VariableIcon />
+            </Button>
           </div>
 
-          <div className="flex-1">
+          <div className="flex-grow">
             <Input
-              placeholder="Value"
-              value={valueState}
-              onChange={handleValueChange}
+              placeholder="Name"
+              value={nameState}
+              onChange={handleKeyChange}
               autoComplete="off"
               autoCapitalize="off"
               autoCorrect="off"
@@ -75,8 +60,21 @@ const Env = ({ name = "", value = "", onUpdate }: EnvProps) => {
             />
           </div>
         </div>
-      </Tooltip>
-    </div>
+
+        <div className="flex-1">
+          <Input
+            placeholder="Value"
+            value={valueState}
+            onChange={handleValueChange}
+            autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck="false"
+            className="flex-1"
+          />
+        </div>
+      </div>
+    </Tooltip>
   );
 };
 

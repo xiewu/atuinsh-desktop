@@ -141,7 +141,6 @@ const Http = ({
             }}
             variant="bordered"
             size="sm"
-            onClick={(e) => { e.stopPropagation() }}
           />
         </div>
       </CardHeader>
@@ -162,7 +161,6 @@ const Http = ({
               onValueChange={setBody}
               minRows={5}
               className="mt-2"
-              onClick={(e) => { e.stopPropagation() }}
             />
           </Tab>
         </Tabs>

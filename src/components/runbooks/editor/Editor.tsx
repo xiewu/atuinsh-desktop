@@ -216,7 +216,9 @@ export default function Editor() {
 
   // Renders the editor instance.
   return (
-    <div className="overflow-y-scroll editor flex-grow" onClick={() => {
+    <div className="overflow-y-scroll editor flex-grow" onClick={(e) => {
+      if ((e.target as Element).matches(".editor *")) return;
+
       // If the user clicks below the document, focus on the last block
       // But if the last block is not an empty paragraph, create it :D
       let blocks = editor.document;
@@ -242,7 +244,6 @@ export default function Editor() {
         sideMenu={false}
         onChange={debouncedOnChange}
         theme="light"
-        onClick={(e) => { e.stopPropagation() }}
       >
         <SuggestionMenuController
           triggerCharacter={"/"}

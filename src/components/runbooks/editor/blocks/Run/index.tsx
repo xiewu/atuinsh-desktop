@@ -234,7 +234,6 @@ const RunBlock = ({
             }}
             extensions={[customKeymap, ...extensions(), langs.shell()]}
             basicSetup={false}
-            onClick={(e) => { e.stopPropagation() }}
           />
         </div>
       </CardHeader>

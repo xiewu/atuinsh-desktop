@@ -60,6 +60,7 @@ import Prometheus, {
 import { AtuinState, useStore } from "@/state/store";
 import Runbook from "@/state/runbooks/runbook";
 import Http, { insertHttp } from "./blocks/Http/Http";
+import { uuidv7 } from "uuidv7";
 
 // Our schema with block specs, which contain the configs and implementations for blocks
 // that we want our editor to use.
@@ -215,13 +216,33 @@ export default function Editor() {
 
   // Renders the editor instance.
   return (
-    <div className="overflow-y-scroll editor flex-grow">
+    <div className="overflow-y-scroll editor flex-grow" onClick={() => {
+      // If the user clicks below the document, focus on the last block
+      // But if the last block is not an empty paragraph, create it :D
+      let blocks = editor.document;
+      let lastBlock = blocks[blocks.length - 1];
+      let id = lastBlock.id;
+
+      if (lastBlock.type !== "paragraph" || lastBlock.content.length > 0) {
+        id = uuidv7();
+
+        editor.insertBlocks([{
+          id,
+          type: "paragraph",
+          content: "",
+        }], lastBlock.id, "after");
+      }
+
+      editor.focus();
+      editor.setTextCursorPosition(id, "start");
+    }}>
       <BlockNoteView
         editor={editor}
         slashMenu={false}
         sideMenu={false}
         onChange={debouncedOnChange}
         theme="light"
+        onClick={(e) => { e.stopPropagation() }}
       >
         <SuggestionMenuController
           triggerCharacter={"/"}
@@ -246,8 +267,8 @@ export default function Editor() {
         <SideMenuController
           sideMenu={(props: any) => (
             <SideMenu {...props} style={{ zIndex: 0 }}>
-              <AddBlockButton {...props} style={{ zIndex: 0 }} />
-              <DragHandleButton {...props} style={{ zIndex: 0 }}
+              <AddBlockButton {...props} style={{ zIndex: 1000 }} />
+              <DragHandleButton {...props} style={{ zIndex: 1000 }}
               />
             </SideMenu>
           )}

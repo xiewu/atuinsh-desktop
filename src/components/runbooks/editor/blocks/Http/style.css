@@ -19,5 +19,5 @@
 
 div[tabindex="-1"] {
   /* override some stuff from the library */
-  z-index: 0 !important;
+  z-index: 11 !important;
 }

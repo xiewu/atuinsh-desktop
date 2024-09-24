@@ -1,6 +1,6 @@
 [package]
 name = "atuin-desktop"
-version = "0.0.30"
+version = "0.0.31"
 description = "Atuin Desktop"
 publish = false
 authors = ["you"]
@@ -42,6 +42,7 @@ tauri-plugin-shell = "2.0.0-rc.3"
 tauri-plugin-dialog = "2.0.0-rc.0"
 tauri-plugin-process = "2.0.0-rc.0"
 tauri-plugin-fs = "2.0.0-rc.0"
+humantime = "2.1.0"
 
 [dependencies.sqlx]
 version = "0.8"

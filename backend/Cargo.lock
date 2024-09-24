@@ -457,7 +457,7 @@ dependencies = [
 
 [[package]]
 name = "atuin-desktop"
-version = "0.0.29"
+version = "0.0.31"
 dependencies = [
  "atuin-client",
  "atuin-common",
@@ -467,6 +467,7 @@ dependencies = [
  "cocoa",
  "comrak",
  "eyre",
+ "humantime",
  "klickhouse",
  "lazy_static",
  "nix 0.29.0",

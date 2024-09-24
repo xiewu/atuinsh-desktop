@@ -1,5 +1,6 @@
 use eyre::{eyre, Result};
 use serde_json::Value as JsonValue;
+use sqlx::postgres::types::PgInterval;
 use sqlx::{postgres::PgValueRef, TypeInfo, Value, ValueRef};
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 
@@ -98,6 +99,22 @@ pub(crate) fn to_json(v: PgValueRef) -> Result<JsonValue> {
         "UUID" => {
             if let Ok(v) = ValueRef::to_owned(&v).try_decode::<uuid::Uuid>() {
                 JsonValue::String(v.to_string())
+            } else {
+                JsonValue::Null
+            }
+        }
+        "INTERVAL" => {
+            if let Ok(v) = ValueRef::to_owned(&v).try_decode::<PgInterval>() {
+                // TODO: Figure out how many seconds are in a month? wtf postgres?
+                let _months = v.months;
+
+                let days = v.days;
+                let us = v.microseconds as u32;
+
+                let seconds: u64 = (days as u64) * 24 * 60 * 60;
+                let duration = std::time::Duration::new(seconds, us * 1000);
+
+                JsonValue::String(humantime::format_duration(duration).to_string())
             } else {
                 JsonValue::Null
             }

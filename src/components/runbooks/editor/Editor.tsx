@@ -31,6 +31,9 @@ import {
   // @ts-ignore
   SideMenuController,
   DragHandleButton,
+  DragHandleMenu,
+  RemoveBlockItem,
+  BlockColorsItem,
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 
@@ -61,6 +64,7 @@ import { AtuinState, useStore } from "@/state/store";
 import Runbook from "@/state/runbooks/runbook";
 import Http, { insertHttp } from "./blocks/Http/Http";
 import { uuidv7 } from "uuidv7";
+import { DuplicateBlockItem } from "./ui/DuplicateBlockItem";
 
 // Our schema with block specs, which contain the configs and implementations for blocks
 // that we want our editor to use.
@@ -267,10 +271,10 @@ export default function Editor() {
 
         <SideMenuController
           sideMenu={(props: any) => (
-            <SideMenu {...props} style={{ zIndex: 0 }}>
-              <AddBlockButton {...props} style={{ zIndex: 1000 }} />
-              <DragHandleButton {...props} style={{ zIndex: 1000 }}
-              />
+            <SideMenu {...props} style={{ zIndex: 0 }} dragHandleMenu={(props) => <DragHandleMenu {...props}>
+              <RemoveBlockItem {...props}>Delete</RemoveBlockItem>
+              <DuplicateBlockItem {...props} />
+            </DragHandleMenu>}>
             </SideMenu>
           )}
         />

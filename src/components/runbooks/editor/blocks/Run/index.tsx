@@ -173,8 +173,6 @@ const RunBlock = ({
     terminalData.write(val);
   };
 
-  console.log(pty);
-
   const handleCmdEnter = () => {
     if (isRunning) {
       handlePlay();
@@ -194,10 +192,10 @@ const RunBlock = ({
 
   return (
     <Card
-      className="w-full !max-w-full !outline-none overflow-none"
+      className="w-full !max-w-full !outline-none"
       shadow="sm"
     >
-      <CardHeader className={cn("flex flex-col items-start gap-2", {})}>
+      <CardHeader className={"flex flex-col items-start gap-2 !z-auto"}>
         <div className="flex flex-row justify-between w-full">
           <span className="text-default-700 font-semibold">Terminal</span>
           {commandRunning && <Spinner size="sm" />}
@@ -214,7 +212,7 @@ const RunBlock = ({
           )}
         </div>
 
-        <div className="flex flex-row items-center gap-2 flex-grow w-full">
+        <div className="flex flex-row gap-2 flex-grow w-full">
           <PlayButton
             isRunning={isRunning}
             cancellable={true}

@@ -174,6 +174,7 @@ const Prometheus = (props: PromProps) => {
         setError(null);
       } catch (e: any) {
         setError(JSON.stringify(e));
+        setIsRunning(false);
       }
     })();
   }, [timeFrame, promClient]);
@@ -214,6 +215,7 @@ const Prometheus = (props: PromProps) => {
                 setError(null);
               } catch (e: any) {
                 setError(JSON.stringify(e));
+                setIsRunning(false);
               }
             }}
             isRunning={isRunning}

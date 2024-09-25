@@ -108,11 +108,20 @@ pub(crate) fn to_json(v: PgValueRef) -> Result<JsonValue> {
                 // TODO: Figure out how many seconds are in a month? wtf postgres?
                 let _months = v.months;
 
-                let days = v.days;
-                let us = v.microseconds as u32;
+                let days_as_secs = i64::from(v.days)
+                    .checked_mul(24 * 60 * 60)
+                    .expect("pginterval day overflow"); // 24 hours * 60 minutes * 60 seconds
 
-                let seconds: u64 = (days as u64) * 24 * 60 * 60;
-                let duration = std::time::Duration::new(seconds, us * 1000);
+                // Convert microseconds to seconds and nanoseconds
+                let micros_as_secs = v.microseconds.div_euclid(1_000_000);
+                let remaining_nanos = (v.microseconds.rem_euclid(1_000_000) * 1000) as u32;
+
+                // Combine all seconds
+                let total_secs = days_as_secs
+                    .checked_add(micros_as_secs)
+                    .expect("pginterval day/second overflow");
+
+                let duration = std::time::Duration::new(total_secs as u64, remaining_nanos);
 
                 JsonValue::String(humantime::format_duration(duration).to_string())
             } else {

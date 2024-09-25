@@ -24,6 +24,8 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import RunbookIndexService from "./runbooks/search";
 import { Settings } from "./settings";
+import Workspace from "./runbooks/workspace";
+import { KVStore } from "./kv";
 
 export class TerminalData {
   terminal: Terminal;
@@ -116,6 +118,11 @@ export interface AtuinState {
 
   terminals: { [pty: string]: TerminalData };
 
+  workspace: Workspace | null;
+  workspaces: Workspace[];
+  refreshWorkspaces: () => void;
+  newWorkspace: (name: string) => void;
+  setCurrentWorkspace: (ws: Workspace) => void;
 }
 
 let state = (set: any, get: any): AtuinState => ({
@@ -155,7 +162,11 @@ let state = (set: any, get: any): AtuinState => ({
 
   // PERF: Yeah this won't work long term. Let's see how many runbooks people have in reality and optimize for 10x that
   refreshRunbooks: async () => {
-    let runbooks = await Runbook.all();
+    if (get().workspace == null) {
+      await get().refreshWorkspaces();
+    }
+
+    let runbooks = await Runbook.all(get().workspace);
     let index = new RunbookIndexService();
     index.bulkAddRunbooks(runbooks);
 
@@ -295,6 +306,34 @@ let state = (set: any, get: any): AtuinState => ({
 
     return td;
   },
+
+  workspace: null,
+  workspaces: [],
+
+  refreshWorkspaces: async () => {
+    let wss = await Workspace.all();
+    let ws = await Workspace.current();
+
+    await ws.refreshMeta();
+    let all = wss.map((w) =>
+      w.refreshMeta()
+    );
+    await Promise.all(all);
+
+    set({ workspaces: wss, workspace: ws });
+  },
+
+  newWorkspace: async (name: string) => {
+    let ws = await Workspace.create(name);
+    set({ workspace: ws, workspaces: await Workspace.all() });
+  },
+
+  setCurrentWorkspace: async (ws: Workspace) => {
+    const kv = await KVStore.open_default();
+    kv.set("current_workspace", ws.id);
+
+    set({ workspace: ws });
+  }
 });
 
 export const useStore = create<AtuinState>()(

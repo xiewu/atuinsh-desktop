@@ -30,10 +30,8 @@ import {
   SideMenu,
   // @ts-ignore
   SideMenuController,
-  DragHandleButton,
   DragHandleMenu,
   RemoveBlockItem,
-  BlockColorsItem,
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 

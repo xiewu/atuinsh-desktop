@@ -1,7 +1,7 @@
 import { open } from "@tauri-apps/plugin-shell";
 import "./Root.css";
 
-import { useStore } from "@/state/store";
+import { AtuinState, useStore } from "@/state/store";
 import { Outlet, useNavigate } from "react-router-dom";
 
 import { Toaster } from "@/components/ui/toaster";
@@ -33,11 +33,14 @@ import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { message } from "@tauri-apps/plugin-dialog";
 import { useEffect, useRef } from "react";
 import { isAppleDevice } from "@react-aria/utils";
+import CompactWorkspaceSwitcher from "@/components/WorkspaceSwitcher/WorkspaceSwitcher";
 
 function App() {
   const cleanupUpdateListener = useRef<UnlistenFn | null>(null);
   const navigate = useNavigate();
-  const user = useStore((state: any) => state.user);
+  const user = useStore((state: AtuinState) => state.user);
+  // const workspace = useStore((state: AtuinState) => state.workspace);
+
   const { isOpen, onOpenChange } = useDisclosure();
   const {
     isOpen: isSettingsOpen,
@@ -141,14 +144,20 @@ function App() {
             </div>
           </div>
 
-          <ScrollShadow className="-mr-6 h-full max-h-full py-6 pr-6">
+          <div className="mt-6">
+            <CompactWorkspaceSwitcher />
+          </div>
+
+          <ScrollShadow className="-mr-6 h-full max-h-full pr-6">
             <Sidebar
               defaultSelectedKey="home"
               isCompact={true}
               items={navigation}
               className="z-50"
             />
+
           </ScrollShadow>
+
 
           <Spacer y={2} />
 

@@ -2,6 +2,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import Database from "@tauri-apps/plugin-sql";
 import { writeTextFile, readTextFile } from "@tauri-apps/plugin-fs";
 import { uuidv7 } from "uuidv7";
+import Workspace from "./workspace";
 
 // Definition of an atrb file
 // This is JSON encoded for ease of access, and may change in the future
@@ -20,6 +21,8 @@ export default class Runbook {
 
   created: Date;
   updated: Date;
+
+  workspaceId: string;
 
   private _name: string;
   private _content: string;
@@ -48,20 +51,27 @@ export default class Runbook {
     content: string,
     created: Date,
     updated: Date,
+    workspaceId: string,
   ) {
     this.id = id;
     this._name = name;
     this._content = content;
     this.created = created;
     this.updated = updated;
+
+    this.workspaceId = workspaceId;
   }
 
   /// Create a new Runbook, and automatically generate an ID.
-  public static async create(): Promise<Runbook> {
+  public static async create(workspace?: Workspace): Promise<Runbook> {
     let now = new Date();
 
+    if (workspace === undefined || workspace === null) {
+      workspace = await Workspace.current();
+    }
+
     // Initialize with the same value for created/updated, to avoid needing null.
-    let runbook = new Runbook(uuidv7(), "", "", now, now);
+    let runbook = new Runbook(uuidv7(), "", "", now, now, workspace.id);
     await runbook.save();
 
     return runbook;
@@ -91,9 +101,13 @@ export default class Runbook {
     await writeTextFile(filePath, JSON.stringify(exportFile));
   }
 
-  public static async import(filePath: string) {
+  public static async import(filePath: string, workspace?: Workspace) {
     let file = await readTextFile(filePath);
     let importFile = JSON.parse(file) as RunbookFile;
+
+    if (workspace === undefined || workspace === null) {
+      workspace = await Workspace.current();
+    }
 
     let runbook = new Runbook(
       importFile.id,
@@ -101,6 +115,7 @@ export default class Runbook {
       importFile.content,
       new Date(importFile.created),
       new Date(),
+      workspace.id,
     );
 
     await runbook.save();
@@ -125,39 +140,62 @@ export default class Runbook {
       rb.content,
       new Date(rb.created / 1000000),
       new Date(rb.updated / 1000000),
+      rb.workspace_id
     );
   }
 
-  static async all(): Promise<Runbook[]> {
+  // Default to scoping by workspace
+  // Reduces the chance of accidents
+  // If we ever need to fetch all runbooks for all workspaces, name it allInAllWorkspace or something
+  static async all(workspace: Workspace): Promise<Runbook[]> {
     const db = await Database.load("sqlite:runbooks.db");
 
     let res = await db.select<any[]>(
-      "select * from runbooks order by updated desc",
+      "select * from runbooks where workspace_id = $1 order by updated desc",
+      [workspace.id]
     );
 
-    return res.map((i) => {
+    let runbooks = res.map((i) => {
       return new Runbook(
         i.id,
         i.name,
         i.content,
         new Date(i.created / 1000000),
         new Date(i.updated / 1000000),
+        i.workspaceId,
       );
     });
+
+    let currentWorkspace = await Workspace.current();
+
+    // Handle migrations
+    for (let rb of runbooks) {
+      console.log(rb.name, rb.workspaceId);
+      // Workspaces didn't exist to start with, 
+      // so for some users could be null
+      if (rb.workspaceId === null || rb.workspaceId === undefined) {
+        rb.workspaceId = currentWorkspace.id;
+
+        await rb.save();
+      }
+    }
+
+    return runbooks;
   }
 
   public async save() {
     const db = await Database.load("sqlite:runbooks.db");
 
     await db.execute(
-      `insert into runbooks(id, name, content, created, updated)
-          values ($1, $2, $3, $4, $5)
+      `insert into runbooks(id, name, content, created, updated, workspace_id)
+          values ($1, $2, $3, $4, $5, $6)
 
           on conflict(id) do update
             set
               name=$2,
               content=$3,
-              updated=$5`,
+              updated=$5,
+              workspace_id=$6`,
 
       // getTime returns a timestamp as unix milliseconds
       // we won't need or use the resolution here, but elsewhere Atuin stores timestamps in sqlite as nanoseconds since epoch
@@ -168,6 +206,7 @@ export default class Runbook {
         this._content,
         this.created.getTime() * 1000000,
         this.updated.getTime() * 1000000,
+        this.workspaceId,
       ],
     );
   }

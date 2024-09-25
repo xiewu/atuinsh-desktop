@@ -1,0 +1,102 @@
+import Database from "@tauri-apps/plugin-sql";
+import { KVStore } from "../kv";
+import { uuidv7 } from "uuidv7";
+
+class WorkspaceMeta {
+  totalRunbooks: number;
+
+  constructor(totalRunbooks: number) {
+    this.totalRunbooks = totalRunbooks;
+  }
+
+  static async load(workspace_id: string): Promise<WorkspaceMeta> {
+    // Load the meta for the workspace.
+    // This is a separate class to keep the workspace class clean.
+    const db = await Database.load("sqlite:runbooks.db");
+
+    let runbookCount = await db.select<any[]>("select count(*) as count from runbooks where workspace_id = ?", [workspace_id]);
+
+    return new WorkspaceMeta(runbookCount[0].count);
+  }
+}
+
+export default class Workspace {
+  id: string;
+  name: string;
+
+
+  created: Date;
+  updated: Date;
+
+  meta: WorkspaceMeta | null;
+
+  constructor(id: string, name: string, created: Date, updated: Date) {
+    this.id = id;
+    this.name = name;
+    this.created = created;
+    this.updated = updated;
+
+    this.meta = null;
+  }
+
+  static async create(name: string): Promise<Workspace> {
+    let id = uuidv7();
+    let workspace = new Workspace(id, name, new Date(), new Date());
+
+    const db = await Database.load("sqlite:runbooks.db");
+    await db.execute("insert into workspaces (id, name, created, updated) VALUES (?, ?, ?, ?)", [workspace.id, workspace.name, workspace.created, workspace.updated]);
+
+    return workspace;
+  }
+
+  static async findById(id: string): Promise<Workspace | null> {
+    const db = await Database.load("sqlite:runbooks.db");
+
+    let row = await db.select<any[]>("select * from workspaces where id = ?", [id]);
+    if (row == null) {
+      return null;
+    }
+
+    return new Workspace(row[0].id, row[0].name, row[0].created, row[0].updated);
+  }
+
+  static async current(): Promise<Workspace> {
+    // Get the current workspace.
+    // If there is no current workspace, create one.
+    const kv = await KVStore.open_default();
+
+    let current_workspace = await kv.get("current_workspace");
+
+    if (current_workspace == null) {
+      let ws = await Workspace.create("Default Workspace");
+      await kv.set("current_workspace", ws.id);
+
+      return ws;
+    }
+
+    let ws = await Workspace.findById(current_workspace);
+
+    if (ws == null) {
+      throw new Error("Current workspace not found");
+    }
+
+    return ws;
+  }
+
+  static async all(): Promise<Workspace[]> {
+    const db = await Database.load("sqlite:runbooks.db");
+    let rows = await db.select<any[]>("select * from workspaces");
+
+    return rows.map((row) => {
+      let ws = new Workspace(row.id, row.name, row.created, row.updated);
+
+      return ws;
+    });
+  }
+
+  async refreshMeta() {
+    let meta = await WorkspaceMeta.load(this.id);
+    console.log("meta", meta);
+    this.meta = meta;
+  }
+}

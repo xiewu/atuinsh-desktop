@@ -96,7 +96,13 @@ export default class Workspace {
 
   async refreshMeta() {
     let meta = await WorkspaceMeta.load(this.id);
-    console.log("meta", meta);
     this.meta = meta;
+  }
+
+  async rename(name: string) {
+    this.name = name;
+
+    const db = await Database.load("sqlite:runbooks.db");
+    await db.execute("update workspaces set name = ?, updated = ? where id = ?", [this.name, new Date(), this.id]);
   }
 }

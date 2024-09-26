@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   Dropdown,
   DropdownTrigger,
@@ -6,56 +6,73 @@ import {
   DropdownItem,
   Button,
   Chip,
+  useDisclosure,
 } from "@nextui-org/react";
-import { Layers, Plus } from 'lucide-react';
+import { Layers, Plus, Settings } from 'lucide-react';
 import { AtuinState, useStore } from '@/state/store';
+import Workspace from '@/state/runbooks/workspace';
+import WorkspaceSettings from './WorkspaceSettings';
 
 const CompactWorkspaceSwitcher = () => {
   const refreshWorkspaces = useStore((store: AtuinState) => store.refreshWorkspaces);
   // const setCurrentWorkspace = useStore((store: AtuinState) => store.setCurrentWorkspace);
   const currentWorkspace = useStore((store: AtuinState) => store.workspace);
   const workspaces = useStore((store: AtuinState) => store.workspaces);
+  const { isOpen, onOpen, onOpenChange } = useDisclosure();
+
+  // Which workspace to open the settings modal for. We cannot make the modal a child of the
+  // DropDownItem, as the dropdown closes as soon as it gains focus. Boooo.
+  const settingsModalWorkspaceRef = useRef<Workspace | null>(null);
 
   useEffect(() => {
     refreshWorkspaces();
   }, []);
 
-  return (
-    <Dropdown>
-      <DropdownTrigger>
-        <Button isIconOnly variant="light" radius="full">
-          <Layers size={20} className="text-default-500" />
-        </Button>
-      </DropdownTrigger>
-      <DropdownMenu
-        aria-label="Workspace selection"
-        variant="flat"
-        className="w-[280px]"
-        topContent={<div className="text-default-600 font-semibold">Workspaces</div>}
-        bottomContent={<Button variant="flat" isDisabled startContent={<Plus size={16} />} size="sm" className="w-full">New Workspace</Button>}
-        items={workspaces}
-      >
-        {(workspace) => {
 
-          return <DropdownItem
-            key={workspace.name}
-            className="py-2"
-          >
-            <div className="flex items-center gap-2">
-              <div className="flex flex-col">
-                <span className="text-small font-semibold">{workspace.name}</span>
-                <span className="text-tiny text-default-400">{workspace.meta?.totalRunbooks} runbooks</span>
+  return (
+    <>
+      <Dropdown>
+        <DropdownTrigger>
+          <Button isIconOnly variant="light" radius="full">
+            <Layers size={20} className="text-default-500" />
+          </Button>
+        </DropdownTrigger>
+        <DropdownMenu
+          aria-label="Workspace selection"
+          variant="flat"
+          className="w-[280px]"
+          topContent={<div className="text-default-600 font-semibold">Workspaces</div>}
+          bottomContent={<Button variant="flat" isDisabled startContent={<Plus size={16} />} size="sm" className="w-full">New Workspace</Button>}
+          items={workspaces}
+        >
+          {(workspace) => {
+            return <DropdownItem key={workspace.name} className="py-2">
+              <div className="flex items-center gap-2">
+                <div className="flex flex-col">
+                  <span className="text-small font-semibold">{workspace.name}</span>
+                  <span className="text-tiny text-default-400">{workspace.meta?.totalRunbooks} runbooks</span>
+                </div>
+                {workspace.id === currentWorkspace?.id && (
+                  <Chip size="sm" color="success" variant="flat" className="ml-auto">
+                    Current
+                  </Chip>
+                )}
+
+                <Button isIconOnly onPress={() => {
+                  settingsModalWorkspaceRef.current = workspace;
+                  onOpen();
+                  console.log('settingsModalWorkspaceRef', settingsModalWorkspaceRef.current);
+                }} size="sm" variant="flat">
+                  <Settings size={16} />
+                </Button>
               </div>
-              {workspace.id === currentWorkspace?.id && (
-                <Chip size="sm" color="success" variant="flat" className="ml-auto">
-                  Current
-                </Chip>
-              )}
-            </div>
-          </DropdownItem>
-        }}
-      </DropdownMenu>
-    </Dropdown>
+            </DropdownItem>
+          }}
+        </DropdownMenu>
+
+      </Dropdown>
+      <WorkspaceSettings workspace={settingsModalWorkspaceRef.current} isOpen={isOpen} onClose={onOpenChange} />
+    </>
   );
 };
 

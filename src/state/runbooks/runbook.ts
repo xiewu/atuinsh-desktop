@@ -162,7 +162,7 @@ export default class Runbook {
         i.content,
         new Date(i.created / 1000000),
         new Date(i.updated / 1000000),
-        i.workspaceId,
+        i.workspace_id,
       );
     });
 
@@ -170,7 +170,6 @@ export default class Runbook {
 
     // Handle migrations
     for (let rb of runbooks) {
-      console.log(rb.name, rb.workspaceId);
       // Workspaces didn't exist to start with, 
       // so for some users could be null
       if (rb.workspaceId === null || rb.workspaceId === undefined) {

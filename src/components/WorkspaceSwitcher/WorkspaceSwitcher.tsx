@@ -27,11 +27,13 @@ const CompactWorkspaceSwitcher = () => {
   const settingsModalWorkspaceRef = useRef<Workspace | null>(null);
 
   useEffect(() => {
-    refreshWorkspaces();
+    (async () => {
+      await refreshWorkspaces();
+    })();
   }, []);
 
   const onNewWorkspace = async () => {
-    newWorkspace("New Workspace");
+    await newWorkspace("New Workspace");
 
     track_event("workspace.create", {
       total: await Workspace.count(),
@@ -55,8 +57,8 @@ const CompactWorkspaceSwitcher = () => {
           items={workspaces}
         >
           {(workspace) => {
-            return <DropdownItem key={workspace.name} textValue={workspace.name} className="py-2" onPress={() => {
-              setCurrentWorkspace(workspace);
+            return <DropdownItem key={workspace.name} textValue={workspace.name} className="py-2" onPress={async () => {
+              await setCurrentWorkspace(workspace);
 
               track_event("workspace.switch", {});
             }}

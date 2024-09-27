@@ -20,10 +20,11 @@ const WorkspaceSettings = ({ isOpen, onClose, workspace }: WorkspaceSettingsProp
     setWorkspaceName(workspace?.name);
   }, [workspace]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!workspaceName) return;
+
     workspace?.rename(workspaceName);
-    refreshWorkspaces();
+    await refreshWorkspaces();
     onClose();
   };
 
@@ -49,7 +50,7 @@ Are you sure you want to delete the workspace "${workspace.name}"?
     );
 
     if (yes) {
-      deleteWorkspace(workspace);
+      await deleteWorkspace(workspace);
     }
 
     onClose();

@@ -122,10 +122,10 @@ export interface AtuinState {
 
   workspace: Workspace | null;
   workspaces: Workspace[];
-  refreshWorkspaces: () => void;
-  newWorkspace: (name: string) => void;
-  deleteWorkspace: (workspace: Workspace) => void;
-  setCurrentWorkspace: (ws: Workspace) => void;
+  refreshWorkspaces: () => Promise<void>;
+  newWorkspace: (name: string) => Promise<Workspace>;
+  deleteWorkspace: (workspace: Workspace) => Promise<void>;
+  setCurrentWorkspace: (ws: Workspace) => Promise<void>;
 }
 
 let state = (set: any, get: any): AtuinState => ({

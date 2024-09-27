@@ -15,9 +15,10 @@ import WorkspaceSettings from './WorkspaceSettings';
 
 const CompactWorkspaceSwitcher = () => {
   const refreshWorkspaces = useStore((store: AtuinState) => store.refreshWorkspaces);
-  // const setCurrentWorkspace = useStore((store: AtuinState) => store.setCurrentWorkspace);
   const currentWorkspace = useStore((store: AtuinState) => store.workspace);
   const workspaces = useStore((store: AtuinState) => store.workspaces);
+  const newWorkspace = useStore((store: AtuinState) => store.newWorkspace);
+  const setCurrentWorkspace = useStore((store: AtuinState) => store.setCurrentWorkspace);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
   // Which workspace to open the settings modal for. We cannot make the modal a child of the
@@ -28,10 +29,13 @@ const CompactWorkspaceSwitcher = () => {
     refreshWorkspaces();
   }, []);
 
+  const onNewWorkspace = async () => {
+    newWorkspace("New Workspace");
+  };
 
   return (
     <>
-      <Dropdown>
+      <Dropdown disableAnimation>
         <DropdownTrigger>
           <Button isIconOnly variant="light" radius="full">
             <Layers size={20} className="text-default-500" />
@@ -42,11 +46,23 @@ const CompactWorkspaceSwitcher = () => {
           variant="flat"
           className="w-[280px]"
           topContent={<div className="text-default-600 font-semibold">Workspaces</div>}
-          bottomContent={<Button variant="flat" isDisabled startContent={<Plus size={16} />} size="sm" className="w-full">New Workspace</Button>}
+          bottomContent={<Button onPress={onNewWorkspace} variant="flat" startContent={<Plus size={16} />} size="sm" className="w-full">New Workspace</Button>}
           items={workspaces}
         >
           {(workspace) => {
-            return <DropdownItem key={workspace.name} className="py-2">
+            return <DropdownItem key={workspace.name} textValue={workspace.name} className="py-2" onPress={() => {
+              setCurrentWorkspace(workspace);
+            }}
+              endContent={
+
+                <Button isIconOnly onPress={() => {
+                  settingsModalWorkspaceRef.current = workspace;
+                  onOpen();
+                  console.log('settingsModalWorkspaceRef', settingsModalWorkspaceRef.current);
+                }} size="sm" variant="flat">
+                  <Settings size={16} />
+                </Button>
+              }>
               <div className="flex items-center gap-2">
                 <div className="flex flex-col">
                   <span className="text-small font-semibold">{workspace.name}</span>
@@ -58,13 +74,6 @@ const CompactWorkspaceSwitcher = () => {
                   </Chip>
                 )}
 
-                <Button isIconOnly onPress={() => {
-                  settingsModalWorkspaceRef.current = workspace;
-                  onOpen();
-                  console.log('settingsModalWorkspaceRef', settingsModalWorkspaceRef.current);
-                }} size="sm" variant="flat">
-                  <Settings size={16} />
-                </Button>
               </div>
             </DropdownItem>
           }}

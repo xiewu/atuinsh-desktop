@@ -1,6 +1,7 @@
 import Database from "@tauri-apps/plugin-sql";
 import { KVStore } from "../kv";
 import { uuidv7 } from "uuidv7";
+import Runbook from "./runbook";
 
 class WorkspaceMeta {
   totalRunbooks: number;
@@ -47,6 +48,19 @@ export default class Workspace {
     await db.execute("insert into workspaces (id, name, created, updated) VALUES (?, ?, ?, ?)", [workspace.id, workspace.name, workspace.created, workspace.updated]);
 
     return workspace;
+  }
+
+  async delete() {
+    const db = await Database.load("sqlite:runbooks.db");
+
+    // First, delete all runbooks belonging to this workspace.
+    let runbooks = await this.runbooks();
+
+    for (let runbook of runbooks) {
+      await Runbook.delete(runbook.id);
+    }
+
+    await db.execute("delete from workspaces where id = ?", [this.id]);
   }
 
   static async findById(id: string): Promise<Workspace | null> {
@@ -104,5 +118,13 @@ export default class Workspace {
 
     const db = await Database.load("sqlite:runbooks.db");
     await db.execute("update workspaces set name = ?, updated = ? where id = ?", [this.name, new Date(), this.id]);
+  }
+
+  async runbooks(): Promise<Runbook[]> {
+    const db = await Database.load("sqlite:runbooks.db");
+    let rows = await db.select<any[]>("select * from runbooks where workspace_id = ? order by updated desc", [this.id]);
+    let runbooks = rows.map(Runbook.fromRow);
+
+    return runbooks;
   }
 }

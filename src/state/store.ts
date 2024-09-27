@@ -107,9 +107,11 @@ export interface AtuinState {
   refreshAliases: () => void;
   refreshVars: () => void;
   refreshUser: () => void;
-  refreshRunbooks: () => void;
   refreshShellHistory: (query?: string) => void;
   historyNextPage: (query?: string) => void;
+
+  newRunbook: () => Promise<Runbook>;
+  refreshRunbooks: () => void;
 
   setCurrentRunbook: (id: String) => void;
   setPtyTerm: (pty: string, terminal: any) => void;
@@ -122,6 +124,7 @@ export interface AtuinState {
   workspaces: Workspace[];
   refreshWorkspaces: () => void;
   newWorkspace: (name: string) => void;
+  deleteWorkspace: (workspace: Workspace) => void;
   setCurrentWorkspace: (ws: Workspace) => void;
 }
 
@@ -160,11 +163,23 @@ let state = (set: any, get: any): AtuinState => ({
     });
   },
 
+  newRunbook: async (): Promise<Runbook> => {
+    let runbook = await Runbook.create();
+
+    await get().setCurrentRunbook(runbook.id);
+    await get().refreshRunbooks();
+    await get().refreshWorkspaces();
+
+    return runbook;
+  },
+
   // PERF: Yeah this won't work long term. Let's see how many runbooks people have in reality and optimize for 10x that
   refreshRunbooks: async () => {
     if (get().workspace == null) {
       await get().refreshWorkspaces();
     }
+
+    console.log("loading runbooks for", get().workspace.name);
 
     let runbooks = await Runbook.all(get().workspace);
     let index = new RunbookIndexService();
@@ -192,7 +207,6 @@ let state = (set: any, get: any): AtuinState => ({
   refreshHomeInfo: () => {
     invoke("home_info")
       .then((res: any) => {
-        console.log(res);
         set({
           homeInfo: {
             historyCount: res.history_count,
@@ -314,18 +328,29 @@ let state = (set: any, get: any): AtuinState => ({
     let wss = await Workspace.all();
     let ws = await Workspace.current();
 
-    await ws.refreshMeta();
-    let all = wss.map((w) =>
-      w.refreshMeta()
-    );
-    await Promise.all(all);
+    for (let w of wss) {
+      await w.refreshMeta();
+    }
 
     set({ workspaces: wss, workspace: ws });
   },
 
-  newWorkspace: async (name: string) => {
+  newWorkspace: async (name: string): Promise<Workspace> => {
     let ws = await Workspace.create(name);
-    set({ workspace: ws, workspaces: await Workspace.all() });
+
+    await get().setCurrentWorkspace(ws);
+    await get().refreshWorkspaces();
+
+    return ws;
+  },
+
+  deleteWorkspace: async (workspace: Workspace) => {
+    if (get().workspace.id === workspace.id) {
+      throw new Error("Cannot delete current workspace");
+    }
+
+    await workspace.delete();
+    get().refreshWorkspaces();
   },
 
   setCurrentWorkspace: async (ws: Workspace) => {
@@ -333,6 +358,8 @@ let state = (set: any, get: any): AtuinState => ({
     kv.set("current_workspace", ws.id);
 
     set({ workspace: ws });
+    get().refreshRunbooks();
+    get().setCurrentRunbook(null);
   }
 });
 

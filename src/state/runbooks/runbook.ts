@@ -144,6 +144,17 @@ export default class Runbook {
     );
   }
 
+  static fromRow(row: any): Runbook {
+    return new Runbook(
+      row.id,
+      row.name,
+      row.content,
+      new Date(row.created / 1000000),
+      new Date(row.updated / 1000000),
+      row.workspace_id,
+    );
+  }
+
   // Default to scoping by workspace
   // Reduces the chance of accidents
   // If we ever need to fetch all runbooks for all workspaces, name it allInAllWorkspace or something
@@ -155,16 +166,7 @@ export default class Runbook {
       [workspace.id]
     );
 
-    let runbooks = res.map((i) => {
-      return new Runbook(
-        i.id,
-        i.name,
-        i.content,
-        new Date(i.created / 1000000),
-        new Date(i.updated / 1000000),
-        i.workspace_id,
-      );
-    });
+    let runbooks = res.map(Runbook.fromRow);
 
     let currentWorkspace = await Workspace.current();
 

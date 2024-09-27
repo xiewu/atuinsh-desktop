@@ -23,6 +23,7 @@ const NoteSidebar = () => {
     (state: AtuinState) => state.refreshRunbooks,
   );
   const currentRunbook = useStore((state: AtuinState) => state.currentRunbook);
+  const newRunbook = useStore((state: AtuinState) => state.newRunbook);
   const [isSearchOpen, setSearchOpen] = useStore((store: AtuinState) => [
     store.searchOpen,
     store.setSearchOpen,
@@ -54,9 +55,8 @@ const NoteSidebar = () => {
 
   const handleNewRunbook = async () => {
     window.getSelection()?.removeAllRanges();
-    let runbook = await Runbook.create();
-    setCurrentRunbook(runbook.id);
-    refreshRunbooks();
+
+    newRunbook();
 
     track_event("runbooks.create", {
       total: await Runbook.count(),
@@ -80,7 +80,7 @@ const NoteSidebar = () => {
   };
 
   return (
-    <div className="w-64 h-full bg-gray-50 border-r border-gray-200 flex flex-col select-none">
+    <div className="!w-64 !max-w-64 !min-w-64 h-full bg-gray-50 border-r border-gray-200 flex flex-col select-none">
       <div className="p-2 flex justify-between items-center border-b border-gray-200">
         <h2 className="text-lg font-semibold">Runbooks</h2>
         <div className="flex space-x-1">

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input } from "@nextui-org/react";
 import Workspace from '@/state/runbooks/workspace';
 import { AtuinState, useStore } from '@/state/store';
+import { ask, message } from '@tauri-apps/plugin-dialog';
 
 interface WorkspaceSettingsProps {
   isOpen: boolean;
@@ -12,6 +13,12 @@ interface WorkspaceSettingsProps {
 const WorkspaceSettings = ({ isOpen, onClose, workspace }: WorkspaceSettingsProps) => {
   const [workspaceName, setWorkspaceName] = useState(workspace?.name);
   const refreshWorkspaces = useStore((store: AtuinState) => store.refreshWorkspaces);
+  const currentWorkspace = useStore((store: AtuinState) => store.workspace);
+  const deleteWorkspace = useStore((store: AtuinState) => store.deleteWorkspace);
+
+  useEffect(() => {
+    setWorkspaceName(workspace?.name);
+  }, [workspace]);
 
   const handleSave = () => {
     if (!workspaceName) return;
@@ -21,9 +28,32 @@ const WorkspaceSettings = ({ isOpen, onClose, workspace }: WorkspaceSettingsProp
   };
 
   if (workspace === null) {
-    console.log('workspace not found');
     return <div />;
   }
+
+  const handleDelete = async () => {
+    if (workspace.id === currentWorkspace?.id) {
+      await message("You cannot delete a workspace while it is in use. Select another and try again.", "Error");
+      return;
+    }
+
+    const yes = await ask(
+      `
+Are you sure you want to delete the workspace "${workspace.name}"?
+        `,
+      {
+        title: "Confirmation",
+        okLabel: "Delete",
+        cancelLabel: "Cancel",
+      },
+    );
+
+    if (yes) {
+      deleteWorkspace(workspace);
+    }
+
+    onClose();
+  };
 
   return (
     <Modal
@@ -35,19 +65,27 @@ const WorkspaceSettings = ({ isOpen, onClose, workspace }: WorkspaceSettingsProp
         {(onClose) => (
           <>
             <ModalHeader className="flex flex-col gap-1">Workspace Settings</ModalHeader>
+
             <ModalBody>
+              <h2 className="text-xl font-semibold">General</h2>
               <Input
                 label="Workspace Name"
                 placeholder="Enter workspace name"
                 value={workspaceName}
                 onChange={(e) => setWorkspaceName(e.target.value)}
               />
+
+              <h2 className="text-xl font-semibold">Danger</h2>
+              <Button color="danger" variant='flat' onPress={handleDelete}>
+                Delete workspace
+              </Button>
             </ModalBody>
+
             <ModalFooter>
-              <Button color="danger" variant="light" onPress={onClose}>
+              <Button color="primary" variant="flat" onPress={onClose}>
                 Cancel
               </Button>
-              <Button color="primary" onPress={handleSave}>
+              <Button color="success" variant='flat' onPress={handleSave}>
                 Save Changes
               </Button>
             </ModalFooter>

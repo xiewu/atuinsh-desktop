@@ -78,7 +78,6 @@ export default class Runbook {
   }
 
   public static async count(): Promise<number> {
-    const db = await Database.load("sqlite:runbooks.db");
     let res = await db.select<any[]>("select count(1) as count from runbooks");
 
     return res[0]["count"];

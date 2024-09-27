@@ -108,6 +108,13 @@ export default class Workspace {
     });
   }
 
+  static async count(): Promise<number> {
+    const db = await Database.load("sqlite:runbooks.db");
+    let res = await db.select<any[]>("select count(1) as count from workspaces");
+
+    return res[0]["count"];
+  }
+
   async refreshMeta() {
     let meta = await WorkspaceMeta.load(this.id);
     this.meta = meta;

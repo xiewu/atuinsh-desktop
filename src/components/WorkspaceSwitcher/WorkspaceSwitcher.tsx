@@ -12,6 +12,8 @@ import { Layers, Plus, Settings } from 'lucide-react';
 import { AtuinState, useStore } from '@/state/store';
 import Workspace from '@/state/runbooks/workspace';
 import WorkspaceSettings from './WorkspaceSettings';
+import Runbook from '@/state/runbooks/runbook';
+import track_event from '@/tracking';
 
 const CompactWorkspaceSwitcher = () => {
   const refreshWorkspaces = useStore((store: AtuinState) => store.refreshWorkspaces);
@@ -31,6 +33,10 @@ const CompactWorkspaceSwitcher = () => {
 
   const onNewWorkspace = async () => {
     newWorkspace("New Workspace");
+
+    track_event("workspace.create", {
+      total: await Workspace.count(),
+    });
   };
 
   return (
@@ -52,6 +58,8 @@ const CompactWorkspaceSwitcher = () => {
           {(workspace) => {
             return <DropdownItem key={workspace.name} textValue={workspace.name} className="py-2" onPress={() => {
               setCurrentWorkspace(workspace);
+
+              track_event("workspace.switch", {});
             }}
               endContent={
 

@@ -12,7 +12,6 @@ import { Layers, Plus, Settings } from 'lucide-react';
 import { AtuinState, useStore } from '@/state/store';
 import Workspace from '@/state/runbooks/workspace';
 import WorkspaceSettings from './WorkspaceSettings';
-import Runbook from '@/state/runbooks/runbook';
 import track_event from '@/tracking';
 
 const CompactWorkspaceSwitcher = () => {

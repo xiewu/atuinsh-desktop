@@ -162,7 +162,7 @@ export default class Runbook {
     const db = await Database.load("sqlite:runbooks.db");
 
     let res = await db.select<any[]>(
-      "select * from runbooks where workspace_id = $1 order by updated desc",
+      "select * from runbooks where workspace_id = $1 or workspace_id is null order by updated desc",
       [workspace.id]
     );
 

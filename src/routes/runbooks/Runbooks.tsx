@@ -1,5 +1,5 @@
 import Editor from "@/components/runbooks/editor/Editor";
-import List from "@/components/runbooks/List";
+import List from "@/components/runbooks/List/List";
 import { usePtyStore } from "@/state/ptyStore";
 import Runbook from "@/state/runbooks/runbook";
 

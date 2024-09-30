@@ -16,12 +16,13 @@ import Terminal from "./terminal.tsx";
 
 import "@xterm/xterm/css/xterm.css";
 import { AtuinState, useStore } from "@/state/store.ts";
-import { Card, CardBody, CardHeader, Chip, Spinner } from "@nextui-org/react";
-import { cn, formatDuration } from "@/lib/utils.ts";
+import { Chip, Spinner } from "@nextui-org/react";
+import { formatDuration } from "@/lib/utils.ts";
 import { usePtyStore } from "@/state/ptyStore.ts";
 import track_event from "@/tracking.ts";
 import PlayButton from "../common/PlayButton.tsx";
 import { Clock } from "lucide-react";
+import Block from "../common/Block.tsx";
 
 interface RunBlockProps {
   onChange: (val: string) => void;
@@ -191,13 +192,9 @@ const RunBlock = ({
   ]);
 
   return (
-    <Card
-      className="w-full !max-w-full !outline-none"
-      shadow="sm"
-    >
-      <CardHeader className={"flex flex-col items-start gap-2 !z-auto"}>
+    <Block title="Terminal" header={
+      <>
         <div className="flex flex-row justify-between w-full">
-          <span className="text-default-700 font-semibold">Terminal</span>
           {commandRunning && <Spinner size="sm" />}
           {commandDuration && (
             <Chip
@@ -234,29 +231,24 @@ const RunBlock = ({
             basicSetup={false}
           />
         </div>
-      </CardHeader>
-      <CardBody
-        className={cn({
-          hidden: !isRunning,
-        })}
-      >
+      </>
+    }>
+      {pty && (
         <div
           className={`overflow-hidden transition-all duration-300 ease-in-out min-w-0 ${isRunning ? "block" : "hidden"
             }`}
         >
-          {pty && (
-            <Terminal
-              pty={pty.pid}
-              script={value}
-              runScript={firstOpen}
-              setCommandRunning={setCommandRunning}
-              setExitCode={setExitCode}
-              setCommandDuration={setCommandDuration}
-            />
-          )}
+          <Terminal
+            pty={pty.pid}
+            script={value}
+            runScript={firstOpen}
+            setCommandRunning={setCommandRunning}
+            setExitCode={setExitCode}
+            setCommandDuration={setCommandDuration}
+          />
         </div>
-      </CardBody>
-    </Card>
+      )}
+    </Block>
   );
 };
 

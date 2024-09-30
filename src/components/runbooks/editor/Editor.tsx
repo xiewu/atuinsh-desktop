@@ -57,6 +57,9 @@ import Clickhouse, {
 import Prometheus, {
   insertPrometheus,
 } from "@/components/runbooks/editor/blocks/Prometheus/Prometheus";
+import CodeEditor, {
+  insertEditor,
+} from "@/components/runbooks/editor/blocks/Editor/Editor";
 
 import { AtuinState, useStore } from "@/state/store";
 import Runbook from "@/state/runbooks/runbook";
@@ -86,6 +89,9 @@ const schema = BlockNoteSchema.create({
 
     // Network
     http: Http,
+
+    // Misc
+    editor: CodeEditor,
   },
 });
 
@@ -261,6 +267,7 @@ export default function Editor() {
                 insertPostgres(schema)(editor),
                 insertClickhouse(schema)(editor),
                 insertHttp(schema)(editor),
+                insertEditor(schema)(editor),
               ],
               query,
             )

@@ -5,17 +5,19 @@ import {
   DropdownTrigger,
   DropdownMenu,
   DropdownItem,
+  DropdownSection,
 } from "@nextui-org/react";
-import { Import, MoreVertical, Plus, SearchIcon, Terminal } from "lucide-react";
+import { ChevronRightIcon, Import, MoreVertical, Plus, SearchIcon, Terminal } from "lucide-react";
 import { DateTime } from "luxon";
 import Runbook from "@/state/runbooks/runbook";
 import { AtuinState, useStore } from "@/state/store";
 import { open } from "@tauri-apps/plugin-dialog";
 import { ptyForRunbook, PtyMetadata, usePtyStore } from "@/state/ptyStore";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import welcome from "./welcome.json";
 import track_event from "@/tracking";
+import MoveRunbookDropdown from "./MoveRunbookDropdown";
 
 const NoteSidebar = () => {
   const runbooks = useStore((state: AtuinState) => state.runbooks);
@@ -35,6 +37,8 @@ const NoteSidebar = () => {
   const ptys: { [pid: string]: PtyMetadata } = usePtyStore(
     (state) => state.ptys,
   );
+
+  const [isMoveToOpen, setMoveToOpen] = useState(false);
 
   useEffect(() => {
     refreshRunbooks();
@@ -160,40 +164,57 @@ const NoteSidebar = () => {
                       </Button>
                     </DropdownTrigger>
                     <DropdownMenu aria-label="Runbook actions">
-                      <DropdownItem
-                        key="export"
-                        onPress={() =>
-                          Runbook.load(runbook.id).then((rb) => rb?.export())
-                        }
-                      >
-                        Export
-                      </DropdownItem>
-                      <DropdownItem
-                        key="kill"
-                        isDisabled={count === 0}
-                        className="text-danger"
-                        color="danger"
-                        onPress={() =>
-                          ptyForRunbook(runbook.id).forEach((pty) =>
-                            invoke("pty_kill", { pid: pty.pid }),
-                          )
-                        }
-                      >
-                        Kill all terminals
-                      </DropdownItem>
-                      <DropdownItem
-                        key="delete"
-                        className="text-danger"
-                        color="danger"
-                        onPress={async () => {
-                          await Runbook.delete(runbook.id);
-                          if (runbook.id === currentRunbook)
-                            setCurrentRunbook("");
-                          refreshRunbooks();
-                        }}
-                      >
-                        Delete
-                      </DropdownItem>
+                      <DropdownSection showDivider title="Actions">
+                        <DropdownItem
+                          key="export"
+                          onPress={() =>
+                            Runbook.load(runbook.id).then((rb) => rb?.export())
+                          }
+                        >
+                          Export
+                        </DropdownItem>
+
+                        <DropdownItem
+                          key="move"
+                          onMouseEnter={() => setMoveToOpen(true)}
+                          onMouseLeave={() => setMoveToOpen(false)}
+                          endContent={<ChevronRightIcon size={16} />}
+                        >
+                          <MoveRunbookDropdown runbook={runbook} isOpen={isMoveToOpen} onClose={() => setMoveToOpen(false)} />
+                        </DropdownItem>
+                      </DropdownSection>
+
+
+
+                      <DropdownSection title="Danger">
+                        <DropdownItem
+                          key="kill"
+                          isDisabled={count === 0}
+                          className="text-danger"
+                          color="danger"
+                          onPress={() =>
+                            ptyForRunbook(runbook.id).forEach((pty) =>
+                              invoke("pty_kill", { pid: pty.pid }),
+                            )
+                          }
+                        >
+                          Kill all terminals
+                        </DropdownItem>
+
+                        <DropdownItem
+                          key="delete"
+                          className="text-danger"
+                          color="danger"
+                          onPress={async () => {
+                            await Runbook.delete(runbook.id);
+                            if (runbook.id === currentRunbook)
+                              setCurrentRunbook("");
+                            refreshRunbooks();
+                          }}
+                        >
+                          Delete
+                        </DropdownItem>
+                      </DropdownSection>
                     </DropdownMenu>
                   </Dropdown>
                 </div>

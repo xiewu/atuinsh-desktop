@@ -27,7 +27,7 @@ export default function HistoryInspect({ history }: any) {
   if (other.length == 0) return renderLoading();
 
   return (
-    <div className="overflow-y-auto">
+    <div className="overflow-y-auto" style={{ zIndex: 99999 }}>
       <CodeBlock code={history.command} language="bash" />
 
       <div>

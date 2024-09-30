@@ -1,9 +1,6 @@
 import { useState } from "react";
 import {
   Input,
-  Card,
-  CardBody,
-  CardFooter,
   Tabs,
   Tab,
   Textarea,
@@ -14,11 +11,11 @@ import { fetch } from "@tauri-apps/plugin-http";
 // @ts-ignore
 import { createReactBlockSpec } from "@blocknote/react";
 import { insertOrUpdateBlock } from "@blocknote/core";
-import { CardHeader } from "@/components/ui/card";
 import PlayButton from "../common/PlayButton";
 import HttpResponse from "./HttpResponse";
 import HttpVerbDropdown from "./VerbDropdown";
 import RequestHeaders from "./RequestHeaders";
+import Block from "../common/Block";
 
 enum HttpVerb {
   GET = "GET",
@@ -111,66 +108,59 @@ const Http = ({
   };
 
   return (
-    <Card
-      className="w-full !max-w-full !outline-none overflow-none"
-      shadow="sm"
-    >
-      <CardHeader className="p-3 gap-2 bg-default-50">
-        <span className="text-default-700 font-semibold">HTTP</span>
-        <div className="flex flex-row items-center gap-2">
-          <PlayButton
-            eventName="runbooks.http.run"
-            isRunning={isRunning}
-            onPlay={onPlay}
-            cancellable={false}
-          />
+    <Block title="HTTP" header={
+      <div className="flex flex-row items-center gap-2 w-full">
+        <PlayButton
+          eventName="runbooks.http.run"
+          isRunning={isRunning}
+          onPlay={onPlay}
+          cancellable={false}
+        />
 
-          <HttpVerbDropdown selectedVerb={verb} onVerbChange={setVerb} />
+        <HttpVerbDropdown selectedVerb={verb} onVerbChange={setVerb} />
 
-          <Input
-            placeholder="http://localhost:8080/hello/world"
-            isRequired
-            startContent={<GlobeIcon size={18} />}
-            value={url}
-            onValueChange={(val) => {
-              setUrl(val);
-            }}
-            classNames={{
-              input: "text-small",
-              inputWrapper: "h-8 min-h-unit-8 px-1",
-            }}
-            variant="bordered"
-            size="sm"
-          />
-        </div>
-      </CardHeader>
-      <CardBody>
-        <Tabs
-          aria-label="Options"
-          selectedKey={activeTab}
-          onSelectionChange={setActiveTab as any}
-          variant="underlined"
-        >
-          <Tab key="headers" title="Headers">
-            <RequestHeaders pairs={headers} setPairs={setHeaders} />
-          </Tab>
-          <Tab key="body" title="Body" isDisabled={verb === "GET"}>
-            <Textarea
-              placeholder="Request Body (JSON)"
-              value={body}
-              onValueChange={setBody}
-              minRows={5}
-              className="mt-2"
-            />
-          </Tab>
-        </Tabs>
-      </CardBody>
-      <CardFooter className="overflow-x-scroll">
-        {(response || error) && (
+        <Input
+          placeholder="http://localhost:8080/hello/world"
+          isRequired
+          startContent={<GlobeIcon size={18} />}
+          value={url}
+          onValueChange={(val) => {
+            setUrl(val);
+          }}
+          classNames={{
+            input: "text-small",
+            inputWrapper: "h-8 min-h-unit-8 px-1",
+          }}
+          variant="bordered"
+          size="sm"
+        />
+      </div>
+    }
+      footer={
+        (response || error) && (
           <HttpResponse response={response} error={error} />
-        )}
-      </CardFooter>
-    </Card>
+        )
+      }>
+      <Tabs
+        aria-label="Options"
+        selectedKey={activeTab}
+        onSelectionChange={setActiveTab as any}
+        variant="underlined"
+      >
+        <Tab key="headers" title="Headers">
+          <RequestHeaders pairs={headers} setPairs={setHeaders} />
+        </Tab>
+        <Tab key="body" title="Body" isDisabled={verb === "GET"}>
+          <Textarea
+            placeholder="Request Body (JSON)"
+            value={body}
+            onValueChange={setBody}
+            minRows={5}
+            className="mt-2"
+          />
+        </Tab>
+      </Tabs>
+    </Block >
   );
 };
 

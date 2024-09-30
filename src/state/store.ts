@@ -111,7 +111,7 @@ export interface AtuinState {
   historyNextPage: (query?: string) => void;
 
   newRunbook: () => Promise<Runbook>;
-  refreshRunbooks: () => void;
+  refreshRunbooks: () => Promise<void>;
 
   setCurrentRunbook: (id: String) => void;
   setPtyTerm: (pty: string, terminal: any) => void;

@@ -212,6 +212,11 @@ export default class Runbook {
     );
   }
 
+  public async moveTo(workspace: Workspace) {
+    this.workspaceId = workspace.id;
+    await this.save();
+  }
+
   public static async delete(id: string) {
     const db = await Database.load("sqlite:runbooks.db");
 

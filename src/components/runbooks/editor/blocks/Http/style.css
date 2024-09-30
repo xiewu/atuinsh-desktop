@@ -17,7 +17,7 @@
   position: unset;
 }
 
-div[tabindex="-1"] {
+.http-response div[tabindex="-1"] {
   /* override some stuff from the library */
   z-index: 11 !important;
 }

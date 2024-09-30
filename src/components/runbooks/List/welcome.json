@@ -8,7 +8,13 @@
       "textAlignment": "left",
       "level": 1
     },
-    "content": [{ "type": "text", "text": "Welcome to Atuin!", "styles": {} }],
+    "content": [
+      {
+        "type": "text",
+        "text": "Welcome to Atuin!",
+        "styles": {}
+      }
+    ],
     "children": []
   },
   {
@@ -76,7 +82,13 @@
       "textAlignment": "left",
       "level": 2
     },
-    "content": [{ "type": "text", "text": "Sync", "styles": {} }],
+    "content": [
+      {
+        "type": "text",
+        "text": "Sync",
+        "styles": {}
+      }
+    ],
     "children": []
   },
   {
@@ -124,7 +136,13 @@
       {
         "type": "link",
         "href": "https://atuin.sh/contact",
-        "content": [{ "type": "text", "text": "get in touch", "styles": {} }]
+        "content": [
+          {
+            "type": "text",
+            "text": "get in touch",
+            "styles": {}
+          }
+        ]
       }
     ],
     "children": []
@@ -150,7 +168,11 @@
       "level": 2
     },
     "content": [
-      { "type": "text", "text": "Executable shell scripts", "styles": {} }
+      {
+        "type": "text",
+        "text": "Executable shell scripts",
+        "styles": {}
+      }
     ],
     "children": []
   },
@@ -196,7 +218,13 @@
         "text": "To create a script block, type ",
         "styles": {}
       },
-      { "type": "text", "text": "/", "styles": { "code": true } },
+      {
+        "type": "text",
+        "text": "/",
+        "styles": {
+          "code": true
+        }
+      },
       {
         "type": "text",
         "text": ", and then filter to “script”. This will embed a code editor into your document, like the following:",
@@ -274,7 +302,13 @@
       "backgroundColor": "default",
       "textAlignment": "left"
     },
-    "content": [{ "type": "text", "text": "Give it a try:", "styles": {} }],
+    "content": [
+      {
+        "type": "text",
+        "text": "Give it a try:",
+        "styles": {}
+      }
+    ],
     "children": []
   },
   {
@@ -291,7 +325,12 @@
   {
     "id": "18ee6e71-7e47-4b2f-8879-8a2c1d8d48f3",
     "type": "run",
-    "props": { "type": "bash", "code": "", "pty": "", "global": false },
+    "props": {
+      "type": "bash",
+      "code": "",
+      "pty": "",
+      "global": false
+    },
     "children": []
   },
   {
@@ -342,7 +381,13 @@
       "textAlignment": "left",
       "level": 3
     },
-    "content": [{ "type": "text", "text": "Directories", "styles": {} }],
+    "content": [
+      {
+        "type": "text",
+        "text": "Directories",
+        "styles": {}
+      }
+    ],
     "children": []
   },
   {
@@ -376,7 +421,9 @@
   {
     "id": "5d252c3f-2113-4913-9fd2-ddcfb4167651",
     "type": "directory",
-    "props": { "path": "" },
+    "props": {
+      "path": ""
+    },
     "children": []
   },
   {
@@ -393,7 +440,12 @@
   {
     "id": "24e1a755-6fec-4043-9102-f4cdf0b2b603",
     "type": "run",
-    "props": { "type": "bash", "code": "pwd", "pty": "", "global": false },
+    "props": {
+      "type": "bash",
+      "code": "pwd",
+      "pty": "",
+      "global": false
+    },
     "children": []
   },
   {
@@ -416,11 +468,17 @@
       "textAlignment": "left"
     },
     "content": [
-      { "type": "text", "text": "Atuin supports ", "styles": {} },
+      {
+        "type": "text",
+        "text": "Atuin supports ",
+        "styles": {}
+      },
       {
         "type": "text",
         "text": "directory blocks",
-        "styles": { "italic": true }
+        "styles": {
+          "italic": true
+        }
       },
       {
         "type": "text",
@@ -450,7 +508,13 @@
       "textAlignment": "left",
       "level": 3
     },
-    "content": [{ "type": "text", "text": "Env", "styles": {} }],
+    "content": [
+      {
+        "type": "text",
+        "text": "Env",
+        "styles": {}
+      }
+    ],
     "children": []
   },
   {
@@ -484,7 +548,10 @@
   {
     "id": "9da5ad0d-9d4b-4484-b082-76861aeb7dc9",
     "type": "env",
-    "props": { "name": "FOO", "value": "BAR" },
+    "props": {
+      "name": "FOO",
+      "value": "BAR"
+    },
     "children": []
   },
   {

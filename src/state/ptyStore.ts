@@ -16,7 +16,7 @@ export interface PtyStore {
   unlistenOpen: UnlistenFn | null;
   unlistenKill: UnlistenFn | null;
 
-  listenBackend: () => void;
+  listenBackend: () => Promise<void>;
   unlistenBackend: () => void;
   createPty: (cwd: string, env: any, runbook: string, block: string) => void;
   ptyForBlock: (block: string) => PtyMetadata | null;

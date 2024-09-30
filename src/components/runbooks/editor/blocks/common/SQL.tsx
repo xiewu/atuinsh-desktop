@@ -4,10 +4,6 @@
 
 import { useState } from "react";
 import {
-  Input,
-  Card,
-  CardBody,
-  CardFooter,
   Dropdown,
   DropdownTrigger,
   DropdownMenu,
@@ -29,9 +25,10 @@ import PlayButton from "./PlayButton";
 import { QueryResult } from "./database";
 import SQLResults from "./SQLResults";
 import MaskedInput from "@/components/MaskedInput/MaskedInput";
+import Block from "./Block";
 
 interface SQLProps {
-  name?: string;
+  name: string;
   placeholder?: string;
   eventName?: string;
 
@@ -110,13 +107,11 @@ const SQL = ({
     autoRefresh > 0 ? autoRefresh : null,
   );
 
+  console.log(name)
+
   return (
-    <Card
-      className="w-full !max-w-full !outline-none overflow-none"
-      shadow="sm"
-    >
-      <CardHeader className="p-3 gap-2 bg-default-50">
-        {name && <span className="text-default-700 font-semibold">{name}</span>}
+    <Block title={name} header={
+      <>
         <MaskedInput
           maskRegex={/(?<=:\/\/)([^@]+)(?=@)/}
           placeholder={placeholder || "protocol://user:password@host:port/db"}
@@ -129,7 +124,7 @@ const SQL = ({
           }}
         />
 
-        <div className="flex flex-row gap-2">
+        <div className="flex flex-row gap-2 w-full">
           <PlayButton
             eventName={`${eventName}.run`}
             isRunning={isRunning}
@@ -144,11 +139,9 @@ const SQL = ({
             onChange={setQuery}
           />
         </div>
-      </CardHeader>
-      <CardBody className="overflow-x-scroll">
-        <SQLResults results={results} error={error} />
-      </CardBody>
-      <CardFooter>
+      </>
+    }
+      footer={
         <ButtonGroup>
           <Dropdown showArrow>
             <DropdownTrigger>
@@ -189,8 +182,10 @@ const SQL = ({
             </DropdownMenu>
           </Dropdown>
         </ButtonGroup>
-      </CardFooter>
-    </Card>
+      }>
+      <SQLResults results={results} error={error} />
+    </Block>
+
   );
 };
 

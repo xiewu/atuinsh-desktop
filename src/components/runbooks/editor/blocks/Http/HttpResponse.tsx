@@ -95,7 +95,7 @@ const HttpResponse = ({ response, error }: any) => {
   const statusInfo = getStatusInfo(status);
 
   return (
-    <Card shadow="sm" className="w-full max-w-full border border-default-200">
+    <Card shadow="sm" className="http-response w-full max-w-full border border-default-200">
       <CardHeader className="flex justify-between items-center bg-default-50">
         <div className="flex items-center gap-3">
           <Chip

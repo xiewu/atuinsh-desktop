@@ -28,6 +28,7 @@ import { useInterval } from "usehooks-ts";
 import PlayButton from "./PlayButton";
 import { QueryResult } from "./database";
 import SQLResults from "./SQLResults";
+import MaskedInput from "@/components/MaskedInput/MaskedInput";
 
 interface SQLProps {
   name?: string;
@@ -116,13 +117,14 @@ const SQL = ({
     >
       <CardHeader className="p-3 gap-2 bg-default-50">
         {name && <span className="text-default-700 font-semibold">{name}</span>}
-        <Input
+        <MaskedInput
+          maskRegex={/(?<=:\/\/)([^@]+)(?=@)/}
           placeholder={placeholder || "protocol://user:password@host:port/db"}
           label="URI"
           isRequired
           startContent={<DatabaseIcon size={18} />}
           value={uri}
-          onValueChange={(val) => {
+          onChange={(val: string) => {
             setUri(val);
           }}
         />

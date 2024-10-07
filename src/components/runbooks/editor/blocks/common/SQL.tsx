@@ -12,7 +12,7 @@ import {
   ButtonGroup,
 } from "@nextui-org/react";
 import { ChevronDown, DatabaseIcon, RefreshCwIcon } from "lucide-react";
-import CodeMirror from "@uiw/react-codemirror";
+import CodeMirror, { Extension } from "@uiw/react-codemirror";
 import { GridColumn } from "@glideapps/glide-data-grid";
 
 import "@glideapps/glide-data-grid/dist/index.css";
@@ -30,6 +30,7 @@ import Block from "./Block";
 interface SQLProps {
   name: string;
   placeholder?: string;
+  extensions?: Extension[];
   eventName?: string;
 
   uri: string;
@@ -66,6 +67,7 @@ const SQL = ({
   setAutoRefresh,
   runQuery,
   eventName,
+  extensions = []
 }: SQLProps) => {
   const [isRunning, setIsRunning] = useState<boolean>(false);
 
@@ -135,6 +137,7 @@ const SQL = ({
             placeholder={"Write your query here..."}
             className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
             basicSetup={true}
+            extensions={[...extensions]}
             value={query}
             onChange={setQuery}
           />

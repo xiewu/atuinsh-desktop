@@ -59,50 +59,53 @@ const EditorBlock = ({
 
   return (
     <Block title="Editor" inlineHeader header={
-      <Dropdown
-        isOpen={isOpen}
-        onOpenChange={(open) => setIsOpen(open)}
-      >
-        <DropdownTrigger>
-          <Button
-            variant="flat"
-            size="sm"
-            className="capitalize"
-            endContent={<ChevronDownIcon size={16} />}
-          >
-            {selected ? selected.name : "Select a language"}
-          </Button>
-        </DropdownTrigger>
-        <DropdownMenu
-          aria-label="Scrollable dropdown"
-          className="max-h-[300px] overflow-y-auto"
-          items={filteredItems}
-          topContent={
-            <Input
-              autoFocus
-              autoComplete="off"
-              autoCapitalize="off"
-              autoCorrect="off"
-              spellCheck="false"
-              type="text"
-              placeholder="Filter languages..."
-              value={filterText}
-              onChange={(e) => setFilterText(e.target.value)}
-              className="w-full"
-              onClick={(e) => e.stopPropagation()}
-            />
-          }
+      <div className="flex flex-row justify-between w-full">
+        <h1 className="text-default-700 font-semibold">Editor</h1>
+        <Dropdown
+          isOpen={isOpen}
+          onOpenChange={(open) => setIsOpen(open)}
         >
-          {(item) => (
-            <DropdownItem
-              key={item.name}
-              onPress={() => { setSelected(item); setFilterText(""); setIsOpen(false); }}
+          <DropdownTrigger>
+            <Button
+              variant="flat"
+              size="sm"
+              className="capitalize"
+              endContent={<ChevronDownIcon size={16} />}
             >
-              {item.name}
-            </DropdownItem>
-          )}
-        </DropdownMenu>
-      </Dropdown>
+              {selected ? selected.name : "Select a language"}
+            </Button>
+          </DropdownTrigger>
+          <DropdownMenu
+            aria-label="Scrollable dropdown"
+            className="max-h-[300px] overflow-y-auto"
+            items={filteredItems}
+            topContent={
+              <Input
+                autoFocus
+                autoComplete="off"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck="false"
+                type="text"
+                placeholder="Filter languages..."
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                className="w-full"
+                onClick={(e) => e.stopPropagation()}
+              />
+            }
+          >
+            {(item) => (
+              <DropdownItem
+                key={item.name}
+                onPress={() => { setSelected(item); setFilterText(""); setIsOpen(false); }}
+              >
+                {item.name}
+              </DropdownItem>
+            )}
+          </DropdownMenu>
+        </Dropdown>
+      </div>
     }>
       <CodeMirror
         className="!pt-0 max-w-full border border-gray-300 rounded flex-grow max-h-1/2 overflow-scroll"

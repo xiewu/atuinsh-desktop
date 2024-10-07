@@ -3,8 +3,6 @@ import { persist } from "zustand/middleware";
 
 import { parseISO } from "date-fns";
 
-import { fetch } from "@tauri-apps/plugin-http";
-
 import {
   User,
   DefaultUser,
@@ -16,7 +14,6 @@ import {
 } from "./models";
 
 import { invoke } from "@tauri-apps/api/core";
-import { sessionToken, settings } from "./client";
 import { getWeekInfo } from "@/lib/utils";
 import Runbook from "./runbooks/runbook";
 import { IDisposable, Terminal } from "@xterm/xterm";
@@ -26,6 +23,7 @@ import RunbookIndexService from "./runbooks/search";
 import { Settings } from "./settings";
 import Workspace from "./runbooks/workspace";
 import { KVStore } from "./kv";
+import { me } from "@/api/api";
 
 export class TerminalData {
   terminal: Terminal;
@@ -106,7 +104,7 @@ export interface AtuinState {
   refreshCalendar: () => void;
   refreshAliases: () => void;
   refreshVars: () => void;
-  refreshUser: () => void;
+  refreshUser: () => Promise<void>;
   refreshShellHistory: (query?: string) => void;
   historyNextPage: (query?: string) => void;
 
@@ -226,26 +224,21 @@ let state = (set: any, get: any): AtuinState => ({
   },
 
   refreshUser: async () => {
-    let config = await settings();
-    let session;
-
     try {
-      session = await sessionToken();
-    } catch (e) {
-      console.log("Not logged in, so not refreshing user");
+      let user = await me();
+
+      if (!user) {
+        set({ user: DefaultUser });
+        return;
+      }
+
+      set({ user: new User(user.username, user.email, user.bio) })
+    } catch {
       set({ user: DefaultUser });
       return;
     }
-    let url = config.sync_address + "/api/v0/me";
 
-    let res = await fetch(url, {
-      headers: {
-        Authorization: `Token ${session}`,
-      },
-    });
-    let me = await res.json();
 
-    set({ user: new User(me.username) });
   },
 
   historyNextPage: (query?: string) => {
@@ -379,6 +372,7 @@ export const useStore = create<AtuinState>()(
               "history_calendar",
               "home_info",
               "runbookIndex",
+              "user",
             ].includes(key),
         ),
       ),

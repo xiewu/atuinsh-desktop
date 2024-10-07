@@ -3,6 +3,7 @@ import { DatabaseIcon } from "lucide-react";
 // @ts-ignore
 import { createReactBlockSpec } from "@blocknote/react";
 import { insertOrUpdateBlock } from "@blocknote/core";
+import { langs } from "@uiw/codemirror-extensions-langs";
 
 import { runQuery } from "./query";
 
@@ -37,6 +38,7 @@ const Postgres = ({
       autoRefresh={autoRefresh}
       setAutoRefresh={setAutoRefresh}
       runQuery={runQuery}
+      extensions={[langs.pgsql()]}
     />
   );
 };

@@ -3,17 +3,21 @@ import Database from "@tauri-apps/plugin-sql";
 
 export class User {
   username: string | null;
+  email: string | null;
+  bio: string | null;
 
-  constructor(username: string) {
+  constructor(username: string, email: string, bio: string) {
     this.username = username;
+    this.email = email;
+    this.bio = bio;
   }
 
   isLoggedIn(): boolean {
-    return this.username !== "" && this.username !== null;
+    return this.username !== "" && this.username !== null && this.email !== "anon";
   }
 }
 
-export const DefaultUser: User = new User("");
+export const DefaultUser: User = new User("Anonymous User", "anon", "An anonymous user");
 
 export interface HomeInfo {
   historyCount: number;

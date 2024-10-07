@@ -16,16 +16,17 @@ interface BlockProps {
 export default function Block({ title, header, children, footer, inlineHeader }: BlockProps) {
   return (
     <Card
-      className="w-full !max-w-full !outline-none overflow-none"
+      className="w-full !max-w-full !outline-none"
       shadow="sm"
     >
-      <CardHeader className="p-3 gap-2 bg-default-50 flex flex-col items-start justify-start">
-        <div className="flex flex-row justify-between w-full">
-          <h1 className="text-default-700 font-semibold">{title}</h1>
-          {(header && inlineHeader) && header}
-        </div>
+      <CardHeader className="p-3 gap-2 bg-default-50 flex flex-col items-start justify-start z-auto">
+        {!inlineHeader &&
+          <div className="flex flex-row justify-between w-full">
+            <h1 className="text-default-700 font-semibold">{title}</h1>
+          </div>
+        }
 
-        {(header && !inlineHeader) && header}
+        {(header) && header}
       </CardHeader>
 
       {children &&

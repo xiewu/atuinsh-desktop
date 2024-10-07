@@ -192,9 +192,10 @@ const RunBlock = ({
   ]);
 
   return (
-    <Block title="Terminal" header={
+    <Block title="Terminal" inlineHeader header={
       <>
         <div className="flex flex-row justify-between w-full">
+          <h1 className="text-default-700 font-semibold">Terminal</h1>
           {commandRunning && <Spinner size="sm" />}
           {commandDuration && (
             <Chip

@@ -13,6 +13,7 @@ mod install;
 mod menu;
 mod pty;
 mod run;
+mod secret;
 mod state;
 mod store;
 
@@ -316,6 +317,8 @@ fn main() {
             dotfiles::vars::vars,
             dotfiles::vars::delete_var,
             dotfiles::vars::set_var,
+            secret::save_password,
+            secret::load_password,
         ])
         .plugin(
             tauri_plugin_sql::Builder::default()

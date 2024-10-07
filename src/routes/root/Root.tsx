@@ -34,14 +34,15 @@ import { message } from "@tauri-apps/plugin-dialog";
 import { useEffect, useRef } from "react";
 import { isAppleDevice } from "@react-aria/utils";
 import CompactWorkspaceSwitcher from "@/components/WorkspaceSwitcher/WorkspaceSwitcher";
+import { logout } from "@/api/api";
 
 function App() {
   const cleanupUpdateListener = useRef<UnlistenFn | null>(null);
   const navigate = useNavigate();
   const user = useStore((state: AtuinState) => state.user);
-  // const workspace = useStore((state: AtuinState) => state.workspace);
+  const refreshUser = useStore((state: AtuinState) => state.refreshUser);
 
-  const { isOpen, onOpenChange } = useDisclosure();
+  const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const {
     isOpen: isSettingsOpen,
     onOpen: onSettingsOpen,
@@ -129,6 +130,11 @@ function App() {
     },
   ];
 
+  const doLogout = async () => {
+    logout();
+    await refreshUser();
+  };
+
   return (
     <div
       className="flex w-screen "
@@ -180,22 +186,42 @@ function App() {
                   className="h-14 opacity-100"
                   textValue="Signed in as"
                 >
-                  <User
-                    avatarProps={{
-                      size: "sm",
-                      name: "Anonymous User",
-                      showFallback: true,
-                      imgProps: {
-                        className: "transition-none",
-                      },
-                    }}
-                    classNames={{
-                      name: "text-default-600",
-                      description: "text-default-500",
-                    }}
-                    name={"Anonymous User"}
-                  />
+                  {!user || !user.isLoggedIn() &&
+                    <User
+                      avatarProps={{
+                        size: "sm",
+                        name: "Anonymous User",
+                        showFallback: true,
+                        imgProps: {
+                          className: "transition-none",
+                        },
+                      }}
+                      classNames={{
+                        name: "text-default-600",
+                        description: "text-default-500",
+                      }}
+                      name={"Anonymous User"}
+                    />
+                  }
+                  {user && user.isLoggedIn && user.isLoggedIn() &&
+                    <User
+                      avatarProps={{
+                        size: "sm",
+                        name: user.username || "",
+                        imgProps: {
+                          className: "transition-none",
+                        },
+                      }}
+                      classNames={{
+                        name: "text-default-600",
+                        description: "text-default-500",
+                      }}
+                      name={user.username || ""}
+                      description={user.bio || ""}
+                    />
+                  }
                 </DropdownItem>
+
 
                 <DropdownItem
                   key="settings"
@@ -216,6 +242,10 @@ function App() {
                   >
                     Help & Feedback
                   </DropdownItem>
+
+                  {!user.isLoggedIn() && < DropdownItem key="LoginOrRegister" description="Sign up for cloud sync" onClick={() => onOpen()}>
+                    Login or Register
+                  </DropdownItem> || <DropdownItem key="logout" onPress={doLogout}>Logout</DropdownItem>}
                 </DropdownSection>
               </DropdownMenu>
             </Dropdown>
@@ -228,8 +258,6 @@ function App() {
         <Modal
           isOpen={isOpen}
           onOpenChange={onOpenChange}
-          placement="top-center"
-          disableAnimation
         >
           <ModalContent className="p-8">
             {(onClose) => (
@@ -244,7 +272,7 @@ function App() {
           isOpen={isSettingsOpen}
         />
       </div>
-    </div>
+    </div >
   );
 }
 

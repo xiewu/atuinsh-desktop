@@ -8,6 +8,7 @@ import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
 export default function Runbooks() {
+  const refreshUser = useStore((store) => store.refreshUser);
   const currentRunbook = useStore((store) => store.currentRunbook);
   const setCurrentRunbook = useStore((store) => store.setCurrentRunbook);
   const refreshRunbooks = useStore((store) => store.refreshRunbooks);
@@ -20,6 +21,7 @@ export default function Runbooks() {
   useEffect(() => {
     (async () => {
       await listenPtyBackend();
+      await refreshUser();
 
       if (location.state?.createNew) {
         window.getSelection()?.removeAllRanges();

@@ -40,6 +40,7 @@ function App() {
   const cleanupUpdateListener = useRef<UnlistenFn | null>(null);
   const navigate = useNavigate();
   const user = useStore((state: AtuinState) => state.user);
+  const isLoggedIn = useStore((state: AtuinState) => state.isLoggedIn);
   const refreshUser = useStore((state: AtuinState) => state.refreshUser);
 
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
@@ -186,7 +187,7 @@ function App() {
                   className="h-14 opacity-100"
                   textValue="Signed in as"
                 >
-                  {!user || !user.isLoggedIn() &&
+                  {!isLoggedIn() &&
                     <User
                       avatarProps={{
                         size: "sm",
@@ -203,7 +204,7 @@ function App() {
                       name={"Anonymous User"}
                     />
                   }
-                  {user && user.isLoggedIn && user.isLoggedIn() &&
+                  {isLoggedIn() &&
                     <User
                       avatarProps={{
                         size: "sm",
@@ -243,7 +244,7 @@ function App() {
                     Help & Feedback
                   </DropdownItem>
 
-                  {!user.isLoggedIn() && < DropdownItem key="LoginOrRegister" description="Sign up for cloud sync" onClick={() => onOpen()}>
+                  {!isLoggedIn() && < DropdownItem key="LoginOrRegister" description="Sign up for cloud sync" onClick={() => onOpen()}>
                     Login or Register
                   </DropdownItem> || <DropdownItem key="logout" onPress={doLogout}>Logout</DropdownItem>}
                 </DropdownSection>

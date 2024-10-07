@@ -87,6 +87,7 @@ export interface RunbookPtyInfo {
 // me, 4mo later: thanks I hate it
 export interface AtuinState {
   user: User;
+  isLoggedIn: () => boolean,
   homeInfo: HomeInfo;
   aliases: Alias[];
   vars: Var[];
@@ -353,6 +354,15 @@ let state = (set: any, get: any): AtuinState => ({
     set({ workspace: ws });
     get().refreshRunbooks();
     get().setCurrentRunbook(null);
+  },
+
+  isLoggedIn: () => {
+    if (!get().user) return false;
+    let user = get().user;
+
+    if (!user.isLoggedIn) return false;
+
+    return user.isLoggedIn();
   }
 });
 

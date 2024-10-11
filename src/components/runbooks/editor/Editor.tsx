@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import track_event from "@/tracking";
 
 import "./index.css";
 
@@ -154,7 +155,10 @@ export default function Editor() {
   const onChange = async () => {
     if (!runbook) return;
 
-    console.log("saved!");
+    track_event("runbooks.save", {
+      total: await Runbook.count(),
+    });
+
     runbook.name = fetchName();
     if (editor) runbook.content = JSON.stringify(editor.document);
 

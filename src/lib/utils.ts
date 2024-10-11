@@ -59,7 +59,7 @@ export function formatBytes(bytes: number): string {
 
 export function formatDuration(ms: number) {
   if (ms < 2000) {
-    return `${ms}ms`;
+    return `${Math.round(ms)}ms`;
   }
 
   const seconds = Math.floor(ms / 1000);

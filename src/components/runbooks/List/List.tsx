@@ -132,7 +132,13 @@ const NoteSidebar = () => {
           return (
             <div
               key={runbook.id}
-              onClick={() => setCurrentRunbook(runbook.id)}
+              onClick={() =>{ 
+                track_event("runbooks.open", {
+                  total: await Runbook.count(),
+                });
+
+                setCurrentRunbook(runbook.id);
+              }
               className={`cursor-pointer p-2 border-b border-gray-200 hover:bg-gray-100 ${isActive ? "bg-gray-200" : ""} relative`}
             >
               <div className="flex justify-between items-start">

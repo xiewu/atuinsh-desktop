@@ -22,6 +22,7 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import RunbookIndexService from "./runbooks/search";
 import { Settings } from "./settings";
 import Workspace from "./runbooks/workspace";
+import { platform } from "@tauri-apps/plugin-os";
 import { KVStore } from "./kv";
 import { me } from "@/api/api";
 
@@ -55,8 +56,16 @@ export class TerminalData {
     });
   }
 
-  async write(data: string) {
-    await invoke("pty_write", { pid: this.pty, data: data });
+  async write(data: string, doc: any) {
+    // Template the string before we execute it
+    console.log("templating with doc", doc);
+    let templated: string = await invoke("template_str", { source: data, pid: this.pty, doc });
+
+    let isWindows = platform() == "windows";
+    let cmdEnd = isWindows ? "\r\n" : "\n";
+    let val = !templated.endsWith("\n") ? templated + cmdEnd : templated;
+
+    await invoke("pty_write", { pid: this.pty, data: val, });
   }
 
   dispose() {

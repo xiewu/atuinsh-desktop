@@ -16,6 +16,7 @@ mod run;
 mod secret;
 mod state;
 mod store;
+mod templates;
 
 use atuin_client::settings::Settings;
 use atuin_client::{history::HISTORY_TAG, record::sqlite_store::SqliteStore, record::store::Store};
@@ -319,6 +320,7 @@ fn main() {
             dotfiles::vars::set_var,
             secret::save_password,
             secret::load_password,
+            templates::template_str,
         ])
         .plugin(
             tauri_plugin_sql::Builder::default()

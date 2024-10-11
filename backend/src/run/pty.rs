@@ -1,8 +1,9 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use eyre::Result;
+use minijinja::{context, Environment};
 
-use crate::{pty::PtyMetadata, state::AtuinState};
+use crate::{pty::PtyMetadata, state::AtuinState, templates::TemplateState};
 use tauri::{Emitter, State};
 
 const PTY_OPEN_CHANNEL: &str = "pty_open";
@@ -21,7 +22,7 @@ pub async fn pty_open(
 
     let metadata = PtyMetadata {
         pid: id,
-        runbook,
+        runbook: runbook.clone(),
         block,
     };
     let cwd = cwd.map(|c| shellexpand::tilde(c.as_str()).to_string());
@@ -60,6 +61,13 @@ pub async fn pty_open(
             }
         }
     });
+
+    let env = Environment::new();
+    state
+        .template_state
+        .write()
+        .await
+        .insert(runbook, Arc::new(env));
 
     state.pty_sessions.write().await.insert(id, pty);
 

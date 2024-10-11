@@ -37,6 +37,7 @@ const TerminalComponent = ({
   setCommandRunning,
   setExitCode,
   setCommandDuration,
+  editor,
 }: any) => {
   const terminalRef = useRef(null);
   const { terminalData, isReady } = usePersistentTerminal(pty);
@@ -79,7 +80,7 @@ const TerminalComponent = ({
         let isWindows = platform() == "windows";
         let cmdEnd = isWindows ? "\r\n" : "\n";
         let val = !script.endsWith("\n") ? script + cmdEnd : script;
-        terminalData.write(val);
+        terminalData.write(val, editor.document);
       }
 
     }

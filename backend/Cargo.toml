@@ -48,6 +48,13 @@ keyring = { version = "3", features = [
   "windows-native",
   "sync-secret-service",
 ] }
+minijinja = { version = "2.3.1", features = [
+  "unicode",
+  "json",
+  "urlencode",
+  "loop_controls",
+  "key_interning",
+] }
 
 [dependencies.sqlx]
 version = "0.8"

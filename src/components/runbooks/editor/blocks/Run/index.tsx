@@ -171,7 +171,7 @@ const RunBlock = ({
     let val = !value.endsWith("\n") ? value + cmdEnd : value;
 
     terminalData.terminal.clear();
-    terminalData.write(val);
+    terminalData.write(val, editor.document);
   };
 
   const handleCmdEnter = () => {
@@ -246,6 +246,7 @@ const RunBlock = ({
             setCommandRunning={setCommandRunning}
             setExitCode={setExitCode}
             setCommandDuration={setCommandDuration}
+            editor={editor}
           />
         </div>
       )}

@@ -26,6 +26,8 @@ import { platform } from "@tauri-apps/plugin-os";
 import { KVStore } from "./kv";
 import { me } from "@/api/api";
 
+import untitledRunbook from "./runbooks/untitled.json";
+
 export class TerminalData {
   terminal: Terminal;
   fitAddon: FitAddon;
@@ -173,6 +175,9 @@ let state = (set: any, get: any): AtuinState => ({
 
   newRunbook: async (): Promise<Runbook> => {
     let runbook = await Runbook.create();
+    runbook.name = "Untitled";
+    runbook.content = JSON.stringify(untitledRunbook);
+    runbook.save();
 
     await get().setCurrentRunbook(runbook.id);
     await get().refreshRunbooks();

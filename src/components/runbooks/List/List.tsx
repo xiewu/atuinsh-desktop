@@ -17,6 +17,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import welcome from "./welcome.json";
 import track_event from "@/tracking";
+import { cn } from "@/lib/utils";
 import MoveRunbookDropdown from "./MoveRunbookDropdown";
 
 const NoteSidebar = () => {
@@ -142,8 +143,8 @@ const NoteSidebar = () => {
               className={`cursor-pointer p-2 border-b border-gray-200 hover:bg-gray-100 ${isActive ? "bg-gray-200" : ""} relative`}
             >
               <div className="flex justify-between items-start">
-                <div className="flex-grow mr-2">
-                  <h3 className="font-medium text-sm truncate">
+                <div className={cn("flex-grow mr-2",  {"!max-w-[10.5rem]": count > 0})}>
+                  <h3 className="font-medium text-sm truncate text-ellipsis">
                     {runbook.name || "Untitled"}
                   </h3>
                   <p className="text-xs text-gray-500 mt-0.5">

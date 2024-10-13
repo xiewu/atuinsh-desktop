@@ -6,6 +6,15 @@ import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { register, login } from "@/api/api";
 import { invoke } from "@tauri-apps/api/core";
 
+const savePassword = async (service: string, user: string, value: string) => {
+  if (import.meta.env.MODE === "development") {
+    localStorage.setItem(`${service}:${user}`, value);
+    return;
+  }
+
+  return await invoke("save_password", { service, user, value });
+};
+
 interface RegisterProps {
   toggle: () => void;
   onClose: () => void;
@@ -43,7 +52,7 @@ function Register(props: RegisterProps) {
         setErrors(null);
         let json = await resp.json();
         let token = json["token"];
-        await invoke("save_password", { service: "sh.atuin.runbooks.api", user: username, value: token });
+        await savePassword("sh.atuin.runbooks.api", username, token);
 
         localStorage.setItem("username", username);
         props.onClose();
@@ -185,7 +194,7 @@ function Login(props: any) {
       setErrors(null);
       let json = await resp.json();
       let token = json["token"];
-      await invoke("save_password", { service: "sh.atuin.runbooks.api", user: username, value: token });
+      await savePassword("sh.atuin.runbooks.api", username, token);
       localStorage.setItem("username", username);
       props.onClose();
 

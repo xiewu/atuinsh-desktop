@@ -1,9 +1,9 @@
 use std::{collections::HashMap, sync::Arc};
 
 use eyre::Result;
-use minijinja::{context, Environment};
+use minijinja::Environment;
 
-use crate::{pty::PtyMetadata, state::AtuinState, templates::TemplateState};
+use crate::{pty::PtyMetadata, state::AtuinState};
 use tauri::{Emitter, State};
 
 const PTY_OPEN_CHANNEL: &str = "pty_open";

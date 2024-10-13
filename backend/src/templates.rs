@@ -109,15 +109,9 @@ fn serialized_block_to_state(block: serde_json::Value) -> BlockState {
     //    better if the template system exposed that as "content", even though it isn't stored like
     //    that in the internal schema
     let content: String = match block_type {
-        "editor" => props
-            .get("code")
-            .map(String::clone)
-            .unwrap_or(String::from("")),
+        "editor" => props.get("code").cloned().unwrap_or(String::from("")),
 
-        "run" => props
-            .get("code")
-            .map(String::clone)
-            .unwrap_or(String::from("")),
+        "run" => props.get("code").cloned().unwrap_or(String::from("")),
         _ => content,
     };
 
@@ -176,7 +170,7 @@ pub async fn template_str(
                     loop {
                         let block = doc.get(i).unwrap().as_object().unwrap();
                         if block.get("type").unwrap().as_str().unwrap() == "paragraph"
-                            && block.get("content").unwrap().as_array().unwrap().len() == 0
+                            && block.get("content").unwrap().as_array().unwrap().is_empty()
                         {
                             if i == 0 {
                                 return None;

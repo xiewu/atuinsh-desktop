@@ -23,6 +23,8 @@ import RunbookIndexService from "./runbooks/search";
 import { Settings } from "./settings";
 import Workspace from "./runbooks/workspace";
 import { platform } from "@tauri-apps/plugin-os";
+import { open } from "@tauri-apps/plugin-dialog";
+import track_event from "@/tracking";
 import { KVStore } from "./kv";
 import { me } from "@/api/api";
 
@@ -121,6 +123,7 @@ export interface AtuinState {
   historyNextPage: (query?: string) => void;
 
   newRunbook: () => Promise<Runbook>;
+  importRunbook: () => Promise<Runbook[] | null>;
   refreshRunbooks: () => Promise<void>;
 
   setCurrentRunbook: (id: String) => void;
@@ -184,6 +187,33 @@ let state = (set: any, get: any): AtuinState => ({
     await get().refreshWorkspaces();
 
     return runbook;
+  },
+
+  importRunbook: async (): Promise<Runbook[] | null> => {
+    let filePath = await open({
+      multiple: true, directory: false,
+      filters: [{
+        name: 'Atuin Runbooks',
+        extensions: ['atrb']
+      }]
+    });
+
+    if (!filePath || filePath.length === 0) return null;
+
+    let runbooks = await Promise.all(filePath.map(async (file) => {
+      // @ts-ignore
+      return await Runbook.import(file);
+    }));
+
+    console.log(runbooks);
+
+    await get().refreshRunbooks();
+
+    track_event("runbooks.import", {
+      total: await Runbook.count(),
+    });
+
+    return runbooks;
   },
 
   // PERF: Yeah this won't work long term. Let's see how many runbooks people have in reality and optimize for 10x that

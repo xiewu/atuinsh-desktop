@@ -29,15 +29,20 @@ import {
   useDisclosure,
   User,
 } from "@nextui-org/react";
-import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { UnlistenFn } from "@tauri-apps/api/event";
 import { message } from "@tauri-apps/plugin-dialog";
 import { useEffect, useRef } from "react";
 import { isAppleDevice } from "@react-aria/utils";
 import CompactWorkspaceSwitcher from "@/components/WorkspaceSwitcher/WorkspaceSwitcher";
 import { logout } from "@/api/api";
+import { useTauriEvent } from "@/lib/tauri";
 
 function App() {
-  const cleanupUpdateListener = useRef<UnlistenFn | null>(null);
+  const cleanupImportListener = useRef<UnlistenFn | null>(null);
+
+  const importRunbook = useStore((state: AtuinState) => state.importRunbook);
+  const newRunbook = useStore((state: AtuinState) => state.newRunbook);
+
   const navigate = useNavigate();
   const user = useStore((state: AtuinState) => state.user);
   const isLoggedIn = useStore((state: AtuinState) => state.isLoggedIn);
@@ -67,6 +72,29 @@ function App() {
     };
   }, [onSettingsOpenChange]);
 
+  useTauriEvent("update-check", async () => {
+    let updateAvailable = await checkForAppUpdates();
+
+    if (!updateAvailable) {
+      await message("No updates available", {
+        title: "Atuin",
+        kind: "info",
+      });
+    }
+  });
+
+  useTauriEvent("import-runbook", async () => {
+    await importRunbook();
+  });
+
+  useTauriEvent("new-runbook", async () => {
+    navigate(`/runbooks`, { state: { createNew: true } });
+  });
+
+  useTauriEvent("new-workspace", async () => {
+    navigate(`/runbooks`, { state: { createNew: true } });
+  });
+
   useEffect(() => {
     const check = () => {
       (async () => {
@@ -78,23 +106,8 @@ function App() {
 
     check();
 
-    listen("update-check", async () => {
-      let updateAvailable = await checkForAppUpdates();
-
-      if (!updateAvailable) {
-        console.log("No updates available");
-        let res = await message("No updates available", {
-          title: "Atuin",
-          kind: "info",
-        });
-        console.log(res);
-      }
-    }).then((unlisten) => {
-      cleanupUpdateListener.current = unlisten;
-    });
-
     return () => {
-      if (cleanupUpdateListener.current) cleanupUpdateListener.current();
+      if (cleanupImportListener.current) cleanupImportListener.current();
     };
   }, []);
 

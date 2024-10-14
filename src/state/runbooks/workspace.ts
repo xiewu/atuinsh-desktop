@@ -30,12 +30,14 @@ export default class Workspace {
   updated: Date;
 
   meta: WorkspaceMeta | null;
+  watchDir: string | null;
 
-  constructor(id: string, name: string, created: Date, updated: Date) {
+  constructor(id: string, name: string, created: Date, updated: Date, watchDir: string | null = null) {
     this.id = id;
     this.name = name;
     this.created = created;
     this.updated = updated;
+    this.watchDir = watchDir;
 
     this.meta = null;
   }
@@ -133,5 +135,12 @@ export default class Workspace {
     let runbooks = rows.map(Runbook.fromRow);
 
     return runbooks;
+  }
+
+  async setWatchDir(dir: string) {
+    this.watchDir = dir;
+
+    const db = await Database.load("sqlite:runbooks.db");
+    await db.execute("update workspaces set watch_dir = ? where id = ?", [this.watchDir, this.id]);
   }
 }

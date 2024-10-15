@@ -19,6 +19,12 @@ pub fn migrations() -> Vec<Migration> {
             description: "add_workspace_id_to_runbooks",
             sql: "alter table runbooks add column workspace_id string;",
             kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 4,
+            description: "add_workspace_directory",
+            sql: "alter table workspaces add column watch_dir string;",
+            kind: MigrationKind::Up,
         }
     ]
 }

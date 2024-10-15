@@ -20,6 +20,51 @@ fn update_check<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
     Ok(update_check)
 }
 
+fn import_runbook<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
+    let import_runbook = MenuItemBuilder::new("Import Runbook")
+        .id("import-runbook")
+        .build(handle)?;
+
+    handle.on_menu_event(move |window, event| {
+        if event.id().0 == "import-runbook" {
+            window
+                .emit("import-runbook", 0)
+                .expect("Failed to emit menu event");
+        }
+    });
+    Ok(import_runbook)
+}
+
+fn new_runbook<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
+    let new_runbook = MenuItemBuilder::new("New Runbook")
+        .id("new-runbook")
+        .build(handle)?;
+
+    handle.on_menu_event(move |window, event| {
+        if event.id().0 == "new-runbook" {
+            window
+                .emit("new-runbook", 0)
+                .expect("Failed to emit menu event");
+        }
+    });
+    Ok(new_runbook)
+}
+
+fn new_workspace<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
+    let import_workspace = MenuItemBuilder::new("New Workspace")
+        .id("new-workspace")
+        .build(handle)?;
+
+    handle.on_menu_event(move |window, event| {
+        if event.id().0 == "new-workspace" {
+            window
+                .emit("new-workspace", 0)
+                .expect("Failed to emit menu event");
+        }
+    });
+    Ok(import_workspace)
+}
+
 fn link_menu_item<R: Runtime>(
     id: &str,
     name: &str,
@@ -123,6 +168,10 @@ pub fn menu<R: Runtime>(app_handle: &AppHandle<R>) -> Result<Menu<R>> {
                 "File",
                 true,
                 &[
+                    &new_runbook(app_handle)?,
+                    &import_runbook(app_handle)?,
+                    &new_workspace(app_handle)?,
+                    &PredefinedMenuItem::separator(app_handle)?,
                     &PredefinedMenuItem::close_window(app_handle, None)?,
                     #[cfg(not(target_os = "macos"))]
                     &PredefinedMenuItem::quit(app_handle, None)?,

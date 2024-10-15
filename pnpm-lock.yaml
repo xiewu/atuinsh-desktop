@@ -6,14 +6,14 @@ settings:
 
 dependencies:
   '@blocknote/core':
-    specifier: ^0.15.11
-    version: 0.15.11
+    specifier: ^0.16
+    version: 0.16.0
   '@blocknote/mantine':
-    specifier: ^0.15.11
-    version: 0.15.11(@tiptap/pm@2.8.0)(@types/react@18.3.11)(react-dom@18.3.1)(react@18.3.1)
+    specifier: ^0.16
+    version: 0.16.0(@tiptap/pm@2.8.0)(@types/react@18.3.11)(react-dom@18.3.1)(react@18.3.1)
   '@blocknote/react':
-    specifier: ^0.15.11
-    version: 0.15.11(@tiptap/pm@2.8.0)(react-dom@18.3.1)(react@18.3.1)
+    specifier: ^0.16
+    version: 0.16.0(@tiptap/pm@2.8.0)(react-dom@18.3.1)(react@18.3.1)
   '@clickhouse/client-web':
     specifier: ^1.6.0
     version: 1.6.0
@@ -99,32 +99,32 @@ dependencies:
     specifier: ^3.10.8
     version: 3.10.8(react-dom@18.3.1)(react@18.3.1)
   '@tauri-apps/api':
-    specifier: 2.0.0-rc.5
-    version: 2.0.0-rc.5
+    specifier: 2.0.0
+    version: 2.0.0
   '@tauri-apps/plugin-dialog':
-    specifier: 2.0.0-beta.7
-    version: 2.0.0-beta.7
+    specifier: 2.0.0
+    version: 2.0.0
   '@tauri-apps/plugin-fs':
-    specifier: 2.0.0-rc.0
-    version: 2.0.0-rc.0
+    specifier: 2.0.0
+    version: 2.0.0
   '@tauri-apps/plugin-http':
-    specifier: 2.0.0-beta.8
-    version: 2.0.0-beta.8
+    specifier: 2.0.0
+    version: 2.0.0
   '@tauri-apps/plugin-os':
-    specifier: 2.0.0-beta.7
-    version: 2.0.0-beta.7
+    specifier: 2.0.0
+    version: 2.0.0
   '@tauri-apps/plugin-process':
-    specifier: 2.0.0-rc.0
-    version: 2.0.0-rc.0
+    specifier: 2.0.0
+    version: 2.0.0
   '@tauri-apps/plugin-shell':
-    specifier: 2.0.0-rc.0
-    version: 2.0.0-rc.0
+    specifier: 2.0.0
+    version: 2.0.0
   '@tauri-apps/plugin-sql':
-    specifier: 2.0.0-rc.0
-    version: 2.0.0-rc.0
+    specifier: 2.0.0
+    version: 2.0.0
   '@tauri-apps/plugin-updater':
-    specifier: 2.0.0-rc.0
-    version: 2.0.0-rc.0
+    specifier: 2.0.0
+    version: 2.0.0
   '@types/luxon':
     specifier: ^3.4.2
     version: 3.4.2
@@ -527,8 +527,8 @@ packages:
       '@babel/helper-validator-identifier': 7.25.7
       to-fast-properties: 2.0.0
 
-  /@blocknote/core@0.15.11:
-    resolution: {integrity: sha512-IVOypyKkqZxONLVCc2Q2+NBvFCzmh57IrdZDOhWtIroq2qfAgvPp+aVoFlU2EZK9scJwFMqzarHHHpBxl+5f1A==}
+  /@blocknote/core@0.16.0:
+    resolution: {integrity: sha512-egX+GjlAB8r/zaox278zNTTUMNVRHVQ2qVlPHQZgGOXSDq2Z+Lm7i4xKYMz/UT/IdrL7iGxnHrAsbc0H/kqc9A==}
     dependencies:
       '@emoji-mart/data': 1.2.1
       '@tiptap/core': 2.8.0(@tiptap/pm@2.8.0)
@@ -575,14 +575,14 @@ packages:
       - supports-color
     dev: false
 
-  /@blocknote/mantine@0.15.11(@tiptap/pm@2.8.0)(@types/react@18.3.11)(react-dom@18.3.1)(react@18.3.1):
-    resolution: {integrity: sha512-xtqForv2awm51NDM4aZcuMTBwwuB75QAbm+p3D2ofDNxusidyl28cB+eVaEUroFNouGAfhaigYe7ilMIfJyYeQ==}
+  /@blocknote/mantine@0.16.0(@tiptap/pm@2.8.0)(@types/react@18.3.11)(react-dom@18.3.1)(react@18.3.1):
+    resolution: {integrity: sha512-5jLXuKWz6xoba8odYv8+SalLSSE5YdYEvtuQyEO605VTtm37VELyjI5Tswwv/mcTd3th2AR3g4GY0Zj/T07lZw==}
     peerDependencies:
       react: ^18
       react-dom: ^18
     dependencies:
-      '@blocknote/core': 0.15.11
-      '@blocknote/react': 0.15.11(@tiptap/pm@2.8.0)(react-dom@18.3.1)(react@18.3.1)
+      '@blocknote/core': 0.16.0
+      '@blocknote/react': 0.16.0(@tiptap/pm@2.8.0)(react-dom@18.3.1)(react@18.3.1)
       '@mantine/core': 7.13.2(@mantine/hooks@7.13.2)(@types/react@18.3.11)(react-dom@18.3.1)(react@18.3.1)
       '@mantine/hooks': 7.13.2(react@18.3.1)
       '@mantine/utils': 6.0.22(react@18.3.1)
@@ -595,13 +595,13 @@ packages:
       - supports-color
     dev: false
 
-  /@blocknote/react@0.15.11(@tiptap/pm@2.8.0)(react-dom@18.3.1)(react@18.3.1):
-    resolution: {integrity: sha512-HGNvVW80pZd+qhHhgYM9O/qGRrHRLxr4pAju78tK/treUzX8qV+uOV9IPMBfhASzizLfsLCWJC95XGCEKBJrFQ==}
+  /@blocknote/react@0.16.0(@tiptap/pm@2.8.0)(react-dom@18.3.1)(react@18.3.1):
+    resolution: {integrity: sha512-vEwAp4z1FBqcH75OEbEW/yd4nj8XcSKAzCElV7aL6nVhPiKgYzrzG/WVckTq1h9lMaGeAuYqLErww4IIsbiawg==}
     peerDependencies:
       react: ^18
       react-dom: ^18
     dependencies:
-      '@blocknote/core': 0.15.11
+      '@blocknote/core': 0.16.0
       '@floating-ui/react': 0.26.25(react-dom@18.3.1)(react@18.3.1)
       '@tiptap/core': 2.8.0(@tiptap/pm@2.8.0)
       '@tiptap/react': 2.8.0(@tiptap/core@2.8.0)(@tiptap/pm@2.8.0)(react-dom@18.3.1)(react@18.3.1)
@@ -5701,13 +5701,8 @@ packages:
     resolution: {integrity: sha512-PBu00mtt95jbKFi6Llk9aik8bnR3tR/oQP1o3TSi+iG//+Q2RTIzCEgKkHG8BB86kxMNW6O8wku+Lmi+QFR6jA==}
     dev: false
 
-  /@tauri-apps/api@2.0.0-beta.15:
-    resolution: {integrity: sha512-H9w6iISmR+NvH4XuyCZB4zDN10tf9RFt6i/9JHEjaRhAowdAaJ+oiXq/3kedizNClHMtbTQ5j0oqDVPkZDAI8g==}
-    engines: {node: '>= 18.18', npm: '>= 6.6.0', yarn: '>= 1.19.1'}
-    dev: false
-
-  /@tauri-apps/api@2.0.0-rc.5:
-    resolution: {integrity: sha512-JWs69pE9NsQdcqTpEVBepAZ08+jgQWuthIiTiaWRq/YlCLgnqq0KfC9sDem55uJ0YpgsytZuyj+m6b6q8oiD2g==}
+  /@tauri-apps/api@2.0.0:
+    resolution: {integrity: sha512-moKgCp2EX7X5GiOx/G/bmoEpkFQVVmyS98UaJU4xUVzan+E1BdwlAKcbip+cGldshYOqL4JSwAEN1OkRXeug0Q==}
     dev: false
 
   /@tauri-apps/cli-darwin-arm64@2.0.0-rc.3:
@@ -5817,52 +5812,52 @@ packages:
       '@tauri-apps/cli-win32-x64-msvc': 2.0.0-rc.3
     dev: true
 
-  /@tauri-apps/plugin-dialog@2.0.0-beta.7:
-    resolution: {integrity: sha512-myywwpsKbquDDzl5zaOmmLLv5O8EJ/GgHDAoVSPwO97R4iWzkDvj3HFF91tNh7i25Tu/bP6jYPAdZA1NCRxxtg==}
+  /@tauri-apps/plugin-dialog@2.0.0:
+    resolution: {integrity: sha512-ApNkejXP2jpPBSifznPPcHTXxu9/YaRW+eJ+8+nYwqp0lLUtebFHG4QhxitM43wwReHE81WAV1DQ/b+2VBftOA==}
     dependencies:
-      '@tauri-apps/api': 2.0.0-beta.15
+      '@tauri-apps/api': 2.0.0
     dev: false
 
-  /@tauri-apps/plugin-fs@2.0.0-rc.0:
-    resolution: {integrity: sha512-74VCXEZlzTJ+Jv1V3KrV0qIHhSePpE/ljsF78rcEuvSfyTxLtt/Sb5CIUmVhFlKTRFOH9dX50T4dTZ3qFLyRnA==}
+  /@tauri-apps/plugin-fs@2.0.0:
+    resolution: {integrity: sha512-BNEeQQ5aH8J5SwYuWgRszVyItsmquRuzK2QRkVj8Z0sCsLnSvJFYI3JHRzzr3ltZGq1nMPtblrlZzuKqVzRawA==}
     dependencies:
-      '@tauri-apps/api': 2.0.0-rc.5
+      '@tauri-apps/api': 2.0.0
     dev: false
 
-  /@tauri-apps/plugin-http@2.0.0-beta.8:
-    resolution: {integrity: sha512-FhZP4WtS1o69Mn7z2RpNIdVS+2nPqmXyz6LhqweuP1FTjgTVraVxIfGLQCOMLpEUwo8zWY2uChllolV6WGYZ/A==}
+  /@tauri-apps/plugin-http@2.0.0:
+    resolution: {integrity: sha512-UfKAICL25ayluV/SjiEQujz8q/2uyAzp3u9uaHFkaIyKS5usBL8DoqSwi4eKz2mEjkbxTwldhDEXG4CEfTE0JQ==}
     dependencies:
-      '@tauri-apps/api': 2.0.0-beta.15
+      '@tauri-apps/api': 2.0.0
     dev: false
 
-  /@tauri-apps/plugin-os@2.0.0-beta.7:
-    resolution: {integrity: sha512-CHo09ecxUU0NFkAqctXeQzdaXw02EXulqcaZnbjrBfRJ2ulmGq7zaUCsHihfcqWcdnmNwmP9Wh/gyznMc1JF9Q==}
+  /@tauri-apps/plugin-os@2.0.0:
+    resolution: {integrity: sha512-M7hG/nNyQYTJxVG/UhTKhp9mpXriwWzrs9mqDreB8mIgqA3ek5nHLdwRZJWhkKjZrnDT4v9CpA9BhYeplTlAiA==}
     dependencies:
-      '@tauri-apps/api': 2.0.0-beta.15
+      '@tauri-apps/api': 2.0.0
     dev: false
 
-  /@tauri-apps/plugin-process@2.0.0-rc.0:
-    resolution: {integrity: sha512-Z12D/kmQzG1vCVf+jLXPhPDUA0pEjFrsg4p0uwO2sotVLM9287IuTM+aIz9cuAYOxFLKcsnDG7amSCL9IfA1gw==}
+  /@tauri-apps/plugin-process@2.0.0:
+    resolution: {integrity: sha512-OYzi0GnkrF4NAnsHZU7U3tjSoP0PbeAlO7T1Z+vJoBUH9sFQ1NSLqWYWQyf8hcb3gVWe7P1JggjiskO+LST1ug==}
     dependencies:
-      '@tauri-apps/api': 2.0.0-rc.5
+      '@tauri-apps/api': 2.0.0
     dev: false
 
-  /@tauri-apps/plugin-shell@2.0.0-rc.0:
-    resolution: {integrity: sha512-bhUcQcrqZoK8H1DFXapr5r1Z75oh6Kd5Tltz97XpZFLREEqp+KhN2Fvyh8r/fKAyenYsTYUIsDsyGdjdueuF9g==}
+  /@tauri-apps/plugin-shell@2.0.0:
+    resolution: {integrity: sha512-OpW2+ycgJLrEoZityWeWYk+6ZWP9VyiAfbO+N/O8VfLkqyOym8kXh7odKDfINx9RAotkSGBtQM4abyKfJDkcUg==}
     dependencies:
-      '@tauri-apps/api': 2.0.0-rc.5
+      '@tauri-apps/api': 2.0.0
     dev: false
 
-  /@tauri-apps/plugin-sql@2.0.0-rc.0:
-    resolution: {integrity: sha512-K8I6+zHNsnCWzLlDfF0uj2rHTAlRqA6ddsoh+h7pn6DNXbZDX7y/vqcWQzT57hf9b9/g2w8QWX3bCCMGxZA2Zw==}
+  /@tauri-apps/plugin-sql@2.0.0:
+    resolution: {integrity: sha512-H4dodCbRvmaHGx7/E1hPh/v7Qf8/pI0XjmRWgMkCeC8NSPXnjYcpm5+HUhBeHUM5zkB85/Mucg4gpQZ0Dj33gQ==}
     dependencies:
-      '@tauri-apps/api': 2.0.0-rc.5
+      '@tauri-apps/api': 2.0.0
     dev: false
 
-  /@tauri-apps/plugin-updater@2.0.0-rc.0:
-    resolution: {integrity: sha512-EKajf/sBpFif0cwXhTo3BmNvTZ2t2DDLRyhA8FFKugZNoOeqU97bHhPT5DIqMUPRE1tyDk9o7sXm8dKf7oz+EA==}
+  /@tauri-apps/plugin-updater@2.0.0:
+    resolution: {integrity: sha512-N0cl71g7RPr7zK2Fe5aoIwzw14NcdLcz7XMGFWZVjprsqgDRWoxbnUkknyCQMZthjhGkppCd/wN2MIsUz+eAhQ==}
     dependencies:
-      '@tauri-apps/api': 2.0.0-rc.5
+      '@tauri-apps/api': 2.0.0
     dev: false
 
   /@tiptap/core@2.8.0(@tiptap/pm@2.8.0):

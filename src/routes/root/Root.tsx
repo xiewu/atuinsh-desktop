@@ -2,7 +2,7 @@ import { open } from "@tauri-apps/plugin-shell";
 import "./Root.css";
 
 import { AtuinState, useStore } from "@/state/store";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { Toaster } from "@/components/ui/toaster";
 
@@ -42,8 +42,10 @@ function App() {
 
   const importRunbook = useStore((state: AtuinState) => state.importRunbook);
   const newRunbook = useStore((state: AtuinState) => state.newRunbook);
+  const setCurrentRunbook = useStore((state: AtuinState) => state.setCurrentRunbook);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const user = useStore((state: AtuinState) => state.user);
   const isLoggedIn = useStore((state: AtuinState) => state.isLoggedIn);
   const refreshUser = useStore((state: AtuinState) => state.refreshUser);
@@ -88,6 +90,14 @@ function App() {
   });
 
   useTauriEvent("new-runbook", async () => {
+    // Consider the case where we are already on the runbooks page
+    if (location.pathname === "/runbooks") {
+      let runbook = await newRunbook();
+      setCurrentRunbook(runbook.id);
+
+      return;
+    }
+
     navigate(`/runbooks`, { state: { createNew: true } });
   });
 

@@ -47,6 +47,9 @@ impl Pty {
 
         let mut cmd = CommandBuilder::new_default_prog();
 
+        // Flags to our shell integration that this is running within the desktop app
+        cmd.env("ATUIN_DESKTOP_PTY", "true");
+
         if let Some(cwd) = cwd {
             cmd.cwd(cwd);
         }

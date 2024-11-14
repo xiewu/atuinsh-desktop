@@ -36,7 +36,7 @@ open = "5"
 klickhouse = { version = "0.13.0", features = ["tls"] }
 
 tauri-plugin-http = "2.0.0"
-tauri-plugin-single-instance = "2.0.0"
+tauri-plugin-single-instance = { version = "2.0.0", features = ["deep-link"] }
 tauri-plugin-os = "2.0.0"
 tauri-plugin-shell = "2.0.0"
 tauri-plugin-dialog = "2.0.0"
@@ -55,6 +55,7 @@ minijinja = { version = "2.3.1", features = [
   "loop_controls",
   "key_interning",
 ] }
+tauri-plugin-deep-link = "2.0.1"
 
 [dependencies.sqlx]
 version = "0.8"

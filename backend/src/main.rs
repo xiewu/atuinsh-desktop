@@ -282,6 +282,11 @@ fn show_window(app: &AppHandle) {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            show_window(app);
+            println!("app opened with {argv:?}");
+        }))
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -328,9 +333,6 @@ fn main() {
                 .build(),
         )
         .plugin(tauri_plugin_http::init())
-        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
-            show_window(app);
-        }))
         .manage(state::AtuinState::default())
         .setup(|app| {
             let handle = app.handle();

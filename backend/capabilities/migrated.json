@@ -2,7 +2,9 @@
   "identifier": "migrated",
   "description": "permissions that were migrated from v1",
   "context": "local",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:path:default",
     "core:event:default",
@@ -29,13 +31,27 @@
         {
           "url": "http://localhost**"
         },
-        { "url": "https://*.localhost:*" },
-        { "url": "https://*:*" },
-        { "url": "http://*:*" },
-        { "url": "https://*.*:*" },
-        { "url": "http://*.*:*" },
-        { "url": "https://*.localhost:*/*" },
-        { "url": "http://*.localhost:*/*" }
+        {
+          "url": "https://*.localhost:*"
+        },
+        {
+          "url": "https://*:*"
+        },
+        {
+          "url": "http://*:*"
+        },
+        {
+          "url": "https://*.*:*"
+        },
+        {
+          "url": "http://*.*:*"
+        },
+        {
+          "url": "https://*.localhost:*/*"
+        },
+        {
+          "url": "http://*.localhost:*/*"
+        }
       ]
     },
     "os:default",
@@ -44,7 +60,12 @@
     "process:default",
     "process:allow-restart",
     "fs:default",
-    "fs:allow-app-write"
+    "fs:allow-app-write",
+    "deep-link:default"
   ],
-  "platforms": ["linux", "macOS", "windows"]
+  "platforms": [
+    "linux",
+    "macOS",
+    "windows"
+  ]
 }

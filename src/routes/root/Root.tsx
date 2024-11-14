@@ -36,6 +36,7 @@ import { isAppleDevice } from "@react-aria/utils";
 import CompactWorkspaceSwitcher from "@/components/WorkspaceSwitcher/WorkspaceSwitcher";
 import { logout } from "@/api/api";
 import { useTauriEvent } from "@/lib/tauri";
+import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
 
 function App() {
   const cleanupImportListener = useRef<UnlistenFn | null>(null);
@@ -50,12 +51,30 @@ function App() {
   const isLoggedIn = useStore((state: AtuinState) => state.isLoggedIn);
   const refreshUser = useStore((state: AtuinState) => state.refreshUser);
 
+  let onOpenUrlListener = useRef<UnlistenFn | null>(null);
+
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const {
     isOpen: isSettingsOpen,
     onOpen: onSettingsOpen,
     onOpenChange: onSettingsOpenChange,
   } = useDisclosure();
+
+  useEffect(() => {
+    (async () => {
+      const unlisten = await onOpenUrl((urls) => {
+        console.log('deep link:', urls);
+      });
+
+      onOpenUrlListener.current = unlisten;
+    })();
+
+    return () => {
+      if (onOpenUrlListener.current) {
+        onOpenUrlListener.current();
+      };
+    }
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -65,6 +84,7 @@ function App() {
         e.preventDefault();
         onSettingsOpenChange();
       }
+
     };
 
     document.addEventListener("keydown", onKeyDown);
@@ -73,6 +93,7 @@ function App() {
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [onSettingsOpenChange]);
+
 
   useTauriEvent("update-check", async () => {
     let updateAvailable = await checkForAppUpdates();

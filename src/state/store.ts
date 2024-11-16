@@ -202,7 +202,7 @@ let state = (set: any, get: any): AtuinState => ({
 
     let runbooks = await Promise.all(filePath.map(async (file) => {
       // @ts-ignore
-      return await Runbook.import(file);
+      return await Runbook.importFile(file);
     }));
 
     console.log(runbooks);

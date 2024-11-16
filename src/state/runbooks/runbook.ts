@@ -6,12 +6,13 @@ import Workspace from "./workspace";
 
 // Definition of an atrb file
 // This is JSON encoded for ease of access, and may change in the future
-interface RunbookFile {
+export interface RunbookFile {
   version: number;
 
   id: string;
   name: string;
   created: Date;
+  slug?: string;
 
   content: string;
 }
@@ -101,19 +102,16 @@ export default class Runbook {
     await writeTextFile(filePath, JSON.stringify(exportFile));
   }
 
-  public static async import(filePath: string, workspace?: Workspace) {
-    let file = await readTextFile(filePath);
-    let importFile = JSON.parse(file) as RunbookFile;
-
+  public static async importJSON(obj: RunbookFile, workspace?: Workspace): Promise<Runbook> {
     if (workspace === undefined || workspace === null) {
       workspace = await Workspace.current();
     }
 
     let runbook = new Runbook(
-      importFile.id,
-      importFile.name,
-      importFile.content,
-      new Date(importFile.created),
+      obj.id,
+      obj.name,
+      obj.content,
+      new Date(obj.created),
       new Date(),
       workspace.id,
     );
@@ -121,6 +119,13 @@ export default class Runbook {
     await runbook.save();
 
     return runbook;
+  }
+
+  public static async importFile(filePath: string, workspace?: Workspace) {
+    let file = await readTextFile(filePath);
+    let importFile = JSON.parse(file) as RunbookFile;
+
+    return Runbook.importJSON(importFile, workspace);
   }
 
   public static async load(id: String): Promise<Runbook | null> {

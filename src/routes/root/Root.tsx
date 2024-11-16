@@ -38,6 +38,8 @@ import { logout } from "@/api/api";
 import { useTauriEvent } from "@/lib/tauri";
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
 
+import handleDeepLink from "./deep";
+
 function App() {
   const cleanupImportListener = useRef<UnlistenFn | null>(null);
 
@@ -63,7 +65,8 @@ function App() {
   useEffect(() => {
     (async () => {
       const unlisten = await onOpenUrl((urls) => {
-        console.log('deep link:', urls);
+        if (urls.length === 0) return;
+        handleDeepLink(navigate, urls[0]);
       });
 
       onOpenUrlListener.current = unlisten;

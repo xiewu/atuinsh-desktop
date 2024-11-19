@@ -63,13 +63,17 @@ export class TerminalData {
   async write(data: string, doc: any) {
     // Template the string before we execute it
     console.log("templating with doc", doc);
-    let templated: string = await invoke("template_str", { source: data, pid: this.pty, doc });
+    let templated: string = await invoke("template_str", {
+      source: data,
+      pid: this.pty,
+      doc,
+    });
 
     let isWindows = platform() == "windows";
     let cmdEnd = isWindows ? "\r\n" : "\n";
     let val = !templated.endsWith("\n") ? templated + cmdEnd : templated;
 
-    await invoke("pty_write", { pid: this.pty, data: val, });
+    await invoke("pty_write", { pid: this.pty, data: val });
   }
 
   dispose() {
@@ -100,7 +104,7 @@ export interface RunbookPtyInfo {
 // me, 4mo later: thanks I hate it
 export interface AtuinState {
   user: User;
-  isLoggedIn: () => boolean,
+  isLoggedIn: () => boolean;
   homeInfo: HomeInfo;
   aliases: Alias[];
   vars: Var[];
@@ -139,6 +143,9 @@ export interface AtuinState {
   newWorkspace: (name: string) => Promise<Workspace>;
   deleteWorkspace: (workspace: Workspace) => Promise<void>;
   setCurrentWorkspace: (ws: Workspace) => Promise<void>;
+
+  showDesktopConnect: boolean;
+  setDesktopConnect: (open: boolean) => void;
 }
 
 let state = (set: any, get: any): AtuinState => ({
@@ -156,7 +163,10 @@ let state = (set: any, get: any): AtuinState => ({
   weekStart: getWeekInfo().firstDay,
 
   searchOpen: false,
+  showDesktopConnect: false,
+
   setSearchOpen: (open) => set(() => ({ searchOpen: open })),
+  setDesktopConnect: (open) => set(() => ({ showDesktopConnect: open })),
 
   refreshAliases: () => {
     invoke("aliases").then((aliases: any) => {
@@ -191,19 +201,24 @@ let state = (set: any, get: any): AtuinState => ({
 
   importRunbook: async (): Promise<Runbook[] | null> => {
     let filePath = await open({
-      multiple: true, directory: false,
-      filters: [{
-        name: 'Atuin Runbooks',
-        extensions: ['atrb']
-      }]
+      multiple: true,
+      directory: false,
+      filters: [
+        {
+          name: "Atuin Runbooks",
+          extensions: ["atrb"],
+        },
+      ],
     });
 
     if (!filePath || filePath.length === 0) return null;
 
-    let runbooks = await Promise.all(filePath.map(async (file) => {
-      // @ts-ignore
-      return await Runbook.importFile(file);
-    }));
+    let runbooks = await Promise.all(
+      filePath.map(async (file) => {
+        // @ts-ignore
+        return await Runbook.importFile(file);
+      }),
+    );
 
     console.log(runbooks);
 
@@ -277,13 +292,11 @@ let state = (set: any, get: any): AtuinState => ({
         return;
       }
 
-      set({ user: new User(user.username, user.email, user.bio) })
+      set({ user: new User(user.user.username, user.user.email, "") });
     } catch {
       set({ user: DefaultUser });
       return;
     }
-
-
   },
 
   historyNextPage: (query?: string) => {
@@ -407,7 +420,7 @@ let state = (set: any, get: any): AtuinState => ({
     if (!user.isLoggedIn) return false;
 
     return user.isLoggedIn();
-  }
+  },
 });
 
 export const useStore = create<AtuinState>()(

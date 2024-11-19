@@ -6,7 +6,6 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { Toaster } from "@/components/ui/toaster";
 
-import LoginOrRegister from "@/components/LoginOrRegister.tsx";
 import Settings from "@/components/Settings/Settings.tsx";
 
 import icon from "@/assets/icon.svg";
@@ -22,8 +21,6 @@ import {
   DropdownSection,
   DropdownTrigger,
   Kbd,
-  Modal,
-  ModalContent,
   ScrollShadow,
   Spacer,
   useDisclosure,
@@ -34,28 +31,31 @@ import { message } from "@tauri-apps/plugin-dialog";
 import { useEffect, useRef } from "react";
 import { isAppleDevice } from "@react-aria/utils";
 import CompactWorkspaceSwitcher from "@/components/WorkspaceSwitcher/WorkspaceSwitcher";
-import { logout } from "@/api/api";
 import { useTauriEvent } from "@/lib/tauri";
-import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
+import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 
 import handleDeepLink from "./deep";
+import DesktopConnect from "@/components/DesktopConnect/DesktopConnect";
 
 function App() {
   const cleanupImportListener = useRef<UnlistenFn | null>(null);
 
   const importRunbook = useStore((state: AtuinState) => state.importRunbook);
   const newRunbook = useStore((state: AtuinState) => state.newRunbook);
-  const setCurrentRunbook = useStore((state: AtuinState) => state.setCurrentRunbook);
+  const setCurrentRunbook = useStore(
+    (state: AtuinState) => state.setCurrentRunbook,
+  );
 
   const navigate = useNavigate();
   const location = useLocation();
   const user = useStore((state: AtuinState) => state.user);
   const isLoggedIn = useStore((state: AtuinState) => state.isLoggedIn);
-  const refreshUser = useStore((state: AtuinState) => state.refreshUser);
+  const showDesktopConnect = useStore(
+    (state: AtuinState) => state.showDesktopConnect,
+  );
 
   let onOpenUrlListener = useRef<UnlistenFn | null>(null);
 
-  const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const {
     isOpen: isSettingsOpen,
     onOpen: onSettingsOpen,
@@ -75,8 +75,8 @@ function App() {
     return () => {
       if (onOpenUrlListener.current) {
         onOpenUrlListener.current();
-      };
-    }
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -87,7 +87,6 @@ function App() {
         e.preventDefault();
         onSettingsOpenChange();
       }
-
     };
 
     document.addEventListener("keydown", onKeyDown);
@@ -96,7 +95,6 @@ function App() {
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [onSettingsOpenChange]);
-
 
   useTauriEvent("update-check", async () => {
     let updateAvailable = await checkForAppUpdates();
@@ -178,11 +176,6 @@ function App() {
     },
   ];
 
-  const doLogout = async () => {
-    logout();
-    await refreshUser();
-  };
-
   return (
     <div
       className="flex w-screen "
@@ -209,9 +202,7 @@ function App() {
               items={navigation}
               className="z-50"
             />
-
           </ScrollShadow>
-
 
           <Spacer y={2} />
 
@@ -234,7 +225,7 @@ function App() {
                   className="h-14 opacity-100"
                   textValue="Signed in as"
                 >
-                  {!isLoggedIn() &&
+                  {!isLoggedIn() && (
                     <User
                       avatarProps={{
                         size: "sm",
@@ -250,8 +241,8 @@ function App() {
                       }}
                       name={"Anonymous User"}
                     />
-                  }
-                  {isLoggedIn() &&
+                  )}
+                  {isLoggedIn() && (
                     <User
                       avatarProps={{
                         size: "sm",
@@ -267,16 +258,20 @@ function App() {
                       name={user.username || ""}
                       description={user.bio || ""}
                     />
-                  }
+                  )}
                 </DropdownItem>
-
 
                 <DropdownItem
                   key="settings"
                   description="Configure Atuin"
                   onPress={onSettingsOpen}
                   endContent={
-                    <Kbd className="px-1 py-0.5 text-xs font-semibold text-gray-600 bg-gray-100 border border-gray-200 rounded-md" keys={["command"]}>,</Kbd>
+                    <Kbd
+                      className="px-1 py-0.5 text-xs font-semibold text-gray-600 bg-gray-100 border border-gray-200 rounded-md"
+                      keys={["command"]}
+                    >
+                      ,
+                    </Kbd>
                   }
                 >
                   Settings
@@ -290,10 +285,6 @@ function App() {
                   >
                     Help & Feedback
                   </DropdownItem>
-
-                  {!isLoggedIn() && < DropdownItem key="LoginOrRegister" description="Sign up for cloud sync" onClick={() => onOpen()}>
-                    Login or Register
-                  </DropdownItem> || <DropdownItem key="logout" onPress={doLogout}>Logout</DropdownItem>}
                 </DropdownSection>
               </DropdownMenu>
             </Dropdown>
@@ -303,24 +294,11 @@ function App() {
         <Outlet />
 
         <Toaster />
-        <Modal
-          isOpen={isOpen}
-          onOpenChange={onOpenChange}
-        >
-          <ModalContent className="p-8">
-            {(onClose) => (
-              <>
-                <LoginOrRegister onClose={onClose} />
-              </>
-            )}
-          </ModalContent>
-        </Modal>
-        <Settings
-          onOpenChange={onSettingsOpenChange}
-          isOpen={isSettingsOpen}
-        />
+        <Settings onOpenChange={onSettingsOpenChange} isOpen={isSettingsOpen} />
+
+        {showDesktopConnect && <DesktopConnect />}
       </div>
-    </div >
+    </div>
   );
 }
 

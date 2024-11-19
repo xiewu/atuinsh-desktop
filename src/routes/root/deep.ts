@@ -1,5 +1,6 @@
-import Runbook, { RunbookFile } from '@/state/runbooks/runbook';
-import { useStore } from '@/state/store';
+import { me } from "@/api/api";
+import Runbook, { RunbookFile } from "@/state/runbooks/runbook";
+import { useStore } from "@/state/store";
 import { fetch } from "@tauri-apps/plugin-http";
 
 interface RouteHandler {
@@ -12,21 +13,38 @@ interface Routes {
 
 const handleDeepLink = (navigate: any, url: string): void | null => {
   const routes: Routes = {
-    "^atuin://runbook/([\\w-]+)/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$": async (params: string[]) => {
-      const [username, id] = params;
+    // "Open in desktop" from the hub
+    "^atuin://runbook/([\\w-]+)/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$":
+      async (params: string[]) => {
+        const [username, id] = params;
 
-      // Fetch the runbook from the hub api
-      let resp = await fetch(`https://hub.atuin.sh/api/runbooks/${username}/${id}`);
-      let json = await resp.json();
+        // Fetch the runbook from the hub api
+        let resp = await fetch(
+          `https://hub.atuin.sh/api/runbooks/${username}/${id}`,
+        );
+        let json = await resp.json();
 
-      if (json.runbook.content.data)
-        json.runbook.content = json.runbook.content.data;
-      let runbook = await Runbook.importJSON(json.runbook as RunbookFile);
+        if (json.runbook.content.data)
+          json.runbook.content = json.runbook.content.data;
+        let runbook = await Runbook.importJSON(json.runbook as RunbookFile);
 
-      useStore.getState().setCurrentRunbook(runbook.id);
-      useStore.getState().refreshRunbooks();
-      navigate("/runbooks");
-    }
+        useStore.getState().setCurrentRunbook(runbook.id);
+        useStore.getState().refreshRunbooks();
+        navigate("/runbooks");
+      },
+
+    // Register an auth token with this desktop app
+    "^atuin://register-token/(atapi_[0-9A-F]+)$": async (params: string[]) => {
+      const [token] = params;
+
+      // Hit the "me" endpoint to verify the token and fetch username
+      let user = await me(token);
+
+      localStorage.setItem("proposedUsername", user.user.username);
+      localStorage.setItem("proposedToken", token);
+
+      useStore.getState().setDesktopConnect(true);
+    },
   };
 
   // If no URL provided, return early
@@ -36,7 +54,7 @@ const handleDeepLink = (navigate: any, url: string): void | null => {
 
   // Try to match the URL against each route pattern
   for (const [pattern, handler] of Object.entries(routes)) {
-    const regex = new RegExp(pattern, 'i');
+    const regex = new RegExp(pattern, "i");
     const match = url.match(regex);
 
     if (match) {

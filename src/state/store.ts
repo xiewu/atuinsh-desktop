@@ -292,7 +292,14 @@ let state = (set: any, get: any): AtuinState => ({
         return;
       }
 
-      set({ user: new User(user.user.username, user.user.email, "") });
+      set({
+        user: new User(
+          user.user.username,
+          user.user.email,
+          "",
+          user.user.avatar_url,
+        ),
+      });
     } catch {
       set({ user: DefaultUser });
       return;

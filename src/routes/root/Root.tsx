@@ -215,6 +215,7 @@ function App() {
                     className="flex-none"
                     size="sm"
                     name={user.username || ""}
+                    src={user.avatar_url || ""}
                   />
                 </Button>
               </DropdownTrigger>

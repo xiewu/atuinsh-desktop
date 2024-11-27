@@ -1,30 +1,13 @@
 import { useStore } from "@/state/store";
-import {
-  Modal,
-  ModalContent,
-  Button,
-  useDisclosure,
-  Card,
-  CardBody,
-} from "@nextui-org/react";
+import { Modal, ModalContent, Button, Card, CardBody } from "@nextui-org/react";
 import { invoke } from "@tauri-apps/api/core";
 
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 
 const DesktopConnect = () => {
-  let {
-    isOpen: isOnboardingOpen,
-    onOpen: onOnboardingOpen,
-    onOpenChange: onOnboardingOpenChange,
-  } = useDisclosure();
-
   let setDesktopConnect = useStore((state) => state.setDesktopConnect);
 
-  useEffect(() => {
-    onOnboardingOpen();
-  }, []);
-
-  const close = async (onClose: any) => {
+  const confirm = async () => {
     let proposedUsername = localStorage.getItem("proposedUsername");
     let proposedToken = localStorage.getItem("proposedToken");
 
@@ -38,7 +21,10 @@ const DesktopConnect = () => {
     });
 
     setDesktopConnect(false);
-    onClose();
+  };
+
+  const cancel = async () => {
+    setDesktopConnect(false);
   };
 
   let username = useMemo(() => {
@@ -51,13 +37,12 @@ const DesktopConnect = () => {
       disableAnimation
       isDismissable={false}
       hideCloseButton
-      isOpen={isOnboardingOpen}
-      onOpenChange={onOnboardingOpenChange}
+      isOpen={true}
       className="w-full select-none"
       size="2xl"
     >
       <ModalContent className="w-full">
-        {(onClose) => (
+        {(_onClose) => (
           <div className="max-w-[900px] mx-auto p-6 space-y-6">
             <h1 className="text-4xl text-center">Atuin Hub Connection</h1>
             <Card>
@@ -71,22 +56,17 @@ const DesktopConnect = () => {
                 </p>
                 <p className="text-gray-600">
                   We store all secrets securely in your keychain, which you will
-                  be prompted to provide access to
+                  be prompted to provide access to.
                 </p>
-                c
               </CardBody>
             </Card>
 
             <div className="flex justify-end gap-2">
-              <Button variant="flat" color="danger" onClick={onClose}>
+              <Button variant="flat" color="danger" onClick={cancel}>
                 Cancel
               </Button>
 
-              <Button
-                variant="flat"
-                color="success"
-                onClick={() => close(onClose)}
-              >
+              <Button variant="flat" color="success" onClick={confirm}>
                 Accept
               </Button>
             </div>

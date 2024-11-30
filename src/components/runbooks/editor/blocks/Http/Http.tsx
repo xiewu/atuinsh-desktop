@@ -89,6 +89,14 @@ const Http = ({
 
   const [activeTab, setActiveTab] = useState("headers");
 
+  const formatJSON = () => {
+    if (verb == "GET" || verb == "HEAD") return;
+
+    let parsed = JSON.parse(body);
+    let pretty = JSON.stringify(parsed, null, 2);
+    setBody(pretty);
+  };
+
   const onPlay = async () => {
     setIsRunning(true);
     try {
@@ -102,6 +110,7 @@ const Http = ({
       setError(error);
     }
     setIsRunning(false);
+    formatJSON();
   };
 
   return (
@@ -150,10 +159,15 @@ const Http = ({
         <Tab key="headers" title="Headers">
           <RequestHeaders pairs={headers} setPairs={setHeaders} />
         </Tab>
-        <Tab key="body" title="Body" isDisabled={verb === "GET"}>
+        <Tab
+          key="body"
+          title="Body"
+          isDisabled={verb === "GET"}
+          className="overflow-scroll"
+        >
           <CodeMirror
             placeholder={"Request Body (JSON)"}
-            className="!pt-0 max-w-full border border-gray-300 rounded flex-grow text-sm"
+            className="!pt-0 max-w-full border border-gray-300 rounded flex-grow text-sm max-h-96"
             value={body}
             onChange={(val) => {
               setBody(val);

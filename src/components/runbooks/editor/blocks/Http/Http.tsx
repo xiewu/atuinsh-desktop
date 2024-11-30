@@ -1,12 +1,9 @@
 import { useState } from "react";
-import {
-  Input,
-  Tabs,
-  Tab,
-  Textarea,
-} from "@nextui-org/react";
+import { Input, Tabs, Tab, Textarea } from "@nextui-org/react";
 import { GlobeIcon } from "lucide-react";
 import { fetch } from "@tauri-apps/plugin-http";
+import CodeMirror from "@uiw/react-codemirror";
+import { langs } from "@uiw/codemirror-extensions-langs";
 
 // @ts-ignore
 import { createReactBlockSpec } from "@blocknote/react";
@@ -108,39 +105,42 @@ const Http = ({
   };
 
   return (
-    <Block title="HTTP" header={
-      <div className="flex flex-row items-center gap-2 w-full">
-        <PlayButton
-          eventName="runbooks.http.run"
-          isRunning={isRunning}
-          onPlay={onPlay}
-          cancellable={false}
-        />
+    <Block
+      title="HTTP"
+      header={
+        <div className="flex flex-row items-center gap-2 w-full">
+          <PlayButton
+            eventName="runbooks.http.run"
+            isRunning={isRunning}
+            onPlay={onPlay}
+            cancellable={false}
+          />
 
-        <HttpVerbDropdown selectedVerb={verb} onVerbChange={setVerb} />
+          <HttpVerbDropdown selectedVerb={verb} onVerbChange={setVerb} />
 
-        <Input
-          placeholder="http://localhost:8080/hello/world"
-          isRequired
-          startContent={<GlobeIcon size={18} />}
-          value={url}
-          onValueChange={(val) => {
-            setUrl(val);
-          }}
-          classNames={{
-            input: "text-small",
-            inputWrapper: "h-8 min-h-unit-8 px-1",
-          }}
-          variant="bordered"
-          size="sm"
-        />
-      </div>
-    }
+          <Input
+            placeholder="http://localhost:8080/hello/world"
+            isRequired
+            startContent={<GlobeIcon size={18} />}
+            value={url}
+            onValueChange={(val) => {
+              setUrl(val);
+            }}
+            classNames={{
+              input: "text-small",
+              inputWrapper: "h-8 min-h-unit-8 px-1",
+            }}
+            variant="bordered"
+            size="sm"
+          />
+        </div>
+      }
       footer={
         (response || error) && (
           <HttpResponse response={response} error={error} />
         )
-      }>
+      }
+    >
       <Tabs
         aria-label="Options"
         selectedKey={activeTab}
@@ -151,16 +151,19 @@ const Http = ({
           <RequestHeaders pairs={headers} setPairs={setHeaders} />
         </Tab>
         <Tab key="body" title="Body" isDisabled={verb === "GET"}>
-          <Textarea
-            placeholder="Request Body (JSON)"
+          <CodeMirror
+            placeholder={"Request Body (JSON)"}
+            className="!pt-0 max-w-full border border-gray-300 rounded flex-grow text-sm"
             value={body}
-            onValueChange={setBody}
-            minRows={5}
-            className="mt-2"
+            onChange={(val) => {
+              setBody(val);
+            }}
+            basicSetup={true}
+            extensions={[langs.json()]}
           />
         </Tab>
       </Tabs>
-    </Block >
+    </Block>
   );
 };
 

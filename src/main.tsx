@@ -9,9 +9,12 @@ import Home from "@/routes/home/Home";
 import Runbooks from "@/routes/runbooks/Runbooks";
 import History from "@/routes/history/History";
 import { init_tracking } from "./tracking";
+import { initSocket } from "./socket";
 
 // If the user has opted in, we will setup sentry/posthog
 init_tracking();
+
+initSocket();
 
 const router = createHashRouter([
   {

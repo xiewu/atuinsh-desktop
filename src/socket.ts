@@ -22,7 +22,7 @@ async function getSocket() {
   return socket;
 }
 
-async function joinChannel(socket: Socket, channelName: string) {
+export async function joinChannel(socket: Socket, channelName: string) {
   let channel = socket.channel(channelName, {});
 
   return new Promise<Channel>((res, rej) => {

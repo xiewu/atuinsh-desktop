@@ -69,6 +69,7 @@
     "flexsearch": "^0.7.43",
     "framer-motion": "^11.11.8",
     "highlight.js": "^11.10.0",
+    "lib0": "^0.2.98",
     "lodash": "^4.17.21",
     "lucide-react": "^0.427.0",
     "luxon": "^3.5.0",
@@ -95,6 +96,7 @@
     "usehooks-ts": "^3.1.0",
     "uuidv7": "^1.0.2",
     "vaul": "^0.9.9",
+    "y-protocols": "^1.0.6",
     "yjs": "^13.6.20",
     "zustand": "^4.5.5"
   },

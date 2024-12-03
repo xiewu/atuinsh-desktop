@@ -185,6 +185,9 @@ importers:
       highlight.js:
         specifier: ^11.10.0
         version: 11.10.0
+      lib0:
+        specifier: ^0.2.98
+        version: 0.2.98
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
@@ -263,6 +266,9 @@ importers:
       vaul:
         specifier: ^0.9.9
         version: 0.9.9(@types/react-dom@18.3.1)(@types/react@18.3.11)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      y-protocols:
+        specifier: ^1.0.6
+        version: 1.0.6(yjs@13.6.20)
       yjs:
         specifier: ^13.6.20
         version: 13.6.20

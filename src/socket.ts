@@ -3,7 +3,7 @@ import { endpoint, getHubApiToken } from "./api/api";
 
 let socket: Socket;
 
-async function getSocket() {
+export async function getSocket() {
   if (socket) return socket;
 
   const uri = new URL(endpoint());

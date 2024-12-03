@@ -66,7 +66,11 @@ import { AtuinState, useStore } from "@/state/store";
 import Runbook from "@/state/runbooks/runbook";
 import Http, { insertHttp } from "./blocks/Http/Http";
 import { uuidv7 } from "uuidv7";
+import * as Y from "yjs";
 import { DuplicateBlockItem } from "./ui/DuplicateBlockItem";
+
+import { getSocket } from "@/socket";
+import PhoenixProvider from "@/lib/phoenix_provider";
 
 // Our schema with block specs, which contain the configs and implementations for blocks
 // that we want our editor to use.
@@ -139,6 +143,7 @@ export default function Editor() {
     (store: AtuinState) => store.refreshRunbooks,
   );
   let [runbook, setRunbook] = useState<Runbook | null>(null);
+  let [editor, setEditor] = useState<BlockNoteEditor | null>(null);
 
   useEffect(() => {
     if (!runbookId) return;
@@ -168,9 +173,12 @@ export default function Editor() {
 
   const debouncedOnChange = useDebounceCallback(onChange, 1000);
 
-  const editor = useMemo(() => {
+  useEffect(() => {
     if (!runbook) return undefined;
-    if (!runbook.content) return BlockNoteEditor.create({ schema });
+    if (!runbook.content) {
+      const editor = BlockNoteEditor.create({ schema });
+      setEditor(editor as any); // ugh
+    }
 
     let content = JSON.parse(runbook.content);
 
@@ -181,9 +189,34 @@ export default function Editor() {
       }
     }
 
-    return BlockNoteEditor.create({
-      initialContent: content,
-      schema,
+    getSocket().then((socket) => {
+      const doc = new Y.Doc();
+      const provider = new PhoenixProvider(socket, runbook.id, doc);
+      const fragment = doc.getXmlFragment("document-store");
+
+      const editor = BlockNoteEditor.create({
+        initialContent: content,
+        schema,
+        collaboration: {
+          provider: provider,
+          fragment: fragment,
+          user: {
+            // todo
+            name: "Me",
+            color: "#ffffff",
+          },
+        },
+      });
+
+      provider.on("synced", () => {
+        // Now that we know that the document is up to date with the server,
+        // we can convert any old "content" data to YJS by inserting it
+        // into the editor.
+        //
+        // TODO
+        //
+        setEditor(editor as any); // UGH
+      });
     });
   }, [runbook]);
 
@@ -218,7 +251,7 @@ export default function Editor() {
     );
   }
 
-  if (editor === undefined) {
+  if (editor === null) {
     return (
       <div className="flex w-full h-full flex-col justify-center items-center">
         <Spinner />
@@ -228,28 +261,37 @@ export default function Editor() {
 
   // Renders the editor instance.
   return (
-    <div className="overflow-y-scroll editor flex-grow" onClick={(e) => {
-      if ((e.target as Element).matches(".editor *")) return;
+    <div
+      className="overflow-y-scroll editor flex-grow"
+      onClick={(e) => {
+        if ((e.target as Element).matches(".editor *")) return;
 
-      // If the user clicks below the document, focus on the last block
-      // But if the last block is not an empty paragraph, create it :D
-      let blocks = editor.document;
-      let lastBlock = blocks[blocks.length - 1];
-      let id = lastBlock.id;
+        // If the user clicks below the document, focus on the last block
+        // But if the last block is not an empty paragraph, create it :D
+        let blocks = editor.document;
+        let lastBlock = blocks[blocks.length - 1];
+        let id = lastBlock.id;
 
-      if (lastBlock.type !== "paragraph" || lastBlock.content.length > 0) {
-        id = uuidv7();
+        if (lastBlock.type !== "paragraph" || lastBlock.content.length > 0) {
+          id = uuidv7();
 
-        editor.insertBlocks([{
-          id,
-          type: "paragraph",
-          content: "",
-        }], lastBlock.id, "after");
-      }
+          editor.insertBlocks(
+            [
+              {
+                id,
+                type: "paragraph",
+                content: "",
+              },
+            ],
+            lastBlock.id,
+            "after",
+          );
+        }
 
-      editor.focus();
-      editor.setTextCursorPosition(id, "start");
-    }}>
+        editor.focus();
+        editor.setTextCursorPosition(id, "start");
+      }}
+    >
       <BlockNoteView
         editor={editor}
         slashMenu={false}
@@ -280,11 +322,16 @@ export default function Editor() {
 
         <SideMenuController
           sideMenu={(props: any) => (
-            <SideMenu {...props} style={{ zIndex: 0 }} dragHandleMenu={(props) => <DragHandleMenu {...props}>
-              <RemoveBlockItem {...props}>Delete</RemoveBlockItem>
-              <DuplicateBlockItem {...props} />
-            </DragHandleMenu>}>
-            </SideMenu>
+            <SideMenu
+              {...props}
+              style={{ zIndex: 0 }}
+              dragHandleMenu={(props) => (
+                <DragHandleMenu {...props}>
+                  <RemoveBlockItem {...props}>Delete</RemoveBlockItem>
+                  <DuplicateBlockItem {...props} />
+                </DragHandleMenu>
+              )}
+            ></SideMenu>
           )}
         />
       </BlockNoteView>

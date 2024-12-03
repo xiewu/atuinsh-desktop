@@ -26,9 +26,12 @@ export default class PhoenixProvider extends Observable<string> {
       this.handleDocUpdate(update, origin);
     });
 
-    // this.awareness.on("update", ({ added, updated, removed }, origin: any) => {
-    //   this.handleAwarenessUpdate({ added, updated, removed }, origin);
-    // });
+    this.awareness.on(
+      "update",
+      ({ added, updated, removed }: AwarenessData, origin: any) => {
+        this.handleAwarenessUpdate({ added, updated, removed }, origin);
+      },
+    );
 
     this.connect()
       .then(() => {

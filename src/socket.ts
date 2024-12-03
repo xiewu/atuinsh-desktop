@@ -1,12 +1,16 @@
 import { Channel, Socket } from "phoenix";
-import { domain, getHubApiToken } from "./api/api";
+import { endpoint, getHubApiToken } from "./api/api";
 
 let socket: Socket;
 
 async function getSocket() {
   if (socket) return socket;
 
-  const url = `ws://${domain()}/sockets/doc`;
+  const uri = new URL(endpoint());
+  const host = uri.host;
+  const protocol = uri.protocol === "https:" ? "wss" : "ws";
+
+  const url = `${protocol}://${host}/sockets/doc`;
   const token = await getHubApiToken();
 
   socket = new Socket(url, {

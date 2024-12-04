@@ -1,5 +1,6 @@
 import Editor from "@/components/runbooks/editor/Editor";
 import List from "@/components/runbooks/List/List";
+import Topbar from "@/components/runbooks/TopBar/TopBar";
 import { usePtyStore } from "@/state/ptyStore";
 
 import { useStore } from "@/state/store";
@@ -37,7 +38,8 @@ export default function Runbooks() {
     <div className="flex !w-full !max-w-full flex-row overflow-hidden">
       <List />
       {currentRunbook && (
-        <div className="flex w-full max-w-full overflow-hidden">
+        <div className="flex w-full max-w-full overflow-hidden flex-col">
+          <Topbar />
           <Editor />
         </div>
       )}

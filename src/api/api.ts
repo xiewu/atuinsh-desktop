@@ -50,3 +50,27 @@ export async function me(token?: string): Promise<MeResponse> {
 
   return await resp.json();
 }
+
+export async function getApiToken() {
+  let username = localStorage.getItem("username");
+  if (!username) throw new Error("No username found in local storage");
+
+  return await loadPassword("sh.atuin.runbooks.api", username);
+}
+
+export async function getRunbookID(id: string): Promise<any> {
+  let token = await getApiToken();
+  let resp = await fetch(`${endpoint()}/api/runbooks/${id}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (resp.status === 404) {
+    throw new Error("Runbook not found");
+  }
+
+  let runbook = await resp.json();
+  return runbook;
+}

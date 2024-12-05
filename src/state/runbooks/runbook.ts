@@ -189,7 +189,7 @@ export default class Runbook {
 
     let res = await db.select<any[]>(
       "select * from runbooks where workspace_id = $1 or workspace_id is null order by updated desc",
-      [workspace.id]
+      [workspace.id],
     );
 
     let runbooks = res.map(Runbook.fromRow);
@@ -198,7 +198,7 @@ export default class Runbook {
 
     // Handle migrations
     for (let rb of runbooks) {
-      // Workspaces didn't exist to start with, 
+      // Workspaces didn't exist to start with,
       // so for some users could be null
       if (rb.workspaceId === null || rb.workspaceId === undefined) {
         rb.workspaceId = currentWorkspace.id;

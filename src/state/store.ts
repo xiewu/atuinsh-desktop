@@ -27,6 +27,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import track_event from "@/tracking";
 import { KVStore } from "./kv";
 import { me } from "@/api/api";
+import Logger from "@/lib/logger";
+const logger = new Logger("AtuinStore", "purple", "pink");
 
 import untitledRunbook from "./runbooks/untitled.json";
 
@@ -62,7 +64,7 @@ export class TerminalData {
 
   async write(data: string, doc: any) {
     // Template the string before we execute it
-    console.log("templating with doc", doc);
+    logger.log("templating with doc", doc);
     let templated: string = await invoke("template_str", {
       source: data,
       pid: this.pty,
@@ -220,7 +222,7 @@ let state = (set: any, get: any): AtuinState => ({
       }),
     );
 
-    console.log(runbooks);
+    logger.log(runbooks);
 
     await get().refreshRunbooks();
 
@@ -237,7 +239,7 @@ let state = (set: any, get: any): AtuinState => ({
       await get().refreshWorkspaces();
     }
 
-    console.log("loading runbooks for", get().workspace.name);
+    logger.log("loading runbooks for", get().workspace.name);
 
     let runbooks = await Runbook.all(get().workspace);
     let index = new RunbookIndexService();
@@ -253,7 +255,7 @@ let state = (set: any, get: any): AtuinState => ({
           set({ shellHistory: res });
         })
         .catch((e) => {
-          console.log(e);
+          logger.log(e);
         });
     } else {
       invoke("list").then((res: any) => {
@@ -279,7 +281,7 @@ let state = (set: any, get: any): AtuinState => ({
         });
       })
       .catch((e) => {
-        console.log(e);
+        logger.log(e);
       });
   },
 
@@ -316,7 +318,7 @@ let state = (set: any, get: any): AtuinState => ({
           set({ shellHistory: [...history, ...res] });
         })
         .catch((e) => {
-          console.log(e);
+          logger.log(e);
         });
     } else {
       invoke("list", { offset: offset }).then((res: any) => {

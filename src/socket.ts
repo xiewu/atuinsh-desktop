@@ -1,5 +1,7 @@
 import { Channel, Socket } from "phoenix";
 import { endpoint, getHubApiToken } from "./api/api";
+import Logger from "@/lib/logger";
+const logger = new Logger("Socket");
 
 let socket: Socket;
 
@@ -17,6 +19,7 @@ export async function getSocket() {
     params: { token },
   });
 
+  logger.debug("Connecting to the Hub...");
   socket.connect();
 
   return socket;

@@ -76,7 +76,7 @@ export default class PhoenixProvider extends Observable<string> {
       } catch (err: any) {
         if (err.reason == "not found") {
           this.logger.warn(
-            `Cound not connect to channel for runbook ${this.runbookId}; server runbook not found`,
+            `Cound not connect to channel; server runbook not found`,
           );
           this.channel.leave();
           this.emit("synced", []);
@@ -96,9 +96,7 @@ export default class PhoenixProvider extends Observable<string> {
         );
       });
     } else {
-      throw new Error(
-        "[PhoenixBridge] Cannot join channel because socket is not connected",
-      );
+      throw new Error("Cannot join channel because socket is not connected");
     }
   }
 

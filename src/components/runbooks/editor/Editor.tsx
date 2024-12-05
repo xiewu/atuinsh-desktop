@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import track_event from "@/tracking";
 import Logger from "@/lib/logger";
 const logger = new Logger("Editor", "orange", "orange");
@@ -68,7 +68,6 @@ import { AtuinState, useStore } from "@/state/store";
 import Runbook from "@/state/runbooks/runbook";
 import Http, { insertHttp } from "./blocks/Http/Http";
 import { uuidv7 } from "uuidv7";
-import * as Y from "yjs";
 import { DuplicateBlockItem } from "./ui/DuplicateBlockItem";
 
 import { getSocket } from "@/socket";
@@ -157,13 +156,10 @@ export default function Editor() {
   let [editor, setEditor] = useState<BlockNoteEditor | null>(null);
 
   useEffect(() => {
-    logger.debug("Getting runbook", runbookId);
     if (!runbookId) return;
 
     const fetchRunbook = async () => {
-      logger.debug("Loading...");
       let rb = await Runbook.load(runbookId);
-      logger.debug("Runbook loaded from DB", rb);
 
       setRunbook(rb);
     };
@@ -192,7 +188,6 @@ export default function Editor() {
     if (!runbook) return undefined;
 
     let content = JSON.parse(runbook.content || "[]");
-    logger.debug("content", content);
 
     // convert any block of type sql -> sqlite
     for (var i = 0; i < content.length; i++) {
@@ -204,7 +199,6 @@ export default function Editor() {
     let provider: PhoenixProvider | null = null;
     let timer: number | undefined;
     getSocket().then((socket) => {
-      logger.debug("got socket");
       // TODO: need to determine if we're offline and fallback to local editing if so
       provider = new PhoenixProvider(socket, runbook.id, runbook.ydoc);
 

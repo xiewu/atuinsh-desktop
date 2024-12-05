@@ -159,7 +159,7 @@ export default class Runbook {
     ]);
     const end = performance.now();
     const delta = end - start;
-    logger.debug(`Selecing a runbook (${id}):`, delta);
+    logger.debug(`Selecing a runbook (${id}): ${delta}ms`);
 
     if (res.length == 0) return null;
 
@@ -177,7 +177,7 @@ export default class Runbook {
       Y.applyUpdate(doc, update);
       const end = performance.now();
       const delta = end - start;
-      logger.debug("Converting Y.Doc from JSON", delta);
+      logger.debug(`Converting Y.Doc from JSON: ${delta}ms`);
     }
 
     return new Runbook(
@@ -205,7 +205,7 @@ export default class Runbook {
     );
     const end = performance.now();
     const delta = end - start;
-    logger.debug("Selecing all runbooks:", delta);
+    logger.debug(`Selecing all runbooks: ${delta}ms`);
 
     let runbooks = res.map(Runbook.fromRow);
 
@@ -228,8 +228,8 @@ export default class Runbook {
   public async save() {
     const db = await Database.load("sqlite:runbooks.db");
 
+    const start = performance.now();
     const ydocAsUpdate = Y.encodeStateAsUpdate(this.ydoc);
-
     await db.execute(
       `insert into runbooks(id, name, content, created, updated, workspace_id, ydoc)
           values ($1, $2, $3, $4, $5, $6, $7)
@@ -256,6 +256,9 @@ export default class Runbook {
         Array.from(ydocAsUpdate),
       ],
     );
+    const end = performance.now();
+    const delta = end - start;
+    logger.debug(`Saving runbook ${this.id}: ${delta}ms`);
   }
 
   public async moveTo(workspace: Workspace) {

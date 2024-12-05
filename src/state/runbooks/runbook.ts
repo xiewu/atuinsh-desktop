@@ -172,12 +172,10 @@ export default class Runbook {
     let doc = new Y.Doc();
 
     if (row.ydoc) {
-      const start = performance.now();
-      const update = Uint8Array.from(JSON.parse(row.ydoc));
-      Y.applyUpdate(doc, update);
-      const end = performance.now();
-      const delta = end - start;
-      logger.debug(`Converting Y.Doc from JSON: ${delta}ms`);
+      logger.time("Converting JSON to Y.Doc update", () => {
+        const update = Uint8Array.from(JSON.parse(row.ydoc));
+        Y.applyUpdate(doc, update);
+      });
     }
 
     return new Runbook(
@@ -197,15 +195,13 @@ export default class Runbook {
   static async all(workspace: Workspace): Promise<Runbook[]> {
     const db = await Database.load("sqlite:runbooks.db");
 
-    const start = performance.now();
-    let res = await db.select<any[]>(
-      // "select * from runbooks where workspace_id = $1 or workspace_id is null order by updated desc",
-      "select id, name, content, created, updated, workspace_id from runbooks where workspace_id = $1 or workspace_id is null order by updated desc",
-      [workspace.id],
+    let res = await logger.time("Selecting all runbooks", () =>
+      db.select<any[]>(
+        // "select * from runbooks where workspace_id = $1 or workspace_id is null order by updated desc",
+        "select id, name, content, created, updated, workspace_id from runbooks where workspace_id = $1 or workspace_id is null order by updated desc",
+        [workspace.id],
+      ),
     );
-    const end = performance.now();
-    const delta = end - start;
-    logger.debug(`Selecing all runbooks: ${delta}ms`);
 
     let runbooks = res.map(Runbook.fromRow);
 
@@ -228,10 +224,10 @@ export default class Runbook {
   public async save() {
     const db = await Database.load("sqlite:runbooks.db");
 
-    const start = performance.now();
-    const ydocAsUpdate = Y.encodeStateAsUpdate(this.ydoc);
-    await db.execute(
-      `insert into runbooks(id, name, content, created, updated, workspace_id, ydoc)
+    logger.time(`Saving runbook ${this.id}`, async () => {
+      const ydocAsUpdate = Y.encodeStateAsUpdate(this.ydoc);
+      await db.execute(
+        `insert into runbooks(id, name, content, created, updated, workspace_id, ydoc)
           values ($1, $2, $3, $4, $5, $6, $7)
 
           on conflict(id) do update
@@ -242,23 +238,21 @@ export default class Runbook {
               workspace_id=$6,
               ydoc=$7`,
 
-      // getTime returns a timestamp as unix milliseconds
-      // we won't need or use the resolution here, but elsewhere Atuin stores timestamps in sqlite as nanoseconds since epoch
-      // let's do that across the board to avoid mistakes
-      [
-        this.id,
-        this._name,
-        this._content,
-        this.created.getTime() * 1000000,
-        this.updated.getTime() * 1000000,
-        this.workspaceId,
-        // Convert the Uint8Array to a regular array so that it can be serialized
-        Array.from(ydocAsUpdate),
-      ],
-    );
-    const end = performance.now();
-    const delta = end - start;
-    logger.debug(`Saving runbook ${this.id}: ${delta}ms`);
+        // getTime returns a timestamp as unix milliseconds
+        // we won't need or use the resolution here, but elsewhere Atuin stores timestamps in sqlite as nanoseconds since epoch
+        // let's do that across the board to avoid mistakes
+        [
+          this.id,
+          this._name,
+          this._content,
+          this.created.getTime() * 1000000,
+          this.updated.getTime() * 1000000,
+          this.workspaceId,
+          // Convert the Uint8Array to a regular array so that it can be serialized
+          Array.from(ydocAsUpdate),
+        ],
+      );
+    });
   }
 
   public async moveTo(workspace: Workspace) {

@@ -18,6 +18,19 @@ export default class Logger {
     });
   }
 
+  time<T>(label: string, func: () => T, method: string = "debug") {
+    const start = performance.now();
+    const result = func();
+
+    return Promise.resolve(result).then(() => {
+      const end = performance.now();
+      const delta = end - start;
+      (this as any)[method](`${label}: ${delta}ms`);
+
+      return result;
+    });
+  }
+
   private header() {
     return [`%c[${this.name}]`, `color: ${this.color}`];
   }

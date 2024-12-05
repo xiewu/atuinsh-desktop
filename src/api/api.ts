@@ -11,6 +11,22 @@ export async function loadPassword(service: string, user: string) {
   return await invoke("load_password", { service, user });
 }
 
+export async function savePassword(
+  service: string,
+  user: string,
+  password: string,
+) {
+  if (import.meta.env.MODE === "development") {
+    return localStorage.setItem(`${service}:${user}`, password);
+  }
+
+  await invoke("save_password", {
+    service,
+    user,
+    value: password,
+  });
+}
+
 export async function getHubApiToken() {
   let username = localStorage.getItem("username");
   if (!username) throw new Error("No username found in local storage");

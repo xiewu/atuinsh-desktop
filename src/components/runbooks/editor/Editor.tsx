@@ -235,6 +235,10 @@ export default function Editor() {
         setEditor(editor as any);
         (window as any).editor = editor;
       });
+
+      provider.on("remote_update", () => {
+        debouncedOnChange();
+      });
       provider.start();
     });
 

@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { create } from "zustand";
+import Logger from "@/lib/logger";
+const logger = new Logger("PtyStore");
 
 export interface PtyMetadata {
   pid: string;
@@ -31,7 +33,7 @@ export const usePtyStore = create<PtyStore>(
     listenBackend: async () => {
       let unlistenOpen = await listen(PTY_OPEN_CHANNEL, (event) => {
         let data = event.payload as PtyMetadata;
-        console.log(data);
+        logger.debug(data);
 
         set((state: PtyStore) => ({
           ptys: {
@@ -58,7 +60,7 @@ export const usePtyStore = create<PtyStore>(
       // we also need the intial state :D
       let ptys: PtyMetadata[] = await invoke("pty_list", {});
 
-      console.log(
+      logger.debug(
         "ptyState fetched initial pty state and listening for changes",
       );
 

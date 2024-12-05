@@ -64,7 +64,7 @@ export class TerminalData {
 
   async write(data: string, doc: any) {
     // Template the string before we execute it
-    logger.log("templating with doc", doc);
+    logger.debug("templating with doc", doc);
     let templated: string = await invoke("template_str", {
       source: data,
       pid: this.pty,
@@ -222,8 +222,6 @@ let state = (set: any, get: any): AtuinState => ({
       }),
     );
 
-    logger.log(runbooks);
-
     await get().refreshRunbooks();
 
     track_event("runbooks.import", {
@@ -239,7 +237,7 @@ let state = (set: any, get: any): AtuinState => ({
       await get().refreshWorkspaces();
     }
 
-    logger.log("loading runbooks for", get().workspace.name);
+    logger.debug("loading runbooks for", get().workspace.name);
 
     let runbooks = await Runbook.all(get().workspace);
     let index = new RunbookIndexService();
@@ -318,7 +316,7 @@ let state = (set: any, get: any): AtuinState => ({
           set({ shellHistory: [...history, ...res] });
         })
         .catch((e) => {
-          logger.log(e);
+          logger.error(e);
         });
     } else {
       invoke("list", { offset: offset }).then((res: any) => {

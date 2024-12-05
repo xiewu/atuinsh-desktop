@@ -4,6 +4,8 @@ import { writeTextFile, readTextFile } from "@tauri-apps/plugin-fs";
 import * as Y from "yjs";
 import { uuidv7 } from "uuidv7";
 import Workspace from "./workspace";
+import Logger from "@/lib/logger";
+const logger = new Logger("Runbook", "green", "green");
 
 // Definition of an atrb file
 // This is JSON encoded for ease of access, and may change in the future
@@ -151,9 +153,13 @@ export default class Runbook {
   public static async load(id: String): Promise<Runbook | null> {
     const db = await Database.load("sqlite:runbooks.db");
 
+    const start = performance.now();
     let res = await db.select<any[]>("select * from runbooks where id = $1", [
       id,
     ]);
+    const end = performance.now();
+    const delta = end - start;
+    logger.debug(`Selecing a runbook (${id}):`, delta);
 
     if (res.length == 0) return null;
 
@@ -166,8 +172,12 @@ export default class Runbook {
     let doc = new Y.Doc();
 
     if (row.ydoc) {
+      const start = performance.now();
       const update = Uint8Array.from(JSON.parse(row.ydoc));
       Y.applyUpdate(doc, update);
+      const end = performance.now();
+      const delta = end - start;
+      logger.debug("Converting Y.Doc from JSON", delta);
     }
 
     return new Runbook(
@@ -187,10 +197,15 @@ export default class Runbook {
   static async all(workspace: Workspace): Promise<Runbook[]> {
     const db = await Database.load("sqlite:runbooks.db");
 
+    const start = performance.now();
     let res = await db.select<any[]>(
-      "select * from runbooks where workspace_id = $1 or workspace_id is null order by updated desc",
+      // "select * from runbooks where workspace_id = $1 or workspace_id is null order by updated desc",
+      "select id, name, content, created, updated, workspace_id from runbooks where workspace_id = $1 or workspace_id is null order by updated desc",
       [workspace.id],
     );
+    const end = performance.now();
+    const delta = end - start;
+    logger.debug("Selecing all runbooks:", delta);
 
     let runbooks = res.map(Runbook.fromRow);
 

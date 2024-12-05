@@ -10,6 +10,7 @@ const logger = new Logger("PhoenixProvider", "blue", "cyan");
 type AwarenessData = { added: number[]; updated: number[]; removed: number[] };
 
 export default class PhoenixProvider extends Observable<string> {
+  private readonly logger: Logger;
   private readonly socket: Socket;
   private readonly runbookId: string;
   private readonly doc: Y.Doc;
@@ -18,8 +19,9 @@ export default class PhoenixProvider extends Observable<string> {
 
   constructor(socket: Socket, runbookId: string, doc: Y.Doc) {
     super();
+    this.logger = new Logger(`PhoenixProvider (${runbookId})`, "blue", "cyan");
 
-    logger.debug(`Creating provider for runbook ${runbookId}`);
+    this.logger.debug(`Creating provider`);
 
     this.socket = socket;
     this.runbookId = runbookId;
@@ -35,17 +37,17 @@ export default class PhoenixProvider extends Observable<string> {
 
   async start() {
     try {
-      logger.debug("Connecting...");
+      this.logger.debug("Connecting...");
       await this.connect();
-      logger.debug("Resyncing...");
+      this.logger.debug("Resyncing...");
       await this.resync();
     } catch (err) {
-      logger.error("Error connecting to channel", err);
+      this.logger.error("Error connecting to channel", err);
     }
   }
 
   handleDocUpdate(update: Uint8Array, origin: any) {
-    logger.debug("Got document update from", origin, update);
+    this.logger.debug("Got document update from", origin, update);
     if (origin === this) return;
 
     this.channel.push("client_update", update.buffer);
@@ -55,7 +57,7 @@ export default class PhoenixProvider extends Observable<string> {
     { added, updated, removed }: AwarenessData,
     origin: any,
   ) {
-    logger.debug("Got awareness update from", origin);
+    this.logger.debug("Got awareness update from", origin);
     if (origin === this) return;
 
     const changedClients = added.concat(updated).concat(removed);
@@ -73,7 +75,7 @@ export default class PhoenixProvider extends Observable<string> {
         await joinChannel(this.channel);
       } catch (err: any) {
         if (err.reason == "not found") {
-          logger.warn(
+          this.logger.warn(
             `Cound not connect to channel for runbook ${this.runbookId}; server runbook not found`,
           );
           this.channel.leave();
@@ -101,19 +103,19 @@ export default class PhoenixProvider extends Observable<string> {
   }
 
   async resync() {
-    logger.debug("Resync complete");
+    this.logger.debug("Resync complete");
     this.emit("synced", []);
-    // logger.log("%cStarting resync", "color: orange");
+    // this.logger.log("%cStarting resync", "color: orange");
     // const stateVector = Y.encodeStateVector(this.doc);
     // this.channel
     //   .push("sync_step_1", stateVector.buffer)
     //   .receive("ok", (serverVector) => {
-    //     logger.log("%cReceived response 1", "color: orange");
+    //     this.logger.log("%cReceived response 1", "color: orange");
     //     const diff = Y.encodeStateAsUpdate(this.doc, serverVector);
     //     this.channel
     //       .push("sync_step_2", diff.buffer)
     //       .receive("ok", (serverDiff) => {
-    //         logger.log("%cReceived response 2", "color: orange");
+    //         this.logger.log("%cReceived response 2", "color: orange");
     //         Y.applyUpdate(this.doc, serverDiff, this);
     //         this.emit("synced", []);
     //       });

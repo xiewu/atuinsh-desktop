@@ -202,6 +202,7 @@ export default function Editor() {
     }
 
     let provider: PhoenixProvider | null = null;
+    let timer: number | undefined;
     getSocket().then((socket) => {
       logger.debug("got socket");
       // TODO: need to determine if we're offline and fallback to local editing if so
@@ -226,7 +227,8 @@ export default function Editor() {
         // so that we trigger a save, creating the YJS document.
         //
         // This doesn't work if we set the content on the same tick, so defer it
-        setTimeout(() => {
+        timer = setTimeout(() => {
+          timer = undefined;
           let currentContent = editor.document;
           if (isContentBlank(currentContent)) {
             logger.info(
@@ -245,6 +247,7 @@ export default function Editor() {
     return () => {
       // TODO: do we need to destroy the editor somehow
       if (provider) provider.shutdown();
+      if (timer) clearTimeout(timer);
       setEditor(null);
     };
   }, [runbook]);

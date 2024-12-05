@@ -22,18 +22,18 @@ export async function getSocket() {
   return socket;
 }
 
-export async function joinChannel(socket: Socket, channelName: string) {
-  let channel = socket.channel(channelName, {});
+export function createChannel(socket: Socket, channelName: string) {
+  return socket.channel(channelName, {});
+}
 
-  return new Promise<Channel>((res, rej) => {
+export async function joinChannel(channel: Channel, timeout: number = 10000) {
+  return new Promise<any>((res, rej) => {
     channel
-      .join()
+      .join(timeout)
       .receive("ok", (resp: any) => {
-        console.log("Joined successfully", resp);
-        res(channel);
+        res(resp);
       })
       .receive("error", (resp: any) => {
-        console.log("Unable to join", resp);
         rej(resp);
       });
   });
@@ -41,11 +41,5 @@ export async function joinChannel(socket: Socket, channelName: string) {
 
 export async function initSocket() {
   socket = await getSocket();
-
-  const id = "01934aa0-6d0b-7880-a5c0-9d82b5e3afee";
-  let channel = await joinChannel(socket, `doc:${id}`);
-
-  channel.push("get_content", {}).receive("ok", (resp: any) => {
-    console.log(resp);
-  });
+  return socket;
 }

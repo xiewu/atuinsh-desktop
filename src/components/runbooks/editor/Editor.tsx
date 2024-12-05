@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import track_event from "@/tracking";
+import Logger from "@/lib/logger";
+const logger = new Logger("Editor", "orange", "orange");
 
 import "./index.css";
 
@@ -137,6 +139,15 @@ const insertEnv = (editor: typeof schema.BlockNoteEditor) => ({
   group: "Execute",
 });
 
+function isContentBlank(content: any) {
+  return (
+    content.length === 1 &&
+    content[0].content.length === 0 &&
+    content[0].type === "paragraph" &&
+    content[0].id === "initialBlockId"
+  );
+}
+
 export default function Editor() {
   const runbookId = useStore((store: AtuinState) => store.currentRunbook);
   const refreshRunbooks = useStore(
@@ -146,10 +157,13 @@ export default function Editor() {
   let [editor, setEditor] = useState<BlockNoteEditor | null>(null);
 
   useEffect(() => {
+    logger.debug("Getting runbook", runbookId);
     if (!runbookId) return;
 
     const fetchRunbook = async () => {
+      logger.debug("Loading...");
       let rb = await Runbook.load(runbookId);
+      logger.debug("Runbook loaded from DB", rb);
 
       setRunbook(rb);
     };
@@ -174,13 +188,11 @@ export default function Editor() {
   const debouncedOnChange = useDebounceCallback(onChange, 1000);
 
   useEffect(() => {
+    logger.debug("Runbook changed:", runbook);
     if (!runbook) return undefined;
-    if (!runbook.content) {
-      const editor = BlockNoteEditor.create({ schema });
-      setEditor(editor as any); // ugh
-    }
 
-    let content = JSON.parse(runbook.content);
+    let content = JSON.parse(runbook.content || "[]");
+    logger.debug("content", content);
 
     // convert any block of type sql -> sqlite
     for (var i = 0; i < content.length; i++) {
@@ -189,17 +201,17 @@ export default function Editor() {
       }
     }
 
+    let provider: PhoenixProvider | null = null;
     getSocket().then((socket) => {
-      const doc = new Y.Doc();
-      const provider = new PhoenixProvider(socket, runbook.id, doc);
-      const fragment = doc.getXmlFragment("document-store");
+      logger.debug("got socket");
+      // TODO: need to determine if we're offline and fallback to local editing if so
+      provider = new PhoenixProvider(socket, runbook.id, runbook.ydoc);
 
       const editor = BlockNoteEditor.create({
-        initialContent: content,
         schema,
         collaboration: {
           provider: provider,
-          fragment: fragment,
+          fragment: runbook.ydoc.getXmlFragment("document-store"),
           user: {
             // todo
             name: "Me",
@@ -209,15 +221,32 @@ export default function Editor() {
       });
 
       provider.on("synced", () => {
-        // Now that we know that the document is up to date with the server,
-        // we can convert any old "content" data to YJS by inserting it
-        // into the editor.
+        // If the loaded YJS dot has no content, and the server has no content,
+        // we should take the old `content` field (if any) and populate the editor
+        // so that we trigger a save, creating the YJS document.
         //
-        // TODO
-        //
-        setEditor(editor as any); // UGH
+        // This doesn't work if we set the content on the same tick, so defer it
+        setTimeout(() => {
+          let currentContent = editor.document;
+          if (isContentBlank(currentContent)) {
+            logger.info(
+              "BlockNote editor has empty content after sync; inserting existing content.",
+            );
+            editor.replaceBlocks(currentContent, content);
+          }
+        }, 100);
+
+        setEditor(editor as any);
+        (window as any).editor = editor;
       });
+      provider.start();
     });
+
+    return () => {
+      // TODO: do we need to destroy the editor somehow
+      if (provider) provider.shutdown();
+      setEditor(null);
+    };
   }, [runbook]);
 
   const fetchName = (): string => {
@@ -229,7 +258,7 @@ export default function Editor() {
       if (block.type == "heading" || block.type == "paragraph") {
         if (block.content.length == 0) continue;
         // @ts-ignore
-        if (block.content[0].text.length == 0) continae;
+        if (block.content[0].text.length == 0) continue;
 
         let name = block.content
           .filter((i) => i.type === "text")
@@ -251,7 +280,7 @@ export default function Editor() {
     );
   }
 
-  if (editor === null) {
+  if (!editor) {
     return (
       <div className="flex w-full h-full flex-col justify-center items-center">
         <Spinner />
@@ -305,9 +334,9 @@ export default function Editor() {
             filterSuggestionItems(
               [
                 ...getDefaultReactSlashMenuItems(editor),
-                insertRun(editor),
-                insertDirectory(editor),
-                insertEnv(editor),
+                insertRun(editor as any),
+                insertDirectory(editor as any),
+                insertEnv(editor as any),
                 insertPrometheus(schema)(editor),
                 insertSQLite(schema)(editor),
                 insertPostgres(schema)(editor),

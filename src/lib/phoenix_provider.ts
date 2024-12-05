@@ -3,7 +3,9 @@ import { Channel, Socket } from "phoenix";
 import * as Y from "yjs";
 import * as awarenessProtocol from "y-protocols/awareness";
 
-import { joinChannel } from "../socket";
+import { createChannel, joinChannel } from "../socket";
+import Logger from "@/lib/logger";
+const logger = new Logger("PhoenixProvider", "blue", "cyan");
 
 type AwarenessData = { added: number[]; updated: number[]; removed: number[] };
 
@@ -17,32 +19,33 @@ export default class PhoenixProvider extends Observable<string> {
   constructor(socket: Socket, runbookId: string, doc: Y.Doc) {
     super();
 
+    logger.debug(`Creating provider for runbook ${runbookId}`);
+
     this.socket = socket;
     this.runbookId = runbookId;
     this.doc = doc;
     this.awareness = new awarenessProtocol.Awareness(this.doc);
 
-    this.doc.on("update", (update: Uint8Array, origin: any) => {
-      this.handleDocUpdate(update, origin);
-    });
+    this.handleDocUpdate = this.handleDocUpdate.bind(this);
+    this.handleAwarenessUpdate = this.handleAwarenessUpdate.bind(this);
 
-    this.awareness.on(
-      "update",
-      ({ added, updated, removed }: AwarenessData, origin: any) => {
-        this.handleAwarenessUpdate({ added, updated, removed }, origin);
-      },
-    );
+    this.doc.on("update", this.handleDocUpdate);
+    this.awareness.on("update", this.handleAwarenessUpdate);
+  }
 
-    this.connect()
-      .then(() => {
-        this.resync();
-      })
-      .catch((err) => {
-        console.error("[PhoenixProvider] Error connecting to channel", err);
-      });
+  async start() {
+    try {
+      logger.debug("Connecting...");
+      await this.connect();
+      logger.debug("Resyncing...");
+      await this.resync();
+    } catch (err) {
+      logger.error("Error connecting to channel", err);
+    }
   }
 
   handleDocUpdate(update: Uint8Array, origin: any) {
+    logger.debug("Got document update from", origin, update);
     if (origin === this) return;
 
     this.channel.push("client_update", update.buffer);
@@ -52,6 +55,7 @@ export default class PhoenixProvider extends Observable<string> {
     { added, updated, removed }: AwarenessData,
     origin: any,
   ) {
+    logger.debug("Got awareness update from", origin);
     if (origin === this) return;
 
     const changedClients = added.concat(updated).concat(removed);
@@ -63,9 +67,19 @@ export default class PhoenixProvider extends Observable<string> {
   }
 
   async connect() {
+    this.channel = createChannel(this.socket, `doc:${this.runbookId}`);
     if (this.socket.isConnected()) {
-      const channel = await joinChannel(this.socket, `doc:${this.runbookId}`);
-      this.channel = channel;
+      try {
+        await joinChannel(this.channel);
+      } catch (err: any) {
+        if (err.reason == "not found") {
+          logger.warn(
+            `Cound not connect to channel for runbook ${this.runbookId}; server runbook not found`,
+          );
+          this.channel.leave();
+          this.emit("synced", []);
+        }
+      }
 
       this.channel.on("update", (payload) => {
         payload = new Uint8Array(payload);
@@ -87,17 +101,32 @@ export default class PhoenixProvider extends Observable<string> {
   }
 
   async resync() {
-    const stateVector = Y.encodeStateVector(this.doc);
-    this.channel
-      .push("sync_step_1", stateVector.buffer)
-      .receive("ok", (serverVector) => {
-        const diff = Y.encodeStateAsUpdate(this.doc, serverVector);
-        this.channel
-          .push("sync_step_2", diff.buffer)
-          .receive("ok", (serverDiff) => {
-            Y.applyUpdate(this.doc, serverDiff, this);
-            this.emit("synced", []);
-          });
-      });
+    logger.debug("Resync complete");
+    this.emit("synced", []);
+    // logger.log("%cStarting resync", "color: orange");
+    // const stateVector = Y.encodeStateVector(this.doc);
+    // this.channel
+    //   .push("sync_step_1", stateVector.buffer)
+    //   .receive("ok", (serverVector) => {
+    //     logger.log("%cReceived response 1", "color: orange");
+    //     const diff = Y.encodeStateAsUpdate(this.doc, serverVector);
+    //     this.channel
+    //       .push("sync_step_2", diff.buffer)
+    //       .receive("ok", (serverDiff) => {
+    //         logger.log("%cReceived response 2", "color: orange");
+    //         Y.applyUpdate(this.doc, serverDiff, this);
+    //         this.emit("synced", []);
+    //       });
+    //   });
+  }
+
+  shutdown() {
+    // disconnect from the ydoc
+    this.doc.off("update", this.handleDocUpdate);
+    this.awareness.off("update", this.handleAwarenessUpdate);
+    // shut down the event emitter
+    this.destroy();
+    // disconnect from the server
+    this.channel && this.channel.leave();
   }
 }

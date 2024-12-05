@@ -1,6 +1,7 @@
 import { save } from "@tauri-apps/plugin-dialog";
 import Database from "@tauri-apps/plugin-sql";
 import { writeTextFile, readTextFile } from "@tauri-apps/plugin-fs";
+import * as Y from "yjs";
 import { uuidv7 } from "uuidv7";
 import Workspace from "./workspace";
 
@@ -27,6 +28,7 @@ export default class Runbook {
 
   private _name: string;
   private _content: string;
+  private _ydoc: Y.Doc;
 
   set name(value: string) {
     this.updated = new Date();
@@ -36,6 +38,10 @@ export default class Runbook {
   set content(value: string) {
     this.updated = new Date();
     this._content = value;
+  }
+
+  get ydoc() {
+    return this._ydoc;
   }
 
   get content() {
@@ -50,6 +56,7 @@ export default class Runbook {
     id: string,
     name: string,
     content: string,
+    ydoc: Y.Doc,
     created: Date,
     updated: Date,
     workspaceId: string,
@@ -57,6 +64,7 @@ export default class Runbook {
     this.id = id;
     this._name = name;
     this._content = content;
+    this._ydoc = ydoc;
     this.created = created;
     this.updated = updated;
 
@@ -72,7 +80,15 @@ export default class Runbook {
     }
 
     // Initialize with the same value for created/updated, to avoid needing null.
-    let runbook = new Runbook(uuidv7(), "", "", now, now, workspace.id);
+    let runbook = new Runbook(
+      uuidv7(),
+      "",
+      "",
+      new Y.Doc(),
+      now,
+      now,
+      workspace.id,
+    );
     await runbook.save();
 
     return runbook;
@@ -102,7 +118,10 @@ export default class Runbook {
     await writeTextFile(filePath, JSON.stringify(exportFile));
   }
 
-  public static async importJSON(obj: RunbookFile, workspace?: Workspace): Promise<Runbook> {
+  public static async importJSON(
+    obj: RunbookFile,
+    workspace?: Workspace,
+  ): Promise<Runbook> {
     if (workspace === undefined || workspace === null) {
       workspace = await Workspace.current();
     }
@@ -111,6 +130,7 @@ export default class Runbook {
       obj.id,
       obj.name,
       obj.content,
+      new Y.Doc(),
       new Date(obj.created),
       new Date(),
       workspace.id,
@@ -139,21 +159,22 @@ export default class Runbook {
 
     let rb = res[0];
 
-    return new Runbook(
-      rb.id,
-      rb.name,
-      rb.content,
-      new Date(rb.created / 1000000),
-      new Date(rb.updated / 1000000),
-      rb.workspace_id
-    );
+    return Runbook.fromRow(rb);
   }
 
   static fromRow(row: any): Runbook {
+    let doc = new Y.Doc();
+
+    if (row.ydoc) {
+      const update = Uint8Array.from(JSON.parse(row.ydoc));
+      Y.applyUpdate(doc, update);
+    }
+
     return new Runbook(
       row.id,
       row.name,
       row.content,
+      doc,
       new Date(row.created / 1000000),
       new Date(row.updated / 1000000),
       row.workspace_id,
@@ -192,16 +213,19 @@ export default class Runbook {
   public async save() {
     const db = await Database.load("sqlite:runbooks.db");
 
+    const ydocAsUpdate = Y.encodeStateAsUpdate(this.ydoc);
+
     await db.execute(
-      `insert into runbooks(id, name, content, created, updated, workspace_id)
-          values ($1, $2, $3, $4, $5, $6)
+      `insert into runbooks(id, name, content, created, updated, workspace_id, ydoc)
+          values ($1, $2, $3, $4, $5, $6, $7)
 
           on conflict(id) do update
             set
               name=$2,
               content=$3,
               updated=$5,
-              workspace_id=$6`,
+              workspace_id=$6,
+              ydoc=$7`,
 
       // getTime returns a timestamp as unix milliseconds
       // we won't need or use the resolution here, but elsewhere Atuin stores timestamps in sqlite as nanoseconds since epoch
@@ -213,6 +237,8 @@ export default class Runbook {
         this.created.getTime() * 1000000,
         this.updated.getTime() * 1000000,
         this.workspaceId,
+        // Convert the Uint8Array to a regular array so that it can be serialized
+        Array.from(ydocAsUpdate),
       ],
     );
   }

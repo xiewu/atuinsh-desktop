@@ -165,6 +165,7 @@ export default class PhoenixProvider extends Observable<string> {
   }
 
   shutdown() {
+    this.logger.debug("Shutting down");
     // disconnect from the ydoc
     this.doc.off("update", this.handleDocUpdate);
     this.awareness.off("update", this.handleAwarenessUpdate);

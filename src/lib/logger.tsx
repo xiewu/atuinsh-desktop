@@ -20,15 +20,23 @@ export default class Logger {
 
   time<T>(label: string, func: () => T, method: string = "debug") {
     const start = performance.now();
-    const result = func();
+    const result: any = func();
 
-    return Promise.resolve(result).then(() => {
+    if (result && result.then) {
+      return Promise.resolve(result).then(() => {
+        const end = performance.now();
+        const delta = Math.floor(end - start);
+        (this as any)[method](`${label}: ${delta}ms`);
+
+        return result;
+      });
+    } else {
       const end = performance.now();
       const delta = Math.floor(end - start);
       (this as any)[method](`${label}: ${delta}ms`);
 
       return result;
-    });
+    }
   }
 
   private header() {

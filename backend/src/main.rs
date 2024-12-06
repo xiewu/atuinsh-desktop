@@ -13,6 +13,7 @@ mod install;
 mod menu;
 mod pty;
 mod run;
+mod runbooks;
 mod secret;
 mod state;
 mod store;
@@ -326,6 +327,8 @@ fn main() {
             secret::save_password,
             secret::load_password,
             templates::template_str,
+            runbooks::save_ydoc_for_runbook,
+            runbooks::load_ydoc_for_runbook
         ])
         .plugin(
             tauri_plugin_sql::Builder::default()

@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import Database from "@tauri-apps/plugin-sql";
 import { writeTextFile, readTextFile } from "@tauri-apps/plugin-fs";
@@ -153,17 +154,27 @@ export default class Runbook {
   public static async load(id: String): Promise<Runbook | null> {
     const db = await Database.load("sqlite:runbooks.db");
 
-    const start = performance.now();
-    let res = await db.select<any[]>("select * from runbooks where id = $1", [
-      id,
-    ]);
-    const end = performance.now();
-    const delta = end - start;
-    logger.debug(`Selecing a runbook (${id}): ${delta}ms`);
+    let res = await logger.time(`Selecting runbook with ID ${id}`, async () =>
+      db.select<any[]>(
+        "select id, name, content, created, updated, workspace_id from runbooks where id = $1",
+        [id],
+      ),
+    );
 
     if (res.length == 0) return null;
 
     let rb = res[0];
+
+    const doc: ArrayBuffer = await logger.time(
+      "Loading runbook Y.Doc...",
+      async () => {
+        return await invoke("load_ydoc_for_runbook", {
+          runbookId: rb.id,
+          dbPath: "runbooks.db",
+        });
+      },
+    );
+    rb.ydoc = doc;
 
     return Runbook.fromRow(rb);
   }
@@ -172,10 +183,14 @@ export default class Runbook {
     let doc = new Y.Doc();
 
     if (row.ydoc) {
-      logger.time("Converting JSON to Y.Doc update", () => {
-        const update = Uint8Array.from(JSON.parse(row.ydoc));
-        Y.applyUpdate(doc, update);
-      });
+      let update;
+      // For a short period of time, the `Y.Doc` might have been stored as a string.
+      if (typeof row.ydoc == "string") {
+        update = Uint8Array.from(JSON.parse(row.ydoc));
+      } else {
+        update = new Uint8Array(row.ydoc);
+      }
+      Y.applyUpdate(doc, update);
     }
 
     return new Runbook(
@@ -224,18 +239,16 @@ export default class Runbook {
     const db = await Database.load("sqlite:runbooks.db");
 
     logger.time(`Saving runbook ${this.id}`, async () => {
-      const ydocAsUpdate = Y.encodeStateAsUpdate(this.ydoc);
       await db.execute(
-        `insert into runbooks(id, name, content, created, updated, workspace_id, ydoc)
-          values ($1, $2, $3, $4, $5, $6, $7)
+        `insert into runbooks(id, name, content, created, updated, workspace_id)
+          values ($1, $2, $3, $4, $5, $6)
 
           on conflict(id) do update
             set
               name=$2,
               content=$3,
               updated=$5,
-              workspace_id=$6,
-              ydoc=$7`,
+              workspace_id=$6`,
 
         // getTime returns a timestamp as unix milliseconds
         // we won't need or use the resolution here, but elsewhere Atuin stores timestamps in sqlite as nanoseconds since epoch
@@ -247,10 +260,18 @@ export default class Runbook {
           this.created.getTime() * 1000000,
           this.updated.getTime() * 1000000,
           this.workspaceId,
-          // Convert the Uint8Array to a regular array so that it can be serialized
-          Array.from(ydocAsUpdate),
         ],
       );
+
+      const ydocAsUpdate = Y.encodeStateAsUpdate(this.ydoc);
+      logger.time("Saving runbook Y.Doc...", async () => {
+        await invoke("save_ydoc_for_runbook", ydocAsUpdate, {
+          headers: {
+            id: this.id,
+            db: "runbooks.db",
+          },
+        });
+      });
     });
   }
 

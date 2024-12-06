@@ -181,7 +181,7 @@ export default class Runbook {
     return new Runbook(
       row.id,
       row.name,
-      row.content,
+      row.content || "[]",
       doc,
       new Date(row.created / 1000000),
       new Date(row.updated / 1000000),
@@ -195,15 +195,14 @@ export default class Runbook {
   static async all(workspace: Workspace): Promise<Runbook[]> {
     const db = await Database.load("sqlite:runbooks.db");
 
-    let res = await logger.time("Selecting all runbooks", () =>
-      db.select<any[]>(
-        // "select * from runbooks where workspace_id = $1 or workspace_id is null order by updated desc",
-        "select id, name, content, created, updated, workspace_id from runbooks where workspace_id = $1 or workspace_id is null order by updated desc",
+    let runbooks = await logger.time("Selecting all runbooks", async () => {
+      let res = await db.select<any[]>(
+        "select id, name, created, updated, workspace_id from runbooks where workspace_id = $1 or workspace_id is null order by updated desc",
         [workspace.id],
-      ),
-    );
+      );
 
-    let runbooks = res.map(Runbook.fromRow);
+      return res.map(Runbook.fromRow);
+    });
 
     let currentWorkspace = await Workspace.current();
 

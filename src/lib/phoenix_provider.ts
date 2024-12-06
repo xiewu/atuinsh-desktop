@@ -5,7 +5,6 @@ import * as awarenessProtocol from "y-protocols/awareness";
 
 import SocketManager from "../socket";
 import Logger from "@/lib/logger";
-const logger = new Logger("PhoenixProvider", "blue", "cyan");
 
 type AwarenessData = { added: number[]; updated: number[]; removed: number[] };
 

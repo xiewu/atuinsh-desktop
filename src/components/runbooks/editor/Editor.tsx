@@ -70,7 +70,6 @@ import Http, { insertHttp } from "./blocks/Http/Http";
 import { uuidv7 } from "uuidv7";
 import { DuplicateBlockItem } from "./ui/DuplicateBlockItem";
 
-import { getSocket } from "@/socket";
 import PhoenixProvider from "@/lib/phoenix_provider";
 
 // Our schema with block specs, which contain the configs and implementations for blocks

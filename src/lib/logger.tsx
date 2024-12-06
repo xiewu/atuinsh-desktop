@@ -24,7 +24,7 @@ export default class Logger {
 
     return Promise.resolve(result).then(() => {
       const end = performance.now();
-      const delta = end - start;
+      const delta = Math.floor(end - start);
       (this as any)[method](`${label}: ${delta}ms`);
 
       return result;

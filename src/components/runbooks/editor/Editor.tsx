@@ -196,50 +196,46 @@ export default function Editor() {
       }
     }
 
-    let provider: PhoenixProvider | null = null;
     let timer: number | undefined;
-    getSocket().then((socket) => {
-      // TODO: need to determine if we're offline and fallback to local editing if so
-      provider = new PhoenixProvider(socket, runbook.id, runbook.ydoc);
+    let provider = new PhoenixProvider(runbook.id, runbook.ydoc);
 
-      const editor = BlockNoteEditor.create({
-        schema,
-        collaboration: {
-          provider: provider,
-          fragment: runbook.ydoc.getXmlFragment("document-store"),
-          user: {
-            // todo
-            name: "Me",
-            color: "#ffffff",
-          },
+    const editor = BlockNoteEditor.create({
+      schema,
+      collaboration: {
+        provider: provider,
+        fragment: runbook.ydoc.getXmlFragment("document-store"),
+        user: {
+          // todo
+          name: "Me",
+          color: "#ffffff",
         },
-      });
+      },
+    });
 
-      provider.once("synced", () => {
-        // If the loaded YJS dot has no content, and the server has no content,
-        // we should take the old `content` field (if any) and populate the editor
-        // so that we trigger a save, creating the YJS document.
-        //
-        // This doesn't work if we set the content on the same tick, so defer it
-        timer = setTimeout(() => {
-          timer = undefined;
-          let currentContent = editor.document;
-          if (isContentBlank(currentContent)) {
-            logger.info(
-              "BlockNote editor has empty content after sync; inserting existing content.",
-            );
-            editor.replaceBlocks(currentContent, content);
-          }
-        }, 100);
+    provider.once("synced", () => {
+      // If the loaded YJS dot has no content, and the server has no content,
+      // we should take the old `content` field (if any) and populate the editor
+      // so that we trigger a save, creating the YJS document.
+      //
+      // This doesn't work if we set the content on the same tick, so defer it
+      timer = setTimeout(() => {
+        timer = undefined;
+        let currentContent = editor.document;
+        if (isContentBlank(currentContent)) {
+          logger.info(
+            "BlockNote editor has empty content after sync; inserting existing content.",
+          );
+          editor.replaceBlocks(currentContent, content);
+        }
+      }, 100);
 
-        setEditor(editor as any);
-        (window as any).editor = editor;
-      });
+      setEditor(editor as any);
+      (window as any).editor = editor;
 
       provider.on("remote_update", () => {
         debouncedOnChange();
       });
-      provider.start();
+      // provider.start();
     });
 
     return () => {

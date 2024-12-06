@@ -1,48 +1,79 @@
-import { Channel, Socket } from "phoenix";
-import { endpoint, getHubApiToken } from "./api/api";
+import { Socket } from "phoenix";
+import { endpoint } from "./api/api";
 import Logger from "@/lib/logger";
+import { Observable } from "lib0/observable.js";
 const logger = new Logger("Socket");
 
-let socket: Socket;
+export default class SocketManager extends Observable<string> {
+  private static apiToken: string | null = null;
+  private static instance: SocketManager;
 
-export async function getSocket() {
-  if (socket) return socket;
+  private socket: Socket;
 
-  const uri = new URL(endpoint());
-  const host = uri.host;
-  const protocol = uri.protocol === "https:" ? "wss" : "ws";
+  static get() {
+    if (!SocketManager.instance) {
+      SocketManager.instance = new SocketManager(SocketManager.apiToken);
+    }
 
-  const url = `${protocol}://${host}/sockets/doc`;
-  const token = await getHubApiToken();
+    return SocketManager.instance;
+  }
 
-  socket = new Socket(url, {
-    params: { token },
-  });
+  static setApiToken(token: string | null) {
+    SocketManager.apiToken = token;
 
-  logger.debug("Connecting to the Hub...");
-  socket.connect();
+    if (SocketManager.instance) {
+      SocketManager.instance.putNewApiToken(token);
+    }
+  }
 
-  return socket;
-}
+  constructor(apiToken: string | null) {
+    super();
+    this.socket = this.buildSocket(apiToken);
+    if (apiToken) {
+      this.connect();
+    }
+  }
 
-export function createChannel(socket: Socket, channelName: string) {
-  return socket.channel(channelName, {});
-}
+  public onSocketChange(callback: (socket: Socket) => void) {
+    this.on("socketchange", callback);
+    return () => this.off("socketchange", callback);
+  }
 
-export async function joinChannel(channel: Channel, timeout: number = 10000) {
-  return new Promise<any>((res, rej) => {
-    channel
-      .join(timeout)
-      .receive("ok", (resp: any) => {
-        res(resp);
-      })
-      .receive("error", (resp: any) => {
-        rej(resp);
-      });
-  });
-}
+  public channel(channelName: string, channelParams?: object) {
+    return this.socket.channel(channelName, channelParams || {});
+  }
 
-export async function initSocket() {
-  socket = await getSocket();
-  return socket;
+  public getSocket() {
+    return this.socket;
+  }
+
+  private putNewApiToken(token: string | null) {
+    logger.info("Preparing new Socket with updated token");
+    const newSocket = this.buildSocket(token);
+    this.socket.disconnect();
+    this.socket = newSocket;
+
+    if (token) {
+      this.connect();
+    }
+    this.emit("socketchange", [newSocket]);
+  }
+
+  private connect() {
+    logger.debug(
+      `Connecting to Atuin Hub with token: ${SocketManager.apiToken!.substring(0, 12)}...`,
+    );
+    this.socket.connect();
+  }
+
+  private buildSocket(apiToken: string | null) {
+    const uri = new URL(endpoint());
+    const host = uri.host;
+    const protocol = uri.protocol === "https:" ? "wss" : "ws";
+    const url = `${protocol}://${host}/sockets/doc`;
+
+    return new Socket(url, {
+      params: { token: apiToken },
+    });
+  }
 }

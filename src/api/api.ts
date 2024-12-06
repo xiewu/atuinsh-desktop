@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { fetch } from "@tauri-apps/plugin-http";
+import SocketManager from "@/socket";
 
 export async function loadPassword(service: string, user: string) {
   // Use localStorage in dev, and keychain in prod
@@ -8,7 +9,7 @@ export async function loadPassword(service: string, user: string) {
     return localStorage.getItem(`${service}:${user}`);
   }
 
-  return await invoke("load_password", { service, user });
+  return await invoke<string>("load_password", { service, user });
 }
 
 export async function savePassword(
@@ -25,6 +26,15 @@ export async function savePassword(
     user,
     value: password,
   });
+}
+
+// Convenience function for setting the hub credentials in development
+if (import.meta.env.MODE === "development") {
+  (window as any).setHubCredentials = (username: string, key: string) => {
+    localStorage.setItem("username", username);
+    savePassword("sh.atuin.runbooks.api", username, key);
+    SocketManager.setApiToken(key);
+  };
 }
 
 export async function getHubApiToken() {

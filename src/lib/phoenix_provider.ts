@@ -3,7 +3,7 @@ import { Channel, Socket } from "phoenix";
 import * as Y from "yjs";
 import * as awarenessProtocol from "y-protocols/awareness";
 
-import { createChannel, joinChannel } from "../socket";
+import SocketManager from "../socket";
 import Logger from "@/lib/logger";
 const logger = new Logger("PhoenixProvider", "blue", "cyan");
 
@@ -11,19 +11,26 @@ type AwarenessData = { added: number[]; updated: number[]; removed: number[] };
 
 export default class PhoenixProvider extends Observable<string> {
   private readonly logger: Logger;
-  private readonly socket: Socket;
+  private socket!: Socket;
   private readonly runbookId: string;
   private readonly doc: Y.Doc;
   private readonly awareness: awarenessProtocol.Awareness;
-  private channel!: Channel;
+  private channel?: Channel;
+  private unregisterSocketChange: () => void;
+  private handlers: string[] = [];
 
-  constructor(socket: Socket, runbookId: string, doc: Y.Doc) {
+  constructor(runbookId: string, doc: Y.Doc) {
     super();
     this.logger = new Logger(`PhoenixProvider (${runbookId})`, "blue", "cyan");
+    this.logger.debug("Creating new provider instance");
 
-    this.logger.debug(`Creating provider`);
+    const manager = SocketManager.get();
+    this.unregisterSocketChange = manager.onSocketChange(
+      this.handleNewSocket.bind(this),
+    );
 
-    this.socket = socket;
+    this.socket = manager.getSocket();
+
     this.runbookId = runbookId;
     this.doc = doc;
     this.awareness = new awarenessProtocol.Awareness(this.doc);
@@ -31,24 +38,76 @@ export default class PhoenixProvider extends Observable<string> {
     this.handleDocUpdate = this.handleDocUpdate.bind(this);
     this.handleAwarenessUpdate = this.handleAwarenessUpdate.bind(this);
 
-    this.doc.on("update", this.handleDocUpdate);
-    this.awareness.on("update", this.handleAwarenessUpdate);
+    setTimeout(() => this.initSocket());
   }
 
-  async start() {
+  handleNewSocket(newSocket: Socket) {
+    this.logger.debug("Switching out new socket...");
+    this.shutdownSocket();
+    this.socket = newSocket;
+    setTimeout(() => this.initSocket());
+  }
+
+  initSocket() {
+    this.handlers = [];
+    this.channel = this.socket.channel(`doc:${this.runbookId}`);
+
+    if (this.socket.isConnected()) {
+      this.onSocketConnected();
+    } else {
+      const ref = this.socket.onOpen(this.onSocketConnected.bind(this));
+      this.handlers.push(ref);
+      this.logger.debug("Socket disconnected; starting in offline mode");
+      this.startOffline();
+    }
+  }
+
+  joinChannel() {
+    if (!this.channel) {
+      return Promise.reject(new Error("No channel to join"));
+    }
+
+    return new Promise((resolve, reject) => {
+      this.channel!.join()
+        .receive("ok", (resp: any) => {
+          resolve(resp);
+        })
+        .receive("error", (resp: any) => {
+          reject(resp);
+        });
+    });
+  }
+
+  startOffline() {
+    this.emit("synced", []);
+  }
+
+  shutdownSocket() {
+    this.socket.off(this.handlers);
+  }
+
+  async onSocketConnected() {
+    this.logger.debug("Socket connected");
     try {
-      this.logger.debug("Connecting...");
-      await this.connect();
-      this.logger.debug("Resyncing...");
-      await this.resync();
+      await this.joinChannel();
+
+      // Either this is the first connection, or we're reconnecting. Either way,
+      // we need to resync with the remote document.
+      this.doc.on("update", this.handleDocUpdate);
+      this.awareness.on("update", this.handleAwarenessUpdate);
+      this.setupChannelHandlers();
+
+      this.logger.debug("Performing document resync");
+      this.resync();
     } catch (err) {
-      this.logger.error("Error connecting to channel", err);
+      this.logger.error("Failed to join doc channel", err);
+      this.logger.debug("Starting in offline mode");
+      this.startOffline();
     }
   }
 
   handleDocUpdate(update: Uint8Array, origin: any) {
-    this.logger.debug("Got document update from", origin, update);
-    if (origin === this) return;
+    if (origin === this || !this.channel) return;
 
     this.channel.push("client_update", update.buffer);
   }
@@ -58,7 +117,7 @@ export default class PhoenixProvider extends Observable<string> {
     origin: any,
   ) {
     this.logger.debug("Got awareness update from", origin);
-    if (origin === this) return;
+    if (origin === this || !this.channel) return;
 
     const changedClients = added.concat(updated).concat(removed);
     this.channel.push(
@@ -68,36 +127,22 @@ export default class PhoenixProvider extends Observable<string> {
     );
   }
 
-  async connect() {
-    this.channel = createChannel(this.socket, `doc:${this.runbookId}`);
-    if (this.socket.isConnected()) {
-      try {
-        await joinChannel(this.channel);
-      } catch (err: any) {
-        if (err.reason == "not found") {
-          this.logger.warn(
-            `Cound not connect to channel; server runbook not found`,
-          );
-          this.channel.leave();
-          this.emit("synced", []);
-        }
-      }
+  setupChannelHandlers() {
+    if (!this.channel) return;
 
-      this.channel.on("update", (payload) => {
-        payload = new Uint8Array(payload);
-        Y.applyUpdate(this.doc, payload, this);
-      });
+    this.channel.on("update", (payload) => {
+      payload = new Uint8Array(payload);
+      Y.applyUpdate(this.doc, payload, this);
+      this.emit("remote_update", []);
+    });
 
-      this.channel.on("awareness", (payload) => {
-        awarenessProtocol.applyAwarenessUpdate(
-          this.awareness,
-          payload.buffer,
-          this,
-        );
-      });
-    } else {
-      throw new Error("Cannot join channel because socket is not connected");
-    }
+    this.channel.on("awareness", (payload) => {
+      awarenessProtocol.applyAwarenessUpdate(
+        this.awareness,
+        payload.buffer,
+        this,
+      );
+    });
   }
 
   async resync() {
@@ -124,6 +169,8 @@ export default class PhoenixProvider extends Observable<string> {
     // disconnect from the ydoc
     this.doc.off("update", this.handleDocUpdate);
     this.awareness.off("update", this.handleAwarenessUpdate);
+    this.unregisterSocketChange();
+    this.shutdownSocket();
     // shut down the event emitter
     this.destroy();
     // disconnect from the server

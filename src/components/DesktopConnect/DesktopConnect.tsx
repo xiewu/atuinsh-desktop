@@ -1,6 +1,7 @@
 import { useStore } from "@/state/store";
 import { Modal, ModalContent, Button, Card, CardBody } from "@nextui-org/react";
 import { savePassword } from "@/api/api";
+import SocketManager from "@/socket";
 
 import { useMemo } from "react";
 
@@ -20,6 +21,7 @@ const DesktopConnect = () => {
         proposedUsername,
         proposedToken,
       );
+      SocketManager.setApiToken(proposedToken);
     }
 
     setDesktopConnect(false);

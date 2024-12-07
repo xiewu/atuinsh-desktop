@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, subscribeWithSelector } from "zustand/middleware";
 
 import { parseISO } from "date-fns";
 
@@ -431,24 +431,26 @@ let state = (set: any, get: any): AtuinState => ({
 });
 
 export const useStore = create<AtuinState>()(
-  persist(state, {
-    name: "atuin-storage",
+  subscribeWithSelector(
+    persist(state, {
+      name: "atuin-storage",
 
-    // don't serialize the terminals map
-    // it won't work as JSON. too cyclical
-    partialize: (state) =>
-      Object.fromEntries(
-        Object.entries(state).filter(
-          ([key]) =>
-            ![
-              "terminals",
-              "runbooks",
-              "history_calendar",
-              "home_info",
-              "runbookIndex",
-              "user",
-            ].includes(key),
+      // don't serialize the terminals map
+      // it won't work as JSON. too cyclical
+      partialize: (state) =>
+        Object.fromEntries(
+          Object.entries(state).filter(
+            ([key]) =>
+              ![
+                "terminals",
+                "runbooks",
+                "history_calendar",
+                "home_info",
+                "runbookIndex",
+                "user",
+              ].includes(key),
+          ),
         ),
-      ),
-  }),
+    }),
+  ),
 );

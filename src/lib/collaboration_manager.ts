@@ -34,19 +34,16 @@ export default class CollaborationManager {
       this.store.subscribe(
         (state) => state.currentRunbook,
         this.handleRunbookChange,
+        { fireImmediately: true },
       ),
     );
     this.handlers.push(
       this.store.subscribe(
         (state) => state.runbooks,
         this.handleRunbooksChange,
+        { fireImmediately: true },
       ),
     );
-
-    this.currentRunbook = this.store.getState().currentRunbook;
-    this.runbooks = this.store.getState().runbooks;
-
-    this.logger.debug(`Starting up, managing ${this.runbooks.length} runbooks`);
 
     if (this.connected) {
       this.logger.debug("Starting resync process");

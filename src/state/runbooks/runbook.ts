@@ -165,15 +165,7 @@ export default class Runbook {
 
     let rb = res[0];
 
-    const doc: ArrayBuffer = await logger.time(
-      "Loading runbook Y.Doc...",
-      async () => {
-        return await invoke("load_ydoc_for_runbook", {
-          runbookId: rb.id,
-          dbPath: "runbooks.db",
-        });
-      },
-    );
+    const doc: ArrayBuffer = await Runbook.loadYDocForRunbook(rb.id);
     rb.ydoc = doc;
 
     return Runbook.fromRow(rb);
@@ -264,13 +256,31 @@ export default class Runbook {
       );
 
       const ydocAsUpdate = Y.encodeStateAsUpdate(this.ydoc);
-      logger.time("Saving runbook Y.Doc...", async () => {
-        await invoke("save_ydoc_for_runbook", ydocAsUpdate, {
-          headers: {
-            id: this.id,
-            db: "runbooks.db",
-          },
+      await Runbook.saveYDocForRunbook(this.id, ydocAsUpdate);
+    });
+  }
+
+  public static async loadYDocForRunbook(id: string) {
+    const update: ArrayBuffer = await logger.time(
+      `Loading Y.Doc for runbook ${id}...`,
+      async () => {
+        return await invoke("load_ydoc_for_runbook", {
+          runbookId: id,
+          dbPath: "runbooks.db",
         });
+      },
+    );
+
+    return update;
+  }
+
+  public static async saveYDocForRunbook(id: string, update: ArrayBuffer) {
+    logger.time(`Saving Y.Doc for runbook ${id}...`, async () => {
+      await invoke("save_ydoc_for_runbook", update, {
+        headers: {
+          id: id,
+          db: "runbooks.db",
+        },
       });
     });
   }

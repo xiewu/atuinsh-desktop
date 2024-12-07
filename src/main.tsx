@@ -10,14 +10,18 @@ import Runbooks from "@/routes/runbooks/Runbooks";
 import History from "@/routes/history/History";
 import { init_tracking } from "./tracking";
 import { getHubApiToken } from "./api/api";
-
 import SocketManager from "./socket";
+import CollaborationManager from "./lib/collaboration_manager";
+import { useStore } from "@/state/store";
+
 getHubApiToken().then((token) => {
   SocketManager.setApiToken(token);
 });
 
 // If the user has opted in, we will setup sentry/posthog
 init_tracking();
+
+new CollaborationManager(SocketManager.get(), useStore);
 
 const router = createHashRouter([
   {

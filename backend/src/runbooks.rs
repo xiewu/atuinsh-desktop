@@ -1,17 +1,16 @@
+use sqlx::sqlite::SqlitePool;
 use sqlx::Row;
+use tauri::ipc::{InvokeBody, Request, Response};
 use tauri::{AppHandle, Manager};
 
 #[tauri::command]
-pub async fn save_ydoc_for_runbook(
-    app: AppHandle,
-    request: tauri::ipc::Request<'_>,
-) -> Result<(), String> {
-    if let tauri::ipc::InvokeBody::Raw(data) = request.body() {
+pub async fn save_ydoc_for_runbook(app: AppHandle, request: Request<'_>) -> Result<(), String> {
+    if let InvokeBody::Raw(data) = request.body() {
         let db_path = request.headers().get("db").unwrap().to_str().unwrap();
         let runbook_id = request.headers().get("id").unwrap().to_str().unwrap();
 
         let data_path = app.path().app_local_data_dir().unwrap();
-        let db = sqlx::sqlite::SqlitePool::connect(data_path.join(db_path).to_str().unwrap())
+        let db = SqlitePool::connect(data_path.join(db_path).to_str().unwrap())
             .await
             .unwrap();
 
@@ -33,9 +32,9 @@ pub async fn load_ydoc_for_runbook(
     app: AppHandle,
     db_path: &str,
     runbook_id: &str,
-) -> Result<tauri::ipc::Response, String> {
+) -> Result<Response, String> {
     let data_path = app.path().app_local_data_dir().unwrap();
-    let db = sqlx::sqlite::SqlitePool::connect(data_path.join(db_path).to_str().unwrap())
+    let db = SqlitePool::connect(data_path.join(db_path).to_str().unwrap())
         .await
         .unwrap();
 
@@ -47,5 +46,5 @@ pub async fn load_ydoc_for_runbook(
 
     let data = result.get::<Vec<_>, _>("ydoc");
 
-    Ok(tauri::ipc::Response::new(data))
+    Ok(Response::new(data))
 }

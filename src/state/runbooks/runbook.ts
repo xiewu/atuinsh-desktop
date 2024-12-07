@@ -179,10 +179,13 @@ export default class Runbook {
       // For a short period of time, the `Y.Doc` might have been stored as a string.
       if (typeof row.ydoc == "string") {
         update = Uint8Array.from(JSON.parse(row.ydoc));
-      } else {
+      } else if (row.ydoc.byteLength > 0) {
         update = new Uint8Array(row.ydoc);
       }
-      Y.applyUpdate(doc, update);
+
+      if (update) {
+        Y.applyUpdate(doc, update);
+      }
     }
 
     return new Runbook(

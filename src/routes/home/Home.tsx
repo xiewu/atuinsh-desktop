@@ -224,7 +224,7 @@ export default function Home() {
           </CardHeader>
           <CardBody>
             {homeInfo.recentCommands?.map((i: ShellHistory) => {
-              return <HistoryRow compact h={i} />;
+              return <HistoryRow compact key={i.id} h={i} />;
             })}
           </CardBody>
         </Card>

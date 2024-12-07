@@ -12,11 +12,9 @@ import { init_tracking } from "./tracking";
 import { getHubApiToken } from "./api/api";
 
 import SocketManager from "./socket";
-setTimeout(() => {
-  getHubApiToken().then((token) => {
-    SocketManager.setApiToken(token);
-  });
-}, 5000);
+getHubApiToken().then((token) => {
+  SocketManager.setApiToken(token);
+});
 
 // If the user has opted in, we will setup sentry/posthog
 init_tracking();

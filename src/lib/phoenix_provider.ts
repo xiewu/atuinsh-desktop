@@ -113,7 +113,6 @@ export default class PhoenixProvider extends Observable<string> {
     { added, updated, removed }: AwarenessData,
     origin: any,
   ) {
-    this.logger.debug("Got awareness update from", origin);
     if (origin === this || !this.channel) return;
 
     const changedClients = added.concat(updated).concat(removed);

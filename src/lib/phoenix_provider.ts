@@ -95,8 +95,6 @@ export default class PhoenixProvider extends Observable<string> {
       this.doc.on("update", this.handleDocUpdate);
       this.awareness.on("update", this.handleAwarenessUpdate);
       this.setupChannelHandlers();
-
-      this.logger.debug("Performing document resync");
       this.resync();
     } catch (err) {
       this.logger.error("Failed to join doc channel", err);
@@ -129,7 +127,7 @@ export default class PhoenixProvider extends Observable<string> {
   setupChannelHandlers() {
     if (!this.channel) return;
 
-    this.channel.on("update", (payload) => {
+    this.channel.on("apply_update", (payload) => {
       payload = new Uint8Array(payload);
       Y.applyUpdate(this.doc, payload, this);
       this.emit("remote_update", []);
@@ -145,23 +143,38 @@ export default class PhoenixProvider extends Observable<string> {
   }
 
   async resync() {
-    this.logger.debug("Resync complete");
-    this.emit("synced", []);
-    // this.logger.log("%cStarting resync", "color: orange");
-    // const stateVector = Y.encodeStateVector(this.doc);
-    // this.channel
-    //   .push("sync_step_1", stateVector.buffer)
-    //   .receive("ok", (serverVector) => {
-    //     this.logger.log("%cReceived response 1", "color: orange");
-    //     const diff = Y.encodeStateAsUpdate(this.doc, serverVector);
-    //     this.channel
-    //       .push("sync_step_2", diff.buffer)
-    //       .receive("ok", (serverDiff) => {
-    //         this.logger.log("%cReceived response 2", "color: orange");
-    //         Y.applyUpdate(this.doc, serverDiff, this);
-    //         this.emit("synced", []);
-    //       });
-    //   });
+    if (!this.channel) return;
+
+    this.logger.info("Starting resync");
+
+    const stateVector = Y.encodeStateVector(this.doc);
+    this.logger.debug(
+      `⬆️ Sending state vector (${stateVector.byteLength} bytes)`,
+    );
+    this.channel!.push("sync_step_1", stateVector.buffer).receive(
+      "ok",
+      (serverVector) => {
+        serverVector = new Uint8Array(serverVector);
+        this.logger.debug(
+          `⬇️ Received server state vector (${serverVector.byteLength} bytes)`,
+        );
+        const diff = Y.encodeStateAsUpdate(this.doc, serverVector);
+        this.logger.debug(`⬆️ Sending state diff (${diff.byteLength} bytes)`);
+        this.channel!.push("sync_step_2", diff.buffer).receive(
+          "ok",
+          (serverDiff) => {
+            serverDiff = new Uint8Array(serverDiff);
+            this.logger.debug(
+              `⬇️ Received server diff (${serverDiff.byteLength} bytes)`,
+            );
+            Y.applyUpdate(this.doc, serverDiff, this);
+
+            this.logger.info("Resync complete");
+            this.emit("synced", []);
+          },
+        );
+      },
+    );
   }
 
   shutdown() {

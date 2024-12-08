@@ -133,11 +133,8 @@ export default class PhoenixProvider extends Observable<string> {
     });
 
     this.channel.on("awareness", (payload) => {
-      awarenessProtocol.applyAwarenessUpdate(
-        this.awareness,
-        payload.buffer,
-        this,
-      );
+      payload = new Uint8Array(payload);
+      awarenessProtocol.applyAwarenessUpdate(this.awareness, payload, this);
     });
   }
 

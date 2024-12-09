@@ -10,9 +10,13 @@ export const init_tracking = async () => {
   let db = await KVStore.open_default();
   let track = await db.get("usage_tracking");
 
-  if (track) {
-    console.log("User opted-in to tracking");
+  // Default to true, opt-out
+  if (track === null) {
+    track = true;
+    await db.set("usage_tracking", true);
+  }
 
+  if (track) {
     Sentry.init({
       dsn: "https://ac8c00adf29c329694a0b105e1981ca3@o4507730431442944.ingest.us.sentry.io/4507741947232256",
     });
@@ -23,7 +27,7 @@ export const init_tracking = async () => {
       autocapture: false,
     });
   } else {
-    console.log("User did not opt-in to tracking");
+    console.log("User opted out of tracking");
   }
 };
 

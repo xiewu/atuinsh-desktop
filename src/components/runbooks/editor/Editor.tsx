@@ -201,11 +201,11 @@ export default function Editor() {
     });
 
     provider.once("synced", () => {
-      // If the loaded YJS dot has no content, and the server has no content,
+      // If the loaded YJS doc has no content, and the server has no content,
       // we should take the old `content` field (if any) and populate the editor
       // so that we trigger a save, creating the YJS document.
       //
-      // This doesn't work if we set the content on the same tick, so defer it
+      // This doesn't work if we set the content on the same tick, so defer it.
       timer = setTimeout(() => {
         timer = undefined;
         let currentContent = editor.document;

@@ -11,12 +11,16 @@ type AwarenessData = { added: number[]; updated: number[]; removed: number[] };
 export default class PhoenixProvider extends Observable<string> {
   private readonly logger: Logger;
   private socket!: Socket;
+  private connected: boolean;
   private readonly runbookId: string;
   private readonly doc: Y.Doc;
   private readonly awareness: awarenessProtocol.Awareness;
-  private channel?: Channel;
+  private channel: Channel | null = null;
   private unregisterSocketChange: () => void;
-  private handlers: string[] = [];
+  private unregisterOnDisconnect: () => void;
+  private unregisterOnConnect: () => void;
+  private socketHandlers: string[] = [];
+  private channelHandlers: any[][] = [];
 
   constructor(runbookId: string, doc: Y.Doc) {
     super();
@@ -27,8 +31,15 @@ export default class PhoenixProvider extends Observable<string> {
     this.unregisterSocketChange = manager.onSocketChange(
       this.handleNewSocket.bind(this),
     );
+    this.unregisterOnConnect = manager.onConnect(
+      this.onSocketConnected.bind(this),
+    );
+    this.unregisterOnDisconnect = manager.onDisconnect(
+      this.onSocketDisconnected.bind(this),
+    );
 
     this.socket = manager.getSocket();
+    this.connected = manager.isConnected();
 
     this.runbookId = runbookId;
     this.doc = doc;
@@ -36,6 +47,8 @@ export default class PhoenixProvider extends Observable<string> {
 
     this.handleDocUpdate = this.handleDocUpdate.bind(this);
     this.handleAwarenessUpdate = this.handleAwarenessUpdate.bind(this);
+    this.doc.on("update", this.handleDocUpdate);
+    this.awareness.on("update", this.handleAwarenessUpdate);
 
     setTimeout(() => this.initSocket());
   }
@@ -48,14 +61,14 @@ export default class PhoenixProvider extends Observable<string> {
   }
 
   initSocket() {
-    this.handlers = [];
+    this.socketHandlers = [];
+    this.channelHandlers = [];
     this.channel = this.socket.channel(`doc:${this.runbookId}`);
+    this.setupChannelHandlers();
 
-    if (this.socket.isConnected()) {
+    if (this.connected) {
       this.onSocketConnected();
     } else {
-      const ref = this.socket.onOpen(this.onSocketConnected.bind(this));
-      this.handlers.push(ref);
       this.logger.debug("Socket disconnected; starting in offline mode");
       this.startOffline();
     }
@@ -82,31 +95,45 @@ export default class PhoenixProvider extends Observable<string> {
   }
 
   shutdownSocket() {
-    this.socket.off(this.handlers);
+    this.socket.off(this.socketHandlers);
+    this.channelHandlers.forEach(([event, ref]) => {
+      this.channel?.off(event, ref);
+    });
+    this.channel = null;
   }
 
   async onSocketConnected() {
-    this.logger.debug("Socket connected");
-    try {
-      await this.joinChannel();
+    this.connected = true;
 
-      // Either this is the first connection, or we're reconnecting. Either way,
-      // we need to resync with the remote document.
-      this.doc.on("update", this.handleDocUpdate);
-      this.awareness.on("update", this.handleAwarenessUpdate);
-      this.setupChannelHandlers();
-      this.resync();
-    } catch (err) {
-      this.logger.error("Failed to join doc channel", err);
-      this.logger.debug("Starting in offline mode");
-      this.startOffline();
+    this.logger.debug("Socket connected");
+    if (this.channel!.state == "closed") {
+      try {
+        await this.joinChannel();
+      } catch (err) {
+        this.logger.error("Failed to join doc channel", err);
+        this.logger.debug("Starting in offline mode");
+        this.startOffline();
+      }
+    }
+
+    // Either this is the first connection, or we're reconnecting. Either way,
+    // we need to resync with the remote document.
+    this.resync();
+  }
+
+  onSocketDisconnected() {
+    if (this.connected) {
+      this.logger.warn("Socket disconnected");
+      this.connected = false;
     }
   }
 
   handleDocUpdate(update: Uint8Array, origin: any) {
     if (origin === this || !this.channel) return;
 
-    this.channel.push("client_update", update.buffer);
+    if (this.connected) {
+      this.channel.push("client_update", update.buffer);
+    }
   }
 
   handleAwarenessUpdate(
@@ -116,26 +143,30 @@ export default class PhoenixProvider extends Observable<string> {
     if (origin === this || !this.channel) return;
 
     const changedClients = added.concat(updated).concat(removed);
-    this.channel.push(
-      "client_awareness",
-      awarenessProtocol.encodeAwarenessUpdate(this.awareness, changedClients)
-        .buffer,
-    );
+    if (this.connected) {
+      this.channel.push(
+        "client_awareness",
+        awarenessProtocol.encodeAwarenessUpdate(this.awareness, changedClients)
+          .buffer,
+      );
+    }
   }
 
   setupChannelHandlers() {
     if (!this.channel) return;
 
-    this.channel.on("apply_update", (payload) => {
+    const updateRef = this.channel.on("apply_update", (payload) => {
       payload = new Uint8Array(payload);
       Y.applyUpdate(this.doc, payload, this);
       this.emit("remote_update", []);
     });
+    this.channelHandlers.push(["apply_update", updateRef]);
 
-    this.channel.on("awareness", (payload) => {
+    const awarenessRef = this.channel.on("awareness", (payload) => {
       payload = new Uint8Array(payload);
       awarenessProtocol.applyAwarenessUpdate(this.awareness, payload, this);
     });
+    this.channelHandlers.push(["awareness", awarenessRef]);
   }
 
   async resync() {
@@ -179,6 +210,8 @@ export default class PhoenixProvider extends Observable<string> {
     this.doc.off("update", this.handleDocUpdate);
     this.awareness.off("update", this.handleAwarenessUpdate);
     this.unregisterSocketChange();
+    this.unregisterOnConnect();
+    this.unregisterOnDisconnect();
     this.shutdownSocket();
     // shut down the event emitter
     this.destroy();

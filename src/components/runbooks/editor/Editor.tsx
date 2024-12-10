@@ -151,6 +151,8 @@ export default function Editor() {
   const refreshRunbooks = useStore(
     (store: AtuinState) => store.refreshRunbooks,
   );
+
+  const user = useStore((store: AtuinState) => store.user);
   let [runbook, setRunbook] = useState<Runbook | null>(null);
   let [editor, setEditor] = useState<BlockNoteEditor | null>(null);
 
@@ -205,8 +207,8 @@ export default function Editor() {
         fragment: runbook.ydoc.getXmlFragment("document-store"),
         user: {
           // todo
-          name: "Me",
-          color: "#ffffff",
+          name: user.username || "Anonymous",
+          color: "#00ffcc",
         },
       },
     });

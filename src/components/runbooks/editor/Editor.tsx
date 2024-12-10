@@ -5,31 +5,18 @@ import "./index.css";
 
 import { Spinner } from "@nextui-org/react";
 
-// Errors, but it all works fine and is there. Maybe missing ts defs?
-// I'll figure it out later
 import {
-  // @ts-ignore
   BlockNoteSchema,
-  // @ts-ignore
   BlockNoteEditor,
-  // @ts-ignore
   defaultBlockSpecs,
-  // @ts-ignore
   filterSuggestionItems,
-  // @ts-ignore
   insertOrUpdateBlock,
 } from "@blocknote/core";
 
 import {
-  //@ts-ignore
   SuggestionMenuController,
-  // @ts-ignore
-  AddBlockButton,
-  // @ts-ignore
   getDefaultReactSlashMenuItems,
-  // @ts-ignore
   SideMenu,
-  // @ts-ignore
   SideMenuController,
   DragHandleMenu,
   RemoveBlockItem,
@@ -228,28 +215,37 @@ export default function Editor() {
 
   // Renders the editor instance.
   return (
-    <div className="overflow-y-scroll editor flex-grow" onClick={(e) => {
-      if ((e.target as Element).matches(".editor *")) return;
+    <div
+      className="overflow-y-scroll editor flex-grow"
+      onClick={(e) => {
+        if ((e.target as Element).matches(".editor *")) return;
 
-      // If the user clicks below the document, focus on the last block
-      // But if the last block is not an empty paragraph, create it :D
-      let blocks = editor.document;
-      let lastBlock = blocks[blocks.length - 1];
-      let id = lastBlock.id;
+        // If the user clicks below the document, focus on the last block
+        // But if the last block is not an empty paragraph, create it :D
+        let blocks = editor.document;
+        let lastBlock = blocks[blocks.length - 1];
+        let id = lastBlock.id;
 
-      if (lastBlock.type !== "paragraph" || lastBlock.content.length > 0) {
-        id = uuidv7();
+        if (lastBlock.type !== "paragraph" || lastBlock.content.length > 0) {
+          id = uuidv7();
 
-        editor.insertBlocks([{
-          id,
-          type: "paragraph",
-          content: "",
-        }], lastBlock.id, "after");
-      }
+          editor.insertBlocks(
+            [
+              {
+                id,
+                type: "paragraph",
+                content: "",
+              },
+            ],
+            lastBlock.id,
+            "after",
+          );
+        }
 
-      editor.focus();
-      editor.setTextCursorPosition(id, "start");
-    }}>
+        editor.focus();
+        editor.setTextCursorPosition(id, "start");
+      }}
+    >
       <BlockNoteView
         editor={editor}
         slashMenu={false}
@@ -280,11 +276,16 @@ export default function Editor() {
 
         <SideMenuController
           sideMenu={(props: any) => (
-            <SideMenu {...props} style={{ zIndex: 0 }} dragHandleMenu={(props) => <DragHandleMenu {...props}>
-              <RemoveBlockItem {...props}>Delete</RemoveBlockItem>
-              <DuplicateBlockItem {...props} />
-            </DragHandleMenu>}>
-            </SideMenu>
+            <SideMenu
+              {...props}
+              style={{ zIndex: 0 }}
+              dragHandleMenu={(props) => (
+                <DragHandleMenu {...props}>
+                  <RemoveBlockItem {...props}>Delete</RemoveBlockItem>
+                  <DuplicateBlockItem {...props} />
+                </DragHandleMenu>
+              )}
+            ></SideMenu>
           )}
         />
       </BlockNoteView>

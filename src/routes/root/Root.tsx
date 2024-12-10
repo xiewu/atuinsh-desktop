@@ -36,12 +36,14 @@ import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 
 import handleDeepLink from "./deep";
 import DesktopConnect from "@/components/DesktopConnect/DesktopConnect";
+import DirectoryExportModal from "@/components/ExportWorkspace/ExportWorkspace";
 
 function App() {
   const cleanupImportListener = useRef<UnlistenFn | null>(null);
 
   const importRunbook = useStore((state: AtuinState) => state.importRunbook);
   const newRunbook = useStore((state: AtuinState) => state.newRunbook);
+  const newWorkspace = useStore((state: AtuinState) => state.newWorkspace);
   const setCurrentRunbook = useStore(
     (state: AtuinState) => state.setCurrentRunbook,
   );
@@ -124,7 +126,8 @@ function App() {
   });
 
   useTauriEvent("new-workspace", async () => {
-    navigate(`/runbooks`, { state: { createNew: true } });
+    await newWorkspace("Untitled Workspace");
+    navigate(`/runbooks`);
   });
 
   useEffect(() => {
@@ -298,6 +301,9 @@ function App() {
         <Settings onOpenChange={onSettingsOpenChange} isOpen={isSettingsOpen} />
 
         {showDesktopConnect && <DesktopConnect />}
+
+        <Settings onOpenChange={onSettingsOpenChange} isOpen={isSettingsOpen} />
+        <DirectoryExportModal />
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Input, Tabs, Tab, Textarea } from "@nextui-org/react";
+import { Input, Tabs, Tab } from "@nextui-org/react";
 import { GlobeIcon } from "lucide-react";
 import { fetch } from "@tauri-apps/plugin-http";
 import CodeMirror from "@uiw/react-codemirror";

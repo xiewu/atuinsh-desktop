@@ -1,8 +1,8 @@
-import { save } from "@tauri-apps/plugin-dialog";
 import Database from "@tauri-apps/plugin-sql";
 import { writeTextFile, readTextFile } from "@tauri-apps/plugin-fs";
 import { uuidv7 } from "uuidv7";
 import Workspace from "./workspace";
+import { invoke } from "@tauri-apps/api/core";
 
 // Definition of an atrb file
 // This is JSON encoded for ease of access, and may change in the future
@@ -85,12 +85,7 @@ export default class Runbook {
     return res[0]["count"];
   }
 
-  public async export() {
-    let filePath = await save({
-      defaultPath: this.name + ".atrb",
-    });
-
-    if (!filePath) return;
+  public async export(filePath: string) {
     let exportFile: RunbookFile = {
       version: 0,
       id: this.id,
@@ -102,7 +97,112 @@ export default class Runbook {
     await writeTextFile(filePath, JSON.stringify(exportFile));
   }
 
-  public static async importJSON(obj: RunbookFile, workspace?: Workspace): Promise<Runbook> {
+  public async exportMarkdown(filePath: string) {
+    let content = JSON.parse(this.content);
+
+    // We're using some older type names that need mapping before they are exposed
+    const blockMap = {
+      run: "@core/terminal",
+      clickhouse: "@core/clickhouse",
+      http: "@core/http",
+      editor: "@core/editor",
+      postgres: "@core/postgres",
+      prometheus: "@core/prometheus",
+      sqlite: "@core/sqlite",
+      env: "@core/env",
+      directory: "@core/directory",
+    };
+
+    // The props that should be exposed in the exported markdown
+    const publicProps = {
+      "@core/terminal": [],
+      "@core/clickhouse": ["uri", "autoRefresh"],
+      "@core/postgres": ["uri", "autoRefresh"],
+      "@core/sqlite": ["uri", "autoRefresh"],
+      "@core/prometheus": ["autoRefresh"],
+      "@core/editor": ["language"],
+      "@core/http": ["url", "verb", "headers"],
+    };
+
+    // Props that should be parsed from a string -> object before passing through
+    const parseProps = {
+      "@core/http": ["headers"],
+    };
+
+    // We have the concept of a "body" in our markdown. While blocknote uses props for most useful
+    // data storage, we have a magic "body" prop that is set as the main body for a markdown code
+    // block.
+    // Detail which prop should be used for the body of the block in markdown
+    const bodyMap: { [K in `@core/${string}`]: (props: any) => string } = {
+      "@core/terminal": (props) => props.code,
+      "@core/prometheus": (props) => props.query,
+      "@core/sqlite": (props) => props.query,
+      "@core/postgres": (props) => props.query,
+      "@core/clickhouse": (props) => props.query,
+      "@core/editor": (props) => props.code,
+      "@core/directory": (props) => {
+        return "cd " + props.path;
+      },
+      "@core/env": (props) => {
+        return `${props.name}=${props.value}`;
+      },
+    };
+
+    const processBlock = (block: any) => {
+      if (block.type in blockMap) {
+        // @ts-ignore
+        block.type = blockMap[block.type];
+      }
+
+      if (block.type in bodyMap) {
+        block.props.body = bodyMap[block.type](block.props);
+      }
+
+      // delete any props not in the public props list, for @ blocks
+      if (block.type.startsWith("@")) {
+        for (let prop in block.props) {
+          // @ts-ignore
+          if (!publicProps[block.type]?.includes(prop) && prop !== "body") {
+            delete block.props[prop];
+          }
+        }
+      }
+
+      // parse any props from a JSON string to an object
+      // blocknote only supports primitive types, but we want our backend to see things properly
+      if (block.type in parseProps) {
+        // @ts-ignore
+        for (let prop of parseProps[block.type]) {
+          if (!block.props[prop]) continue;
+          block.props[prop] = JSON.parse(block.props[prop]);
+        }
+      }
+
+      if (block.content) {
+        // If the block content is an object rather than a list, rewrite it to be a list with one element
+        if (!Array.isArray(block.content)) {
+          block.content = [block.content];
+        }
+
+        let newContent = block.content.map(processBlock);
+        block.content = newContent;
+      }
+
+      return block;
+    };
+
+    let blocks = content.map(processBlock);
+
+    await invoke<string>("export_atmd", {
+      json: JSON.stringify(blocks),
+      path: filePath,
+    });
+  }
+
+  public static async importJSON(
+    obj: RunbookFile,
+    workspace?: Workspace,
+  ): Promise<Runbook> {
     if (workspace === undefined || workspace === null) {
       workspace = await Workspace.current();
     }
@@ -145,7 +245,7 @@ export default class Runbook {
       rb.content,
       new Date(rb.created / 1000000),
       new Date(rb.updated / 1000000),
-      rb.workspace_id
+      rb.workspace_id,
     );
   }
 
@@ -168,7 +268,7 @@ export default class Runbook {
 
     let res = await db.select<any[]>(
       "select * from runbooks where workspace_id = $1 or workspace_id is null order by updated desc",
-      [workspace.id]
+      [workspace.id],
     );
 
     let runbooks = res.map(Runbook.fromRow);
@@ -177,7 +277,7 @@ export default class Runbook {
 
     // Handle migrations
     for (let rb of runbooks) {
-      // Workspaces didn't exist to start with, 
+      // Workspaces didn't exist to start with,
       // so for some users could be null
       if (rb.workspaceId === null || rb.workspaceId === undefined) {
         rb.workspaceId = currentWorkspace.id;

@@ -254,6 +254,12 @@ dependencies:
   vaul:
     specifier: ^0.9.9
     version: 0.9.9(@types/react-dom@18.3.1)(@types/react@18.3.11)(react-dom@18.3.1)(react@18.3.1)
+  y-indexeddb:
+    specifier: ^9.0.12
+    version: 9.0.12(yjs@13.6.20)
+  yjs:
+    specifier: ^13.6.20
+    version: 13.6.20
   zustand:
     specifier: ^4.5.5
     version: 4.5.5(@types/react@18.3.11)(react@18.3.1)
@@ -9458,6 +9464,16 @@ packages:
       ansi-styles: 6.2.1
       string-width: 5.1.2
       strip-ansi: 7.1.0
+
+  /y-indexeddb@9.0.12(yjs@13.6.20):
+    resolution: {integrity: sha512-9oCFRSPPzBK7/w5vOkJBaVCQZKHXB/v6SIT+WYhnJxlEC61juqG0hBrAf+y3gmSMLFLwICNH9nQ53uscuse6Hg==}
+    engines: {node: '>=16.0.0', npm: '>=8.0.0'}
+    peerDependencies:
+      yjs: ^13.0.0
+    dependencies:
+      lib0: 0.2.98
+      yjs: 13.6.20
+    dev: false
 
   /y-prosemirror@1.2.12(prosemirror-model@1.23.0)(prosemirror-state@1.4.3)(prosemirror-view@1.34.3)(y-protocols@1.0.6)(yjs@13.6.20):
     resolution: {integrity: sha512-UMnUIR5ppVn30n2kzeeBQEaesWGe4fsbnlch1HnNa3/snJMoOn7M7dieuS+o1OQwKs1dqx2eT3gFfGF2aOaQdw==}

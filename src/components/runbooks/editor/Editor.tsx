@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import track_event from "@/tracking";
+import { randomColor } from "@/lib/colors";
 import Logger from "@/lib/logger";
 const logger = new Logger("Editor", "orange", "orange");
 
@@ -193,9 +194,8 @@ export default function Editor() {
         provider: provider,
         fragment: runbook.ydoc.getXmlFragment("document-store"),
         user: {
-          // todo
           name: user.username || "Anonymous",
-          color: "#00ffcc",
+          color: randomColor(),
         },
       },
     });
@@ -233,6 +233,15 @@ export default function Editor() {
       setEditor(null);
     };
   }, [runbook]);
+
+  useEffect(() => {
+    if (editor) {
+      const extension: any = editor.extensions.collaborationCursor;
+      if (extension) {
+        extension.options.user.name = user.username || "Anonymous";
+      }
+    }
+  }, [editor, user]);
 
   const fetchName = (): string => {
     // Infer the title from the first text block

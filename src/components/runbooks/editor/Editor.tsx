@@ -285,7 +285,7 @@ export default function Editor() {
   // Renders the editor instance.
   return (
     <div
-      className="overflow-y-scroll editor flex-grow"
+      className="overflow-y-scroll editor flex-grow pt-3"
       onClick={(e) => {
         if ((e.target as Element).matches(".editor *")) return;
 

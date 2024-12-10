@@ -7,7 +7,14 @@ import {
   DropdownItem,
   DropdownSection,
 } from "@nextui-org/react";
-import { ChevronRightIcon, Import, MoreVertical, Plus, SearchIcon, Terminal } from "lucide-react";
+import {
+  ChevronRightIcon,
+  Import,
+  MoreVertical,
+  Plus,
+  SearchIcon,
+  Terminal,
+} from "lucide-react";
 import { DateTime } from "luxon";
 import Runbook from "@/state/runbooks/runbook";
 import { AtuinState, useStore } from "@/state/store";
@@ -17,7 +24,8 @@ import { invoke } from "@tauri-apps/api/core";
 import welcome from "./welcome.json";
 import track_event from "@/tracking";
 import { cn } from "@/lib/utils";
-import MoveRunbookDropdown from "./MoveRunbookDropdown";
+import MoveToRunbookDropdown from "./MoveToRunbookDropdown";
+import ExportAsRunbookDropdown from "./ExportAsRunbookDropdown";
 
 const NoteSidebar = () => {
   const runbooks = useStore((state: AtuinState) => state.runbooks);
@@ -40,6 +48,7 @@ const NoteSidebar = () => {
   );
 
   const [isMoveToOpen, setMoveToOpen] = useState(false);
+  const [isExportAsOpen, setExportAsOpen] = useState(false);
 
   useEffect(() => {
     refreshRunbooks();
@@ -56,7 +65,6 @@ const NoteSidebar = () => {
         setCurrentRunbook(runbook.id);
       }
     })();
-
   }, []);
 
   const handleNewRunbook = async () => {
@@ -77,7 +85,6 @@ const NoteSidebar = () => {
 
     setCurrentRunbook(runbooks[0].id);
   };
-
 
   const handleOpenSearch = async () => {
     if (!isSearchOpen) setSearchOpen(true);
@@ -142,7 +149,11 @@ const NoteSidebar = () => {
               className={`cursor-pointer p-2 border-b border-gray-200 hover:bg-gray-100 ${isActive ? "bg-gray-200" : ""} relative`}
             >
               <div className="flex justify-between items-start">
-                <div className={cn("flex-grow mr-2", { "!max-w-[10.5rem]": count > 0 })}>
+                <div
+                  className={cn("flex-grow mr-2", {
+                    "!max-w-[10.5rem]": count > 0,
+                  })}
+                >
                   <h3 className="font-medium text-sm truncate text-ellipsis">
                     {runbook.name || "Untitled"}
                   </h3>
@@ -173,24 +184,36 @@ const NoteSidebar = () => {
                       <DropdownSection showDivider title="Actions">
                         <DropdownItem
                           key="export"
-                          onPress={() =>
-                            Runbook.load(runbook.id).then((rb) => rb?.export())
-                          }
+                          onPointerEnter={() => {
+                            setExportAsOpen(true);
+                            setMoveToOpen(false);
+                          }}
+                          onPointerLeave={() => setExportAsOpen(false)}
+                          endContent={<ChevronRightIcon size={16} />}
                         >
-                          Export
+                          <ExportAsRunbookDropdown
+                            runbook={runbook}
+                            isOpen={isExportAsOpen}
+                            onClose={() => setExportAsOpen(false)}
+                          />
                         </DropdownItem>
 
                         <DropdownItem
                           key="move"
-                          onMouseEnter={() => setMoveToOpen(true)}
-                          onMouseLeave={() => setMoveToOpen(false)}
+                          onPointerEnter={() => {
+                            setMoveToOpen(true);
+                            setExportAsOpen(false);
+                          }}
+                          onPointerLeave={() => setMoveToOpen(false)}
                           endContent={<ChevronRightIcon size={16} />}
                         >
-                          <MoveRunbookDropdown runbook={runbook} isOpen={isMoveToOpen} onClose={() => setMoveToOpen(false)} />
+                          <MoveToRunbookDropdown
+                            runbook={runbook}
+                            isOpen={isMoveToOpen}
+                            onClose={() => setMoveToOpen(false)}
+                          />
                         </DropdownItem>
                       </DropdownSection>
-
-
 
                       <DropdownSection title="Danger">
                         <DropdownItem

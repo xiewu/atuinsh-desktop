@@ -7,31 +7,18 @@ import "./index.css";
 
 import { Spinner } from "@nextui-org/react";
 
-// Errors, but it all works fine and is there. Maybe missing ts defs?
-// I'll figure it out later
 import {
-  // @ts-ignore
   BlockNoteSchema,
-  // @ts-ignore
   BlockNoteEditor,
-  // @ts-ignore
   defaultBlockSpecs,
-  // @ts-ignore
   filterSuggestionItems,
-  // @ts-ignore
   insertOrUpdateBlock,
 } from "@blocknote/core";
 
 import {
-  //@ts-ignore
   SuggestionMenuController,
-  // @ts-ignore
-  AddBlockButton,
-  // @ts-ignore
   getDefaultReactSlashMenuItems,
-  // @ts-ignore
   SideMenu,
-  // @ts-ignore
   SideMenuController,
   DragHandleMenu,
   RemoveBlockItem,

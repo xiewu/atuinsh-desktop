@@ -106,6 +106,9 @@ pub(crate) fn to_json(v: PgValueRef) -> Result<JsonValue> {
         "INTERVAL" => {
             if let Ok(v) = ValueRef::to_owned(&v).try_decode::<PgInterval>() {
                 // TODO: Figure out how many seconds are in a month? wtf postgres?
+                // Ok note to future me, but it looks like postgres just assumes a month has 30
+                // days? bruh?
+                // https://github.com/postgres/postgres/blob/9ca67658d19e6c258eb4021a326ed7d38b3ab75f/src/include/datatype/timestamp.h#L116
                 let _months = v.months;
 
                 let days_as_secs = i64::from(v.days)

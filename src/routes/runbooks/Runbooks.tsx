@@ -1,8 +1,12 @@
 import Editor from "@/components/runbooks/editor/Editor";
 import List from "@/components/runbooks/List/List";
+import Topbar from "@/components/runbooks/TopBar/TopBar";
+import { useTauriEvent } from "@/lib/tauri";
 import { usePtyStore } from "@/state/ptyStore";
+import Runbook from "@/state/runbooks/runbook";
 
 import { useStore } from "@/state/store";
+import { save } from "@tauri-apps/plugin-dialog";
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
@@ -15,6 +19,34 @@ export default function Runbooks() {
 
   const listenPtyBackend = usePtyStore((state) => state.listenBackend);
   const unlistenPtyBackend = usePtyStore((state) => state.unlistenBackend);
+
+  useTauriEvent("export-runbook", async () => {
+    if (!currentRunbook) return;
+
+    let runbook = await Runbook.load(currentRunbook);
+
+    let filePath = await save({
+      defaultPath: runbook?.name + ".atrb",
+    });
+
+    if (!filePath) return;
+
+    runbook?.export(filePath);
+  });
+
+  useTauriEvent("export-markdown", async () => {
+    if (!currentRunbook) return;
+
+    let runbook = await Runbook.load(currentRunbook);
+
+    let filePath = await save({
+      defaultPath: runbook?.name + ".atmd",
+    });
+
+    if (!filePath) return;
+
+    runbook?.exportMarkdown(filePath);
+  });
 
   useEffect(() => {
     (async () => {
@@ -37,7 +69,8 @@ export default function Runbooks() {
     <div className="flex !w-full !max-w-full flex-row overflow-hidden">
       <List />
       {currentRunbook && (
-        <div className="flex w-full max-w-full overflow-hidden">
+        <div className="flex w-full max-w-full overflow-hidden flex-col">
+          <Topbar />
           <Editor />
         </div>
       )}

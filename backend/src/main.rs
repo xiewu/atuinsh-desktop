@@ -9,6 +9,7 @@ use time::format_description::well_known::Rfc3339;
 mod blocks;
 mod db;
 mod dotfiles;
+mod file;
 mod install;
 mod menu;
 mod pty;
@@ -327,8 +328,10 @@ fn main() {
             secret::save_password,
             secret::load_password,
             templates::template_str,
-            runbooks::save_ydoc_for_runbook,
-            runbooks::load_ydoc_for_runbook
+            runbooks::ydoc::save_ydoc_for_runbook,
+            runbooks::ydoc::load_ydoc_for_runbook,
+            runbooks::runbook::export_atmd,
+            file::find_files,
         ])
         .plugin(
             tauri_plugin_sql::Builder::default()

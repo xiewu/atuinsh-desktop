@@ -80,11 +80,14 @@ export default class PhoenixProvider extends Observable<string> {
     }
 
     return new Promise((resolve, reject) => {
-      this.channel!.join()
+      this.channel!.join(10_000)
         .receive("ok", (resp: any) => {
           resolve(resp);
         })
         .receive("error", (resp: any) => {
+          // Phoenix will constantly attempt reconnection
+          // unless we manually leave the channel.
+          this.channel!.leave();
           reject(resp);
         });
     });
@@ -109,16 +112,16 @@ export default class PhoenixProvider extends Observable<string> {
     if (this.channel!.state == "closed") {
       try {
         await this.joinChannel();
+
+        // Either this is the first connection, or we're reconnecting. Either way,
+        // we need to resync with the remote document.
+        this.resync();
       } catch (err) {
         this.logger.error("Failed to join doc channel", err);
         this.logger.debug("Starting in offline mode");
         this.startOffline();
       }
     }
-
-    // Either this is the first connection, or we're reconnecting. Either way,
-    // we need to resync with the remote document.
-    this.resync();
   }
 
   onSocketDisconnected() {
@@ -206,16 +209,17 @@ export default class PhoenixProvider extends Observable<string> {
 
   shutdown() {
     this.logger.debug("Shutting down");
+    // disconnect from the server
+    this.channel && this.channel.leave();
+    this.shutdownSocket();
     // disconnect from the ydoc
     this.doc.off("update", this.handleDocUpdate);
     this.awareness.off("update", this.handleAwarenessUpdate);
+    // unregister handlers
     this.unregisterSocketChange();
     this.unregisterOnConnect();
     this.unregisterOnDisconnect();
-    this.shutdownSocket();
     // shut down the event emitter
     this.destroy();
-    // disconnect from the server
-    this.channel && this.channel.leave();
   }
 }

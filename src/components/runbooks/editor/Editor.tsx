@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import track_event from "@/tracking";
 import { randomColor } from "@/lib/colors";
 import Logger from "@/lib/logger";
@@ -156,7 +156,30 @@ export default function Editor() {
     fetchRunbook();
   }, [runbookId]);
 
-  const onChange = async () => {
+  const fetchName = useCallback((): string => {
+    // Infer the title from the first text block
+    if (!editor) return "Untitled";
+
+    let blocks = editor.document;
+    for (const block of blocks) {
+      if (block.type == "heading" || block.type == "paragraph") {
+        if (block.content.length == 0) continue;
+        // @ts-ignore
+        if (block.content[0].text.length == 0) continue;
+
+        let name = block.content
+          .filter((i) => i.type === "text")
+          .map((i) => i.text);
+
+        // @ts-ignore
+        return name.join(" ");
+      }
+    }
+
+    return "Untitled";
+  }, [editor]);
+
+  const onChange = useCallback(async () => {
     if (!runbook) return;
 
     track_event("runbooks.save", {
@@ -168,7 +191,7 @@ export default function Editor() {
 
     await runbook.save();
     refreshRunbooks();
-  };
+  }, [runbook, editor, fetchName]);
 
   const debouncedOnChange = useDebounceCallback(onChange, 1000);
 
@@ -232,7 +255,7 @@ export default function Editor() {
       if (timer) clearTimeout(timer);
       setEditor(null);
     };
-  }, [runbook]);
+  }, [runbook, debouncedOnChange]);
 
   useEffect(() => {
     if (editor) {
@@ -242,29 +265,6 @@ export default function Editor() {
       }
     }
   }, [editor, user]);
-
-  const fetchName = (): string => {
-    // Infer the title from the first text block
-    if (!editor) return "Untitled";
-
-    let blocks = editor.document;
-    for (const block of blocks) {
-      if (block.type == "heading" || block.type == "paragraph") {
-        if (block.content.length == 0) continue;
-        // @ts-ignore
-        if (block.content[0].text.length == 0) continue;
-
-        let name = block.content
-          .filter((i) => i.type === "text")
-          .map((i) => i.text);
-
-        // @ts-ignore
-        return name.join(" ");
-      }
-    }
-
-    return "Untitled";
-  };
 
   if (!runbook) {
     return (

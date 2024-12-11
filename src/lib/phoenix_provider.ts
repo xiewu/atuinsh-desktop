@@ -80,7 +80,6 @@ export default class PhoenixProvider extends Observable<string> {
     }
 
     return new Promise((resolve, reject) => {
-      this.logger.debug("Joining doc channel");
       this.channel!.join(10_000)
         .receive("ok", (resp: any) => {
           resolve(resp);

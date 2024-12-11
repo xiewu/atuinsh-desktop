@@ -15,6 +15,7 @@ export default class CollaborationManager {
   private store: Store;
   private connected: boolean;
   private handlers: Function[] = [];
+  // @ts-ignore
   private currentRunbook: string | null = null;
   private runbooks: Runbook[] = [];
 
@@ -75,7 +76,7 @@ export default class CollaborationManager {
 
   private handleRunbookChange(
     runbook: string | null,
-    previousRunbook: string | null,
+    _previousRunbook: string | null,
   ) {
     this.currentRunbook = runbook;
   }

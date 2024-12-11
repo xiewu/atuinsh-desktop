@@ -156,7 +156,7 @@ export default function Editor() {
     fetchRunbook();
   }, [runbookId]);
 
-  const fetchName = useCallback((): string => {
+  const fetchName = (editor: BlockNoteEditor): string => {
     // Infer the title from the first text block
     if (!editor) return "Untitled";
 
@@ -177,21 +177,21 @@ export default function Editor() {
     }
 
     return "Untitled";
-  }, [editor]);
+  };
 
-  const onChange = useCallback(async () => {
+  const onChange = async (editor: BlockNoteEditor) => {
     if (!runbook) return;
 
     track_event("runbooks.save", {
       total: await Runbook.count(),
     });
 
-    runbook.name = fetchName();
+    runbook.name = fetchName(editor as BlockNoteEditor);
     if (editor) runbook.content = JSON.stringify(editor.document);
 
     await runbook.save();
     refreshRunbooks();
-  }, [runbook, editor, fetchName]);
+  };
 
   const debouncedOnChange = useDebounceCallback(onChange, 1000);
 
@@ -244,7 +244,7 @@ export default function Editor() {
       (window as any).editor = editor;
 
       provider.on("remote_update", () => {
-        debouncedOnChange();
+        debouncedOnChange(editor as any);
       });
       // provider.start();
     });
@@ -255,7 +255,7 @@ export default function Editor() {
       if (timer) clearTimeout(timer);
       setEditor(null);
     };
-  }, [runbook, debouncedOnChange]);
+  }, [runbook]);
 
   useEffect(() => {
     if (editor) {

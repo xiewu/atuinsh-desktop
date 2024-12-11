@@ -75,7 +75,6 @@ const RunBlock = ({
   onStop,
   editor,
 }: RunBlockProps) => {
-  const [value, setValue] = useState<string>(code);
   const cleanupPtyTerm = useStore((store: AtuinState) => store.cleanupPtyTerm);
   const terminals = useStore((store: AtuinState) => store.terminals);
 
@@ -92,11 +91,9 @@ const RunBlock = ({
   // we write to it.
   const [firstOpen, setFirstOpen] = useState<boolean>(false);
 
-  const [currentRunbook] = useStore(
-    (store: AtuinState) => [
-      store.currentRunbook,
-    ],
-  );
+  const [currentRunbook] = useStore((store: AtuinState) => [
+    store.currentRunbook,
+  ]);
 
   const pty = usePtyStore((store) => store.ptyForBlock(id));
 
@@ -149,7 +146,7 @@ const RunBlock = ({
 
   const handlePlay = async (force: boolean = false) => {
     if (isRunning && !force) return;
-    if (!value) return;
+    if (!code) return;
 
     let pty = await openPty();
     setFirstOpen(true);
@@ -157,7 +154,6 @@ const RunBlock = ({
     if (onRun) onRun(pty);
 
     track_event("runbooks.script.run", {});
-
   };
 
   const handleRefresh = async () => {
@@ -168,7 +164,7 @@ const RunBlock = ({
 
     let isWindows = platform() == "windows";
     let cmdEnd = isWindows ? "\r\n" : "\n";
-    let val = !value.endsWith("\n") ? value + cmdEnd : value;
+    let val = !code.endsWith("\n") ? code + cmdEnd : code;
 
     terminalData.terminal.clear();
     terminalData.write(val, editor.document);
@@ -192,56 +188,60 @@ const RunBlock = ({
   ]);
 
   return (
-    <Block title="Terminal" inlineHeader header={
-      <>
-        <div className="flex flex-row justify-between w-full">
-          <h1 className="text-default-700 font-semibold">Terminal</h1>
-          {commandRunning && <Spinner size="sm" />}
-          {commandDuration && (
-            <Chip
-              variant="flat"
-              size="sm"
-              className="pl-3 py-2"
-              startContent={<Clock size={14} />}
-              color={exitCode == 0 ? "success" : "danger"}
-            >
-              {formatDuration(commandDuration)}
-            </Chip>
-          )}
-        </div>
+    <Block
+      title="Terminal"
+      inlineHeader
+      header={
+        <>
+          <div className="flex flex-row justify-between w-full">
+            <h1 className="text-default-700 font-semibold">Terminal</h1>
+            {commandRunning && <Spinner size="sm" />}
+            {commandDuration && (
+              <Chip
+                variant="flat"
+                size="sm"
+                className="pl-3 py-2"
+                startContent={<Clock size={14} />}
+                color={exitCode == 0 ? "success" : "danger"}
+              >
+                {formatDuration(commandDuration)}
+              </Chip>
+            )}
+          </div>
 
-        <div className="flex flex-row gap-2 flex-grow w-full">
-          <PlayButton
-            isRunning={isRunning}
-            cancellable={true}
-            onPlay={handlePlay}
-            onStop={handleStop}
-            onRefresh={handleRefresh}
-          />
-          <CodeMirror
-            id={id}
-            placeholder={"Write your script here..."}
-            className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
-            value={code}
-            editable={isEditable}
-            onChange={(val) => {
-              setValue(val);
-              onChange(val);
-            }}
-            extensions={[customKeymap, ...extensions(), langs.shell()]}
-            basicSetup={false}
-          />
-        </div>
-      </>
-    }>
+          <div className="flex flex-row gap-2 flex-grow w-full">
+            <PlayButton
+              isRunning={isRunning}
+              cancellable={true}
+              onPlay={handlePlay}
+              onStop={handleStop}
+              onRefresh={handleRefresh}
+            />
+            <CodeMirror
+              id={id}
+              placeholder={"Write your script here..."}
+              className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
+              value={code}
+              editable={isEditable}
+              onChange={(val) => {
+                onChange(val);
+              }}
+              extensions={[customKeymap, ...extensions(), langs.shell()]}
+              basicSetup={false}
+            />
+          </div>
+        </>
+      }
+    >
       {pty && (
         <div
-          className={`overflow-hidden transition-all duration-300 ease-in-out min-w-0 ${isRunning ? "block" : "hidden"
-            }`}
+          className={`overflow-hidden transition-all duration-300 ease-in-out min-w-0 ${
+            isRunning ? "block" : "hidden"
+          }`}
         >
           <Terminal
             pty={pty.pid}
-            script={value}
+            script={code}
             runScript={firstOpen}
             setCommandRunning={setCommandRunning}
             setExitCode={setExitCode}

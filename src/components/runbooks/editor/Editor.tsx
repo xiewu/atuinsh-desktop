@@ -319,7 +319,7 @@ export default function Editor() {
         editor={editor}
         slashMenu={false}
         sideMenu={false}
-        onChange={debouncedOnChange}
+        onChange={() => debouncedOnChange(editor)}
         theme="light"
       >
         <SuggestionMenuController

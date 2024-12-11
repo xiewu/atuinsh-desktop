@@ -24,7 +24,7 @@ const handleDeepLink = (navigate: any, url: string): void | null => {
         );
         let json = await resp.json();
 
-        if (json.runbook.content.data)
+        if (json.runbook?.content?.data)
           json.runbook.content = json.runbook.content.data;
         let runbook = await Runbook.importJSON(json.runbook as RunbookFile);
 

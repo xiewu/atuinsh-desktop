@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import track_event from "@/tracking";
 import { randomColor } from "@/lib/colors";
 import Logger from "@/lib/logger";

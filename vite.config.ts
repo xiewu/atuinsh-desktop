@@ -10,10 +10,11 @@ export default defineConfig(async () => ({
   //
   // 1. prevent vite from obscuring rust errors
   clearScreen: false,
-  // 2. tauri expects a fixed port, fail if that port is not available
+  // 2. set port to 1420 but fail over to 1421 if it's in use to support running
+  // a second instance with `--config" "backend/tauri-second-instance.conf.json`
   server: {
     port: 1420,
-    strictPort: true,
+    strictPort: false,
     watch: {
       // 3. tell vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],

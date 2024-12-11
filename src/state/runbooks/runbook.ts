@@ -1,8 +1,11 @@
+import { invoke } from "@tauri-apps/api/core";
 import Database from "@tauri-apps/plugin-sql";
 import { writeTextFile, readTextFile } from "@tauri-apps/plugin-fs";
+import * as Y from "yjs";
 import { uuidv7 } from "uuidv7";
 import Workspace from "./workspace";
-import { invoke } from "@tauri-apps/api/core";
+import Logger from "@/lib/logger";
+const logger = new Logger("Runbook", "green", "green");
 
 // Definition of an atrb file
 // This is JSON encoded for ease of access, and may change in the future
@@ -27,6 +30,7 @@ export default class Runbook {
 
   private _name: string;
   private _content: string;
+  private _ydoc: Y.Doc;
 
   set name(value: string) {
     this.updated = new Date();
@@ -36,6 +40,10 @@ export default class Runbook {
   set content(value: string) {
     this.updated = new Date();
     this._content = value;
+  }
+
+  get ydoc() {
+    return this._ydoc;
   }
 
   get content() {
@@ -50,6 +58,7 @@ export default class Runbook {
     id: string,
     name: string,
     content: string,
+    ydoc: Y.Doc,
     created: Date,
     updated: Date,
     workspaceId: string,
@@ -57,6 +66,7 @@ export default class Runbook {
     this.id = id;
     this._name = name;
     this._content = content;
+    this._ydoc = ydoc;
     this.created = created;
     this.updated = updated;
 
@@ -72,7 +82,15 @@ export default class Runbook {
     }
 
     // Initialize with the same value for created/updated, to avoid needing null.
-    let runbook = new Runbook(uuidv7(), "", "", now, now, workspace.id);
+    let runbook = new Runbook(
+      uuidv7(),
+      "",
+      "",
+      new Y.Doc(),
+      now,
+      now,
+      workspace.id,
+    );
     await runbook.save();
 
     return runbook;
@@ -211,6 +229,7 @@ export default class Runbook {
       obj.id,
       obj.name,
       obj.content,
+      new Y.Doc(),
       new Date(obj.created),
       new Date(),
       workspace.id,
@@ -231,29 +250,45 @@ export default class Runbook {
   public static async load(id: String): Promise<Runbook | null> {
     const db = await Database.load("sqlite:runbooks.db");
 
-    let res = await db.select<any[]>("select * from runbooks where id = $1", [
-      id,
-    ]);
+    let res = await logger.time(`Selecting runbook with ID ${id}`, async () =>
+      db.select<any[]>(
+        "select id, name, content, created, updated, workspace_id from runbooks where id = $1",
+        [id],
+      ),
+    );
 
     if (res.length == 0) return null;
 
     let rb = res[0];
 
-    return new Runbook(
-      rb.id,
-      rb.name,
-      rb.content,
-      new Date(rb.created / 1000000),
-      new Date(rb.updated / 1000000),
-      rb.workspace_id,
-    );
+    const doc: ArrayBuffer = await Runbook.loadYDocForRunbook(rb.id);
+    rb.ydoc = doc;
+
+    return Runbook.fromRow(rb);
   }
 
   static fromRow(row: any): Runbook {
+    let doc = new Y.Doc();
+
+    if (row.ydoc) {
+      let update;
+      // For a short period of time, the `Y.Doc` might have been stored as a string.
+      if (typeof row.ydoc == "string") {
+        update = Uint8Array.from(JSON.parse(row.ydoc));
+      } else if (row.ydoc.byteLength > 0) {
+        update = new Uint8Array(row.ydoc);
+      }
+
+      if (update) {
+        Y.applyUpdate(doc, update);
+      }
+    }
+
     return new Runbook(
       row.id,
       row.name,
-      row.content,
+      row.content || "[]",
+      doc,
       new Date(row.created / 1000000),
       new Date(row.updated / 1000000),
       row.workspace_id,
@@ -266,12 +301,14 @@ export default class Runbook {
   static async all(workspace: Workspace): Promise<Runbook[]> {
     const db = await Database.load("sqlite:runbooks.db");
 
-    let res = await db.select<any[]>(
-      "select * from runbooks where workspace_id = $1 or workspace_id is null order by updated desc",
-      [workspace.id],
-    );
+    let runbooks = await logger.time("Selecting all runbooks", async () => {
+      let res = await db.select<any[]>(
+        "select id, name, created, updated, workspace_id from runbooks where workspace_id = $1 or workspace_id is null order by updated desc",
+        [workspace.id],
+      );
 
-    let runbooks = res.map(Runbook.fromRow);
+      return res.map(Runbook.fromRow);
+    });
 
     let currentWorkspace = await Workspace.current();
 
@@ -292,8 +329,9 @@ export default class Runbook {
   public async save() {
     const db = await Database.load("sqlite:runbooks.db");
 
-    await db.execute(
-      `insert into runbooks(id, name, content, created, updated, workspace_id)
+    logger.time(`Saving runbook ${this.id}`, async () => {
+      await db.execute(
+        `insert into runbooks(id, name, content, created, updated, workspace_id)
           values ($1, $2, $3, $4, $5, $6)
 
           on conflict(id) do update
@@ -303,18 +341,47 @@ export default class Runbook {
               updated=$5,
               workspace_id=$6`,
 
-      // getTime returns a timestamp as unix milliseconds
-      // we won't need or use the resolution here, but elsewhere Atuin stores timestamps in sqlite as nanoseconds since epoch
-      // let's do that across the board to avoid mistakes
-      [
-        this.id,
-        this._name,
-        this._content,
-        this.created.getTime() * 1000000,
-        this.updated.getTime() * 1000000,
-        this.workspaceId,
-      ],
+        // getTime returns a timestamp as unix milliseconds
+        // we won't need or use the resolution here, but elsewhere Atuin stores timestamps in sqlite as nanoseconds since epoch
+        // let's do that across the board to avoid mistakes
+        [
+          this.id,
+          this._name,
+          this._content,
+          this.created.getTime() * 1000000,
+          this.updated.getTime() * 1000000,
+          this.workspaceId,
+        ],
+      );
+
+      const ydocAsUpdate = Y.encodeStateAsUpdate(this.ydoc);
+      await Runbook.saveYDocForRunbook(this.id, ydocAsUpdate);
+    });
+  }
+
+  public static async loadYDocForRunbook(id: string) {
+    const update: ArrayBuffer = await logger.time(
+      `Loading Y.Doc for runbook ${id}...`,
+      async () => {
+        return await invoke("load_ydoc_for_runbook", {
+          runbookId: id,
+          dbPath: "runbooks.db",
+        });
+      },
     );
+
+    return update;
+  }
+
+  public static async saveYDocForRunbook(id: string, update: ArrayBuffer) {
+    logger.time(`Saving Y.Doc for runbook ${id}...`, async () => {
+      await invoke("save_ydoc_for_runbook", update, {
+        headers: {
+          id: id,
+          db: "runbooks.db",
+        },
+      });
+    });
   }
 
   public async moveTo(workspace: Workspace) {

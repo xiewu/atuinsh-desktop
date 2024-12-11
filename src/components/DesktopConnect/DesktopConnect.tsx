@@ -1,6 +1,7 @@
 import { useStore } from "@/state/store";
 import { Modal, ModalContent, Button, Card, CardBody } from "@nextui-org/react";
-import { invoke } from "@tauri-apps/api/core";
+import { savePassword } from "@/api/api";
+import SocketManager from "@/socket";
 
 import { useMemo } from "react";
 
@@ -14,11 +15,14 @@ const DesktopConnect = () => {
     localStorage.removeItem("proposedUsername");
     localStorage.removeItem("proposedToken");
 
-    await invoke("save_password", {
-      service: "sh.atuin.runbooks.api",
-      user: proposedUsername,
-      value: proposedToken,
-    });
+    if (proposedUsername && proposedToken) {
+      await savePassword(
+        "sh.atuin.runbooks.api",
+        proposedUsername,
+        proposedToken,
+      );
+      SocketManager.setApiToken(proposedToken);
+    }
 
     setDesktopConnect(false);
   };

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Input, Tooltip, Button } from "@nextui-org/react";
 import { VariableIcon } from "lucide-react";
 
@@ -12,25 +12,12 @@ interface EnvProps {
 }
 
 const Env = ({ name = "", value = "", onUpdate }: EnvProps) => {
-  let [nameState, setNameState] = useState(name);
-  let [valueState, setValueState] = useState(value);
-
   const handleKeyChange = (e: React.FormEvent<HTMLInputElement>) => {
-    const newKey = e.currentTarget.value;
-
-    setNameState(newKey);
-    onUpdate(newKey, valueState);
-
-    console.log(newKey, valueState);
+    onUpdate(e.currentTarget.value, value);
   };
 
   const handleValueChange = (e: React.FormEvent<HTMLInputElement>) => {
-    const newValue = e.currentTarget.value;
-
-    setValueState(newValue);
-    onUpdate(nameState, newValue);
-
-    console.log(nameState, newValue);
+    onUpdate(name, e.currentTarget.value);
   };
 
   return (
@@ -50,7 +37,7 @@ const Env = ({ name = "", value = "", onUpdate }: EnvProps) => {
           <div className="flex-grow">
             <Input
               placeholder="Name"
-              value={nameState}
+              value={name}
               onChange={handleKeyChange}
               autoComplete="off"
               autoCapitalize="off"
@@ -64,7 +51,7 @@ const Env = ({ name = "", value = "", onUpdate }: EnvProps) => {
         <div className="flex-1">
           <Input
             placeholder="Value"
-            value={valueState}
+            value={value}
             onChange={handleValueChange}
             autoComplete="off"
             autoCapitalize="off"

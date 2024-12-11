@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import track_event from "@/tracking";
+import { randomColor } from "@/lib/colors";
+import Logger from "@/lib/logger";
+const logger = new Logger("Editor", "orange", "orange");
 
 import "./index.css";
 
@@ -54,6 +57,8 @@ import Runbook from "@/state/runbooks/runbook";
 import Http, { insertHttp } from "./blocks/Http/Http";
 import { uuidv7 } from "uuidv7";
 import { DuplicateBlockItem } from "./ui/DuplicateBlockItem";
+
+import PhoenixProvider from "@/lib/phoenix_provider";
 
 // Our schema with block specs, which contain the configs and implementations for blocks
 // that we want our editor to use.
@@ -120,12 +125,24 @@ const insertEnv = (editor: typeof schema.BlockNoteEditor) => ({
   group: "Execute",
 });
 
+function isContentBlank(content: any) {
+  return (
+    content.length === 1 &&
+    content[0].content.length === 0 &&
+    content[0].type === "paragraph" &&
+    content[0].id === "initialBlockId"
+  );
+}
+
 export default function Editor() {
   const runbookId = useStore((store: AtuinState) => store.currentRunbook);
   const refreshRunbooks = useStore(
     (store: AtuinState) => store.refreshRunbooks,
   );
+
+  const user = useStore((store: AtuinState) => store.user);
   let [runbook, setRunbook] = useState<Runbook | null>(null);
+  let [editor, setEditor] = useState<BlockNoteEditor | null>(null);
 
   useEffect(() => {
     if (!runbookId) return;
@@ -155,11 +172,11 @@ export default function Editor() {
 
   const debouncedOnChange = useDebounceCallback(onChange, 1000);
 
-  const editor = useMemo(() => {
+  useEffect(() => {
+    logger.debug("Runbook changed:", runbook);
     if (!runbook) return undefined;
-    if (!runbook.content) return BlockNoteEditor.create({ schema });
 
-    let content = JSON.parse(runbook.content);
+    let content = JSON.parse(runbook.content || "[]");
 
     // convert any block of type sql -> sqlite
     for (var i = 0; i < content.length; i++) {
@@ -168,11 +185,63 @@ export default function Editor() {
       }
     }
 
-    return BlockNoteEditor.create({
-      initialContent: content,
+    let timer: number | undefined;
+    let provider = new PhoenixProvider(runbook.id, runbook.ydoc);
+
+    const editor = BlockNoteEditor.create({
       schema,
+      collaboration: {
+        provider: provider,
+        fragment: runbook.ydoc.getXmlFragment("document-store"),
+        user: {
+          name: user.username || "Anonymous",
+          color: randomColor(),
+        },
+      },
     });
+
+    provider.once("synced", () => {
+      // If the loaded YJS doc has no content, and the server has no content,
+      // we should take the old `content` field (if any) and populate the editor
+      // so that we trigger a save, creating the YJS document.
+      //
+      // This doesn't work if we set the content on the same tick, so defer it.
+      timer = setTimeout(() => {
+        timer = undefined;
+        let currentContent = editor.document;
+        if (isContentBlank(currentContent)) {
+          logger.info(
+            "BlockNote editor has empty content after sync; inserting existing content.",
+          );
+          editor.replaceBlocks(currentContent, content);
+        }
+      }, 100);
+
+      setEditor(editor as any);
+      (window as any).editor = editor;
+
+      provider.on("remote_update", () => {
+        debouncedOnChange();
+      });
+      // provider.start();
+    });
+
+    return () => {
+      // TODO: do we need to destroy the editor somehow
+      if (provider) provider.shutdown();
+      if (timer) clearTimeout(timer);
+      setEditor(null);
+    };
   }, [runbook]);
+
+  useEffect(() => {
+    if (editor) {
+      const extension: any = editor.extensions.collaborationCursor;
+      if (extension) {
+        extension.options.user.name = user.username || "Anonymous";
+      }
+    }
+  }, [editor, user]);
 
   const fetchName = (): string => {
     // Infer the title from the first text block
@@ -183,7 +252,7 @@ export default function Editor() {
       if (block.type == "heading" || block.type == "paragraph") {
         if (block.content.length == 0) continue;
         // @ts-ignore
-        if (block.content[0].text.length == 0) continae;
+        if (block.content[0].text.length == 0) continue;
 
         let name = block.content
           .filter((i) => i.type === "text")
@@ -205,7 +274,7 @@ export default function Editor() {
     );
   }
 
-  if (editor === undefined) {
+  if (!editor) {
     return (
       <div className="flex w-full h-full flex-col justify-center items-center">
         <Spinner />
@@ -216,7 +285,7 @@ export default function Editor() {
   // Renders the editor instance.
   return (
     <div
-      className="overflow-y-scroll editor flex-grow"
+      className="overflow-y-scroll editor flex-grow pt-3"
       onClick={(e) => {
         if ((e.target as Element).matches(".editor *")) return;
 
@@ -259,9 +328,9 @@ export default function Editor() {
             filterSuggestionItems(
               [
                 ...getDefaultReactSlashMenuItems(editor),
-                insertRun(editor),
-                insertDirectory(editor),
-                insertEnv(editor),
+                insertRun(editor as any),
+                insertDirectory(editor as any),
+                insertEnv(editor as any),
                 insertPrometheus(schema)(editor),
                 insertSQLite(schema)(editor),
                 insertPostgres(schema)(editor),

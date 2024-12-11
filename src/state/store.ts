@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, subscribeWithSelector } from "zustand/middleware";
 
 import { parseISO } from "date-fns";
 
@@ -27,6 +27,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import track_event from "@/tracking";
 import { KVStore } from "./kv";
 import { me } from "@/api/api";
+import Logger from "@/lib/logger";
+const logger = new Logger("AtuinStore", "purple", "pink");
 
 import untitledRunbook from "./runbooks/untitled.json";
 
@@ -62,7 +64,7 @@ export class TerminalData {
 
   async write(data: string, doc: any) {
     // Template the string before we execute it
-    console.log("templating with doc", doc);
+    logger.debug("templating with doc", doc);
     let templated: string = await invoke("template_str", {
       source: data,
       pid: this.pty,
@@ -220,8 +222,6 @@ let state = (set: any, get: any): AtuinState => ({
       }),
     );
 
-    console.log(runbooks);
-
     await get().refreshRunbooks();
 
     track_event("runbooks.import", {
@@ -237,7 +237,7 @@ let state = (set: any, get: any): AtuinState => ({
       await get().refreshWorkspaces();
     }
 
-    console.log("loading runbooks for", get().workspace.name);
+    logger.debug("loading runbooks for", get().workspace.name);
 
     let runbooks = await Runbook.all(get().workspace);
     let index = new RunbookIndexService();
@@ -253,7 +253,7 @@ let state = (set: any, get: any): AtuinState => ({
           set({ shellHistory: res });
         })
         .catch((e) => {
-          console.log(e);
+          logger.log(e);
         });
     } else {
       invoke("list").then((res: any) => {
@@ -279,7 +279,7 @@ let state = (set: any, get: any): AtuinState => ({
         });
       })
       .catch((e) => {
-        console.log(e);
+        logger.log(e);
       });
   },
 
@@ -316,7 +316,7 @@ let state = (set: any, get: any): AtuinState => ({
           set({ shellHistory: [...history, ...res] });
         })
         .catch((e) => {
-          console.log(e);
+          logger.error(e);
         });
     } else {
       invoke("list", { offset: offset }).then((res: any) => {
@@ -431,24 +431,26 @@ let state = (set: any, get: any): AtuinState => ({
 });
 
 export const useStore = create<AtuinState>()(
-  persist(state, {
-    name: "atuin-storage",
+  subscribeWithSelector(
+    persist(state, {
+      name: "atuin-storage",
 
-    // don't serialize the terminals map
-    // it won't work as JSON. too cyclical
-    partialize: (state) =>
-      Object.fromEntries(
-        Object.entries(state).filter(
-          ([key]) =>
-            ![
-              "terminals",
-              "runbooks",
-              "history_calendar",
-              "home_info",
-              "runbookIndex",
-              "user",
-            ].includes(key),
+      // don't serialize the terminals map
+      // it won't work as JSON. too cyclical
+      partialize: (state) =>
+        Object.fromEntries(
+          Object.entries(state).filter(
+            ([key]) =>
+              ![
+                "terminals",
+                "runbooks",
+                "history_calendar",
+                "home_info",
+                "runbookIndex",
+                "user",
+              ].includes(key),
+          ),
         ),
-      ),
-  }),
+    }),
+  ),
 );

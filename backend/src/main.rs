@@ -328,8 +328,10 @@ fn main() {
             secret::save_password,
             secret::load_password,
             templates::template_str,
-            file::find_files,
+            runbooks::ydoc::save_ydoc_for_runbook,
+            runbooks::ydoc::load_ydoc_for_runbook,
             runbooks::runbook::export_atmd,
+            file::find_files,
         ])
         .plugin(
             tauri_plugin_sql::Builder::default()

@@ -1,20 +1,58 @@
 import { invoke } from "@tauri-apps/api/core";
 import { fetch } from "@tauri-apps/plugin-http";
+import SocketManager from "@/socket";
 
-const loadPassword = async (service: string, user: string) => {
+export async function loadPassword(service: string, user: string) {
   // Use localStorage in dev, and keychain in prod
 
   if (import.meta.env.MODE === "development") {
     return localStorage.getItem(`${service}:${user}`);
   }
 
-  return await invoke("load_password", { service, user });
-};
+  return await invoke<string>("load_password", { service, user });
+}
+
+export async function savePassword(
+  service: string,
+  user: string,
+  password: string,
+) {
+  if (import.meta.env.MODE === "development") {
+    return localStorage.setItem(`${service}:${user}`, password);
+  }
+
+  await invoke("save_password", {
+    service,
+    user,
+    value: password,
+  });
+}
+
+// Convenience function for setting the hub credentials in development
+if (import.meta.env.MODE === "development") {
+  (window as any).setHubCredentials = (username: string, key: string) => {
+    localStorage.setItem("username", username);
+    savePassword("sh.atuin.runbooks.api", username, key);
+    SocketManager.setApiToken(key);
+  };
+}
+
+export async function getHubApiToken() {
+  let username = localStorage.getItem("username");
+  if (!username) throw new Error("No username found in local storage");
+
+  return loadPassword("sh.atuin.runbooks.api", username);
+}
+
+export function domain() {
+  if (import.meta.env.MODE === "development") return "localhost:4000";
+  return "hub.atuin.sh";
+}
 
 export function endpoint() {
-  if (import.meta.env.MODE === "development") return "http://localhost:4000";
+  if (import.meta.env.MODE === "development") return `http://${domain()}`;
 
-  return "https://hub.atuin.sh";
+  return `https://${domain()}`;
 }
 
 interface MeResponse {
@@ -31,10 +69,7 @@ export async function me(token?: string): Promise<MeResponse> {
   let apiToken;
 
   if (!token) {
-    let username = localStorage.getItem("username");
-    if (!username) throw new Error("No username found in local storage");
-
-    apiToken = await loadPassword("sh.atuin.runbooks.api", username);
+    apiToken = await getHubApiToken();
   } else {
     apiToken = token;
   }

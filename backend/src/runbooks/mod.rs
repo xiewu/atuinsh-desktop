@@ -4,3 +4,4 @@ mod block_parse;
 mod content;
 mod markdown;
 pub mod runbook;
+pub mod ydoc;

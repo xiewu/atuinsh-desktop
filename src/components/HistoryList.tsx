@@ -15,6 +15,7 @@ export default function HistoryList(props: any) {
 
         return (
           <div
+            key={i.index}
             style={{
               position: "absolute",
               top: 0,

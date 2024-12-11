@@ -21,6 +21,7 @@ const DesktopConnect = () => {
         proposedUsername,
         proposedToken,
       );
+      localStorage.setItem("username", proposedUsername);
       SocketManager.setApiToken(proposedToken);
     }
 

@@ -156,14 +156,37 @@ export default function Editor() {
     fetchRunbook();
   }, [runbookId]);
 
-  const onChange = async () => {
+  const fetchName = (editor: BlockNoteEditor): string => {
+    // Infer the title from the first text block
+    if (!editor) return "Untitled";
+
+    let blocks = editor.document;
+    for (const block of blocks) {
+      if (block.type == "heading" || block.type == "paragraph") {
+        if (block.content.length == 0) continue;
+        // @ts-ignore
+        if (block.content[0].text.length == 0) continue;
+
+        let name = block.content
+          .filter((i) => i.type === "text")
+          .map((i) => i.text);
+
+        // @ts-ignore
+        return name.join(" ");
+      }
+    }
+
+    return "Untitled";
+  };
+
+  const onChange = async (editor: BlockNoteEditor) => {
     if (!runbook) return;
 
     track_event("runbooks.save", {
       total: await Runbook.count(),
     });
 
-    runbook.name = fetchName();
+    runbook.name = fetchName(editor as BlockNoteEditor);
     if (editor) runbook.content = JSON.stringify(editor.document);
 
     await runbook.save();
@@ -221,7 +244,7 @@ export default function Editor() {
       (window as any).editor = editor;
 
       provider.on("remote_update", () => {
-        debouncedOnChange();
+        debouncedOnChange(editor as any);
       });
       // provider.start();
     });
@@ -242,29 +265,6 @@ export default function Editor() {
       }
     }
   }, [editor, user]);
-
-  const fetchName = (): string => {
-    // Infer the title from the first text block
-    if (!editor) return "Untitled";
-
-    let blocks = editor.document;
-    for (const block of blocks) {
-      if (block.type == "heading" || block.type == "paragraph") {
-        if (block.content.length == 0) continue;
-        // @ts-ignore
-        if (block.content[0].text.length == 0) continue;
-
-        let name = block.content
-          .filter((i) => i.type === "text")
-          .map((i) => i.text);
-
-        // @ts-ignore
-        return name.join(" ");
-      }
-    }
-
-    return "Untitled";
-  };
 
   if (!runbook) {
     return (

@@ -22,6 +22,20 @@ export interface RunbookFile {
 
 type RunbookSource = "local" | "hub" | "atrb";
 
+export interface RunbookAttrs {
+  id: string;
+  name: string;
+  content: string;
+  ydoc: Y.Doc;
+  source: RunbookSource;
+  sourceInfo: string | null;
+  workspaceId: string;
+  forkedFrom: string | null;
+
+  created: Date;
+  updated: Date;
+}
+
 export default class Runbook {
   id: string;
   ydoc: Y.Doc;
@@ -55,29 +69,17 @@ export default class Runbook {
     return this._name;
   }
 
-  constructor(
-    id: string,
-    name: string,
-    source: RunbookSource,
-    sourceInfo: string | null,
-    content: string,
-    ydoc: Y.Doc,
-    created: Date,
-    updated: Date,
-    workspaceId: string,
-    forkedFrom: string | null,
-  ) {
-    this.id = id;
-    this._name = name;
-    this.source = source || "local";
-    this.sourceInfo = sourceInfo;
-    this._content = content;
-    this.ydoc = ydoc;
-    this.created = created;
-    this.updated = updated;
-    this.forkedFrom = forkedFrom;
-
-    this.workspaceId = workspaceId;
+  constructor(attrs: RunbookAttrs) {
+    this.id = attrs.id;
+    this._name = attrs.name;
+    this.source = attrs.source || "local";
+    this.sourceInfo = attrs.sourceInfo;
+    this._content = attrs.content;
+    this.ydoc = attrs.ydoc;
+    this.created = attrs.created;
+    this.updated = attrs.updated;
+    this.forkedFrom = attrs.forkedFrom;
+    this.workspaceId = attrs.workspaceId;
   }
 
   /// Create a new Runbook, and automatically generate an ID.
@@ -89,18 +91,18 @@ export default class Runbook {
     }
 
     // Initialize with the same value for created/updated, to avoid needing null.
-    let runbook = new Runbook(
-      uuidv7(),
-      "",
-      "local",
-      null,
-      "",
-      new Y.Doc(),
-      now,
-      now,
-      workspace.id,
-      null,
-    );
+    let runbook = new Runbook({
+      id: uuidv7(),
+      name: "",
+      source: "local",
+      sourceInfo: null,
+      content: "",
+      ydoc: new Y.Doc(),
+      created: now,
+      updated: now,
+      workspaceId: workspace.id,
+      forkedFrom: null,
+    });
     await runbook.save();
 
     return runbook;
@@ -235,18 +237,18 @@ export default class Runbook {
       workspace = await Workspace.current();
     }
 
-    let runbook = new Runbook(
-      obj.id,
-      obj.name,
-      "atrb",
-      null,
-      obj.content,
-      new Y.Doc(),
-      new Date(obj.created),
-      new Date(),
-      workspace.id,
-      null,
-    );
+    let runbook = new Runbook({
+      id: obj.id,
+      name: obj.name,
+      source: "atrb",
+      sourceInfo: null,
+      content: obj.content,
+      ydoc: new Y.Doc(),
+      created: new Date(obj.created),
+      updated: new Date(),
+      workspaceId: workspace.id,
+      forkedFrom: null,
+    });
 
     await runbook.save();
 
@@ -297,18 +299,18 @@ export default class Runbook {
       }
     }
 
-    return new Runbook(
-      row.id,
-      row.name,
-      row.source || "local",
-      row.sourceInfo,
-      row.content || "[]",
-      doc,
-      new Date(row.created / 1000000),
-      new Date(row.updated / 1000000),
-      row.workspace_id,
-      row.forked_from,
-    );
+    return new Runbook({
+      id: row.id,
+      name: row.name,
+      source: row.source || "local",
+      sourceInfo: row.sourceInfo,
+      content: row.content || "[]",
+      ydoc: doc,
+      created: new Date(row.created / 1000000),
+      updated: new Date(row.updated / 1000000),
+      workspaceId: row.workspace_id,
+      forkedFrom: row.forked_from,
+    });
   }
 
   // Default to scoping by workspace
@@ -413,18 +415,18 @@ export default class Runbook {
   }
 
   public clone() {
-    return new Runbook(
-      this.id,
-      this.name,
-      this.source,
-      this.sourceInfo,
-      this.content,
-      this.ydoc,
-      this.created,
-      this.updated,
-      this.workspaceId,
-      this.forkedFrom,
-    );
+    return new Runbook({
+      id: this.id,
+      name: this.name,
+      source: this.source,
+      sourceInfo: this.sourceInfo,
+      content: this.content,
+      ydoc: this.ydoc,
+      created: this.created,
+      updated: this.updated,
+      workspaceId: this.workspaceId,
+      forkedFrom: this.forkedFrom,
+    });
   }
 
   public static async delete(id: string) {

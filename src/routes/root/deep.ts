@@ -1,4 +1,4 @@
-import { me } from "@/api/api";
+import { me, endpoint } from "@/api/api";
 import Runbook, { RunbookFile } from "@/state/runbooks/runbook";
 import { useStore } from "@/state/store";
 import { fetch } from "@tauri-apps/plugin-http";
@@ -11,22 +11,41 @@ interface Routes {
   [pattern: string]: RouteHandler;
 }
 
+async function createRunbookFromHub(id: string) {
+  // Fetch the runbook from the hub api
+  let resp = await fetch(`${endpoint}/api/runbooks/${id}`);
+  let json = await resp.json();
+
+  if (json.runbook?.content?.data)
+    json.runbook.content = json.runbook.content.data;
+
+  return Runbook.importJSON(
+    json.runbook as RunbookFile,
+    "hub",
+    json.runbook.nwo,
+  );
+}
+
 const handleDeepLink = (navigate: any, url: string): void | null => {
   const routes: Routes = {
-    // "Open in desktop" from the hub
+    // Legacy "Open in desktop" from the hub
     "^atuin://runbook/([\\w-]+)/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$":
       async (params: string[]) => {
-        const [username, id] = params;
+        const [_username, id] = params;
 
-        // Fetch the runbook from the hub api
-        let resp = await fetch(
-          `https://hub.atuin.sh/api/runbooks/${username}/${id}`,
-        );
-        let json = await resp.json();
+        let runbook = await createRunbookFromHub(id);
 
-        if (json.runbook?.content?.data)
-          json.runbook.content = json.runbook.content.data;
-        let runbook = await Runbook.importJSON(json.runbook as RunbookFile);
+        useStore.getState().setCurrentRunbook(runbook);
+        useStore.getState().refreshRunbooks();
+        navigate("/runbooks");
+      },
+
+    // New "Open in desktop" from the hub
+    "^atuin://runbook/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$":
+      async (params: string[]) => {
+        const [id] = params;
+
+        let runbook = await createRunbookFromHub(id);
 
         useStore.getState().setCurrentRunbook(runbook);
         useStore.getState().refreshRunbooks();

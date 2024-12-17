@@ -231,6 +231,8 @@ export default class Runbook {
 
   public static async importJSON(
     obj: RunbookFile,
+    source: RunbookSource,
+    sourceInfo: string | null,
     workspace?: Workspace,
   ): Promise<Runbook> {
     if (workspace === undefined || workspace === null) {
@@ -240,8 +242,8 @@ export default class Runbook {
     let runbook = new Runbook({
       id: obj.id,
       name: obj.name,
-      source: "atrb",
-      sourceInfo: null,
+      source: source,
+      sourceInfo: sourceInfo,
       content: obj.content,
       ydoc: new Y.Doc(),
       created: new Date(obj.created),
@@ -259,7 +261,7 @@ export default class Runbook {
     let file = await readTextFile(filePath);
     let importFile = JSON.parse(file) as RunbookFile;
 
-    return Runbook.importJSON(importFile, workspace);
+    return Runbook.importJSON(importFile, "atrb", null, workspace);
   }
 
   public static async load(id: String): Promise<Runbook | null> {

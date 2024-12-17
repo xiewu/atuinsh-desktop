@@ -20,7 +20,7 @@ export interface RunbookFile {
   content: string;
 }
 
-type RunbookSource = "local" | "hub" | "atrb";
+type RunbookSource = "local" | "hub" | "file";
 
 export interface RunbookAttrs {
   id: string;
@@ -261,7 +261,7 @@ export default class Runbook {
     let file = await readTextFile(filePath);
     let importFile = JSON.parse(file) as RunbookFile;
 
-    return Runbook.importJSON(importFile, "atrb", null, workspace);
+    return Runbook.importJSON(importFile, "file", null, workspace);
   }
 
   public static async load(id: String): Promise<Runbook | null> {

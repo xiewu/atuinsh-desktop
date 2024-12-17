@@ -20,11 +20,13 @@ enum HttpVerb {
 interface HttpVerbDropdownProps {
   selectedVerb: HttpVerb;
   onVerbChange: (verb: HttpVerb) => void;
+  disabled: boolean;
 }
 
 const HttpVerbDropdown: React.FC<HttpVerbDropdownProps> = ({
   selectedVerb,
   onVerbChange,
+  disabled = false,
 }) => {
   const verbColors: Record<HttpVerb, string> = {
     [HttpVerb.GET]: "success",
@@ -36,7 +38,7 @@ const HttpVerbDropdown: React.FC<HttpVerbDropdownProps> = ({
   };
 
   return (
-    <Dropdown>
+    <Dropdown isDisabled={disabled}>
       <DropdownTrigger>
         <Button
           variant="bordered"

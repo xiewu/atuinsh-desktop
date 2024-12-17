@@ -31,6 +31,12 @@ pub fn migrations() -> Vec<Migration> {
             description: "add_ydoc_to_runbooks",
             sql: "alter table runbooks add column ydoc blob;",
             kind: MigrationKind::Up,
-        }
+        },
+        Migration {
+            version: 6,
+            description: "create_snapshots_table",
+            sql: "CREATE TABLE snapshots(id STRING PRIMARY KEY, runbook_id STRING, tag TEXT, content TEXT, created BIGINT);",
+            kind: MigrationKind::Up,
+        },
     ]
 }

@@ -32,6 +32,7 @@ interface SQLProps {
   placeholder?: string;
   extensions?: Extension[];
   eventName?: string;
+  isEditable: boolean;
 
   uri: string;
   query: string;
@@ -65,9 +66,10 @@ const SQL = ({
   setUri,
   autoRefresh,
   setAutoRefresh,
+  isEditable,
   runQuery,
   eventName,
-  extensions = []
+  extensions = [],
 }: SQLProps) => {
   const [isRunning, setIsRunning] = useState<boolean>(false);
 
@@ -109,41 +111,45 @@ const SQL = ({
     autoRefresh > 0 ? autoRefresh : null,
   );
 
-  console.log(name)
+  console.log(name);
 
   return (
-    <Block title={name} header={
-      <>
-        <MaskedInput
-          maskRegex={/(?<=:\/\/)([^@]+)(?=@)/}
-          placeholder={placeholder || "protocol://user:password@host:port/db"}
-          label="URI"
-          isRequired
-          startContent={<DatabaseIcon size={18} />}
-          value={uri}
-          onChange={(val: string) => {
-            setUri(val);
-          }}
-        />
+    <Block
+      title={name}
+      header={
+        <>
+          <MaskedInput
+            maskRegex={/(?<=:\/\/)([^@]+)(?=@)/}
+            placeholder={placeholder || "protocol://user:password@host:port/db"}
+            label="URI"
+            isRequired
+            startContent={<DatabaseIcon size={18} />}
+            value={uri}
+            onChange={(val: string) => {
+              setUri(val);
+            }}
+            disabled={!isEditable}
+          />
 
-        <div className="flex flex-row gap-2 w-full">
-          <PlayButton
-            eventName={`${eventName}.run`}
-            isRunning={isRunning}
-            onPlay={handlePlay}
-            cancellable={false}
-          />
-          <CodeMirror
-            placeholder={"Write your query here..."}
-            className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
-            basicSetup={true}
-            extensions={[...extensions]}
-            value={query}
-            onChange={setQuery}
-          />
-        </div>
-      </>
-    }
+          <div className="flex flex-row gap-2 w-full">
+            <PlayButton
+              eventName={`${eventName}.run`}
+              isRunning={isRunning}
+              onPlay={handlePlay}
+              cancellable={false}
+            />
+            <CodeMirror
+              placeholder={"Write your query here..."}
+              className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
+              basicSetup={true}
+              extensions={[...extensions]}
+              value={query}
+              onChange={setQuery}
+              editable={isEditable}
+            />
+          </div>
+        </>
+      }
       footer={
         <ButtonGroup>
           <Dropdown showArrow>
@@ -158,12 +164,12 @@ const SQL = ({
                 {autoRefresh == 0
                   ? "Off"
                   : (
-                    autoRefreshChoices.find(
-                      (a) => a.value == autoRefresh,
-                    ) || {
-                      label: "Off",
-                    }
-                  ).label}
+                      autoRefreshChoices.find(
+                        (a) => a.value == autoRefresh,
+                      ) || {
+                        label: "Off",
+                      }
+                    ).label}
               </Button>
             </DropdownTrigger>
             <DropdownMenu
@@ -185,10 +191,10 @@ const SQL = ({
             </DropdownMenu>
           </Dropdown>
         </ButtonGroup>
-      }>
+      }
+    >
       <SQLResults results={results} error={error} />
     </Block>
-
   );
 };
 

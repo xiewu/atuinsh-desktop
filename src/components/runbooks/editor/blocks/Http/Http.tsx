@@ -29,6 +29,7 @@ interface HttpProps {
   url: string;
   verb: HttpVerb;
   body: string;
+  isEditable: boolean;
 
   headers: HttpHeaders;
 
@@ -78,6 +79,7 @@ const Http = ({
   verb,
   body,
   headers,
+  isEditable,
   setUrl,
   setVerb,
   setBody,
@@ -125,7 +127,11 @@ const Http = ({
             cancellable={false}
           />
 
-          <HttpVerbDropdown selectedVerb={verb} onVerbChange={setVerb} />
+          <HttpVerbDropdown
+            selectedVerb={verb}
+            onVerbChange={setVerb}
+            disabled={!isEditable}
+          />
 
           <Input
             placeholder="http://localhost:8080/hello/world"
@@ -141,6 +147,7 @@ const Http = ({
             }}
             variant="bordered"
             size="sm"
+            disabled={!isEditable}
           />
         </div>
       }
@@ -157,7 +164,11 @@ const Http = ({
         variant="underlined"
       >
         <Tab key="headers" title="Headers">
-          <RequestHeaders pairs={headers} setPairs={setHeaders} />
+          <RequestHeaders
+            pairs={headers}
+            setPairs={setHeaders}
+            disabled={!isEditable}
+          />
         </Tab>
         <Tab
           key="body"
@@ -174,6 +185,7 @@ const Http = ({
             }}
             basicSetup={true}
             extensions={[langs.json()]}
+            editable={isEditable}
           />
         </Tab>
       </Tabs>
@@ -233,6 +245,7 @@ export default createReactBlockSpec(
           setVerb={setVerb}
           setBody={setBody}
           setHeaders={setHeaders}
+          isEditable={editor.isEditable}
         />
       );
     },

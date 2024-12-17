@@ -16,7 +16,7 @@ export default class CollaborationManager {
   private connected: boolean;
   private handlers: Function[] = [];
   // @ts-ignore
-  private currentRunbook: string | null = null;
+  private currentRunbookId: string | null = null;
   private runbooks: Runbook[] = [];
 
   constructor(socketManager: SocketManager, store: Store) {
@@ -33,7 +33,7 @@ export default class CollaborationManager {
     this.handlers.push(this.socketManager.onDisconnect(this.handleDisconnect));
     this.handlers.push(
       this.store.subscribe(
-        (state) => state.currentRunbook,
+        (state) => state.currentRunbookId,
         this.handleRunbookChange,
         { fireImmediately: true },
       ),
@@ -78,7 +78,7 @@ export default class CollaborationManager {
     runbook: string | null,
     _previousRunbook: string | null,
   ) {
-    this.currentRunbook = runbook;
+    this.currentRunbookId = runbook;
   }
 
   private handleRunbooksChange(runbooks: Runbook[]) {

@@ -12,6 +12,7 @@ interface SQLProps {
   uri: string;
   query: string;
   autoRefresh: number;
+  isEditable: boolean;
 
   setQuery: (query: string) => void;
   setUri: (uri: string) => void;
@@ -25,6 +26,7 @@ const Clickhouse = ({
   setUri,
   autoRefresh,
   setAutoRefresh,
+  isEditable,
 }: SQLProps) => {
   return (
     <SQL
@@ -38,6 +40,7 @@ const Clickhouse = ({
       autoRefresh={autoRefresh}
       setAutoRefresh={setAutoRefresh}
       runQuery={runQuery}
+      isEditable={isEditable}
     />
   );
 };
@@ -84,6 +87,7 @@ export default createReactBlockSpec(
           setQuery={setQuery}
           autoRefresh={block.props.autoRefresh}
           setAutoRefresh={setAutoRefresh}
+          isEditable={editor.isEditable}
         />
       );
     },

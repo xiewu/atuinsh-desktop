@@ -1,3 +1,6 @@
+// TODO [mkt]
+// handle isEditable = false
+
 import { useState, useEffect } from "react";
 import {
   Button,
@@ -37,6 +40,7 @@ interface PromProps {
   endpoint: string;
   autoRefresh: boolean;
   period: string;
+  isEditable: boolean;
 
   onPropsChange: (val: any) => void;
 }
@@ -231,6 +235,7 @@ const Prometheus = (props: PromProps) => {
             }}
             extensions={[promExtension.asExtension()]}
             basicSetup={true}
+            editable={props.isEditable}
           />
         </div>
       </CardHeader>
@@ -330,6 +335,7 @@ export default createReactBlockSpec(
           period={block.props.period}
           autoRefresh={block.props.autoRefresh}
           onPropsChange={onPropsChange}
+          isEditable={editor.isEditable}
         />
       );
     },

@@ -8,10 +8,11 @@ import { createReactBlockSpec } from "@blocknote/react";
 interface EnvProps {
   name: string;
   value: string;
+  isEditable: boolean;
   onUpdate: (name: string, value: string) => void;
 }
 
-const Env = ({ name = "", value = "", onUpdate }: EnvProps) => {
+const Env = ({ name = "", value = "", onUpdate, isEditable }: EnvProps) => {
   const handleKeyChange = (e: React.FormEvent<HTMLInputElement>) => {
     onUpdate(e.currentTarget.value, value);
   };
@@ -44,6 +45,7 @@ const Env = ({ name = "", value = "", onUpdate }: EnvProps) => {
               autoCorrect="off"
               spellCheck="false"
               className="flex-1"
+              disabled={!isEditable}
             />
           </div>
         </div>
@@ -58,6 +60,7 @@ const Env = ({ name = "", value = "", onUpdate }: EnvProps) => {
             autoCorrect="off"
             spellCheck="false"
             className="flex-1"
+            disabled={!isEditable}
           />
         </div>
       </div>
@@ -89,6 +92,7 @@ export default createReactBlockSpec(
           name={block.props.name}
           value={block.props.value}
           onUpdate={onUpdate}
+          isEditable={editor.isEditable}
         />
       );
     },

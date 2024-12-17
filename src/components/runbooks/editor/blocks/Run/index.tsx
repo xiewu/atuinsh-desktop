@@ -91,8 +91,8 @@ const RunBlock = ({
   // we write to it.
   const [firstOpen, setFirstOpen] = useState<boolean>(false);
 
-  const [currentRunbook] = useStore((store: AtuinState) => [
-    store.currentRunbook,
+  const [currentRunbookId] = useStore((store: AtuinState) => [
+    store.currentRunbookId,
   ]);
 
   const pty = usePtyStore((store) => store.ptyForBlock(id));
@@ -137,7 +137,7 @@ const RunBlock = ({
     let pty = await invoke<string>("pty_open", {
       cwd,
       env,
-      runbook: currentRunbook,
+      runbook: currentRunbookId,
       block: id,
     });
 

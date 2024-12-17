@@ -2,46 +2,81 @@ import { invoke } from "@tauri-apps/api/core";
 import { fetch } from "@tauri-apps/plugin-http";
 import SocketManager from "@/socket";
 
-export async function loadPassword(service: string, user: string) {
-  // Use localStorage in dev, and keychain in prod
+type PasswordStore = {
+  get: (service: string, user: string) => Promise<string | null>;
+  set: (service: string, user: string, password: string) => Promise<void>;
+  remove: (service: string, user: string) => Promise<void>;
+};
 
+const keychainStore: PasswordStore = {
+  get: (service: string, user: string) =>
+    invoke("load_password", { service, user }),
+  set: (service: string, user: string, password: string) =>
+    invoke("save_password", { service, user, value: password }),
+  remove: (service: string, user: string) =>
+    invoke("delete_password", { service, user }),
+};
+
+const localStorageStore: PasswordStore = {
+  get: (service: string, user: string) =>
+    Promise.resolve(localStorage.getItem(`${service}:${user}`)),
+  set: (service: string, user: string, password: string) =>
+    Promise.resolve(localStorage.setItem(`${service}:${user}`, password)),
+  remove: (service: string, user: string) =>
+    Promise.resolve(localStorage.removeItem(`${service}:${user}`)),
+};
+
+function getStorage() {
   if (import.meta.env.MODE === "development") {
-    return localStorage.getItem(`${service}:${user}`);
+    return localStorageStore;
+  } else {
+    return keychainStore;
   }
-
-  return await invoke<string>("load_password", { service, user });
 }
 
-export async function savePassword(
-  service: string,
-  user: string,
-  password: string,
-) {
-  if (import.meta.env.MODE === "development") {
-    return localStorage.setItem(`${service}:${user}`, password);
-  }
+const _loadPassword = (service: string, user: string) =>
+  getStorage().get(service, user);
 
-  await invoke("save_password", {
-    service,
-    user,
-    value: password,
-  });
-}
+const _savePassword = (service: string, user: string, password: string) =>
+  getStorage().set(service, user, password);
+
+const _deletePassword = (service: string, user: string) =>
+  getStorage().remove(service, user);
 
 // Convenience function for setting the hub credentials in development
 if (import.meta.env.MODE === "development") {
-  (window as any).setHubCredentials = (username: string, key: string) => {
+  (window as any).setHubCredentials = async (username: string, key: string) => {
+    await _savePassword("sh.atuin.runbooks.api", username, key);
     localStorage.setItem("username", username);
-    savePassword("sh.atuin.runbooks.api", username, key);
     SocketManager.setApiToken(key);
   };
 }
 
+let cachedHubApiToken: string | null = null;
+export async function setHubApiToken(username: string, token: string) {
+  await _savePassword("sh.atuin.runbooks.api", username, token);
+  localStorage.setItem("username", username);
+  cachedHubApiToken = token;
+}
+
 export async function getHubApiToken() {
+  if (cachedHubApiToken) return cachedHubApiToken;
+
   let username = localStorage.getItem("username");
   if (!username) throw new Error("No username found in local storage");
 
-  return loadPassword("sh.atuin.runbooks.api", username);
+  const password = await _loadPassword("sh.atuin.runbooks.api", username);
+  cachedHubApiToken = password;
+  return password;
+}
+
+export async function clearHubApiToken() {
+  let username = localStorage.getItem("username");
+  if (!username) throw new Error("No username found in local storage");
+
+  await _deletePassword("sh.atuin.runbooks.api", username);
+  localStorage.removeItem("username");
+  cachedHubApiToken = null;
 }
 
 export function domain() {
@@ -86,15 +121,8 @@ export async function me(token?: string): Promise<MeResponse> {
   return await resp.json();
 }
 
-export async function getApiToken() {
-  let username = localStorage.getItem("username");
-  if (!username) throw new Error("No username found in local storage");
-
-  return await loadPassword("sh.atuin.runbooks.api", username);
-}
-
 export async function getRunbookID(id: string): Promise<any> {
-  let token = await getApiToken();
+  let token = await getHubApiToken();
   let resp = await fetch(`${endpoint()}/api/runbooks/${id}`, {
     method: "GET",
     headers: {

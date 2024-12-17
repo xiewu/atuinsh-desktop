@@ -2,24 +2,28 @@ import { useState } from "react";
 import { Input, Button } from "@nextui-org/react";
 import { CirclePlusIcon, TrashIcon } from "lucide-react";
 
-const RequestHeaders = ({ pairs, setPairs }: any) => {
+const RequestHeaders = ({ pairs, setPairs, disabled }: any) => {
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
 
   const handleAddPair = () => {
-    if (newKey && newValue) {
-      setPairs({
-        ...pairs,
-        [newKey]: newValue,
-      });
-      setNewKey("");
-      setNewValue("");
+    if (!disabled) {
+      if (newKey && newValue) {
+        setPairs({
+          ...pairs,
+          [newKey]: newValue,
+        });
+        setNewKey("");
+        setNewValue("");
+      }
     }
   };
 
   const handleDeletePair = (key: string) => {
-    const { [key]: _, ...newPairs } = pairs;
-    setPairs(newPairs);
+    if (!disabled) {
+      const { [key]: _, ...newPairs } = pairs;
+      setPairs(newPairs);
+    }
   };
 
   return (
@@ -46,11 +50,13 @@ const RequestHeaders = ({ pairs, setPairs }: any) => {
             isIconOnly
             variant="bordered"
             size="sm"
+            disabled={disabled}
           >
             <TrashIcon size={18} />
           </Button>
         </div>
       ))}
+
       <div className="flex flex-row items-center gap-2">
         <Input
           value={newKey}
@@ -59,6 +65,7 @@ const RequestHeaders = ({ pairs, setPairs }: any) => {
           className="flex-grow"
           variant="bordered"
           size="sm"
+          disabled={disabled}
         />
         <Input
           value={newValue}
@@ -67,6 +74,7 @@ const RequestHeaders = ({ pairs, setPairs }: any) => {
           className="flex-grow"
           variant="bordered"
           size="sm"
+          disabled={disabled}
         />
         <Button
           color="primary"
@@ -74,6 +82,7 @@ const RequestHeaders = ({ pairs, setPairs }: any) => {
           onPress={handleAddPair}
           isIconOnly
           size="sm"
+          disabled={disabled}
         >
           <CirclePlusIcon size={18} />
         </Button>

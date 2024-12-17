@@ -1,49 +1,38 @@
 import Runbook from "@/state/runbooks/runbook";
-import { useStore } from "@/state/store";
-import { useEffect, useState } from "react";
+import RelativeTime from "@/components/relative_time.tsx";
 import { DateTime } from "luxon";
 
-import { getRunbookID } from "@/api/api";
+type TopbarProps = {
+  runbook: Runbook | null;
+  currentTag: string | null;
+  // tags: string[]; // TODO: maybe get this from runbook?
+  onSelectTag: (tag: string | null) => void;
+};
 
-export default function Topbar(_props: any) {
-  let currentRunbook = useStore((state) => state.currentRunbook);
-  const [runbook, setRunbook] = useState<Runbook | null>(null);
-  const [_remoteRunbook, setRemoteRunbook] = useState<any | null>(null);
+/**
+ * State that we need to care about/manage here:
+ * - has the runbook been created on the server?
+ *   - if so, does the current user own the runbook?
+ *   - if so, what is the runbook slug and visibility
+ * - what other users are editing the document right now
+ * - has the current tag, if any, been pushed to the server?
+ * - does the server contain any tags that differ from our own?
+ */
 
-  const runbookReload = async () => {
-    if (!currentRunbook) {
-      setRunbook(null);
-      return;
-    }
-
-    let runbook = await Runbook.load(currentRunbook);
-    setRunbook(runbook);
-
-    try {
-      if (!runbook) return;
-      let rb = await getRunbookID(runbook.id);
-      if (rb) setRemoteRunbook(rb);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  useEffect(() => {
-    setRemoteRunbook(null);
-    runbookReload();
-  }, [currentRunbook]);
+export default function Topbar(props: TopbarProps) {
+  let runbook = props.runbook;
 
   const renderBarContents = () => {
     if (!runbook) return null;
 
     return (
       <>
-        <div className="flex flex-row">
+        <div>
           <div className="h-full content-center">{runbook && runbook.name}</div>
         </div>
-        <div className="flex flex-row gap-2">
+        <div>
           <div className="h-full content-center text-gray-400 text-xs italic">
-            Updated {DateTime.fromJSDate(runbook.updated).toRelative()}
+            Updated <RelativeTime time={DateTime.fromJSDate(runbook.updated)} />
           </div>
         </div>
       </>

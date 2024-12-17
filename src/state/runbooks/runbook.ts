@@ -22,6 +22,7 @@ export interface RunbookFile {
 
 export default class Runbook {
   id: string;
+  ydoc: Y.Doc;
 
   created: Date;
   updated: Date;
@@ -30,7 +31,6 @@ export default class Runbook {
 
   private _name: string;
   private _content: string;
-  private _ydoc: Y.Doc;
 
   set name(value: string) {
     this.updated = new Date();
@@ -40,10 +40,6 @@ export default class Runbook {
   set content(value: string) {
     this.updated = new Date();
     this._content = value;
-  }
-
-  get ydoc() {
-    return this._ydoc;
   }
 
   get content() {
@@ -66,7 +62,7 @@ export default class Runbook {
     this.id = id;
     this._name = name;
     this._content = content;
-    this._ydoc = ydoc;
+    this.ydoc = ydoc;
     this.created = created;
     this.updated = updated;
 
@@ -387,6 +383,18 @@ export default class Runbook {
   public async moveTo(workspace: Workspace) {
     this.workspaceId = workspace.id;
     await this.save();
+  }
+
+  public clone() {
+    return new Runbook(
+      this.id,
+      this.name,
+      this.content,
+      this.ydoc,
+      this.created,
+      this.updated,
+      this.workspaceId,
+    );
   }
 
   public static async delete(id: string) {

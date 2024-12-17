@@ -13,6 +13,7 @@ interface SQLiteProps {
   uri: string;
   query: string;
   autoRefresh: number;
+  isEditable: boolean;
 
   setQuery: (query: string) => void;
   setUri: (uri: string) => void;
@@ -26,6 +27,7 @@ const SQLite = ({
   setUri,
   autoRefresh,
   setAutoRefresh,
+  isEditable,
 }: SQLiteProps) => {
   return (
     <SQL
@@ -38,6 +40,7 @@ const SQLite = ({
       autoRefresh={autoRefresh}
       setAutoRefresh={setAutoRefresh}
       runQuery={runQuery}
+      isEditable={isEditable}
     />
   );
 };
@@ -84,6 +87,7 @@ export default createReactBlockSpec(
           setQuery={setQuery}
           autoRefresh={block.props.autoRefresh}
           setAutoRefresh={setAutoRefresh}
+          isEditable={editor.isEditable}
         />
       );
     },

@@ -62,7 +62,7 @@ const NoteSidebar = () => {
         runbook.save();
 
         refreshRunbooks();
-        setCurrentRunbook(runbook.id);
+        setCurrentRunbook(runbook, true);
       }
     })();
   }, []);
@@ -83,7 +83,7 @@ const NoteSidebar = () => {
     if (!runbooks) return;
     if (runbooks.length === 0) return;
 
-    setCurrentRunbook(runbooks[0].id);
+    setCurrentRunbook(runbooks[0], true);
   };
 
   const handleOpenSearch = async () => {
@@ -134,7 +134,7 @@ const NoteSidebar = () => {
           const count = Object.values(ptys).filter(
             (pty) => pty.runbook === runbook.id,
           ).length;
-          const isActive = currentRunbook === runbook.id;
+          const isActive = currentRunbook && currentRunbook.id === runbook.id;
 
           return (
             <div
@@ -144,7 +144,7 @@ const NoteSidebar = () => {
                   total: await Runbook.count(),
                 });
 
-                setCurrentRunbook(runbook.id);
+                setCurrentRunbook(runbook);
               }}
               className={`cursor-pointer p-2 border-b border-gray-200 hover:bg-gray-100 ${isActive ? "bg-gray-200" : ""} relative`}
             >
@@ -236,8 +236,11 @@ const NoteSidebar = () => {
                           color="danger"
                           onPress={async () => {
                             await Runbook.delete(runbook.id);
-                            if (runbook.id === currentRunbook)
-                              setCurrentRunbook("");
+                            if (
+                              currentRunbook &&
+                              runbook.id === currentRunbook.id
+                            )
+                              setCurrentRunbook(null);
                             refreshRunbooks();
                           }}
                         >

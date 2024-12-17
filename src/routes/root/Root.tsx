@@ -37,10 +37,12 @@ import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import handleDeepLink from "./deep";
 import DesktopConnect from "@/components/DesktopConnect/DesktopConnect";
 import DirectoryExportModal from "@/components/ExportWorkspace/ExportWorkspace";
+import { clearHubApiToken, endpoint } from "@/api/api";
 
 function App() {
   const cleanupImportListener = useRef<UnlistenFn | null>(null);
 
+  const refreshUser = useStore((state: AtuinState) => state.refreshUser);
   const importRunbook = useStore((state: AtuinState) => state.importRunbook);
   const newRunbook = useStore((state: AtuinState) => state.newRunbook);
   const newWorkspace = useStore((state: AtuinState) => state.newWorkspace);
@@ -70,6 +72,11 @@ function App() {
         if (urls.length === 0) return;
         handleDeepLink(navigate, urls[0]);
       });
+
+      if (import.meta.env.MODE === "development") {
+        (window as any).handleDeepLink = (url: string) =>
+          handleDeepLink(navigate, url);
+      }
 
       onOpenUrlListener.current = unlisten;
     })();
@@ -117,7 +124,7 @@ function App() {
     // Consider the case where we are already on the runbooks page
     if (location.pathname === "/runbooks") {
       let runbook = await newRunbook();
-      setCurrentRunbook(runbook.id);
+      setCurrentRunbook(runbook, true);
 
       return;
     }
@@ -178,6 +185,36 @@ function App() {
       ],
     },
   ];
+
+  async function logOut() {
+    await clearHubApiToken();
+    refreshUser();
+  }
+
+  function renderLogInOrOut() {
+    if (isLoggedIn()) {
+      return (
+        <DropdownItem
+          key="logout"
+          description="Sign out of Atuin Hub"
+          onPress={() => logOut()}
+          color="danger"
+        >
+          Sign out
+        </DropdownItem>
+      );
+    } else {
+      return (
+        <DropdownItem
+          key="login"
+          description="Sign in to Atuin Hub"
+          onPress={() => open(`${endpoint()}/settings/desktop-connect`)}
+        >
+          Log in
+        </DropdownItem>
+      );
+    }
+  }
 
   return (
     <div
@@ -249,6 +286,7 @@ function App() {
                   {isLoggedIn() && (
                     <User
                       avatarProps={{
+                        src: user.avatar_url || "",
                         size: "sm",
                         name: user.username || "",
                         imgProps: {
@@ -281,7 +319,7 @@ function App() {
                   Settings
                 </DropdownItem>
 
-                <DropdownSection aria-label="Help & Feedback">
+                <DropdownSection aria-label="Help & Feedback" showDivider>
                   <DropdownItem
                     key="help_and_feedback"
                     description="Get in touch"
@@ -290,6 +328,8 @@ function App() {
                     Help & Feedback
                   </DropdownItem>
                 </DropdownSection>
+
+                {renderLogInOrOut()}
               </DropdownMenu>
             </Dropdown>
           </div>

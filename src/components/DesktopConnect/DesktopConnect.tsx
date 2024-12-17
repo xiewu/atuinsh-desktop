@@ -1,6 +1,6 @@
 import { useStore } from "@/state/store";
 import { Modal, ModalContent, Button, Card, CardBody } from "@nextui-org/react";
-import { savePassword } from "@/api/api";
+import { setHubApiToken } from "@/api/api";
 import SocketManager from "@/socket";
 
 import { useMemo } from "react";
@@ -16,13 +16,9 @@ const DesktopConnect = () => {
     localStorage.removeItem("proposedToken");
 
     if (proposedUsername && proposedToken) {
-      await savePassword(
-        "sh.atuin.runbooks.api",
-        proposedUsername,
-        proposedToken,
-      );
-      localStorage.setItem("username", proposedUsername);
+      await setHubApiToken(proposedUsername, proposedToken);
       SocketManager.setApiToken(proposedToken);
+      useStore.getState().refreshUser();
     }
 
     setDesktopConnect(false);

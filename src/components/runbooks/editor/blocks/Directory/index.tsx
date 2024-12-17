@@ -9,20 +9,23 @@ import { open } from "@tauri-apps/plugin-dialog";
 
 interface DirectoryProps {
   path: string;
+  isEditable: boolean;
   onInputChange: (val: string) => void;
 }
 
-const Directory = ({ path, onInputChange }: DirectoryProps) => {
+const Directory = ({ path, onInputChange, isEditable }: DirectoryProps) => {
   const [value, setValue] = useState(path);
 
   const selectFolder = async () => {
-    const path = await open({
-      multiple: false,
-      directory: true,
-    });
+    if (isEditable) {
+      const path = await open({
+        multiple: false,
+        directory: true,
+      });
 
-    setValue(path || "");
-    onInputChange(path || "");
+      setValue(path || "");
+      onInputChange(path || "");
+    }
   };
 
   return (
@@ -38,6 +41,7 @@ const Directory = ({ path, onInputChange }: DirectoryProps) => {
               variant="flat"
               aria-label="Select folder"
               onPress={selectFolder}
+              disabled={!isEditable}
             >
               <FolderInputIcon />
             </Button>
@@ -55,6 +59,7 @@ const Directory = ({ path, onInputChange }: DirectoryProps) => {
                 setValue(val);
                 onInputChange(val);
               }}
+              disabled={!isEditable}
             />
           </div>
         </div>
@@ -82,7 +87,11 @@ export default createReactBlockSpec(
       };
 
       return (
-        <Directory path={block.props.path} onInputChange={onInputChange} />
+        <Directory
+          path={block.props.path}
+          onInputChange={onInputChange}
+          isEditable={editor.isEditable}
+        />
       );
     },
   },

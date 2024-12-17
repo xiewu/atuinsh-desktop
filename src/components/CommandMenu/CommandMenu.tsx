@@ -149,8 +149,8 @@ const Component: FC<{}> = () => {
     store.searchOpen,
     store.setSearchOpen,
   ]);
-  const setCurrentRunbook = useStore(
-    (store: AtuinState) => store.setCurrentRunbook,
+  const setCurrentRunbookId = useStore(
+    (store: AtuinState) => store.setCurrentRunbookId,
   );
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const navigate = useNavigate();
@@ -216,7 +216,7 @@ const Component: FC<{}> = () => {
 
       setQuery("");
       navigate("/runbooks");
-      setCurrentRunbook(item.id);
+      setCurrentRunbookId(item.id);
     },
     [onClose],
   );

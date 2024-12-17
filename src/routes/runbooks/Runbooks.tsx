@@ -3,17 +3,24 @@ import List from "@/components/runbooks/List/List";
 import Topbar from "@/components/runbooks/TopBar/TopBar";
 import { useTauriEvent } from "@/lib/tauri";
 import { usePtyStore } from "@/state/ptyStore";
-import Runbook from "@/state/runbooks/runbook";
 
 import { useStore } from "@/state/store";
 import { save } from "@tauri-apps/plugin-dialog";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 
 export default function Runbooks() {
   const refreshUser = useStore((store) => store.refreshUser);
   const currentRunbook = useStore((store) => store.currentRunbook);
   const newRunbook = useStore((store) => store.newRunbook);
+  const lastTagForRunbook = useStore((store) => {
+    if (currentRunbook) {
+      return store.getLastTagForRunbook(currentRunbook.id);
+    } else {
+      return null;
+    }
+  });
+  const [selectedTag, setSelectedTag] = useState(lastTagForRunbook);
 
   const location = useLocation();
 
@@ -23,29 +30,25 @@ export default function Runbooks() {
   useTauriEvent("export-runbook", async () => {
     if (!currentRunbook) return;
 
-    let runbook = await Runbook.load(currentRunbook);
-
     let filePath = await save({
-      defaultPath: runbook?.name + ".atrb",
+      defaultPath: currentRunbook.name + ".atrb",
     });
 
     if (!filePath) return;
 
-    runbook?.export(filePath);
+    currentRunbook.export(filePath);
   });
 
   useTauriEvent("export-markdown", async () => {
     if (!currentRunbook) return;
 
-    let runbook = await Runbook.load(currentRunbook);
-
     let filePath = await save({
-      defaultPath: runbook?.name + ".atmd",
+      defaultPath: currentRunbook.name + ".atmd",
     });
 
     if (!filePath) return;
 
-    runbook?.exportMarkdown(filePath);
+    currentRunbook.exportMarkdown(filePath);
   });
 
   useEffect(() => {
@@ -65,13 +68,21 @@ export default function Runbooks() {
     };
   }, []);
 
+  function handleSelectTag(tag: string | null) {
+    console.log("User selected a tag:", tag);
+  }
+
   return (
     <div className="flex !w-full !max-w-full flex-row overflow-hidden">
       <List />
       {currentRunbook && (
         <div className="flex w-full max-w-full overflow-hidden flex-col">
-          <Topbar />
-          <Editor />
+          <Topbar
+            runbook={currentRunbook}
+            currentTag={selectedTag}
+            onSelectTag={handleSelectTag}
+          />
+          <Editor runbook={currentRunbook} />
         </div>
       )}
 

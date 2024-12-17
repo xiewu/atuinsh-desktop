@@ -115,7 +115,9 @@ export interface AtuinState {
   weekStart: number;
   runbooks: Runbook[];
   runbookIndex: RunbookIndexService;
-  currentRunbook: string | null;
+  currentRunbookId: string | null;
+  currentRunbook: Runbook | null;
+  lastTagForRunbook: { [key: string]: string };
 
   searchOpen: boolean;
   setSearchOpen: (open: boolean) => void;
@@ -132,7 +134,10 @@ export interface AtuinState {
   importRunbook: () => Promise<Runbook[] | null>;
   refreshRunbooks: () => Promise<void>;
 
-  setCurrentRunbook: (id: String) => void;
+  setCurrentRunbookId: (id: string | null) => void;
+  setCurrentRunbook: (runbook: Runbook | null, skipReydrate?: boolean) => void;
+  selectTag: (runbookId: string, tag: string) => void;
+  getLastTagForRunbook: (runbookId: string) => string | null;
   setPtyTerm: (pty: string, terminal: any) => void;
   newPtyTerm: (pty: string) => Promise<TerminalData>;
   cleanupPtyTerm: (pty: string) => void;
@@ -150,7 +155,12 @@ export interface AtuinState {
   setDesktopConnect: (open: boolean) => void;
 }
 
-let state = (set: any, get: any): AtuinState => ({
+type StateSet<T> = Partial<T> | ((state: T) => Partial<AtuinState>);
+
+let state = (
+  set: (state: StateSet<AtuinState>) => void,
+  get: () => AtuinState,
+): AtuinState => ({
   user: DefaultUser,
   homeInfo: DefaultHomeInfo,
   aliases: [],
@@ -158,7 +168,9 @@ let state = (set: any, get: any): AtuinState => ({
   shellHistory: [],
   calendar: [],
   runbooks: [],
-  currentRunbook: "",
+  currentRunbookId: null,
+  currentRunbook: null,
+  lastTagForRunbook: {},
   terminals: {},
   runbookIndex: new RunbookIndexService(),
 
@@ -194,7 +206,7 @@ let state = (set: any, get: any): AtuinState => ({
     runbook.content = JSON.stringify(untitledRunbook);
     runbook.save();
 
-    await get().setCurrentRunbook(runbook.id);
+    await get().setCurrentRunbook(runbook, true);
     await get().refreshRunbooks();
     await get().refreshWorkspaces();
 
@@ -237,9 +249,9 @@ let state = (set: any, get: any): AtuinState => ({
       await get().refreshWorkspaces();
     }
 
-    logger.debug("loading runbooks for", get().workspace.name);
+    logger.debug("loading runbooks for", get().workspace?.name);
 
-    let runbooks = await Runbook.all(get().workspace);
+    let runbooks = await Runbook.all(get().workspace!);
     let index = new RunbookIndexService();
     index.bulkAddRunbooks(runbooks);
 
@@ -325,8 +337,46 @@ let state = (set: any, get: any): AtuinState => ({
     }
   },
 
-  setCurrentRunbook: (id: String) => {
-    set({ currentRunbook: id });
+  setCurrentRunbookId: async (id: string | null) => {
+    const currentId = get().currentRunbookId;
+    set({ currentRunbookId: id });
+
+    if (id && id !== currentId) {
+      const runbook = await Runbook.load(id);
+      set({ currentRunbook: runbook });
+    } else if (!id) {
+      set({ currentRunbook: null });
+    }
+  },
+
+  setCurrentRunbook: (runbook: Runbook | null, skipRehydrate?: boolean) => {
+    if (skipRehydrate) {
+      // zustand state must be immutable; thus, if we change a runbook and save it,
+      // we need to clone it so that the state is actually updated.
+      const currentRunbook = get().currentRunbook;
+      if (runbook && runbook == currentRunbook) {
+        runbook = runbook.clone();
+      }
+      set({ currentRunbook: runbook, currentRunbookId: runbook?.id });
+    } else {
+      // Ensure the runbook gets fully hydrated
+      const id = runbook ? runbook.id : null;
+      get().setCurrentRunbookId(id);
+    }
+  },
+
+  selectTag: (runbookId: string, tag: string) => {
+    const obj = get().lastTagForRunbook;
+    obj[runbookId] = tag;
+    set({ lastTagForRunbook: obj });
+  },
+
+  getLastTagForRunbook: (runbookId?: string): string | null => {
+    if (runbookId) {
+      return get().lastTagForRunbook[runbookId] || null;
+    } else {
+      return null;
+    }
   },
 
   setPtyTerm: (pty: string, terminal: TerminalData) => {
@@ -403,7 +453,7 @@ let state = (set: any, get: any): AtuinState => ({
   },
 
   deleteWorkspace: async (workspace: Workspace) => {
-    if (get().workspace.id === workspace.id) {
+    if (get().workspace?.id === workspace.id) {
       throw new Error("Cannot delete current workspace");
     }
 
@@ -430,10 +480,33 @@ let state = (set: any, get: any): AtuinState => ({
   },
 });
 
+// zustand's persist middleware will only trigger a migrate call
+// if the previous stored state has a version number
+function addVersionToPersistedState() {
+  const json = localStorage.getItem("atuin-storage");
+  if (json == null) return;
+
+  const persisted = JSON.parse(json);
+  if (persisted.version === undefined || persisted.version === null) {
+    logger.info("Adding default version (0) to persisted storage");
+    persisted.version = 0;
+    const newJson = JSON.stringify(persisted);
+    localStorage.setItem("atuin-storage", newJson);
+  }
+}
+
+/**
+ * Verisons:
+ * 0: initial version
+ * 1: Moved currentRunbook to currentRunbookId, dropped runbooks from storage
+ */
+
+addVersionToPersistedState();
 export const useStore = create<AtuinState>()(
   subscribeWithSelector(
     persist(state, {
       name: "atuin-storage",
+      version: 1,
 
       // don't serialize the terminals map
       // it won't work as JSON. too cyclical
@@ -448,9 +521,33 @@ export const useStore = create<AtuinState>()(
                 "home_info",
                 "runbookIndex",
                 "user",
+                "currentRunbook",
+                "runbooks",
               ].includes(key),
           ),
         ),
+      migrate: (persisted: any, version) => {
+        logger.info(`Migrating state from v${version}`);
+        if (version <= 0) {
+          const id = persisted.currentRunbook;
+          persisted.currentRunbookId = id;
+          delete persisted.currentRunbook;
+        }
+
+        return persisted;
+      },
+      onRehydrateStorage: () => {
+        return (state: AtuinState | undefined) => {
+          if (!state) return state;
+
+          // Reload the current runbook
+          if (state.currentRunbookId) {
+            Runbook.load(state.currentRunbookId).then((runbook) =>
+              state.setCurrentRunbook(runbook, true),
+            );
+          }
+        };
+      },
     }),
   ),
 );

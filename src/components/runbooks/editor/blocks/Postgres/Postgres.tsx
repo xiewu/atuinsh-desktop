@@ -13,6 +13,7 @@ interface SQLProps {
   uri: string;
   query: string;
   autoRefresh: number;
+  isEditable: boolean;
 
   setQuery: (query: string) => void;
   setUri: (uri: string) => void;
@@ -26,6 +27,7 @@ const Postgres = ({
   setUri,
   autoRefresh,
   setAutoRefresh,
+  isEditable,
 }: SQLProps) => {
   return (
     <SQL
@@ -39,6 +41,7 @@ const Postgres = ({
       setAutoRefresh={setAutoRefresh}
       runQuery={runQuery}
       extensions={[langs.pgsql()]}
+      isEditable={isEditable}
     />
   );
 };
@@ -85,6 +88,7 @@ export default createReactBlockSpec(
           setQuery={setQuery}
           autoRefresh={block.props.autoRefresh}
           setAutoRefresh={setAutoRefresh}
+          isEditable={editor.isEditable}
         />
       );
     },

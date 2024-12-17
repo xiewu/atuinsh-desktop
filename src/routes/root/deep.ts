@@ -28,7 +28,7 @@ const handleDeepLink = (navigate: any, url: string): void | null => {
           json.runbook.content = json.runbook.content.data;
         let runbook = await Runbook.importJSON(json.runbook as RunbookFile);
 
-        useStore.getState().setCurrentRunbook(runbook.id);
+        useStore.getState().setCurrentRunbook(runbook);
         useStore.getState().refreshRunbooks();
         navigate("/runbooks");
       },

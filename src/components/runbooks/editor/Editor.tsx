@@ -134,27 +134,19 @@ function isContentBlank(content: any) {
   );
 }
 
-export default function Editor() {
-  const runbookId = useStore((store: AtuinState) => store.currentRunbook);
+type EditorProps = {
+  runbook: Runbook | null;
+};
+
+export default function Editor(props: EditorProps) {
+  const runbook = props.runbook;
   const refreshRunbooks = useStore(
     (store: AtuinState) => store.refreshRunbooks,
   );
+  const setCurrentRunbook = useStore((store) => store.setCurrentRunbook);
 
   const user = useStore((store: AtuinState) => store.user);
-  let [runbook, setRunbook] = useState<Runbook | null>(null);
   let [editor, setEditor] = useState<BlockNoteEditor | null>(null);
-
-  useEffect(() => {
-    if (!runbookId) return;
-
-    const fetchRunbook = async () => {
-      let rb = await Runbook.load(runbookId);
-
-      setRunbook(rb);
-    };
-
-    fetchRunbook();
-  }, [runbookId]);
 
   const fetchName = (editor: BlockNoteEditor): string => {
     // Infer the title from the first text block
@@ -190,6 +182,8 @@ export default function Editor() {
     if (editor) runbook.content = JSON.stringify(editor.document);
 
     await runbook.save();
+    // update the state so other components refresh
+    setCurrentRunbook(runbook, true);
     refreshRunbooks();
   };
 
@@ -255,7 +249,9 @@ export default function Editor() {
       if (timer) clearTimeout(timer);
       setEditor(null);
     };
-  }, [runbook]);
+    // zustand state is immutable, so `runbook` will change every runbook.save()
+    // to avoid creating a new editor and provider every save, depend on the runbook ID
+  }, [runbook?.id]);
 
   useEffect(() => {
     if (editor) {

@@ -38,5 +38,11 @@ pub fn migrations() -> Vec<Migration> {
             sql: "CREATE TABLE snapshots(id STRING PRIMARY KEY, runbook_id STRING, tag TEXT, content TEXT, created BIGINT);",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 7,
+            description: "add_source_info_to_runbooks",
+            sql: "ALTER TABLE runbooks ADD COLUMN source TEXT, ADD COLUMN source_info TEXT, ADD COLUMN forked_from STRING;",
+            kind: MigrationKind::Up,
+        },
     ]
 }

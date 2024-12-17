@@ -327,6 +327,7 @@ fn main() {
             dotfiles::vars::set_var,
             secret::save_password,
             secret::load_password,
+            secret::delete_password,
             templates::template_str,
             runbooks::ydoc::save_ydoc_for_runbook,
             runbooks::ydoc::load_ydoc_for_runbook,

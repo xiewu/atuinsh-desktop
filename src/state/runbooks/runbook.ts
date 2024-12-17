@@ -20,14 +20,19 @@ export interface RunbookFile {
   content: string;
 }
 
+type RunbookSource = "local" | "hub" | "atrb";
+
 export default class Runbook {
   id: string;
   ydoc: Y.Doc;
+  source: RunbookSource;
+  sourceInfo: string | null;
 
   created: Date;
   updated: Date;
 
   workspaceId: string;
+  forkedFrom: string | null;
 
   private _name: string;
   private _content: string;
@@ -53,18 +58,24 @@ export default class Runbook {
   constructor(
     id: string,
     name: string,
+    source: RunbookSource,
+    sourceInfo: string | null,
     content: string,
     ydoc: Y.Doc,
     created: Date,
     updated: Date,
     workspaceId: string,
+    forkedFrom: string | null,
   ) {
     this.id = id;
     this._name = name;
+    this.source = source || "local";
+    this.sourceInfo = sourceInfo;
     this._content = content;
     this.ydoc = ydoc;
     this.created = created;
     this.updated = updated;
+    this.forkedFrom = forkedFrom;
 
     this.workspaceId = workspaceId;
   }
@@ -81,11 +92,14 @@ export default class Runbook {
     let runbook = new Runbook(
       uuidv7(),
       "",
+      "local",
+      null,
       "",
       new Y.Doc(),
       now,
       now,
       workspace.id,
+      null,
     );
     await runbook.save();
 
@@ -224,11 +238,14 @@ export default class Runbook {
     let runbook = new Runbook(
       obj.id,
       obj.name,
+      "atrb",
+      null,
       obj.content,
       new Y.Doc(),
       new Date(obj.created),
       new Date(),
       workspace.id,
+      null,
     );
 
     await runbook.save();
@@ -248,7 +265,7 @@ export default class Runbook {
 
     let res = await logger.time(`Selecting runbook with ID ${id}`, async () =>
       db.select<any[]>(
-        "select id, name, content, created, updated, workspace_id from runbooks where id = $1",
+        "select id, name, source, source_info, content, created, updated, workspace_id, forked_from from runbooks where id = $1",
         [id],
       ),
     );
@@ -283,11 +300,14 @@ export default class Runbook {
     return new Runbook(
       row.id,
       row.name,
+      row.source || "local",
+      row.sourceInfo,
       row.content || "[]",
       doc,
       new Date(row.created / 1000000),
       new Date(row.updated / 1000000),
       row.workspace_id,
+      row.forked_from,
     );
   }
 
@@ -299,7 +319,8 @@ export default class Runbook {
 
     let runbooks = await logger.time("Selecting all runbooks", async () => {
       let res = await db.select<any[]>(
-        "select id, name, created, updated, workspace_id from runbooks where workspace_id = $1 or workspace_id is null order by updated desc",
+        "select id, name, source, source_info, created, updated, workspace_id, forked_from from runbooks " +
+          "where workspace_id = $1 or workspace_id is null order by updated desc",
         [workspace.id],
       );
 
@@ -327,15 +348,18 @@ export default class Runbook {
 
     logger.time(`Saving runbook ${this.id}`, async () => {
       await db.execute(
-        `insert into runbooks(id, name, content, created, updated, workspace_id)
-          values ($1, $2, $3, $4, $5, $6)
+        `insert into runbooks(id, name, content, created, updated, workspace_id, source, source_info, forked_from)
+          values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 
           on conflict(id) do update
             set
               name=$2,
               content=$3,
               updated=$5,
-              workspace_id=$6`,
+              workspace_id=$6,
+              source=$7,
+              source_info=$8,
+              forked_from=$9`,
 
         // getTime returns a timestamp as unix milliseconds
         // we won't need or use the resolution here, but elsewhere Atuin stores timestamps in sqlite as nanoseconds since epoch
@@ -347,6 +371,9 @@ export default class Runbook {
           this.created.getTime() * 1000000,
           this.updated.getTime() * 1000000,
           this.workspaceId,
+          this.source,
+          this.sourceInfo,
+          this.forkedFrom,
         ],
       );
 
@@ -389,11 +416,14 @@ export default class Runbook {
     return new Runbook(
       this.id,
       this.name,
+      this.source,
+      this.sourceInfo,
       this.content,
       this.ydoc,
       this.created,
       this.updated,
       this.workspaceId,
+      this.forkedFrom,
     );
   }
 

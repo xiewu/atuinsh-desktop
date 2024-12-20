@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use typed_builder::TypedBuilder;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{value::Value as JsonValue, Map, Number};
@@ -48,71 +49,78 @@ pub struct RunbookFrontMatter {
     pub name: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TypedBuilder, Clone, Debug)]
 pub struct RunbookNode {
+    #[builder(default=Uuid::now_v7())]
     pub id: Uuid,
+
+    #[builder(default)]
+    pub name: Option<String>,
 
     #[serde(rename = "type")]
     pub type_: String,
 
+    #[builder(default)]
     pub props: serde_json::value::Map<String, JsonValue>,
 
+    #[builder(default)]
     #[serde(default)]
     pub content: Vec<Content>,
 
+    #[builder(default)]
     #[serde(default)]
     pub children: Vec<RunbookNode>,
 }
 
 impl RunbookNode {
     pub fn heading(value: String, level: u16) -> RunbookNode {
-        RunbookNode {
-            id: Uuid::now_v7(),
-            type_: "heading".to_string(),
-            props: Map::from_iter(vec![
-                (
-                    "textColor".to_string(),
-                    JsonValue::String("default".to_string()),
-                ),
-                (
-                    "backgroundColor".to_string(),
-                    JsonValue::String("default".to_string()),
-                ),
-                (
-                    "textAlignment".to_string(),
-                    JsonValue::String("left".to_string()),
-                ),
-                (
-                    "level".to_string(),
-                    JsonValue::Number(Number::from_u128(level as u128).unwrap()),
-                ),
-            ]),
-            content: vec![Content::text(value)],
-            children: vec![],
-        }
+        let props = Map::from_iter(vec![
+            (
+                "textColor".to_string(),
+                JsonValue::String("default".to_string()),
+            ),
+            (
+                "backgroundColor".to_string(),
+                JsonValue::String("default".to_string()),
+            ),
+            (
+                "textAlignment".to_string(),
+                JsonValue::String("left".to_string()),
+            ),
+            (
+                "level".to_string(),
+                JsonValue::Number(Number::from_u128(level as u128).unwrap()),
+            ),
+        ]);
+
+        RunbookNode::builder()
+            .type_("heading".to_string())
+            .props(props)
+            .content(vec![Content::text(value)])
+            .build()
     }
 
     pub fn paragraph(content: Vec<Content>) -> RunbookNode {
-        RunbookNode {
-            id: Uuid::now_v7(),
-            type_: "paragraph".to_string(),
-            props: Map::from_iter(vec![
-                (
-                    "textColor".to_string(),
-                    JsonValue::String("default".to_string()),
-                ),
-                (
-                    "backgroundColor".to_string(),
-                    JsonValue::String("default".to_string()),
-                ),
-                (
-                    "textAlignment".to_string(),
-                    JsonValue::String("left".to_string()),
-                ),
-            ]),
-            content,
-            children: vec![],
-        }
+        let props = Map::from_iter(vec![
+            (
+                "textColor".to_string(),
+                JsonValue::String("default".to_string()),
+            ),
+            (
+                "backgroundColor".to_string(),
+                JsonValue::String("default".to_string()),
+            ),
+            (
+                "textAlignment".to_string(),
+                JsonValue::String("left".to_string()),
+            ),
+        ]);
+
+        RunbookNode::builder()
+            .type_("paragraph".to_string())
+            .props(props)
+            .content(content)
+            .build()
     }
 
     /// Create a new block
@@ -122,13 +130,11 @@ impl RunbookNode {
         front_matter: Map<String, JsonValue>,
         contents: String,
     ) -> RunbookNode {
-        RunbookNode {
-            id: Uuid::now_v7(),
-            props: front_matter,
-            children: vec![],
-            type_,
-            content: vec![Content::text(contents)],
-        }
+        RunbookNode::builder()
+            .type_(type_)
+            .props(front_matter)
+            .content(vec![Content::text(contents)])
+            .build()
     }
 
     // If we have a body prop, return it

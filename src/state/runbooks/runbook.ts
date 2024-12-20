@@ -2,9 +2,15 @@ import { invoke } from "@tauri-apps/api/core";
 import Database from "@tauri-apps/plugin-sql";
 import { writeTextFile, readTextFile } from "@tauri-apps/plugin-fs";
 import * as Y from "yjs";
+import {
+  writeTextFile,
+  readTextFile,
+  BaseDirectory,
+} from "@tauri-apps/plugin-fs";
 import { uuidv7 } from "uuidv7";
 import Workspace from "./workspace";
 import Logger from "@/lib/logger";
+import { atuinToBlocknote, blocknoteToAtuin } from "./convert";
 const logger = new Logger("Runbook", "green", "green");
 
 // Definition of an atrb file
@@ -116,113 +122,26 @@ export default class Runbook {
   }
 
   public async export(filePath: string) {
-    let exportFile: RunbookFile = {
+    // Load the runbook from the ID. This ensures we have all fields populated properly, and as up-to-date as possible.
+    // TODO: we are probably going to be changing stuff here for snapshots
+    let rb = await Runbook.load(this.id);
+    let content = blocknoteToAtuin(JSON.parse(rb.content));
+    let runbook = {
       version: 0,
       id: this.id,
       name: this.name,
-      created: this.created,
-      content: this.content,
+      created: this.created.getTime() * 1000000,
+      content: content,
     };
 
-    await writeTextFile(filePath, JSON.stringify(exportFile));
+    await invoke<string>("export_atrb", {
+      json: JSON.stringify(runbook),
+      filePath: filePath,
+    });
   }
 
   public async exportMarkdown(filePath: string) {
-    let content = JSON.parse(this.content);
-
-    // We're using some older type names that need mapping before they are exposed
-    const blockMap = {
-      run: "@core/terminal",
-      clickhouse: "@core/clickhouse",
-      http: "@core/http",
-      editor: "@core/editor",
-      postgres: "@core/postgres",
-      prometheus: "@core/prometheus",
-      sqlite: "@core/sqlite",
-      env: "@core/env",
-      directory: "@core/directory",
-    };
-
-    // The props that should be exposed in the exported markdown
-    const publicProps = {
-      "@core/terminal": [],
-      "@core/clickhouse": ["uri", "autoRefresh"],
-      "@core/postgres": ["uri", "autoRefresh"],
-      "@core/sqlite": ["uri", "autoRefresh"],
-      "@core/prometheus": ["autoRefresh"],
-      "@core/editor": ["language"],
-      "@core/http": ["url", "verb", "headers"],
-    };
-
-    // Props that should be parsed from a string -> object before passing through
-    const parseProps = {
-      "@core/http": ["headers"],
-    };
-
-    // We have the concept of a "body" in our markdown. While blocknote uses props for most useful
-    // data storage, we have a magic "body" prop that is set as the main body for a markdown code
-    // block.
-    // Detail which prop should be used for the body of the block in markdown
-    const bodyMap: { [K in `@core/${string}`]: (props: any) => string } = {
-      "@core/terminal": (props) => props.code,
-      "@core/prometheus": (props) => props.query,
-      "@core/sqlite": (props) => props.query,
-      "@core/postgres": (props) => props.query,
-      "@core/clickhouse": (props) => props.query,
-      "@core/editor": (props) => props.code,
-      "@core/directory": (props) => {
-        return "cd " + props.path;
-      },
-      "@core/env": (props) => {
-        return `${props.name}=${props.value}`;
-      },
-    };
-
-    const processBlock = (block: any) => {
-      if (block.type in blockMap) {
-        // @ts-ignore
-        block.type = blockMap[block.type];
-      }
-
-      if (block.type in bodyMap) {
-        block.props.body = bodyMap[block.type](block.props);
-      }
-
-      // delete any props not in the public props list, for @ blocks
-      if (block.type.startsWith("@")) {
-        for (let prop in block.props) {
-          // @ts-ignore
-          if (!publicProps[block.type]?.includes(prop) && prop !== "body") {
-            delete block.props[prop];
-          }
-        }
-      }
-
-      // parse any props from a JSON string to an object
-      // blocknote only supports primitive types, but we want our backend to see things properly
-      if (block.type in parseProps) {
-        // @ts-ignore
-        for (let prop of parseProps[block.type]) {
-          if (!block.props[prop]) continue;
-          block.props[prop] = JSON.parse(block.props[prop]);
-        }
-      }
-
-      if (block.content) {
-        // If the block content is an object rather than a list, rewrite it to be a list with one element
-        if (!Array.isArray(block.content)) {
-          block.content = [block.content];
-        }
-
-        let newContent = block.content.map(processBlock);
-        block.content = newContent;
-      }
-
-      return block;
-    };
-
-    let blocks = content.map(processBlock);
-
+    let blocks = blocknoteToAtuin(JSON.parse(this.content));
     await invoke<string>("export_atmd", {
       json: JSON.stringify(blocks),
       path: filePath,
@@ -239,12 +158,16 @@ export default class Runbook {
       workspace = await Workspace.current();
     }
 
+    let content =
+      typeof obj.content === "object" ? obj.content : JSON.parse(obj.content);
+    let mappedContent = atuinToBlocknote(content);
+
     let runbook = new Runbook({
       id: obj.id,
       name: obj.name,
       source: source,
       sourceInfo: sourceInfo,
-      content: obj.content,
+      content: JSON.stringify(mappedContent),
       ydoc: new Y.Doc(),
       created: new Date(obj.created),
       updated: new Date(),
@@ -258,10 +181,14 @@ export default class Runbook {
   }
 
   public static async importFile(filePath: string, workspace?: Workspace) {
+    // For some reason, we're getting an ArrayBuffer here? Supposedly it should be passing a string.
+    // But it's not.
     let file = await readTextFile(filePath);
-    let importFile = JSON.parse(file) as RunbookFile;
+    var enc = new TextDecoder("utf-8");
 
-    return Runbook.importJSON(importFile, "file", null, workspace);
+    // Because of the aforemention thing.
+    // @ts-ignore
+    return Runbook.importJSON(JSON.parse(enc.decode(file)));
   }
 
   public static async load(id: String): Promise<Runbook | null> {

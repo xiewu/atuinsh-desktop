@@ -35,7 +35,7 @@ fn parse_content<'a>(node: &'a Node<'a, RefCell<Ast>>) -> Option<Content> {
     let content = node.children().filter_map(parse_content).collect();
 
     match node.data.clone().into_inner().value {
-        NodeValue::Text(ref literal) => Some(Content::text(literal.clone(), content)),
+        NodeValue::Text(ref literal) => Some(Content::text(literal.clone())),
 
         NodeValue::Link(link) => Some(Content::link(link.url, content)),
 
@@ -420,12 +420,9 @@ params:
             name: Some("Test runbook".to_string()),
             content: vec![
                 RunbookNode::heading("Hello world".to_string(), 1),
-                RunbookNode::paragraph(vec![Content::text("".to_string(), vec![])]),
-                RunbookNode::paragraph(vec![Content::text(
-                    "This is a markdown doc".to_string(),
-                    vec![],
-                )]),
-                RunbookNode::paragraph(vec![Content::text("".to_string(), vec![])]),
+                RunbookNode::paragraph(vec![Content::text("".to_string())]),
+                RunbookNode::paragraph(vec![Content::text("This is a markdown doc".to_string())]),
+                RunbookNode::paragraph(vec![Content::text("".to_string())]),
                 RunbookNode::block(
                     "@core/terminal".to_string(),
                     terminal_props,

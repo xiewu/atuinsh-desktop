@@ -111,8 +111,6 @@ const SQL = ({
     autoRefresh > 0 ? autoRefresh : null,
   );
 
-  console.log(name);
-
   return (
     <Block
       title={name}

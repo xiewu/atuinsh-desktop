@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use serde_json::{value::Value as JsonValue, Map, Number};
 use uuid::Uuid;
@@ -15,14 +17,18 @@ pub enum Content {
 
     Link(link::Link),
 
-    Table {},
+    #[allow(clippy::enum_variant_names)]
+    TableContent(table::Table),
 }
 
 /// We should probably implement serde's Serialize trait, but I'm afraid I'm quite lazy and that
 /// looks gross to do.
 impl Content {
-    pub fn text(text: String, content: Vec<Content>) -> Content {
-        Content::Text(text::Text { text, content })
+    pub fn text(text: String) -> Content {
+        Content::Text(text::Text {
+            text,
+            styles: HashMap::new(),
+        })
     }
 
     pub fn link(href: String, content: Vec<Content>) -> Content {
@@ -81,7 +87,7 @@ impl RunbookNode {
                     JsonValue::Number(Number::from_u128(level as u128).unwrap()),
                 ),
             ]),
-            content: vec![Content::text(value, vec![])],
+            content: vec![Content::text(value)],
             children: vec![],
         }
     }
@@ -121,7 +127,7 @@ impl RunbookNode {
             props: front_matter,
             children: vec![],
             type_,
-            content: vec![Content::text(contents, vec![])],
+            content: vec![Content::text(contents)],
         }
     }
 

@@ -66,15 +66,22 @@ fn new_workspace<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
 }
 
 fn export_runbook<R: Runtime>(handle: &AppHandle<R>) -> Result<Submenu<R>> {
+    /*
     let export_markdown = MenuItemBuilder::new("Markdown")
         .id("export-markdown")
         .build(handle)?;
+        */
 
     let export_runbook = MenuItemBuilder::new("Runbook")
         .id("export-runbook")
         .build(handle)?;
 
-    let menu = Submenu::with_items(handle, "Export", true, &[&export_markdown, &export_runbook])?;
+    let menu = Submenu::with_items(
+        handle,
+        "Export",
+        true,
+        &[/*&export_markdown,*/ &export_runbook],
+    )?;
 
     handle.on_menu_event(move |window, event| {
         if event.id().0 == "export-runbook" {
@@ -92,20 +99,38 @@ fn export_runbook<R: Runtime>(handle: &AppHandle<R>) -> Result<Submenu<R>> {
     Ok(menu)
 }
 
-fn export_workspace<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
-    let sync_with_dir = MenuItemBuilder::new("Export")
-        .id("export-workspace")
+fn export_workspace<R: Runtime>(handle: &AppHandle<R>) -> Result<Submenu<R>> {
+    /*
+    let export_markdown = MenuItemBuilder::new("Markdown")
+        .id("export-workspace-markdown")
+        .build(handle)?;
+        */
+
+    let export_runbook = MenuItemBuilder::new("Runbook")
+        .id("export-workspace-runbook")
         .build(handle)?;
 
+    let menu = Submenu::with_items(
+        handle,
+        "Export",
+        true,
+        &[/*&export_markdown,*/ &export_runbook],
+    )?;
+
     handle.on_menu_event(move |window, event| {
-        if event.id().0 == "export-workspace" {
+        if event.id().0 == "export-workspace-markdown" {
             window
-                .emit("export-workspace", 0)
+                .emit("export-workspace-markdown", 0)
+                .expect("Failed to emit menu event");
+        }
+
+        if event.id().0 == "export-workspace-runbook" {
+            window
+                .emit("export-workspace-runbook", 0)
                 .expect("Failed to emit menu event");
         }
     });
-
-    Ok(sync_with_dir)
+    Ok(menu)
 }
 
 fn link_menu_item<R: Runtime>(

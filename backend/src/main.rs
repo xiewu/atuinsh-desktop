@@ -332,6 +332,7 @@ fn main() {
             runbooks::ydoc::save_ydoc_for_runbook,
             runbooks::ydoc::load_ydoc_for_runbook,
             runbooks::runbook::export_atmd,
+            runbooks::runbook::export_atrb,
             file::find_files,
         ])
         .plugin(

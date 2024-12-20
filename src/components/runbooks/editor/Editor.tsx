@@ -59,6 +59,7 @@ import { uuidv7 } from "uuidv7";
 import { DuplicateBlockItem } from "./ui/DuplicateBlockItem";
 
 import PhoenixProvider from "@/lib/phoenix_provider";
+import { atuinToBlocknote, blocknoteToAtuin } from "@/state/runbooks/convert";
 
 // Our schema with block specs, which contain the configs and implementations for blocks
 // that we want our editor to use.
@@ -226,15 +227,20 @@ export default function Editor(props: EditorProps) {
       timer = setTimeout(() => {
         timer = undefined;
         let currentContent = editor.document;
+
         if (isContentBlank(currentContent)) {
           logger.info(
             "BlockNote editor has empty content after sync; inserting existing content.",
+            currentContent,
+            content,
           );
+
           editor.replaceBlocks(currentContent, content);
         }
       }, 100);
 
       setEditor(editor as any);
+
       (window as any).editor = editor;
 
       provider.on("remote_update", () => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Modal,
   ModalContent,
@@ -22,6 +22,8 @@ import { FolderInputIcon } from "lucide-react";
 import { AtuinState, useStore } from "@/state/store";
 import { invoke } from "@tauri-apps/api/core";
 
+type ExportFormat = "atmd" | "atrb";
+
 const DirectoryExportModal = () => {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [directory, setDirectory] = useState<string>("");
@@ -29,59 +31,78 @@ const DirectoryExportModal = () => {
   const [overwriteKeys, setOverwriteKeys] = React.useState(new Set());
   const runbooks = useStore((state: AtuinState) => state.runbooks);
 
-  useTauriEvent("export-workspace", async () => {
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("atrb");
+
+  useTauriEvent("export-workspace-runbook", async () => {
+    setExportFormat("atrb");
+    onOpen();
+  });
+
+  useTauriEvent("export-workspace-markdown", async () => {
+    setMatchingFiles([]);
+    setExportFormat("atmd");
     onOpen();
   });
 
   useEffect(() => {
     if (!isOpen) {
-      setMatchingFiles([]);
       return;
     }
 
     (async () => {
       const entries = await invoke<any[]>("find_files", {
         path: directory,
-        extension: "atmd",
+        extension: exportFormat,
       });
 
       // only show files that are in the workspace
       let filteredFiles = entries.filter(
         (entry) =>
-          runbooks.find((rb) => `${rb.name}.atmd` == entry.name) != undefined,
+          runbooks.find((rb) => `${rb.name}.${exportFormat}` == entry.name) !=
+          undefined,
       );
 
       setMatchingFiles(filteredFiles);
     })();
   }, [directory, isOpen]);
 
-  const handleSync = async (onClose: () => void): Promise<void> => {
-    // Iterate over ALL the runbooks we have in the workspace
-    // 1. If there are no conflicts, just export them to the specified path
-    // 2. If there are conflicts, follow the strategy selected by the user
-    // 3. profit
-    for (let rb of runbooks) {
-      // If the runbook is already in the directory, and it's not supposed to be overriden, skip
-      let exists = matchingFiles.some((item) => item.name == rb.name + ".atmd");
+  const handleSync = useCallback(
+    async (onClose: () => void): Promise<void> => {
+      // Iterate over ALL the runbooks we have in the workspace
+      // 1. If there are no conflicts, just export them to the specified path
+      // 2. If there are conflicts, follow the strategy selected by the user
+      // 3. profit
+      for (let rb of runbooks) {
+        // If the runbook is already in the directory, and it's not supposed to be overriden, skip
+        let exists = matchingFiles.some(
+          (item) => item.name == rb.name + ".atmd",
+        );
 
-      // Forgive me, for I have sinned (and I cba chasing this type error sorry)
-      // There are some parts of the internals of some of these libraries which
-      // are a huge pain in the ass to type.
-      /// @ts-ignore
-      if (
-        exists &&
-        // @ts-ignore
-        overwriteKeys != "all" &&
-        !overwriteKeys?.has(rb.name + ".atmd")
-      )
-        continue;
+        // Forgive me, for I have sinned (and I cba chasing this type error sorry)
+        // There are some parts of the internals of some of these libraries which
+        // are a huge pain in the ass to type.
+        /// @ts-ignore
+        if (
+          exists &&
+          // @ts-ignore
+          overwriteKeys != "all" &&
+          !overwriteKeys?.has(rb.name + ".atmd")
+        )
+          continue;
 
-      let filePath = directory + "/" + rb.name + ".atmd";
-      await rb.exportMarkdown(filePath);
-    }
+        let filePath = directory + "/" + rb.name + "." + exportFormat;
 
-    onClose();
-  };
+        if (exportFormat === "atmd") {
+          await rb.exportMarkdown(filePath);
+        } else if (exportFormat === "atrb") {
+          await rb.export(filePath);
+        }
+      }
+
+      onClose();
+    },
+    [exportFormat],
+  );
 
   const selectFolder = async () => {
     const path = await open({

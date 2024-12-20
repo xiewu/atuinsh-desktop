@@ -19,6 +19,7 @@ export default function ExportRunbookDropdown({
   onClose,
 }: ExportRunbookDropdownProps) {
   let exportTypes = [
+    /*
     {
       name: "Atuin Markdown",
       extension: "atmd",
@@ -32,6 +33,7 @@ export default function ExportRunbookDropdown({
         runbook?.exportMarkdown(filePath);
       },
     },
+    */
     {
       name: "Atuin Runbook",
       extension: "atrb",

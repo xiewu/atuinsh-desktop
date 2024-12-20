@@ -42,6 +42,7 @@ interface SQLProps {
   setQuery: (query: string) => void;
   setUri: (uri: string) => void;
   setAutoRefresh: (autoRefresh: number) => void;
+  setName: (name: string) => void;
 }
 
 const autoRefreshChoices = [
@@ -59,6 +60,7 @@ const autoRefreshChoices = [
 
 const SQL = ({
   name,
+  setName,
   placeholder,
   query,
   setQuery,
@@ -113,7 +115,8 @@ const SQL = ({
 
   return (
     <Block
-      title={name}
+      name={name}
+      setName={setName}
       header={
         <>
           <MaskedInput
@@ -162,18 +165,13 @@ const SQL = ({
                 {autoRefresh == 0
                   ? "Off"
                   : (
-                      autoRefreshChoices.find(
-                        (a) => a.value == autoRefresh,
-                      ) || {
+                      autoRefreshChoices.find((a) => a.value == autoRefresh) || {
                         label: "Off",
                       }
                     ).label}
               </Button>
             </DropdownTrigger>
-            <DropdownMenu
-              variant="faded"
-              aria-label="Select time frame for chart"
-            >
+            <DropdownMenu variant="faded" aria-label="Select time frame for chart">
               {autoRefreshChoices.map((setting) => {
                 return (
                   <DropdownItem

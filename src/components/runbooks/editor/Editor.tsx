@@ -35,12 +35,8 @@ import { useDebounceCallback } from "usehooks-ts";
 import Run from "@/components/runbooks/editor/blocks/Run";
 import Directory from "@/components/runbooks/editor/blocks/Directory";
 import Env from "@/components/runbooks/editor/blocks/Env";
-import SQLite, {
-  insertSQLite,
-} from "@/components/runbooks/editor/blocks/SQLite/SQLite";
-import Postgres, {
-  insertPostgres,
-} from "@/components/runbooks/editor/blocks/Postgres/Postgres";
+import SQLite, { insertSQLite } from "@/components/runbooks/editor/blocks/SQLite/SQLite";
+import Postgres, { insertPostgres } from "@/components/runbooks/editor/blocks/Postgres/Postgres";
 import Clickhouse, {
   insertClickhouse,
 } from "@/components/runbooks/editor/blocks/Clickhouse/Clickhouse";
@@ -48,9 +44,7 @@ import Clickhouse, {
 import Prometheus, {
   insertPrometheus,
 } from "@/components/runbooks/editor/blocks/Prometheus/Prometheus";
-import CodeEditor, {
-  insertEditor,
-} from "@/components/runbooks/editor/blocks/Editor/Editor";
+import CodeEditor, { insertEditor } from "@/components/runbooks/editor/blocks/Editor/Editor";
 
 import { AtuinState, useStore } from "@/state/store";
 import Runbook from "@/state/runbooks/runbook";
@@ -59,7 +53,6 @@ import { uuidv7 } from "uuidv7";
 import { DuplicateBlockItem } from "./ui/DuplicateBlockItem";
 
 import PhoenixProvider from "@/lib/phoenix_provider";
-import { atuinToBlocknote, blocknoteToAtuin } from "@/state/runbooks/convert";
 
 // Our schema with block specs, which contain the configs and implementations for blocks
 // that we want our editor to use.
@@ -141,9 +134,7 @@ type EditorProps = {
 
 export default function Editor(props: EditorProps) {
   const runbook = props.runbook;
-  const refreshRunbooks = useStore(
-    (store: AtuinState) => store.refreshRunbooks,
-  );
+  const refreshRunbooks = useStore((store: AtuinState) => store.refreshRunbooks);
   const setCurrentRunbook = useStore((store) => store.setCurrentRunbook);
 
   const user = useStore((store: AtuinState) => store.user);
@@ -160,9 +151,7 @@ export default function Editor(props: EditorProps) {
         // @ts-ignore
         if (block.content[0].text.length == 0) continue;
 
-        let name = block.content
-          .filter((i) => i.type === "text")
-          .map((i) => i.text);
+        let name = block.content.filter((i) => i.type === "text").map((i) => i.text);
 
         // @ts-ignore
         return name.join(" ");

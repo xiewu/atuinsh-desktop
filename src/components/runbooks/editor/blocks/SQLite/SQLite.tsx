@@ -14,10 +14,12 @@ interface SQLiteProps {
   query: string;
   autoRefresh: number;
   isEditable: boolean;
+  name: string;
 
   setQuery: (query: string) => void;
   setUri: (uri: string) => void;
   setAutoRefresh: (autoRefresh: number) => void;
+  setName: (name: string) => void;
 }
 
 const SQLite = ({
@@ -28,11 +30,14 @@ const SQLite = ({
   autoRefresh,
   setAutoRefresh,
   isEditable,
+  name,
+  setName,
 }: SQLiteProps) => {
   return (
     <SQL
       eventName="runbooks.sqlite"
-      name="SQLite"
+      name={name}
+      setName={setName}
       query={query}
       setQuery={setQuery}
       uri={uri}
@@ -49,6 +54,7 @@ export default createReactBlockSpec(
   {
     type: "sqlite",
     propSchema: {
+      name: { default: "SQLite" },
       query: { default: "" },
       uri: { default: "" },
       autoRefresh: { default: 0 },
@@ -79,8 +85,16 @@ export default createReactBlockSpec(
         });
       };
 
+      const setName = (name: string) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, name: name },
+        });
+      };
+
       return (
         <SQLite
+          name={block.props.name}
+          setName={setName}
           query={block.props.query}
           uri={block.props.uri}
           setUri={setUri}
@@ -94,14 +108,13 @@ export default createReactBlockSpec(
   },
 );
 
-export const insertSQLite =
-  (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
-    title: "SQLite",
-    onItemClick: () => {
-      insertOrUpdateBlock(editor, {
-        type: "sqlite",
-      });
-    },
-    icon: <DatabaseIcon size={18} />,
-    group: "Database",
-  });
+export const insertSQLite = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
+  title: "SQLite",
+  onItemClick: () => {
+    insertOrUpdateBlock(editor, {
+      type: "sqlite",
+    });
+  },
+  icon: <DatabaseIcon size={18} />,
+  group: "Database",
+});

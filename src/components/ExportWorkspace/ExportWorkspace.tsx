@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Modal,
   ModalContent,
@@ -57,9 +57,7 @@ const DirectoryExportModal = () => {
 
       // only show files that are in the workspace
       let filteredFiles = entries.filter(
-        (entry) =>
-          runbooks.find((rb) => `${rb.name}.${exportFormat}` == entry.name) !=
-          undefined,
+        (entry) => runbooks.find((rb) => `${rb.name}.${exportFormat}` == entry.name) != undefined,
       );
 
       setMatchingFiles(filteredFiles);
@@ -74,9 +72,7 @@ const DirectoryExportModal = () => {
       // 3. profit
       for (let rb of runbooks) {
         // If the runbook is already in the directory, and it's not supposed to be overriden, skip
-        let exists = matchingFiles.some(
-          (item) => item.name == rb.name + ".atmd",
-        );
+        let exists = matchingFiles.some((item) => item.name == rb.name + ".atmd");
 
         // Forgive me, for I have sinned (and I cba chasing this type error sorry)
         // There are some parts of the internals of some of these libraries which
@@ -119,13 +115,9 @@ const DirectoryExportModal = () => {
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader className="flex flex-col gap-1">
-                Export Workspace
-              </ModalHeader>
+              <ModalHeader className="flex flex-col gap-1">Export Workspace</ModalHeader>
               <ModalBody>
-                <h1 className="text-lg">
-                  Export runbooks from the current workspace
-                </h1>
+                <h1 className="text-lg">Export runbooks from the current workspace</h1>
                 <div className="flex flex-row">
                   <div className="mr-2">
                     <Button
@@ -156,9 +148,7 @@ const DirectoryExportModal = () => {
                   <Table
                     aria-label="Conflict list"
                     topContent={
-                      <h1 className="text-lg font-semibold">
-                        Existing files - overwrite?
-                      </h1>
+                      <h1 className="text-lg font-semibold">Existing files - overwrite?</h1>
                     }
                     selectionMode="multiple"
                     selectedKeys={overwriteKeys as any}
@@ -180,11 +170,7 @@ const DirectoryExportModal = () => {
                 </div>
               </ModalBody>
               <ModalFooter>
-                <Button
-                  color="success"
-                  variant="flat"
-                  onPress={() => handleSync(onClose)}
-                >
+                <Button color="success" variant="flat" onPress={() => handleSync(onClose)}>
                   Export
                 </Button>
               </ModalFooter>

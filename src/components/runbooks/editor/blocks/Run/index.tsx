@@ -23,12 +23,15 @@ import track_event from "@/tracking.ts";
 import PlayButton from "../common/PlayButton.tsx";
 import { Clock } from "lucide-react";
 import Block from "../common/Block.tsx";
+import EditableHeading from "@/components/EditableHeading/index.tsx";
 
 interface RunBlockProps {
   onChange: (val: string) => void;
   onRun?: (pty: string) => void;
   onStop?: (pty: string) => void;
+  setName: (name: string) => void;
   id: string;
+  name: string;
   code: string;
   type: string;
   pty: string;
@@ -69,6 +72,8 @@ const findAllParentsOfType = (editor: any, id: string, type: string): any[] => {
 const RunBlock = ({
   onChange,
   id,
+  name,
+  setName,
   code,
   isEditable,
   onRun,
@@ -91,9 +96,7 @@ const RunBlock = ({
   // we write to it.
   const [firstOpen, setFirstOpen] = useState<boolean>(false);
 
-  const [currentRunbookId] = useStore((store: AtuinState) => [
-    store.currentRunbookId,
-  ]);
+  const [currentRunbookId] = useStore((store: AtuinState) => [store.currentRunbookId]);
 
   const pty = usePtyStore((store) => store.ptyForBlock(id));
 
@@ -189,12 +192,20 @@ const RunBlock = ({
 
   return (
     <Block
-      title="Terminal"
+      name={name}
+      setName={setName}
       inlineHeader
       header={
         <>
           <div className="flex flex-row justify-between w-full">
-            <h1 className="text-default-700 font-semibold">Terminal</h1>
+            <h1 className="text-default-700 font-semibold">
+              {
+                <EditableHeading
+                  initialText={name || "Terminal"}
+                  onTextChange={(text) => setName(text)}
+                />
+              }
+            </h1>
             {commandRunning && <Spinner size="sm" />}
             {commandDuration && (
               <Chip
@@ -261,6 +272,7 @@ export default createReactBlockSpec(
       type: {
         default: "bash",
       },
+      name: { default: "" },
       code: { default: "" },
       pty: { default: "" },
       global: { default: false },
@@ -290,8 +302,16 @@ export default createReactBlockSpec(
         });
       };
 
+      const setName = (name: string) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, name: name },
+        });
+      };
+
       return (
         <RunBlock
+          name={block.props.name}
+          setName={setName}
           onChange={onInputChange}
           id={block?.id}
           code={block.props.code}

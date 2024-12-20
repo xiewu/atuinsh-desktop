@@ -22,11 +22,6 @@ const PUBLIC_PROPS = {
   "@core/http": ["url", "verb", "headers"],
 } as const;
 
-// Props that should be parsed from a string -> object before passing through
-const PARSE_PROPS = {
-  "@core/http": ["headers"],
-} as const;
-
 // We have the concept of a "body" in our markdown. While blocknote uses props for most useful
 // data storage, we have a magic "body" prop that is set as the main body for a markdown code
 // block.
@@ -136,6 +131,7 @@ export function atuinToBlocknote(content: any[]): any {
 
     // Convert type back to Blocknote format if it's an @ block
     if (block.type in REVERSE_TYPE_MAPPINGS) {
+      // @ts-ignore
       newBlock.type = REVERSE_TYPE_MAPPINGS[block.type];
     }
 
@@ -161,10 +157,7 @@ export function atuinToBlocknote(content: any[]): any {
       newBlock.content = newBlock.content.map(processContent);
 
       if (newBlock.type === "table") {
-        if (
-          newBlock.content.length === 1 &&
-          newBlock.content[0].type === "tableContent"
-        ) {
+        if (newBlock.content.length === 1 && newBlock.content[0].type === "tableContent") {
           newBlock.content = newBlock.content[0];
         }
       }

@@ -1,46 +1,39 @@
-import {
-  Card,
-  CardHeader,
-  CardBody,
-  CardFooter,
-} from "@nextui-org/react";
+import EditableHeading from "@/components/EditableHeading";
+import { Card, CardHeader, CardBody, CardFooter } from "@nextui-org/react";
 
 interface BlockProps {
-  title: string;
+  name: string;
+  setName: (name: string) => void;
+
   header?: any;
   footer?: any;
   children: any;
   inlineHeader?: boolean;
 }
 
-export default function Block({ title, header, children, footer, inlineHeader }: BlockProps) {
+export default function Block({
+  name,
+  setName,
+  header,
+  children,
+  footer,
+  inlineHeader,
+}: BlockProps) {
   return (
-    <Card
-      className="w-full !max-w-full !outline-none"
-      shadow="sm"
-    >
+    <Card className="w-full !max-w-full !outline-none" shadow="sm">
       <CardHeader className="p-3 gap-2 bg-default-50 flex flex-col items-start justify-start z-auto">
-        {!inlineHeader &&
+        {!inlineHeader && (
           <div className="flex flex-row justify-between w-full">
-            <h1 className="text-default-700 font-semibold">{title}</h1>
+            <EditableHeading initialText={name} onTextChange={setName} />
           </div>
-        }
+        )}
 
-        {(header) && header}
+        {header && header}
       </CardHeader>
 
-      {children &&
-        <CardBody>
-          {children}
-        </CardBody>
-      }
+      {children && <CardBody>{children}</CardBody>}
 
-      {footer &&
-        <CardFooter>
-          {footer}
-        </CardFooter>
-      }
-
+      {footer && <CardFooter>{footer}</CardFooter>}
     </Card>
   );
 }

@@ -26,6 +26,7 @@ enum HttpVerb {
 type HttpHeaders = { [key: string]: string };
 
 interface HttpProps {
+  name: string;
   url: string;
   verb: HttpVerb;
   body: string;
@@ -33,6 +34,7 @@ interface HttpProps {
 
   headers: HttpHeaders;
 
+  setName: (name: string) => void;
   setUrl: (url: string) => void;
   setVerb: (verb: HttpVerb) => void;
   setBody: (body: string) => void;
@@ -75,6 +77,8 @@ async function makeHttpRequest(
 }
 
 const Http = ({
+  name,
+  setName,
   url,
   verb,
   body,
@@ -117,7 +121,8 @@ const Http = ({
 
   return (
     <Block
-      title="HTTP"
+      name={name}
+      setName={setName}
       header={
         <div className="flex flex-row items-center gap-2 w-full">
           <PlayButton
@@ -127,11 +132,7 @@ const Http = ({
             cancellable={false}
           />
 
-          <HttpVerbDropdown
-            selectedVerb={verb}
-            onVerbChange={setVerb}
-            disabled={!isEditable}
-          />
+          <HttpVerbDropdown selectedVerb={verb} onVerbChange={setVerb} disabled={!isEditable} />
 
           <Input
             placeholder="http://localhost:8080/hello/world"
@@ -151,11 +152,7 @@ const Http = ({
           />
         </div>
       }
-      footer={
-        (response || error) && (
-          <HttpResponse response={response} error={error} />
-        )
-      }
+      footer={(response || error) && <HttpResponse response={response} error={error} />}
     >
       <Tabs
         aria-label="Options"
@@ -164,18 +161,9 @@ const Http = ({
         variant="underlined"
       >
         <Tab key="headers" title="Headers">
-          <RequestHeaders
-            pairs={headers}
-            setPairs={setHeaders}
-            disabled={!isEditable}
-          />
+          <RequestHeaders pairs={headers} setPairs={setHeaders} disabled={!isEditable} />
         </Tab>
-        <Tab
-          key="body"
-          title="Body"
-          isDisabled={verb === "GET"}
-          className="overflow-scroll"
-        >
+        <Tab key="body" title="Body" isDisabled={verb === "GET"} className="overflow-scroll">
           <CodeMirror
             placeholder={"Request Body (JSON)"}
             className="!pt-0 max-w-full border border-gray-300 rounded flex-grow text-sm max-h-96"
@@ -197,6 +185,7 @@ export default createReactBlockSpec(
   {
     type: "http",
     propSchema: {
+      name: { default: "HTTP" },
       url: { default: "" },
       verb: { default: "GET" },
       body: { default: "" },
@@ -235,8 +224,16 @@ export default createReactBlockSpec(
         });
       };
 
+      const setName = (name: string) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, name: name },
+        });
+      };
+
       return (
         <Http
+          name={block.props.name}
+          setName={setName}
           url={block.props.url}
           verb={block.props.verb as HttpVerb}
           body={block.props.body}
@@ -252,14 +249,13 @@ export default createReactBlockSpec(
   },
 );
 
-export const insertHttp =
-  (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
-    title: "HTTP",
-    onItemClick: () => {
-      insertOrUpdateBlock(editor, {
-        type: "http",
-      });
-    },
-    icon: <GlobeIcon size={18} />,
-    group: "Network",
-  });
+export const insertHttp = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
+  title: "HTTP",
+  onItemClick: () => {
+    insertOrUpdateBlock(editor, {
+      type: "http",
+    });
+  },
+  icon: <GlobeIcon size={18} />,
+  group: "Network",
+});

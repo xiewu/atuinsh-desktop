@@ -1,12 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import Database from "@tauri-apps/plugin-sql";
-import { writeTextFile, readTextFile } from "@tauri-apps/plugin-fs";
 import * as Y from "yjs";
-import {
-  writeTextFile,
-  readTextFile,
-  BaseDirectory,
-} from "@tauri-apps/plugin-fs";
+import { readTextFile } from "@tauri-apps/plugin-fs";
 import { uuidv7 } from "uuidv7";
 import Workspace from "./workspace";
 import Logger from "@/lib/logger";
@@ -125,6 +120,8 @@ export default class Runbook {
     // Load the runbook from the ID. This ensures we have all fields populated properly, and as up-to-date as possible.
     // TODO: we are probably going to be changing stuff here for snapshots
     let rb = await Runbook.load(this.id);
+    if (!rb) return;
+
     let content = blocknoteToAtuin(JSON.parse(rb.content));
     let runbook = {
       version: 0,
@@ -158,8 +155,7 @@ export default class Runbook {
       workspace = await Workspace.current();
     }
 
-    let content =
-      typeof obj.content === "object" ? obj.content : JSON.parse(obj.content);
+    let content = typeof obj.content === "object" ? obj.content : JSON.parse(obj.content);
     let mappedContent = atuinToBlocknote(content);
 
     let runbook = new Runbook({
@@ -180,7 +176,7 @@ export default class Runbook {
     return runbook;
   }
 
-  public static async importFile(filePath: string, workspace?: Workspace) {
+  public static async importFile(filePath: string) {
     // For some reason, we're getting an ArrayBuffer here? Supposedly it should be passing a string.
     // But it's not.
     let file = await readTextFile(filePath);

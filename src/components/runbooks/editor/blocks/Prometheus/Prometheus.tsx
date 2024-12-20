@@ -34,8 +34,12 @@ import PromSettings, { PrometheusConfig } from "./promSettings";
 import { Settings } from "@/state/settings";
 import ErrorCard from "../common/ErrorCard";
 import PlayButton from "../common/PlayButton";
+import EditableHeading from "@/components/EditableHeading";
 
 interface PromProps {
+  name: string;
+  setName: (name: string) => void;
+
   query: string;
   endpoint: string;
   autoRefresh: boolean;
@@ -102,9 +106,7 @@ const Prometheus = (props: PromProps) => {
 
   const [prometheusUrl, setPrometheusUrl] = useState<string | null>(null);
   const [promClient, setPromClient] = useState<PrometheusDriver | null>(null);
-  const [promExtension, setPromExtension] = useState<PromQLExtension | null>(
-    null,
-  );
+  const [promExtension, setPromExtension] = useState<PromQLExtension | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const runQuery = async (val: any) => {
@@ -201,12 +203,9 @@ const Prometheus = (props: PromProps) => {
   }
 
   return (
-    <Card
-      className="w-full !max-w-full !outline-none overflow-none"
-      shadow="sm"
-    >
+    <Card className="w-full !max-w-full !outline-none overflow-none" shadow="sm">
       <CardHeader className="flex flex-col items-start gap-2 bg-default-50">
-        <span className="text-default-700 font-semibold">Prometheus</span>
+        <EditableHeading initialText={props.name} onTextChange={props.setName} />
 
         <div className="w-full !max-w-full !outline-none overflow-none flex flex-row gap-2">
           <PlayButton
@@ -257,10 +256,7 @@ const Prometheus = (props: PromProps) => {
                   {timeFrame.short}
                 </Button>
               </DropdownTrigger>
-              <DropdownMenu
-                variant="faded"
-                aria-label="Select time frame for chart"
-              >
+              <DropdownMenu variant="faded" aria-label="Select time frame for chart">
                 {timeOptions.map((timeOption) => {
                   return (
                     <DropdownItem
@@ -311,6 +307,7 @@ export default createReactBlockSpec(
   {
     type: "prometheus",
     propSchema: {
+      name: { default: "Prometheus" },
       query: { default: "" },
       endpoint: { default: "" },
       period: { default: "" },
@@ -327,9 +324,16 @@ export default createReactBlockSpec(
           props: { ...block.props, ...props },
         });
       };
+      const setName = (name: string) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, name: name },
+        });
+      };
 
       return (
         <Prometheus
+          name={block.props.name}
+          setName={setName}
           query={block.props.query}
           endpoint={block.props.endpoint}
           period={block.props.period}
@@ -342,15 +346,14 @@ export default createReactBlockSpec(
   },
 );
 
-export const insertPrometheus =
-  (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
-    title: "Prometheus",
-    onItemClick: () => {
-      insertOrUpdateBlock(editor, {
-        type: "prometheus",
-      });
-    },
-    icon: <LineChartIcon size={18} />,
-    aliases: ["prom", "promql", "grafana"],
-    group: "Monitor",
-  });
+export const insertPrometheus = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
+  title: "Prometheus",
+  onItemClick: () => {
+    insertOrUpdateBlock(editor, {
+      type: "prometheus",
+    });
+  },
+  icon: <LineChartIcon size={18} />,
+  aliases: ["prom", "promql", "grafana"],
+  group: "Monitor",
+});

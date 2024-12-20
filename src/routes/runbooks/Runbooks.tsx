@@ -20,7 +20,7 @@ export default function Runbooks() {
       return null;
     }
   });
-  const [selectedTag, setSelectedTag] = useState(lastTagForRunbook);
+  const [selectedTag, _setSelectedTag] = useState(lastTagForRunbook);
 
   const location = useLocation();
 
@@ -77,11 +77,7 @@ export default function Runbooks() {
       <List />
       {currentRunbook && (
         <div className="flex w-full max-w-full overflow-hidden flex-col">
-          <Topbar
-            runbook={currentRunbook}
-            currentTag={selectedTag}
-            onSelectTag={handleSelectTag}
-          />
+          <Topbar runbook={currentRunbook} currentTag={selectedTag} onSelectTag={handleSelectTag} />
           <Editor runbook={currentRunbook} />
         </div>
       )}

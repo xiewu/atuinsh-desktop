@@ -18,8 +18,12 @@ import {
   DropdownItem,
   Input,
 } from "@nextui-org/react";
+import EditableHeading from "@/components/EditableHeading/index.tsx";
 
 interface CodeBlockProps {
+  name: string;
+  setName: (name: string) => void;
+
   onChange: (val: string) => void;
   onLanguageChange: (val: string) => void;
   code: string;
@@ -33,6 +37,8 @@ const EditorBlock = ({
   language,
   onLanguageChange,
   isEditable,
+  name,
+  setName,
 }: CodeBlockProps) => {
   const languages = LanguageData.languages;
   const [extension, setExtension] = useState<Extension | null>(null);
@@ -43,9 +49,7 @@ const EditorBlock = ({
   const [isOpen, setIsOpen] = useState(false);
 
   const filteredItems = useMemo(() => {
-    return languages.filter((item) =>
-      item.name.toLowerCase().includes(filterText.toLowerCase()),
-    );
+    return languages.filter((item) => item.name.toLowerCase().includes(filterText.toLowerCase()));
   }, [languages, filterText]);
 
   useEffect(() => {
@@ -57,9 +61,7 @@ const EditorBlock = ({
 
   useEffect(() => {
     (async () => {
-      let linfo = languages.find(
-        (lang) => lang.name.toLowerCase() === language,
-      );
+      let linfo = languages.find((lang) => lang.name.toLowerCase() === language);
       if (!linfo) return;
 
       let loaded = await linfo.load();
@@ -70,11 +72,12 @@ const EditorBlock = ({
 
   return (
     <Block
-      title="Editor"
+      name={name}
+      setName={setName}
       inlineHeader
       header={
         <div className="flex flex-row justify-between w-full">
-          <h1 className="text-default-700 font-semibold">Editor</h1>
+          <EditableHeading initialText={name} onTextChange={setName} />
           <Dropdown
             isOpen={isOpen}
             onOpenChange={(open) => setIsOpen(open)}
@@ -147,6 +150,7 @@ export default createReactBlockSpec(
   {
     type: "editor",
     propSchema: {
+      name: { default: "Editor" },
       code: { default: "" },
       language: { default: "" },
     },
@@ -169,8 +173,16 @@ export default createReactBlockSpec(
         });
       };
 
+      const setName = (name: string) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, name: name },
+        });
+      };
+
       return (
         <EditorBlock
+          name={block.props.name}
+          setName={setName}
           onChange={onCodeChange}
           onLanguageChange={onLanguageChange}
           code={block.props.code}
@@ -189,15 +201,14 @@ export default createReactBlockSpec(
   },
 );
 
-export const insertEditor =
-  (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
-    title: "Editor",
-    onItemClick: () => {
-      insertOrUpdateBlock(editor, {
-        type: "editor",
-      });
-    },
-    icon: <CodeIcon size={18} />,
-    group: "Misc",
-    aliases: ["code"],
-  });
+export const insertEditor = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
+  title: "Editor",
+  onItemClick: () => {
+    insertOrUpdateBlock(editor, {
+      type: "editor",
+    });
+  },
+  icon: <CodeIcon size={18} />,
+  group: "Misc",
+  aliases: ["code"],
+});

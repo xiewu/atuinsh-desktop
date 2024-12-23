@@ -36,6 +36,7 @@ const RequestHeaders = ({ pairs, setPairs, disabled }: any) => {
             className="flex-grow"
             variant="bordered"
             size="sm"
+            onDoubleClick={(e) => e.currentTarget.select()}
           />
           <Input
             value={value as string}
@@ -43,6 +44,7 @@ const RequestHeaders = ({ pairs, setPairs, disabled }: any) => {
             className="flex-grow"
             variant="bordered"
             size="sm"
+            onDoubleClick={(e) => e.currentTarget.select()}
           />
           <Button
             color="danger"
@@ -61,6 +63,7 @@ const RequestHeaders = ({ pairs, setPairs, disabled }: any) => {
         <Input
           value={newKey}
           onChange={(e) => setNewKey(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleAddPair()}
           placeholder="Header name"
           className="flex-grow"
           variant="bordered"
@@ -70,6 +73,7 @@ const RequestHeaders = ({ pairs, setPairs, disabled }: any) => {
         <Input
           value={newValue}
           onChange={(e) => setNewValue(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleAddPair()}
           placeholder="Header value"
           className="flex-grow"
           variant="bordered"

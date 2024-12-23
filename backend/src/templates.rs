@@ -33,6 +33,7 @@ pub struct DocumentTemplateState {
     pub first: BlockState,
     pub last: BlockState,
     pub content: Vec<BlockState>,
+    pub named: HashMap<String, BlockState>,
 
     /// The block previous to the current block
     /// This is, of course, contextual to what is presently executing - and
@@ -192,6 +193,31 @@ pub async fn template_str(
         None
     };
 
+    let named = doc
+        .iter()
+        .filter_map(|block| {
+            let name = block
+                .get("props")
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .iter()
+                .find_map(|(k, v)| {
+                    if k == "name" {
+                        Some(v.as_str().unwrap().to_string())
+                    } else {
+                        None
+                    }
+                });
+
+            if name.is_none() {
+                None
+            } else {
+                Some((name.unwrap(), serialized_block_to_state(block.clone())))
+            }
+        })
+        .collect();
+
     let previous = previous.unwrap_or_default();
 
     let doc_state = if !doc.is_empty() {
@@ -200,6 +226,7 @@ pub async fn template_str(
             first: serialized_block_to_state(doc.first().unwrap().clone()),
             last: serialized_block_to_state(doc.last().unwrap().clone()),
             content: doc.into_iter().map(serialized_block_to_state).collect(),
+            named,
         })
     } else {
         None

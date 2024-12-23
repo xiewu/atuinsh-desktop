@@ -7,19 +7,12 @@ import {
   DropdownItem,
   DropdownSection,
 } from "@nextui-org/react";
-import {
-  ChevronRightIcon,
-  Import,
-  MoreVertical,
-  Plus,
-  SearchIcon,
-  Terminal,
-} from "lucide-react";
+import { ChevronRightIcon, Import, MoreVertical, Plus, SearchIcon, Terminal } from "lucide-react";
 import { DateTime } from "luxon";
 import Runbook from "@/state/runbooks/runbook";
 import { AtuinState, useStore } from "@/state/store";
 import { ptyForRunbook, PtyMetadata, usePtyStore } from "@/state/ptyStore";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import welcome from "./welcome.json";
 import track_event from "@/tracking";
@@ -29,9 +22,7 @@ import ExportAsRunbookDropdown from "./ExportAsRunbookDropdown";
 
 const NoteSidebar = () => {
   const runbooks = useStore((state: AtuinState) => state.runbooks);
-  const refreshRunbooks = useStore(
-    (state: AtuinState) => state.refreshRunbooks,
-  );
+  const refreshRunbooks = useStore((state: AtuinState) => state.refreshRunbooks);
   const currentRunbook = useStore((state: AtuinState) => state.currentRunbook);
   const importRunbook = useStore((state: AtuinState) => state.importRunbook);
   const newRunbook = useStore((state: AtuinState) => state.newRunbook);
@@ -40,12 +31,8 @@ const NoteSidebar = () => {
     store.setSearchOpen,
   ]);
 
-  const setCurrentRunbook = useStore(
-    (state: AtuinState) => state.setCurrentRunbook,
-  );
-  const ptys: { [pid: string]: PtyMetadata } = usePtyStore(
-    (state) => state.ptys,
-  );
+  const setCurrentRunbook = useStore((state: AtuinState) => state.setCurrentRunbook);
+  const ptys: { [pid: string]: PtyMetadata } = usePtyStore((state) => state.ptys);
 
   const [isMoveToOpen, setMoveToOpen] = useState(false);
   const [isExportAsOpen, setExportAsOpen] = useState(false);
@@ -90,50 +77,38 @@ const NoteSidebar = () => {
     if (!isSearchOpen) setSearchOpen(true);
   };
 
+  // sort runbooks alphabetically by name
+  const sortedRunbooks = useMemo(() => {
+    return runbooks.sort((a, b) => a.name.localeCompare(b.name));
+  }, [runbooks]);
+
   return (
     <div className="!w-64 !max-w-64 !min-w-64 h-full bg-gray-50 border-r border-gray-200 flex flex-col select-none">
       <div className="p-2 flex justify-between items-center border-b border-gray-200">
         <h2 className="text-lg font-semibold">Runbooks</h2>
         <div className="flex space-x-1">
           <Tooltip content="New">
-            <Button
-              isIconOnly
-              size="sm"
-              variant="light"
-              onPress={handleNewRunbook}
-            >
+            <Button isIconOnly size="sm" variant="light" onPress={handleNewRunbook}>
               <Plus size={18} />
             </Button>
           </Tooltip>
 
           <Tooltip content="Import">
-            <Button
-              isIconOnly
-              size="sm"
-              variant="light"
-              onPress={handleImportRunbook}
-            >
+            <Button isIconOnly size="sm" variant="light" onPress={handleImportRunbook}>
               <Import size={18} />
             </Button>
           </Tooltip>
 
           <Tooltip content="Search">
-            <Button
-              isIconOnly
-              size="sm"
-              variant="light"
-              onPress={handleOpenSearch}
-            >
+            <Button isIconOnly size="sm" variant="light" onPress={handleOpenSearch}>
               <SearchIcon size={18} />
             </Button>
           </Tooltip>
         </div>
       </div>
       <div className="flex-grow overflow-y-auto">
-        {runbooks.map((runbook: Runbook) => {
-          const count = Object.values(ptys).filter(
-            (pty) => pty.runbook === runbook.id,
-          ).length;
+        {sortedRunbooks.map((runbook: Runbook) => {
+          const count = Object.values(ptys).filter((pty) => pty.runbook === runbook.id).length;
           const isActive = currentRunbook && currentRunbook.id === runbook.id;
 
           return (
@@ -158,16 +133,12 @@ const NoteSidebar = () => {
                     {runbook.name || "Untitled"}
                   </h3>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    {DateTime.fromJSDate(runbook.updated).toLocaleString(
-                      DateTime.DATETIME_SHORT,
-                    )}
+                    {DateTime.fromJSDate(runbook.updated).toLocaleString(DateTime.DATETIME_SHORT)}
                   </p>
                 </div>
                 <div className="flex items-center">
                   {count > 0 && (
-                    <Tooltip
-                      content={`${count} active terminal${count > 1 ? "s" : ""}`}
-                    >
+                    <Tooltip content={`${count} active terminal${count > 1 ? "s" : ""}`}>
                       <div className="flex items-center text-primary-500 mr-1">
                         <Terminal size={14} />
                         <span className="text-xs ml-1">{count}</span>
@@ -236,10 +207,7 @@ const NoteSidebar = () => {
                           color="danger"
                           onPress={async () => {
                             await Runbook.delete(runbook.id);
-                            if (
-                              currentRunbook &&
-                              runbook.id === currentRunbook.id
-                            )
+                            if (currentRunbook && runbook.id === currentRunbook.id)
                               setCurrentRunbook(null);
                             refreshRunbooks();
                           }}

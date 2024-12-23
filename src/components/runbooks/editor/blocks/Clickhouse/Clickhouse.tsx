@@ -9,6 +9,7 @@ import { runQuery } from "./query";
 import SQL from "../common/SQL";
 
 interface SQLProps {
+  name: string;
   uri: string;
   query: string;
   autoRefresh: number;
@@ -17,9 +18,12 @@ interface SQLProps {
   setQuery: (query: string) => void;
   setUri: (uri: string) => void;
   setAutoRefresh: (autoRefresh: number) => void;
+  setName: (name: string) => void;
 }
 
 const Clickhouse = ({
+  name,
+  setName,
   query,
   setQuery,
   uri,
@@ -30,8 +34,9 @@ const Clickhouse = ({
 }: SQLProps) => {
   return (
     <SQL
+      name={name}
+      setName={setName}
       eventName="runbooks.clickhouse"
-      name="Clickhouse"
       placeholder="http://username:password@localhost:8123/?database=default"
       query={query}
       setQuery={setQuery}
@@ -49,6 +54,7 @@ export default createReactBlockSpec(
   {
     type: "clickhouse",
     propSchema: {
+      name: { default: "Clickhouse" },
       query: { default: "" },
       uri: { default: "" },
       autoRefresh: { default: 0 },
@@ -79,8 +85,16 @@ export default createReactBlockSpec(
         });
       };
 
+      const setName = (name: string) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, name: name },
+        });
+      };
+
       return (
         <Clickhouse
+          name={block.props.name}
+          setName={setName}
           query={block.props.query}
           uri={block.props.uri}
           setUri={setUri}
@@ -94,14 +108,13 @@ export default createReactBlockSpec(
   },
 );
 
-export const insertClickhouse =
-  (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
-    title: "Clickhouse",
-    onItemClick: () => {
-      insertOrUpdateBlock(editor, {
-        type: "clickhouse",
-      });
-    },
-    icon: <DatabaseIcon size={18} />,
-    group: "Database",
-  });
+export const insertClickhouse = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
+  title: "Clickhouse",
+  onItemClick: () => {
+    insertOrUpdateBlock(editor, {
+      type: "clickhouse",
+    });
+  },
+  icon: <DatabaseIcon size={18} />,
+  group: "Database",
+});

@@ -3,6 +3,7 @@ import track_event from "@/tracking";
 import { randomColor } from "@/lib/colors";
 import Logger from "@/lib/logger";
 const logger = new Logger("Editor", "orange", "orange");
+import * as Y from "yjs";
 
 import "./index.css";
 
@@ -138,6 +139,7 @@ type EditorProps = {
 export default function Editor({ runbook, snapshot, editable }: EditorProps) {
   const refreshRunbooks = useStore((store: AtuinState) => store.refreshRunbooks);
   const user = useStore((store: AtuinState) => store.user);
+  const [ydoc, setYdoc] = useState<Y.Doc>(new Y.Doc());
   let [editor, setEditor] = useState<BlockNoteEditor | null>(null);
 
   const fetchName = (editor: BlockNoteEditor): string => {
@@ -161,6 +163,19 @@ export default function Editor({ runbook, snapshot, editable }: EditorProps) {
     return "Untitled";
   };
 
+  useEffect(() => {
+    if (!runbook) {
+      setYdoc(new Y.Doc());
+      return;
+    }
+
+    const yDoc = new Y.Doc();
+    if (runbook.ydoc) {
+      Y.applyUpdate(yDoc, runbook.ydoc);
+    }
+    setYdoc(yDoc);
+  }, [runbook?.id]);
+
   const onChange = async (editor: BlockNoteEditor) => {
     if (!runbook) return;
     if (!editable) return;
@@ -171,6 +186,7 @@ export default function Editor({ runbook, snapshot, editable }: EditorProps) {
 
     runbook.name = fetchName(editor as BlockNoteEditor);
     if (editor) runbook.content = JSON.stringify(editor.document);
+    if (ydoc) runbook.ydoc = Y.encodeStateAsUpdate(ydoc);
 
     await runbook.save();
     refreshRunbooks();
@@ -180,7 +196,7 @@ export default function Editor({ runbook, snapshot, editable }: EditorProps) {
 
   useEffect(() => {
     logger.debug("Runbook or snapshot changed:", runbook?.id, snapshot?.id);
-    if (!runbook) return undefined;
+    if (!runbook || !ydoc) return undefined;
 
     let content = snapshot ? JSON.parse(snapshot.content) : JSON.parse(runbook.content || "[]");
 
@@ -207,13 +223,13 @@ export default function Editor({ runbook, snapshot, editable }: EditorProps) {
 
     // Otherwise, we want a full editor with all the trimmings
     let timer: number | undefined;
-    let provider = new PhoenixProvider(runbook.id, runbook.ydoc);
+    let provider = new PhoenixProvider(runbook.id, ydoc);
 
     const editor = BlockNoteEditor.create({
       schema,
       collaboration: {
         provider: provider,
-        fragment: runbook.ydoc.getXmlFragment("document-store"),
+        fragment: ydoc.getXmlFragment("document-store"),
         user: {
           name: user.username || "Anonymous",
           color: randomColor(),
@@ -260,7 +276,7 @@ export default function Editor({ runbook, snapshot, editable }: EditorProps) {
     };
     // zustand state is immutable, so `runbook` will change every runbook.save()
     // to avoid creating a new editor and provider every save, depend on the runbook ID
-  }, [runbook?.id, snapshot]);
+  }, [runbook?.id, snapshot, ydoc]);
 
   useEffect(() => {
     if (editor) {

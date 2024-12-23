@@ -1,6 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
 import Database from "@tauri-apps/plugin-sql";
-import * as Y from "yjs";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { uuidv7 } from "uuidv7";
 import Workspace from "./workspace";
@@ -29,7 +28,7 @@ export interface RunbookAttrs {
   id: string;
   name: string;
   content: string;
-  ydoc: Y.Doc;
+  ydoc: Uint8Array | null;
   source: RunbookSource;
   sourceInfo: string | null;
   workspaceId: string;
@@ -42,7 +41,7 @@ export interface RunbookAttrs {
 
 export default class Runbook extends Emittery {
   id: string;
-  ydoc: Y.Doc;
+  ydoc: Uint8Array | null;
   source: RunbookSource;
   sourceInfo: string | null;
   remoteInfo: string | null;
@@ -85,7 +84,7 @@ export default class Runbook extends Emittery {
     this.source = attrs.source || "local";
     this.sourceInfo = attrs.sourceInfo;
     this._content = attrs.content;
-    this.ydoc = attrs.ydoc;
+    this.ydoc = attrs.ydoc || null;
     this.created = attrs.created;
     this.updated = attrs.updated;
     this.forkedFrom = attrs.forkedFrom;
@@ -108,7 +107,7 @@ export default class Runbook extends Emittery {
       source: "local",
       sourceInfo: null,
       content: "",
-      ydoc: new Y.Doc(),
+      ydoc: null,
       created: now,
       updated: now,
       workspaceId: workspace.id,
@@ -176,7 +175,7 @@ export default class Runbook extends Emittery {
       source: source,
       sourceInfo: sourceInfo,
       content: JSON.stringify(mappedContent),
-      ydoc: new Y.Doc(),
+      ydoc: null,
       created: new Date(obj.created),
       updated: new Date(),
       workspaceId: workspace.id,
@@ -212,26 +211,20 @@ export default class Runbook extends Emittery {
 
     let rb = res[0];
 
-    const doc: ArrayBuffer = await Runbook.loadYDocForRunbook(rb.id);
+    const doc: ArrayBuffer | null = await Runbook.loadYDocForRunbook(rb.id);
     rb.ydoc = doc;
 
     return Runbook.fromRow(rb);
   }
 
   static fromRow(row: any): Runbook {
-    let doc = new Y.Doc();
-
+    let update: Uint8Array | null = null;
     if (row.ydoc) {
-      let update;
       // For a short period of time, the `Y.Doc` might have been stored as a string.
       if (typeof row.ydoc == "string") {
         update = Uint8Array.from(JSON.parse(row.ydoc));
       } else if (row.ydoc.byteLength > 0) {
         update = new Uint8Array(row.ydoc);
-      }
-
-      if (update) {
-        Y.applyUpdate(doc, update);
       }
     }
 
@@ -241,7 +234,7 @@ export default class Runbook extends Emittery {
       source: row.source || "local",
       sourceInfo: row.sourceInfo,
       content: row.content || "[]",
-      ydoc: doc,
+      ydoc: update,
       created: new Date(row.created / 1000000),
       updated: new Date(row.updated / 1000000),
       workspaceId: row.workspace_id,
@@ -318,14 +311,13 @@ export default class Runbook extends Emittery {
         ],
       );
 
-      const ydocAsUpdate = Y.encodeStateAsUpdate(this.ydoc);
-      await Runbook.saveYDocForRunbook(this.id, ydocAsUpdate);
+      await Runbook.saveYDocForRunbook(this.id, this.ydoc);
       this.emit("saved");
     });
   }
 
   public static async loadYDocForRunbook(id: string) {
-    const update: ArrayBuffer = await logger.time(
+    const update: ArrayBuffer | null = await logger.time(
       `Loading Y.Doc for runbook ${id}...`,
       async () => {
         return await invoke("load_ydoc_for_runbook", {
@@ -338,15 +330,19 @@ export default class Runbook extends Emittery {
     return update;
   }
 
-  public static async saveYDocForRunbook(id: string, update: ArrayBuffer) {
-    logger.time(`Saving Y.Doc for runbook ${id}...`, async () => {
-      await invoke("save_ydoc_for_runbook", update, {
-        headers: {
-          id: id,
-          db: "runbooks.db",
-        },
+  public static async saveYDocForRunbook(id: string, update: ArrayBuffer | null) {
+    if (update) {
+      logger.time(`Saving Y.Doc for runbook ${id}...`, async () => {
+        await invoke("save_ydoc_for_runbook", update, {
+          headers: {
+            id: id,
+            db: "runbooks.db",
+          },
+        });
       });
-    });
+    } else {
+      logger.info("Skipping serialization of Y.Doc as content is null");
+    }
   }
 
   public async moveTo(workspace: Workspace) {

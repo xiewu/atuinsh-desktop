@@ -38,6 +38,7 @@ import handleDeepLink from "./deep";
 import DesktopConnect from "@/components/DesktopConnect/DesktopConnect";
 import DirectoryExportModal from "@/components/ExportWorkspace/ExportWorkspace";
 import { clearHubApiToken, endpoint } from "@/api/api";
+import SocketManager from "@/socket";
 
 function App() {
   const cleanupImportListener = useRef<UnlistenFn | null>(null);
@@ -46,17 +47,13 @@ function App() {
   const importRunbook = useStore((state: AtuinState) => state.importRunbook);
   const newRunbook = useStore((state: AtuinState) => state.newRunbook);
   const newWorkspace = useStore((state: AtuinState) => state.newWorkspace);
-  const setCurrentRunbook = useStore(
-    (state: AtuinState) => state.setCurrentRunbook,
-  );
+  const setCurrentRunbookId = useStore((state: AtuinState) => state.setCurrentRunbookId);
 
   const navigate = useNavigate();
   const location = useLocation();
   const user = useStore((state: AtuinState) => state.user);
   const isLoggedIn = useStore((state: AtuinState) => state.isLoggedIn);
-  const showDesktopConnect = useStore(
-    (state: AtuinState) => state.showDesktopConnect,
-  );
+  const showDesktopConnect = useStore((state: AtuinState) => state.proposedDesktopConnectUser);
 
   let onOpenUrlListener = useRef<UnlistenFn | null>(null);
 
@@ -74,8 +71,7 @@ function App() {
       });
 
       if (import.meta.env.MODE === "development") {
-        (window as any).handleDeepLink = (url: string) =>
-          handleDeepLink(navigate, url);
+        (window as any).handleDeepLink = (url: string) => handleDeepLink(navigate, url);
       }
 
       onOpenUrlListener.current = unlisten;
@@ -124,7 +120,7 @@ function App() {
     // Consider the case where we are already on the runbooks page
     if (location.pathname === "/runbooks") {
       let runbook = await newRunbook();
-      setCurrentRunbook(runbook, true);
+      setCurrentRunbookId(runbook.id);
 
       return;
     }
@@ -188,6 +184,7 @@ function App() {
 
   async function logOut() {
     await clearHubApiToken();
+    SocketManager.setApiToken(null);
     refreshUser();
   }
 
@@ -217,10 +214,7 @@ function App() {
   }
 
   return (
-    <div
-      className="flex w-screen "
-      style={{ maxWidth: "100vw", height: "calc(100dvh - 2rem)" }}
-    >
+    <div className="flex w-screen " style={{ maxWidth: "100vw", height: "calc(100dvh - 2rem)" }}>
       <CommandMenu />
 
       <div className="flex w-full">

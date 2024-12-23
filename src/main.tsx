@@ -1,3 +1,13 @@
+// [MKT] NextUI seems to have added a logging function that depends on checking
+// for the `NODE_ENV` environment variable in the `process` object. It throws
+// an exception when trying to access the global `process` object, so this
+// shims out NODE_ENV with the Tauri env.
+(window as any).process = (window as any).process || {
+  env: {
+    NODE_ENV: import.meta.env.MODE,
+  },
+};
+
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { createHashRouter, RouterProvider } from "react-router-dom";
@@ -14,9 +24,14 @@ import SocketManager from "./socket";
 import CollaborationManager from "./lib/collaboration_manager";
 import { useStore } from "@/state/store";
 
-getHubApiToken().then((token) => {
-  SocketManager.setApiToken(token);
-});
+(async () => {
+  try {
+    const token = await getHubApiToken();
+    SocketManager.setApiToken(token);
+  } catch (_err) {
+    console.warn("Not able to fetch Hub API token for socket manager");
+  }
+})();
 
 // If the user has opted in, we will setup sentry/posthog
 init_tracking();
@@ -50,10 +65,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <NextUIProvider>
       <main className="text-foreground bg-background">
-        <div
-          data-tauri-drag-region
-          className="w-full min-h-8 z-10 border-b-1"
-        />
+        <div data-tauri-drag-region className="w-full min-h-8 z-10 border-b-1" />
 
         <div className="z-20 ">
           <RouterProvider router={router} />

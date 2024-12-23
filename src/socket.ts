@@ -1,14 +1,15 @@
-import { MessageRef, Socket } from "phoenix";
+import { MessageRef, Socket, Channel, Push } from "phoenix";
 import { endpoint } from "./api/api";
 import Logger from "@/lib/logger";
-import { Observable } from "lib0/observable.js";
+import Emittery from "emittery";
 const logger = new Logger("Socket");
+import { useStore } from "@/state/store";
 
-export default class SocketManager extends Observable<string> {
+export default class SocketManager extends Emittery {
   private static apiToken: string | null = null;
   private static instance: SocketManager;
   private handlers: MessageRef[] = [];
-
+  private store: typeof useStore;
   private socket: Socket;
 
   static get() {
@@ -29,30 +30,30 @@ export default class SocketManager extends Observable<string> {
 
   constructor(apiToken: string | null) {
     super();
+    this.store = useStore;
     this.socket = this.buildSocket(apiToken);
     this.setupHandlers();
     if (apiToken) {
       this.connect();
+    } else {
+      this.store.getState().setOnline(false);
     }
   }
 
+  public channel(topic: string, channelParams?: object) {
+    return new WrappedChannel(this, topic, channelParams);
+  }
+
   public onSocketChange(callback: (socket: Socket) => void) {
-    this.on("socketchange", callback);
-    return () => this.off("socketchange", callback);
+    return this.on("socketchange", callback);
   }
 
-  public onConnect(callback: () => void) {
-    this.on("connect", callback);
-    return () => this.off("connect", callback);
+  public onConnect(callback: (socket: Socket) => void) {
+    return this.on("connect", callback);
   }
 
-  public onDisconnect(callback: () => void) {
-    this.on("disconnect", callback);
-    return () => this.off("disconnect", callback);
-  }
-
-  public channel(channelName: string, channelParams?: object) {
-    return this.socket.channel(channelName, channelParams || {});
+  public onDisconnect(callback: (socket: Socket) => void) {
+    return this.on("disconnect", callback);
   }
 
   public getSocket() {
@@ -66,6 +67,7 @@ export default class SocketManager extends Observable<string> {
   private putNewApiToken(token: string | null) {
     logger.info("Preparing new Socket with updated token");
     const newSocket = this.buildSocket(token);
+    const previouslyConnected = this.socket.isConnected();
     this.socket.disconnect();
     this.cleanupHandlers();
 
@@ -74,8 +76,11 @@ export default class SocketManager extends Observable<string> {
 
     if (token) {
       this.connect();
+    } else if (previouslyConnected) {
+      this.store.getState().setOnline(false);
+      this.emit("disconnect", this.socket);
     }
-    this.emit("socketchange", [newSocket]);
+    this.emit("socketchange", this.socket);
   }
 
   private connect() {
@@ -97,12 +102,134 @@ export default class SocketManager extends Observable<string> {
   }
 
   private setupHandlers() {
-    this.handlers.push(this.socket.onOpen(() => this.emit("connect", [])));
-    this.handlers.push(this.socket.onClose(() => this.emit("disconnect", [])));
+    this.handlers.push(
+      this.socket.onOpen(() => {
+        this.store.getState().setOnline(true);
+        this.emit("connect", this.socket);
+      }),
+    );
+    this.handlers.push(
+      this.socket.onClose(() => {
+        this.store.getState().setOnline(false);
+        this.emit("disconnect", this.socket);
+      }),
+    );
   }
 
   private cleanupHandlers() {
     this.socket.off(this.handlers);
     this.handlers = [];
+  }
+}
+
+export class WrappedChannel {
+  private topic: string;
+  private manager: SocketManager;
+  private emitter: Emittery;
+  private handlers: Map<string, { count: number; ref: number }> = new Map();
+  private channelParams: object | undefined;
+  private channel: Channel;
+
+  constructor(manager: SocketManager, topic: string, channelParams?: object) {
+    this.manager = manager;
+    this.topic = topic;
+    this.emitter = new Emittery();
+    this.channelParams = channelParams;
+    this.channel = this.manager.getSocket().channel(topic, channelParams);
+
+    this.manager.onSocketChange(this.handleNewSocket.bind(this));
+  }
+
+  public join(timeout: number) {
+    return new Promise((resolve, reject) => {
+      this.channel
+        .join(timeout)
+        .receive("ok", resolve)
+        .receive("error", (resp) => {
+          this.channel.leave();
+          reject(resp);
+        });
+    });
+  }
+
+  public leave(timeout?: number) {
+    const push = this.channel.leave(timeout);
+    return new WrappedPush(push);
+  }
+
+  public on(event: string, callback: (response?: any) => void) {
+    const unsub = this.emitter.on(event, callback);
+
+    if (!this.handlers.has(event)) {
+      const ref = this.channel.on(event, (response?: any) => {
+        if (response && response instanceof ArrayBuffer) {
+          this.emitter.emit(event, new Uint8Array(response));
+        } else {
+          this.emitter.emit(event, response);
+        }
+      });
+      this.handlers.set(event, { count: 1, ref });
+    } else {
+      this.handlers.get(event)!.count++;
+    }
+
+    return () => {
+      unsub();
+      if (this.handlers.get(event)?.count == 1) {
+        this.channel.off(event, this.handlers.get(event)!.ref);
+        this.handlers.delete(event);
+      } else {
+        this.handlers.get(event)!.count--;
+      }
+    };
+  }
+
+  public push(event: string, payload: object, timeout?: number): WrappedPush {
+    let data: any = payload;
+    if (data instanceof Uint8Array) {
+      data = data.buffer;
+    }
+
+    const push = this.channel.push(event, data, timeout);
+    return new WrappedPush(push);
+  }
+
+  public get state() {
+    return this.channel.state;
+  }
+
+  private handleNewSocket(socket: Socket) {
+    const oldChannel = this.channel;
+    this.channel = socket.channel(this.topic, this.channelParams);
+
+    this.handlers.forEach(({ ref }, event) => {
+      oldChannel.off(event, ref);
+      const newRef = this.channel.on(event, (response?: any) => this.emitter.emit(event, response));
+      this.handlers.get(event)!.ref = newRef;
+    });
+  }
+}
+
+export class WrappedPush {
+  private push: Push;
+
+  constructor(push: Push) {
+    this.push = push;
+  }
+
+  receive<T = any>(): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      this.push
+        .receive("ok", (data: T) => resolve(data))
+        .receive("error", (error: any) => reject(error));
+    });
+  }
+
+  receiveBin(): Promise<Uint8Array> {
+    return new Promise((resolve, reject) => {
+      this.push
+        .receive("ok", (data: ArrayBuffer) => resolve(new Uint8Array(data)))
+        .receive("error", (error: any) => reject(error));
+    });
   }
 }

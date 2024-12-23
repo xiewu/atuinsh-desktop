@@ -1,4 +1,4 @@
-import { me, endpoint } from "@/api/api";
+import { me, endpoint, HttpResponseError } from "@/api/api";
 import Runbook, { RunbookFile } from "@/state/runbooks/runbook";
 import { useStore } from "@/state/store";
 import { fetch } from "@tauri-apps/plugin-http";
@@ -13,17 +13,14 @@ interface Routes {
 
 async function createRunbookFromHub(id: string) {
   // Fetch the runbook from the hub api
-  let resp = await fetch(`${endpoint}/api/runbooks/${id}`);
+  let resp = await fetch(`${endpoint}/api/runbooks/${id}?include=user,snapshots`);
   let json = await resp.json();
 
-  if (json.runbook?.content?.data)
-    json.runbook.content = json.runbook.content.data;
+  if (json.runbook?.content?.data) json.runbook.content = json.runbook.content.data;
 
-  return Runbook.importJSON(
-    json.runbook as RunbookFile,
-    "hub",
-    json.runbook.nwo,
-  );
+  // TODO: also create snapshots
+
+  return Runbook.importJSON(json.runbook as RunbookFile, "hub", json.runbook.nwo, json);
 }
 
 const handleDeepLink = (navigate: any, url: string): void | null => {
@@ -35,34 +32,40 @@ const handleDeepLink = (navigate: any, url: string): void | null => {
 
         let runbook = await createRunbookFromHub(id);
 
-        useStore.getState().setCurrentRunbook(runbook);
+        useStore.getState().setCurrentRunbookId(runbook.id);
         useStore.getState().refreshRunbooks();
         navigate("/runbooks");
       },
 
     // New "Open in desktop" from the hub
-    "^atuin://runbook/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$":
-      async (params: string[]) => {
-        const [id] = params;
+    "^atuin://runbook/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$": async (
+      params: string[],
+    ) => {
+      const [id] = params;
 
-        let runbook = await createRunbookFromHub(id);
+      let runbook = await createRunbookFromHub(id);
 
-        useStore.getState().setCurrentRunbook(runbook);
-        useStore.getState().refreshRunbooks();
-        navigate("/runbooks");
-      },
+      useStore.getState().setCurrentRunbookId(runbook.id);
+      useStore.getState().refreshRunbooks();
+      navigate("/runbooks");
+    },
 
     // Register an auth token with this desktop app
     "^atuin://register-token/(atapi_[0-9A-F]+)$": async (params: string[]) => {
       const [token] = params;
 
-      // Hit the "me" endpoint to verify the token and fetch username
-      let user = await me(token);
+      try {
+        // Hit the "me" endpoint to verify the token and fetch username
+        let user = await me(token);
 
-      localStorage.setItem("proposedUsername", user.user.username);
-      localStorage.setItem("proposedToken", token);
-
-      useStore.getState().setDesktopConnect(true);
+        useStore.getState().setProposedDesktopConnectuser({ username: user.user.username, token });
+      } catch (err) {
+        if (err instanceof HttpResponseError) {
+          console.error("Failed to verify token:", err.code);
+        } else {
+          console.error("Failed to verify token:", err);
+        }
+      }
     },
   };
 

@@ -7,12 +7,7 @@ export class User {
   avatar_url: string | null;
   bio: string | null;
 
-  constructor(
-    username: string,
-    email: string,
-    bio: string,
-    avatar_url: string,
-  ) {
+  constructor(username: string, email: string, bio: string, avatar_url: string) {
     this.username = username;
     this.email = email;
     this.bio = bio;
@@ -20,18 +15,11 @@ export class User {
   }
 
   isLoggedIn(): boolean {
-    return (
-      this.username !== "" && this.username !== null && this.email !== "anon"
-    );
+    return this.username !== "" && this.username !== null && this.email !== "anon";
   }
 }
 
-export const DefaultUser: User = new User(
-  "Anonymous User",
-  "anon",
-  "An anonymous user",
-  "",
-);
+export const DefaultUser: User = new User("Anonymous User", "anon", "An anonymous user", "");
 
 export interface HomeInfo {
   historyCount: number;
@@ -136,11 +124,44 @@ interface Sync {
   records: boolean;
 }
 
+interface RemoteUser {
+  id: string;
+  avatar_url: string;
+  bio: string | null;
+  company: string | null;
+  display_name: string | null;
+  homepage: string | null;
+  location: string | null;
+  note: string | null;
+  social_1: string | null;
+  social_2: string | null;
+  social_3: string | null;
+  social_4: string | null;
+  social_5: string | null;
+  username: string;
+}
+
+interface RemoteSnapshot {
+  id: string;
+  tag: string;
+  inserted_at: string;
+  updated_at: string;
+}
+
+export interface RemoteRunbook {
+  id: string;
+  name: string;
+  slug: string;
+  nwo: string;
+  visibility: "public" | "private" | "unlisted";
+  user: RemoteUser;
+  snapshots: RemoteSnapshot[];
+  permissions: string[];
+}
+
 // Define other interfaces (Dialect, Timezone, Style, SearchMode, FilterMode, ExitMode, KeymapMode, CursorStyle, WordJumpMode, RegexSet, Stats) accordingly.
 
-export async function inspectCommandHistory(
-  h: ShellHistory,
-): Promise<InspectHistory> {
+export async function inspectCommandHistory(h: ShellHistory): Promise<InspectHistory> {
   const settings: Settings = await invoke("cli_settings");
   const db = await Database.load("sqlite:" + settings.db_path);
 
@@ -152,44 +173,23 @@ export async function inspectCommandHistory(
 
   return {
     other: other.map(
-      (i) =>
-        new ShellHistory(
-          i.id,
-          i.timestamp,
-          i.command,
-          i.hostname,
-          i.cwd,
-          i.duration,
-          i.exit,
-        ),
+      (i) => new ShellHistory(i.id, i.timestamp, i.command, i.hostname, i.cwd, i.duration, i.exit),
     ),
   };
 }
 
-export async function inspectDirectoryHistory(
-  h: ShellHistory,
-): Promise<InspectHistory> {
+export async function inspectDirectoryHistory(h: ShellHistory): Promise<InspectHistory> {
   const settings: Settings = await invoke("cli_settings");
   const db = await Database.load("sqlite:" + settings.db_path);
 
-  let other: any[] = await db.select(
-    "select * from history where cwd=?1 order by timestamp desc",
-    [h.cwd],
-  );
+  let other: any[] = await db.select("select * from history where cwd=?1 order by timestamp desc", [
+    h.cwd,
+  ]);
   console.log(other);
 
   return {
     other: other.map(
-      (i) =>
-        new ShellHistory(
-          i.id,
-          i.timestamp,
-          i.command,
-          i.hostname,
-          i.cwd,
-          i.duration,
-          i.exit,
-        ),
+      (i) => new ShellHistory(i.id, i.timestamp, i.command, i.hostname, i.cwd, i.duration, i.exit),
     ),
   };
 }

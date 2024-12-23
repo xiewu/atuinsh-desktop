@@ -19,19 +19,20 @@ import track_event from "@/tracking";
 import { cn } from "@/lib/utils";
 import MoveToRunbookDropdown from "./MoveToRunbookDropdown";
 import ExportAsRunbookDropdown from "./ExportAsRunbookDropdown";
+import { useCurrentRunbook } from "@/lib/useRunbook";
 
 const NoteSidebar = () => {
   const runbooks = useStore((state: AtuinState) => state.runbooks);
   const refreshRunbooks = useStore((state: AtuinState) => state.refreshRunbooks);
-  const currentRunbook = useStore((state: AtuinState) => state.currentRunbook);
   const importRunbook = useStore((state: AtuinState) => state.importRunbook);
   const newRunbook = useStore((state: AtuinState) => state.newRunbook);
   const [isSearchOpen, setSearchOpen] = useStore((store: AtuinState) => [
     store.searchOpen,
     store.setSearchOpen,
   ]);
+  const currentRunbook = useCurrentRunbook();
 
-  const setCurrentRunbook = useStore((state: AtuinState) => state.setCurrentRunbook);
+  const setCurrentRunbookId = useStore((state: AtuinState) => state.setCurrentRunbookId);
   const ptys: { [pid: string]: PtyMetadata } = usePtyStore((state) => state.ptys);
 
   const [isMoveToOpen, setMoveToOpen] = useState(false);
@@ -49,7 +50,7 @@ const NoteSidebar = () => {
         runbook.save();
 
         refreshRunbooks();
-        setCurrentRunbook(runbook, true);
+        setCurrentRunbookId(runbook.id);
       }
     })();
   }, []);
@@ -70,7 +71,7 @@ const NoteSidebar = () => {
     if (!runbooks) return;
     if (runbooks.length === 0) return;
 
-    setCurrentRunbook(runbooks[0], true);
+    setCurrentRunbookId(runbooks[0].id);
   };
 
   const handleOpenSearch = async () => {
@@ -119,7 +120,7 @@ const NoteSidebar = () => {
                   total: await Runbook.count(),
                 });
 
-                setCurrentRunbook(runbook);
+                setCurrentRunbookId(runbook.id);
               }}
               className={`cursor-pointer p-2 border-b border-gray-200 hover:bg-gray-100 ${isActive ? "bg-gray-200" : ""} relative`}
             >
@@ -208,7 +209,7 @@ const NoteSidebar = () => {
                           onPress={async () => {
                             await Runbook.delete(runbook.id);
                             if (currentRunbook && runbook.id === currentRunbook.id)
-                              setCurrentRunbook(null);
+                              setCurrentRunbookId(null);
                             refreshRunbooks();
                           }}
                         >

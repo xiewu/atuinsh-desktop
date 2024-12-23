@@ -44,5 +44,11 @@ pub fn migrations() -> Vec<Migration> {
             sql: "ALTER TABLE runbooks ADD COLUMN source TEXT; ALTER TABLE runbooks ADD COLUMN source_info TEXT; ALTER TABLE runbooks ADD COLUMN forked_from STRING;",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 8,
+            description: "add_remote_info_to_runbooks",
+            sql: "ALTER TABLE runbooks ADD COLUMN remote_info TEXT;",
+            kind: MigrationKind::Up,
+        },
     ]
 }

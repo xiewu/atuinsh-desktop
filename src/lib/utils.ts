@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { ClassValue } from "clsx";
 
 import clsx from "clsx";
+import { useEffect, useRef, useState } from "react";
 import { extendTailwindMerge } from "tailwind-merge";
 
 const COMMON_UNITS = ["small", "medium", "large"];
@@ -95,4 +96,50 @@ export async function installAtuinCLI() {
 
   console.log("Setting up plugin...");
   await invoke("setup_cli");
+}
+
+/**
+ * Sets state to true after a timeout, but resets the timer if the reset
+ * function is called.
+
+ * Returns a tuple of the debounced state, a function to reset the debounce,
+ * and a function to clear the debounced state without restarting the timer.
+ *
+ * @param timeout How long to wait before setting the state to true
+ */
+export function useDebounce(timeout: number): [boolean, () => void, () => void] {
+  const ref = useRef<number | null>(null);
+  const [debounced, setDebouced] = useState<boolean>(false);
+
+  function resetDebounce() {
+    setDebouced(false);
+    if (ref.current) {
+      clearTimeout(ref.current);
+    }
+    ref.current = setTimeout(() => {
+      setDebouced(true);
+    }, timeout);
+  }
+
+  function clearDebouce() {
+    setDebouced(false);
+    if (ref.current) {
+      clearTimeout(ref.current);
+    }
+  }
+
+  return [debounced, resetDebounce, clearDebouce];
+}
+
+/**
+ * Stores the value in a ref and updates it when the value changes. Useful for
+ * ensuring that a value is up-to-date in an async callback.
+ */
+export function useMemory<T>(value: T): React.MutableRefObject<T> {
+  const ref = useRef<T>(value);
+  useEffect(() => {
+    ref.current = value;
+  }, [value]);
+
+  return ref;
 }

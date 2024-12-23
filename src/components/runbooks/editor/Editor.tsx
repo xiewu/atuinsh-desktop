@@ -53,6 +53,7 @@ import { uuidv7 } from "uuidv7";
 import { DuplicateBlockItem } from "./ui/DuplicateBlockItem";
 
 import PhoenixProvider from "@/lib/phoenix_provider";
+import Snapshot from "@/state/runbooks/snapshot";
 
 // Our schema with block specs, which contain the configs and implementations for blocks
 // that we want our editor to use.
@@ -130,13 +131,12 @@ function isContentBlank(content: any) {
 
 type EditorProps = {
   runbook: Runbook | null;
+  snapshot: Snapshot | null;
+  editable: boolean;
 };
 
-export default function Editor(props: EditorProps) {
-  const runbook = props.runbook;
+export default function Editor({ runbook, snapshot, editable }: EditorProps) {
   const refreshRunbooks = useStore((store: AtuinState) => store.refreshRunbooks);
-  const setCurrentRunbook = useStore((store) => store.setCurrentRunbook);
-
   const user = useStore((store: AtuinState) => store.user);
   let [editor, setEditor] = useState<BlockNoteEditor | null>(null);
 
@@ -163,6 +163,7 @@ export default function Editor(props: EditorProps) {
 
   const onChange = async (editor: BlockNoteEditor) => {
     if (!runbook) return;
+    if (!editable) return;
 
     track_event("runbooks.save", {
       total: await Runbook.count(),
@@ -172,8 +173,6 @@ export default function Editor(props: EditorProps) {
     if (editor) runbook.content = JSON.stringify(editor.document);
 
     await runbook.save();
-    // update the state so other components refresh
-    setCurrentRunbook(runbook, true);
     refreshRunbooks();
   };
 
@@ -183,7 +182,7 @@ export default function Editor(props: EditorProps) {
     logger.debug("Runbook changed:", runbook);
     if (!runbook) return undefined;
 
-    let content = JSON.parse(runbook.content || "[]");
+    let content = snapshot ? JSON.parse(snapshot.content) : JSON.parse(runbook.content || "[]");
 
     // convert any block of type sql -> sqlite
     for (var i = 0; i < content.length; i++) {
@@ -192,6 +191,21 @@ export default function Editor(props: EditorProps) {
       }
     }
 
+    if (snapshot) {
+      // We just want a basic, read-only editor with no
+      // collaboration support and no YJS document content.
+
+      const editor = BlockNoteEditor.create({
+        schema,
+        initialContent: content,
+      });
+
+      setEditor(editor as any);
+
+      return () => setEditor(null);
+    }
+
+    // Otherwise, we want a full editor with all the trimmings
     let timer: number | undefined;
     let provider = new PhoenixProvider(runbook.id, runbook.ydoc);
 
@@ -207,7 +221,7 @@ export default function Editor(props: EditorProps) {
       },
     });
 
-    provider.once("synced", () => {
+    provider.once("synced").then(() => {
       // If the loaded YJS doc has no content, and the server has no content,
       // we should take the old `content` field (if any) and populate the editor
       // so that we trigger a save, creating the YJS document.
@@ -246,7 +260,7 @@ export default function Editor(props: EditorProps) {
     };
     // zustand state is immutable, so `runbook` will change every runbook.save()
     // to avoid creating a new editor and provider every save, depend on the runbook ID
-  }, [runbook?.id]);
+  }, [runbook?.id, snapshot]);
 
   useEffect(() => {
     if (editor) {
@@ -312,6 +326,7 @@ export default function Editor(props: EditorProps) {
         sideMenu={false}
         onChange={() => debouncedOnChange(editor)}
         theme="light"
+        editable={editable}
       >
         <SuggestionMenuController
           triggerCharacter={"/"}

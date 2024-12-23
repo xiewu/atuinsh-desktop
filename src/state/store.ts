@@ -3,15 +3,7 @@ import { persist, subscribeWithSelector } from "zustand/middleware";
 
 import { parseISO } from "date-fns";
 
-import {
-  User,
-  DefaultUser,
-  HomeInfo,
-  DefaultHomeInfo,
-  Alias,
-  ShellHistory,
-  Var,
-} from "./models";
+import { User, DefaultUser, HomeInfo, DefaultHomeInfo, Alias, ShellHistory, Var } from "./models";
 
 import { invoke } from "@tauri-apps/api/core";
 import { getWeekInfo } from "@/lib/utils";
@@ -107,6 +99,7 @@ export interface RunbookPtyInfo {
 export interface AtuinState {
   user: User;
   isLoggedIn: () => boolean;
+  online: boolean;
   homeInfo: HomeInfo;
   aliases: Alias[];
   vars: Var[];
@@ -119,6 +112,7 @@ export interface AtuinState {
   currentRunbook: Runbook | null;
   lastTagForRunbook: { [key: string]: string };
 
+  setOnline: (online: boolean) => void;
   searchOpen: boolean;
   setSearchOpen: (open: boolean) => void;
 
@@ -135,8 +129,7 @@ export interface AtuinState {
   refreshRunbooks: () => Promise<void>;
 
   setCurrentRunbookId: (id: string | null) => void;
-  setCurrentRunbook: (runbook: Runbook | null, skipReydrate?: boolean) => void;
-  selectTag: (runbookId: string, tag: string) => void;
+  selectTag: (runbookId: string, tag: string | null) => void;
   getLastTagForRunbook: (runbookId: string) => string | null;
   setPtyTerm: (pty: string, terminal: any) => void;
   newPtyTerm: (pty: string) => Promise<TerminalData>;
@@ -151,16 +144,14 @@ export interface AtuinState {
   deleteWorkspace: (workspace: Workspace) => Promise<void>;
   setCurrentWorkspace: (ws: Workspace) => Promise<void>;
 
-  showDesktopConnect: boolean;
-  setDesktopConnect: (open: boolean) => void;
+  proposedDesktopConnectUser: { username: string; token: string } | undefined;
+  setProposedDesktopConnectuser: (proposedUser?: { username: string; token: string }) => void;
 }
 
 type StateSet<T> = Partial<T> | ((state: T) => Partial<AtuinState>);
 
-let state = (
-  set: (state: StateSet<AtuinState>) => void,
-  get: () => AtuinState,
-): AtuinState => ({
+let state = (set: (state: StateSet<AtuinState>) => void, get: () => AtuinState): AtuinState => ({
+  online: false,
   user: DefaultUser,
   homeInfo: DefaultHomeInfo,
   aliases: [],
@@ -177,10 +168,12 @@ let state = (
   weekStart: getWeekInfo().firstDay,
 
   searchOpen: false,
-  showDesktopConnect: false,
+  proposedDesktopConnectUser: undefined,
 
+  setOnline: (online: boolean) => set(() => ({ online })),
   setSearchOpen: (open) => set(() => ({ searchOpen: open })),
-  setDesktopConnect: (open) => set(() => ({ showDesktopConnect: open })),
+  setProposedDesktopConnectuser: (proposedUser?) =>
+    set(() => ({ proposedDesktopConnectUser: proposedUser })),
 
   refreshAliases: () => {
     invoke("aliases").then((aliases: any) => {
@@ -206,7 +199,7 @@ let state = (
     runbook.content = JSON.stringify(untitledRunbook);
     runbook.save();
 
-    await get().setCurrentRunbook(runbook, true);
+    get().setCurrentRunbookId(runbook.id);
     await get().refreshRunbooks();
     await get().refreshWorkspaces();
 
@@ -305,16 +298,14 @@ let state = (
       }
 
       set({
-        user: new User(
-          user.user.username,
-          user.user.email,
-          "",
-          user.user.avatar_url,
-        ),
+        user: new User(user.user.username, user.user.email, "", user.user.avatar_url),
       });
-    } catch {
-      set({ user: DefaultUser });
-      return;
+    } catch (err: any) {
+      if (!err.code) {
+        // This was due to a network error, don't clear cached user
+      } else {
+        set({ user: DefaultUser });
+      }
     }
   },
 
@@ -338,36 +329,16 @@ let state = (
   },
 
   setCurrentRunbookId: async (id: string | null) => {
-    const currentId = get().currentRunbookId;
     set({ currentRunbookId: id });
-
-    if (id && id !== currentId) {
-      const runbook = await Runbook.load(id);
-      set({ currentRunbook: runbook });
-    } else if (!id) {
-      set({ currentRunbook: null });
-    }
   },
 
-  setCurrentRunbook: (runbook: Runbook | null, skipRehydrate?: boolean) => {
-    if (skipRehydrate) {
-      // zustand state must be immutable; thus, if we change a runbook and save it,
-      // we need to clone it so that the state is actually updated.
-      const currentRunbook = get().currentRunbook;
-      if (runbook && runbook == currentRunbook) {
-        runbook = runbook.clone();
-      }
-      set({ currentRunbook: runbook, currentRunbookId: runbook?.id });
-    } else {
-      // Ensure the runbook gets fully hydrated
-      const id = runbook ? runbook.id : null;
-      get().setCurrentRunbookId(id);
-    }
-  },
-
-  selectTag: (runbookId: string, tag: string) => {
+  selectTag: (runbookId: string, tag: string | null) => {
     const obj = get().lastTagForRunbook;
-    obj[runbookId] = tag;
+    if (tag) {
+      obj[runbookId] = tag;
+    } else {
+      delete obj[runbookId];
+    }
     set({ lastTagForRunbook: obj });
   },
 
@@ -467,7 +438,7 @@ let state = (
 
     set({ workspace: ws });
     get().refreshRunbooks();
-    get().setCurrentRunbook(null);
+    get().setCurrentRunbookId(null);
   },
 
   isLoggedIn: () => {
@@ -520,7 +491,6 @@ export const useStore = create<AtuinState>()(
                 "history_calendar",
                 "home_info",
                 "runbookIndex",
-                "user",
                 "currentRunbook",
                 "runbooks",
               ].includes(key),
@@ -540,14 +510,17 @@ export const useStore = create<AtuinState>()(
         return (state: AtuinState | undefined) => {
           if (!state) return state;
 
-          // Reload the current runbook
-          if (state.currentRunbookId) {
-            Runbook.load(state.currentRunbookId).then((runbook) =>
-              state.setCurrentRunbook(runbook, true),
-            );
+          // In order for cached user data to work correctly, we need to
+          // rehydrate the data into an actual User model intance
+          const user = state.user as User;
+          if (user) {
+            const userObj = new User(user.username!, user.email!, user.bio!, user.avatar_url!);
+            state.user = userObj;
           }
         };
       },
     }),
   ),
 );
+
+(window as any).store = useStore;

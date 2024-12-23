@@ -3,35 +3,23 @@ import { Modal, ModalContent, Button, Card, CardBody } from "@nextui-org/react";
 import { setHubApiToken } from "@/api/api";
 import SocketManager from "@/socket";
 
-import { useMemo } from "react";
-
 const DesktopConnect = () => {
-  let setDesktopConnect = useStore((state) => state.setDesktopConnect);
+  let setProposedDesktopConnectUser = useStore((state) => state.setProposedDesktopConnectuser);
+  let proposedUser = useStore((state) => state.proposedDesktopConnectUser);
 
   const confirm = async () => {
-    let proposedUsername = localStorage.getItem("proposedUsername");
-    let proposedToken = localStorage.getItem("proposedToken");
-
-    localStorage.removeItem("proposedUsername");
-    localStorage.removeItem("proposedToken");
-
-    if (proposedUsername && proposedToken) {
-      await setHubApiToken(proposedUsername, proposedToken);
-      SocketManager.setApiToken(proposedToken);
+    if (proposedUser) {
+      await setHubApiToken(proposedUser.username, proposedUser.token);
+      SocketManager.setApiToken(proposedUser.token);
       useStore.getState().refreshUser();
     }
 
-    setDesktopConnect(false);
+    setProposedDesktopConnectUser(undefined);
   };
 
   const cancel = async () => {
-    setDesktopConnect(false);
+    setProposedDesktopConnectUser(undefined);
   };
-
-  let username = useMemo(() => {
-    let proposedUsername = localStorage.getItem("proposedUsername");
-    return proposedUsername;
-  }, []);
 
   return (
     <Modal
@@ -49,15 +37,14 @@ const DesktopConnect = () => {
             <Card>
               <CardBody className="gap-4">
                 <h2 className="text-xl">Connection request from Atuin Hub</h2>
-                <h3 className="text-l">Username: {username}</h3>
+                <h3 className="text-l">Username: {proposedUser!.username}</h3>
                 <p className="text-gray-600">
-                  Atuin Hub is requesting to connect to your Atuin Desktop
-                  instance. This will allow you to browse and share Runbooks
-                  with other users, and keep them backed up.
+                  Atuin Hub is requesting to connect to your Atuin Desktop instance. This will allow
+                  you to browse and share Runbooks with other users, and keep them backed up.
                 </p>
                 <p className="text-gray-600">
-                  We store all secrets securely in your keychain, which you will
-                  be prompted to provide access to.
+                  We store all secrets securely in your keychain, which you will be prompted to
+                  provide access to.
                 </p>
               </CardBody>
             </Card>

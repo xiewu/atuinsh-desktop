@@ -5,7 +5,9 @@ import { readTextFile } from "@tauri-apps/plugin-fs";
 import { uuidv7 } from "uuidv7";
 import Workspace from "./workspace";
 import Logger from "@/lib/logger";
+import Snapshot from "./snapshot";
 import { atuinToBlocknote, blocknoteToAtuin } from "./convert";
+import Emittery from "emittery";
 const logger = new Logger("Runbook", "green", "green");
 
 // Definition of an atrb file
@@ -32,16 +34,18 @@ export interface RunbookAttrs {
   sourceInfo: string | null;
   workspaceId: string;
   forkedFrom: string | null;
+  remoteInfo: string | null;
 
   created: Date;
   updated: Date;
 }
 
-export default class Runbook {
+export default class Runbook extends Emittery {
   id: string;
   ydoc: Y.Doc;
   source: RunbookSource;
   sourceInfo: string | null;
+  remoteInfo: string | null;
 
   created: Date;
   updated: Date;
@@ -53,13 +57,17 @@ export default class Runbook {
   private _content: string;
 
   set name(value: string) {
-    this.updated = new Date();
-    this._name = value;
+    if (value !== this._name) {
+      this.updated = new Date();
+      this._name = value;
+    }
   }
 
   set content(value: string) {
-    this.updated = new Date();
-    this._content = value;
+    if (value !== this._content) {
+      this.updated = new Date();
+      this._content = value;
+    }
   }
 
   get content() {
@@ -71,6 +79,7 @@ export default class Runbook {
   }
 
   constructor(attrs: RunbookAttrs) {
+    super();
     this.id = attrs.id;
     this._name = attrs.name;
     this.source = attrs.source || "local";
@@ -81,6 +90,7 @@ export default class Runbook {
     this.updated = attrs.updated;
     this.forkedFrom = attrs.forkedFrom;
     this.workspaceId = attrs.workspaceId;
+    this.remoteInfo = attrs.remoteInfo;
   }
 
   /// Create a new Runbook, and automatically generate an ID.
@@ -103,6 +113,7 @@ export default class Runbook {
       updated: now,
       workspaceId: workspace.id,
       forkedFrom: null,
+      remoteInfo: null,
     });
     await runbook.save();
 
@@ -149,6 +160,7 @@ export default class Runbook {
     obj: RunbookFile,
     source: RunbookSource,
     sourceInfo: string | null,
+    remoteInfo: string | null,
     workspace?: Workspace,
   ): Promise<Runbook> {
     if (workspace === undefined || workspace === null) {
@@ -169,6 +181,7 @@ export default class Runbook {
       updated: new Date(),
       workspaceId: workspace.id,
       forkedFrom: null,
+      remoteInfo: remoteInfo,
     });
 
     await runbook.save();
@@ -182,9 +195,7 @@ export default class Runbook {
     let file = await readTextFile(filePath);
     var enc = new TextDecoder("utf-8");
 
-    // Because of the aforemention thing.
-    // @ts-ignore
-    return Runbook.importJSON(JSON.parse(enc.decode(file)));
+    return Runbook.importJSON(JSON.parse(enc.decode(file as any)), "file", null, null);
   }
 
   public static async load(id: String): Promise<Runbook | null> {
@@ -192,7 +203,7 @@ export default class Runbook {
 
     let res = await logger.time(`Selecting runbook with ID ${id}`, async () =>
       db.select<any[]>(
-        "select id, name, source, source_info, content, created, updated, workspace_id, forked_from from runbooks where id = $1",
+        "select id, name, source, source_info, content, created, updated, workspace_id, forked_from, remote_info from runbooks where id = $1",
         [id],
       ),
     );
@@ -235,6 +246,7 @@ export default class Runbook {
       updated: new Date(row.updated / 1000000),
       workspaceId: row.workspace_id,
       forkedFrom: row.forked_from,
+      remoteInfo: row.remote_info,
     });
   }
 
@@ -246,7 +258,7 @@ export default class Runbook {
 
     let runbooks = await logger.time("Selecting all runbooks", async () => {
       let res = await db.select<any[]>(
-        "select id, name, source, source_info, created, updated, workspace_id, forked_from from runbooks " +
+        "select id, name, source, source_info, created, updated, workspace_id, forked_from, remote_info from runbooks " +
           "where workspace_id = $1 or workspace_id is null order by updated desc",
         [workspace.id],
       );
@@ -275,8 +287,8 @@ export default class Runbook {
 
     logger.time(`Saving runbook ${this.id}`, async () => {
       await db.execute(
-        `insert into runbooks(id, name, content, created, updated, workspace_id, source, source_info, forked_from)
-          values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `insert into runbooks(id, name, content, created, updated, workspace_id, source, source_info, forked_from, remote_info)
+          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 
           on conflict(id) do update
             set
@@ -286,7 +298,8 @@ export default class Runbook {
               workspace_id=$6,
               source=$7,
               source_info=$8,
-              forked_from=$9`,
+              forked_from=$9,
+              remote_info=$10`,
 
         // getTime returns a timestamp as unix milliseconds
         // we won't need or use the resolution here, but elsewhere Atuin stores timestamps in sqlite as nanoseconds since epoch
@@ -301,11 +314,13 @@ export default class Runbook {
           this.source,
           this.sourceInfo,
           this.forkedFrom,
+          this.remoteInfo,
         ],
       );
 
       const ydocAsUpdate = Y.encodeStateAsUpdate(this.ydoc);
       await Runbook.saveYDocForRunbook(this.id, ydocAsUpdate);
+      this.emit("saved");
     });
   }
 
@@ -351,12 +366,15 @@ export default class Runbook {
       updated: this.updated,
       workspaceId: this.workspaceId,
       forkedFrom: this.forkedFrom,
+      remoteInfo: this.remoteInfo,
     });
   }
 
   public static async delete(id: string) {
     const db = await Database.load("sqlite:runbooks.db");
 
-    await db.execute("delete from runbooks where id=$1", [id]);
+    const p1 = db.execute("delete from runbooks where id=$1", [id]);
+    const p2 = Snapshot.deleteForRunbook(id);
+    await Promise.all([p1, p2]);
   }
 }

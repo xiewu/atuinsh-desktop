@@ -3,9 +3,10 @@ import RelativeTime from "@/components/relative_time.tsx";
 import SharePopover from "./SharePopover";
 import TagSelector from "./TagSelector";
 import { DateTime } from "luxon";
-import { Avatar } from "@nextui-org/react";
+import { Avatar, Tooltip } from "@nextui-org/react";
 import { RemoteRunbook } from "@/state/models";
 import { useState } from "react";
+import { PencilOffIcon } from "lucide-react";
 
 type TopbarProps = {
   runbook: Runbook;
@@ -65,6 +66,15 @@ export default function Topbar(props: TopbarProps) {
               onSelectTag={onSelectTag}
               onCreateTag={props.onCreateTag}
             />
+            {props.currentTag !== "latest" && (
+              <Tooltip
+                content="This runbook is in read-only mode because you are viewing a tag"
+                placement="bottom"
+                showArrow
+              >
+                <PencilOffIcon className="h-4 w-4 text-red-400 ml-4 inline" />
+              </Tooltip>
+            )}
           </div>
         </div>
         <div>

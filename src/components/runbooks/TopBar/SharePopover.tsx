@@ -19,6 +19,7 @@ import LoggedOut from "./sharing/LoggedOut";
 import Offline from "./sharing/Offline";
 import useRemoteRunbook from "@/lib/useRemoteRunbook";
 import NoPermission from "./sharing/NoPermission";
+import Edit from "./sharing/Edit";
 
 function slugify(name: string | null): string {
   if (name) {
@@ -49,8 +50,12 @@ export default function Share({ runbook }: ShareProps) {
   const canUpdate = remoteRunbook?.permissions.includes("update");
 
   useEffect(() => {
-    setSlug(slugify(runbook.name));
-  }, [runbook]);
+    if (remoteRunbook) {
+      setSlug(remoteRunbook.slug);
+    } else if (runbook) {
+      setSlug(slugify(runbook.name));
+    }
+  }, [runbook, remoteRunbook]);
 
   function shareRunbook(runbook: Runbook, slug: string, visibility: string, arg3: () => void) {
     throw new Error("Function not implemented.");
@@ -87,7 +92,16 @@ export default function Share({ runbook }: ShareProps) {
         </Button>
       </PopoverTrigger>
       <PopoverContent>
-        {online && user.isLoggedIn() && (!remoteRunbook || canUpdate) && (
+        {online && user.isLoggedIn() && remoteRunbook && canUpdate && (
+          <Edit
+            runbook={runbook}
+            slug={slug}
+            setSlug={setSlug}
+            error={error}
+            remoteRunbook={remoteRunbook}
+          />
+        )}
+        {online && user.isLoggedIn() && !remoteRunbook && (
           <Publish runbook={runbook} slug={slug} setSlug={setSlug} error={error} />
         )}
         {online && user.isLoggedIn() && remoteRunbook && !canUpdate && <NoPermission />}

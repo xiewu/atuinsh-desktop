@@ -5,9 +5,9 @@ import SocketManager, { WrappedChannel } from "../socket";
 import Logger from "@/lib/logger";
 import Emittery from "emittery";
 
-function rejectPromise(ms: number) {
-  return new Promise<void>((_resolve, reject) => {
-    setTimeout(() => reject(new Error("Timed out")), ms);
+function timeoutPromise<T>(ms: number, resolveValue: T) {
+  return new Promise<T>((resolve) => {
+    setTimeout(() => resolve(resolveValue), ms);
   });
 }
 
@@ -122,9 +122,12 @@ export default class PhoenixProvider extends Emittery {
     this.logger.info("Starting resync");
 
     try {
-      const timerPromise = rejectPromise(5000);
+      const timerPromise = timeoutPromise(5000, false);
       const resyncPromise = this.doResync();
-      await Promise.race([timerPromise, resyncPromise]);
+      const didResync = await Promise.race([timerPromise, resyncPromise]);
+      if (!didResync) {
+        this.logger.error("Resync timed out");
+      }
     } catch (err) {
       this.logger.error("Failed to resync", err);
     }
@@ -149,6 +152,7 @@ export default class PhoenixProvider extends Emittery {
     // Step 3: Apply the diff from the server
     Y.applyUpdate(this.doc, serverDiff, this);
     this.logger.info("Resync complete");
+    return true;
   }
 
   shutdown() {

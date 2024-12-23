@@ -144,10 +144,12 @@ export default function Runbooks() {
   const canEditTags = !remoteRunbook || remoteRunbook?.permissions.includes("update");
   const canInviteCollabs = remoteRunbook?.permissions.includes("update");
 
+  const readyToRender = selectedTag == "latest" || selectedTag == currentSnapshot?.tag;
+
   return (
     <div className="flex !w-full !max-w-full flex-row overflow-hidden">
       <List />
-      {currentRunbook && (
+      {currentRunbook && readyToRender && (
         <div className="flex w-full max-w-full overflow-hidden flex-col">
           <Topbar
             runbook={currentRunbook}

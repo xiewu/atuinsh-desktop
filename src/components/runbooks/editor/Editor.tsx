@@ -179,7 +179,7 @@ export default function Editor({ runbook, snapshot, editable }: EditorProps) {
   const debouncedOnChange = useDebounceCallback(onChange, 1000);
 
   useEffect(() => {
-    logger.debug("Runbook changed:", runbook);
+    logger.debug("Runbook or snapshot changed:", runbook?.id, snapshot?.id);
     if (!runbook) return undefined;
 
     let content = snapshot ? JSON.parse(snapshot.content) : JSON.parse(runbook.content || "[]");

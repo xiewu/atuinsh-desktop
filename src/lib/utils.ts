@@ -66,8 +66,11 @@ export function formatDuration(ms: number) {
   const seconds = Math.floor(ms / 1000);
   const milliseconds = ms % 1000;
 
+  // For sub-2-minute durations, we display seconds with optional milliseconds
+  // We floor the milliseconds first to avoid floating point imprecision
+  // causing extra decimal places
   if (seconds < 120) {
-    return `${seconds}${milliseconds ? `.${milliseconds.toString().padStart(3, "0")}` : ""}s`;
+    return `${seconds}${milliseconds ? `.${Math.floor(milliseconds).toString().padStart(3, "0")}` : ""}s`;
   }
 
   const minutes = Math.floor(seconds / 60);

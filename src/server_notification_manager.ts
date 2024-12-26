@@ -21,15 +21,17 @@ export default class ServerNotificationManager {
     this.channel = this.manager.channel("notifications");
   }
 
-  public async setQueryClient(queryClient: QueryClient) {
+  public setQueryClient(queryClient: QueryClient) {
     this.queryClient = queryClient;
 
-    const rbs = await Runbook.allInAllWorkspaces();
-    const ids = rbs.map((r) => r.id);
+    this.manager.onConnect(async () => {
+      if (this.channel.state == "closed") {
+        await this.channel.join();
+      }
 
-    const off = this.manager.onConnect(async () => {
-      off();
-      await this.channel.join();
+      const rbs = await Runbook.allInAllWorkspaces();
+      const ids = rbs.map((r) => r.id);
+      // Subscribe is idempotent, so we can just call it with all the runbook IDs
       this.channel.push("subscribe", { ids: ids });
       this.channel.on("runbook_updated", (params) => {
         this.queryClient!.invalidateQueries({ queryKey: ["remote_runbook", params.id] });

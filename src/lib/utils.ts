@@ -110,9 +110,12 @@ export async function installAtuinCLI() {
  *
  * @param timeout How long to wait before setting the state to true
  */
-export function useDebounce(timeout: number): [boolean, () => void, () => void] {
+export function useDebounce(
+  timeout: number,
+  initialValue = false,
+): [boolean, () => void, () => void] {
   const ref = useRef<number | null>(null);
-  const [debounced, setDebouced] = useState<boolean>(false);
+  const [debounced, setDebouced] = useState<boolean>(initialValue);
 
   function resetDebounce() {
     setDebouced(false);
@@ -145,4 +148,20 @@ export function useMemory<T>(value: T): React.MutableRefObject<T> {
   }, [value]);
 
   return ref;
+}
+
+export function slugify(name: string | null): string {
+  if (name) {
+    return name
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9_\-]/gi, "");
+  } else {
+    return "";
+  }
+}
+
+export function capitalize(text: string) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }

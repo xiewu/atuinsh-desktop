@@ -142,7 +142,7 @@ export default function Home() {
     setup();
   }, []);
 
-  if (!homeInfo) {
+  if (!homeInfo || !calendar.length) {
     return <div>Loading...</div>;
   }
 

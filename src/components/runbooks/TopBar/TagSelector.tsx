@@ -137,10 +137,15 @@ export default function TagSelector(props: TagSelectorProps) {
   return (
     <Popover
       showArrow
-      backdrop="opaque"
       placement="bottom-start"
       triggerType="menu"
-      classNames={{ content: "w-[350px] p-4" }}
+      // Set opaque backdrop so that tooltipos don't show through from doc,
+      // but then set the bg color to transparent so there's no coloring.
+      backdrop="opaque"
+      classNames={{
+        backdrop: "bg-transparent",
+        content: "w-[350px] p-4",
+      }}
       isOpen={props.isOpen}
       shouldCloseOnInteractOutside={() => true}
       onClose={props.onClose}

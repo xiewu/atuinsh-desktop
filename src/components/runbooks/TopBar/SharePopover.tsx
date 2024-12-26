@@ -1,53 +1,101 @@
-import Runbook from "@/state/runbooks/runbook";
-import {
-  Button,
-  Card,
-  CardBody,
-  CardHeader,
-  Input,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@nextui-org/react";
+import Runbook, { RunbookVisibility } from "@/state/runbooks/runbook";
+import { Button, Popover, PopoverContent, PopoverTrigger } from "@nextui-org/react";
 import { useEffect, useState } from "react";
 import { useStore } from "@/state/store";
-import { cn } from "@/lib/utils";
-import { endpoint } from "@/api/api";
+import * as api from "@/api/api";
 import { CloudOffIcon, ShareIcon } from "lucide-react";
 import Publish from "./sharing/Publish";
 import LoggedOut from "./sharing/LoggedOut";
 import Offline from "./sharing/Offline";
-import useRemoteRunbook from "@/lib/useRemoteRunbook";
 import NoPermission from "./sharing/NoPermission";
-import Edit from "./sharing/Edit";
-
-function slugify(name: string | null): string {
-  if (name) {
-    return name
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9_\-]/gi, "");
-  } else {
-    return "";
-  }
-}
+import { RemoteRunbook } from "@/state/models";
+import ServerNotificationManager from "@/server_notification_manager";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { slugify, useDebounce } from "@/lib/utils";
+import { confirm } from "@tauri-apps/plugin-dialog";
+import Snapshot from "@/state/runbooks/snapshot";
+import Logger from "@/lib/logger";
+const logger = new Logger("SharePopover", "purple", "purple");
 
 type ShareProps = {
   runbook: Runbook;
+  remoteRunbook?: RemoteRunbook;
+  refreshRemoteRunbook: () => void;
 };
 
-export default function Share({ runbook }: ShareProps) {
+type ShareRunbookMutationArgs = { runbook: Runbook; slug: string; visibility: RunbookVisibility };
+
+const slugRegex = /^[a-z0-9\-_]+$/i;
+
+export default function Share({ runbook, remoteRunbook }: ShareProps) {
   const [slug, setSlug] = useState<string>(slugify(runbook.name));
-  const [visibility, setVisibility] = useState<string>("private");
+  const [visibility, setVisibility] = useState<RunbookVisibility>("private");
   const [slugAvailable, setSlugAvailable] = useState<boolean>(true);
-  const [success, setSuccess] = useState<boolean>(false);
   const [error, setError] = useState<string | undefined>(undefined);
-  const remoteRunbook = useRemoteRunbook(runbook);
+  const [slugDebounced, resetDebounced, _clearDebounced] = useDebounce(500, true);
+  const [changedSinceValidate, setChangedSinceValidate] = useState(false);
 
   const online = useStore((state) => state.online);
   const user = useStore((state) => state.user);
   const canUpdate = remoteRunbook?.permissions.includes("update");
+
+  const queryClient = useQueryClient();
+
+  const shareRunbook = useMutation({
+    mutationFn: ({ runbook, slug, visibility }: ShareRunbookMutationArgs) => {
+      return api.createRunbook(runbook, slug, visibility);
+    },
+    onSuccess: (_data, vars) => {
+      setError(undefined);
+      queryClient.invalidateQueries({ queryKey: ["remote_runbook", vars.runbook.id] });
+
+      // Now that the server can map the client ID to a server ID,
+      // we can subscribe to changes in this runbook.
+      ServerNotificationManager.get().subscribe(vars.runbook.id);
+    },
+    onError: (err: any) => {
+      if (err instanceof api.HttpResponseError) handleHttpError(err);
+      else {
+        setError("An unknown error occurred");
+        logger.error(err);
+      }
+    },
+    scope: { id: `runbook` },
+  });
+
+  const shareSnapshot = useMutation({
+    mutationFn: async (snapshot: Snapshot) => {
+      return api.createSnapshot(snapshot);
+    },
+    onSuccess: (_data, snapshot) => {
+      logger.info(`Successfully created snapshot ${snapshot.tag} in the background`);
+    },
+    onError: (err: any) => {
+      logger.error("ERROR CREATING SNAPSHOT IN BACKGROUND", err);
+    },
+    scope: { id: `runbook` },
+  });
+
+  const editRunbook = useMutation({
+    mutationFn: ({ runbook, slug, visibility }: ShareRunbookMutationArgs) => {
+      return api.updateRunbook(runbook, slug, visibility);
+    },
+    onSuccess: (_data, vars) => {
+      setError(undefined);
+      queryClient.invalidateQueries({ queryKey: ["remote_runbook", vars.runbook.id] });
+    },
+    onError: (err: any) => {
+      if (err instanceof api.HttpResponseError) handleHttpError(err);
+      else setError("An unknown error occurred");
+    },
+    scope: { id: "runbook" },
+  });
+
+  const deleteRunbook = useMutation({
+    mutationFn: (id: string) => api.deleteRunbook(id),
+    onSuccess: (_data, id) => queryClient.invalidateQueries({ queryKey: ["remote_runbook", id] }),
+    scope: { id: "runbook" },
+  });
 
   useEffect(() => {
     if (remoteRunbook) {
@@ -57,8 +105,61 @@ export default function Share({ runbook }: ShareProps) {
     }
   }, [runbook, remoteRunbook]);
 
-  function shareRunbook(runbook: Runbook, slug: string, visibility: string, arg3: () => void) {
-    throw new Error("Function not implemented.");
+  function validateSlug(slug: string) {
+    setChangedSinceValidate(false);
+    if (slug.trim().length < 2) {
+      setError("Slug must be at least 2 characters long");
+    } else if (!slugRegex.test(slug)) {
+      setError("Slug may contain letters, numbers, dashes, and underscores");
+    } else {
+      setError(undefined);
+    }
+  }
+
+  useEffect(() => {
+    if (slugDebounced) {
+      validateSlug(slug);
+    }
+  }, [slugDebounced]);
+
+  function handleHttpError(err: api.HttpResponseError) {
+    const data = err.data as any;
+    if (data.errors?.length) {
+      setError(data.errors[0]);
+    }
+  }
+
+  function handleSetSlug(newSlug: string) {
+    setSlug(newSlug);
+    setChangedSinceValidate(true);
+    resetDebounced();
+  }
+
+  async function handlePublishSubmit() {
+    setChangedSinceValidate(false);
+    const snapshots = await Snapshot.findByRunbookId(runbook.id);
+    shareRunbook.mutate({ runbook, slug, visibility });
+    snapshots.forEach((snapshot) => {
+      shareSnapshot.mutate(snapshot);
+    });
+  }
+
+  async function handleEditSubmit() {
+    setChangedSinceValidate(false);
+    editRunbook.mutate({ runbook, slug, visibility });
+  }
+
+  async function handleDelete() {
+    if (!remoteRunbook) return;
+
+    const doDelete = await confirm(
+      "Are you sure you want to delete this runbook from Atuin Hub? This action cannot be undone.",
+      { title: "Atuin Desktop", kind: "warning" },
+    );
+
+    if (doDelete) {
+      deleteRunbook.mutate(remoteRunbook.id);
+    }
   }
 
   const buttonColor = (() => {
@@ -67,25 +168,24 @@ export default function Share({ runbook }: ShareProps) {
     else if (!online) return "danger";
   })();
 
+  const enabled = !shareRunbook.isPending && slugDebounced && (!error || changedSinceValidate);
+
   return (
     <Popover
       placement="bottom-end"
       containerPadding={0}
       showArrow
+      // Set opaque backdrop so that tooltipos don't show through from doc,
+      // but then set the bg color to transparent so there's no coloring.
+      backdrop="opaque"
       classNames={{
+        backdrop: ["bg-transparent"],
+        base: ["w-[30rem]"],
         content: ["p-0"],
       }}
     >
       <PopoverTrigger>
-        <Button
-          size="sm"
-          variant="flat"
-          color={buttonColor}
-          className="mt-1"
-          onClick={() => {
-            // TODO
-          }}
-        >
+        <Button size="sm" variant="flat" color={buttonColor} className="mt-1">
           {!online && <CloudOffIcon size={16} />}
           {online && user.isLoggedIn() && canUpdate && <ShareIcon size={16} />}
           {online && user.isLoggedIn() && !canUpdate && <ShareIcon size={16} />}
@@ -93,16 +193,36 @@ export default function Share({ runbook }: ShareProps) {
       </PopoverTrigger>
       <PopoverContent>
         {online && user.isLoggedIn() && remoteRunbook && canUpdate && (
-          <Edit
+          <Publish
+            mode="edit"
             runbook={runbook}
-            slug={slug}
-            setSlug={setSlug}
-            error={error}
             remoteRunbook={remoteRunbook}
+            slug={slug}
+            setSlug={handleSetSlug}
+            visibility={visibility}
+            setVisibility={setVisibility}
+            error={error}
+            onPublish={handlePublishSubmit}
+            onEdit={handleEditSubmit}
+            onDelete={handleDelete}
+            isEnabled={enabled}
           />
         )}
         {online && user.isLoggedIn() && !remoteRunbook && (
-          <Publish runbook={runbook} slug={slug} setSlug={setSlug} error={error} />
+          <Publish
+            mode="publish"
+            runbook={runbook}
+            remoteRunbook={remoteRunbook}
+            slug={slug}
+            setSlug={handleSetSlug}
+            visibility={visibility}
+            setVisibility={setVisibility}
+            error={error}
+            onPublish={handlePublishSubmit}
+            onEdit={handleEditSubmit}
+            onDelete={handleDelete}
+            isEnabled={enabled}
+          />
         )}
         {online && user.isLoggedIn() && remoteRunbook && !canUpdate && <NoPermission />}
         {!user.isLoggedIn() && <LoggedOut />}

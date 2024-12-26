@@ -140,7 +140,7 @@ export class WrappedChannel {
     this.manager.onSocketChange(this.handleNewSocket.bind(this));
   }
 
-  public join(timeout: number) {
+  public join(timeout?: number) {
     return new Promise((resolve, reject) => {
       this.channel
         .join(timeout)

@@ -6,7 +6,6 @@ import Workspace from "./workspace";
 import Logger from "@/lib/logger";
 import Snapshot from "./snapshot";
 import { atuinToBlocknote, blocknoteToAtuin } from "./convert";
-import Emittery from "emittery";
 const logger = new Logger("Runbook", "green", "green");
 
 // Definition of an atrb file
@@ -23,6 +22,7 @@ export interface RunbookFile {
 }
 
 type RunbookSource = "local" | "hub" | "file";
+export type RunbookVisibility = "private" | "public" | "unlisted";
 
 export interface RunbookAttrs {
   id: string;
@@ -39,7 +39,7 @@ export interface RunbookAttrs {
   updated: Date;
 }
 
-export default class Runbook extends Emittery {
+export default class Runbook {
   id: string;
   ydoc: Uint8Array | null;
   source: RunbookSource;
@@ -78,7 +78,6 @@ export default class Runbook extends Emittery {
   }
 
   constructor(attrs: RunbookAttrs) {
-    super();
     this.id = attrs.id;
     this._name = attrs.name;
     this.source = attrs.source || "local";
@@ -243,21 +242,39 @@ export default class Runbook extends Emittery {
     });
   }
 
+  static async allInAllWorkspaces(): Promise<Runbook[]> {
+    const db = await Database.load("sqlite:runbooks.db");
+
+    let runbooks = await logger.time("Selecting all runbooks", async () => {
+      let res = await db.select<any[]>(
+        "select id, name, source, source_info, created, updated, workspace_id, forked_from, remote_info from runbooks " +
+          "order by updated desc",
+      );
+
+      return res.map(Runbook.fromRow);
+    });
+
+    return runbooks;
+  }
+
   // Default to scoping by workspace
   // Reduces the chance of accidents
   // If we ever need to fetch all runbooks for all workspaces, name it allInAllWorkspace or something
   static async all(workspace: Workspace): Promise<Runbook[]> {
     const db = await Database.load("sqlite:runbooks.db");
 
-    let runbooks = await logger.time("Selecting all runbooks", async () => {
-      let res = await db.select<any[]>(
-        "select id, name, source, source_info, created, updated, workspace_id, forked_from, remote_info from runbooks " +
-          "where workspace_id = $1 or workspace_id is null order by updated desc",
-        [workspace.id],
-      );
+    let runbooks = await logger.time(
+      `Selecting all runbooks for workspace ${workspace.id}`,
+      async () => {
+        let res = await db.select<any[]>(
+          "select id, name, source, source_info, created, updated, workspace_id, forked_from, remote_info from runbooks " +
+            "where workspace_id = $1 or workspace_id is null order by updated desc",
+          [workspace.id],
+        );
 
-      return res.map(Runbook.fromRow);
-    });
+        return res.map(Runbook.fromRow);
+      },
+    );
 
     let currentWorkspace = await Workspace.current();
 
@@ -312,7 +329,7 @@ export default class Runbook extends Emittery {
       );
 
       await Runbook.saveYDocForRunbook(this.id, this.ydoc);
-      this.emit("saved");
+      Runbook.invalidateCache(this.id);
     });
   }
 
@@ -372,5 +389,11 @@ export default class Runbook extends Emittery {
     const p1 = db.execute("delete from runbooks where id=$1", [id]);
     const p2 = Snapshot.deleteForRunbook(id);
     await Promise.all([p1, p2]);
+    Runbook.invalidateCache(id);
+  }
+
+  public static invalidateCache(id: string) {
+    // Don't love this, but unsure the best way to invalidate the cache on save otherwise
+    (window as any).queryClient.invalidateQueries(["runbook", id]);
   }
 }

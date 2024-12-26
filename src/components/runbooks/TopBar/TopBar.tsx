@@ -5,12 +5,12 @@ import TagSelector from "./TagSelector";
 import { DateTime } from "luxon";
 import { Avatar, Tooltip } from "@nextui-org/react";
 import { RemoteRunbook } from "@/state/models";
-import { useState } from "react";
 import { PencilOffIcon } from "lucide-react";
 
 type TopbarProps = {
   runbook: Runbook;
   remoteRunbook?: RemoteRunbook;
+  refreshRemoteRunbook: () => void;
   tags: string[];
   currentTag: string;
   showTagMenu: boolean;
@@ -81,7 +81,11 @@ export default function Topbar(props: TopbarProps) {
           <span className="h-full content-center text-gray-400 text-xs italic mr-4">
             Updated <RelativeTime time={DateTime.fromJSDate(runbook.updated)} />
           </span>
-          <SharePopover runbook={runbook} />
+          <SharePopover
+            runbook={runbook}
+            remoteRunbook={props.remoteRunbook}
+            refreshRemoteRunbook={props.refreshRemoteRunbook}
+          />
         </div>
       </>
     );

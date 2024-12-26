@@ -12,6 +12,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { createHashRouter, RouterProvider } from "react-router-dom";
 import { NextUIProvider } from "@nextui-org/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./styles.css";
 
 import Root from "@/routes/root/Root";
@@ -23,6 +24,7 @@ import { getHubApiToken } from "./api/api";
 import SocketManager from "./socket";
 import CollaborationManager from "./lib/collaboration_manager";
 import { useStore } from "@/state/store";
+import ServerNotificationManager from "./server_notification_manager";
 
 (async () => {
   try {
@@ -36,7 +38,19 @@ import { useStore } from "@/state/store";
 // If the user has opted in, we will setup sentry/posthog
 init_tracking();
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 1000 * 60 * 5,
+    },
+  },
+});
+(window as any).queryClient = queryClient;
+
 new CollaborationManager(SocketManager.get(), useStore);
+ServerNotificationManager.get().setQueryClient(queryClient);
 
 const router = createHashRouter([
   {
@@ -64,13 +78,15 @@ const router = createHashRouter([
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <NextUIProvider>
-      <main className="text-foreground bg-background">
-        <div data-tauri-drag-region className="w-full min-h-8 z-10 border-b-1" />
+      <QueryClientProvider client={queryClient}>
+        <main className="text-foreground bg-background">
+          <div data-tauri-drag-region className="w-full min-h-8 z-10 border-b-1" />
 
-        <div className="z-20 ">
-          <RouterProvider router={router} />
-        </div>
-      </main>
+          <div className="z-20 ">
+            <RouterProvider router={router} />
+          </div>
+        </main>
+      </QueryClientProvider>
     </NextUIProvider>
     <div id="portal" />
   </React.StrictMode>,

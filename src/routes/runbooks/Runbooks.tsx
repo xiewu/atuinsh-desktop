@@ -11,6 +11,8 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useMemory } from "@/lib/utils";
 import { useCurrentRunbook } from "@/lib/useRunbook";
+import { useMutation } from "@tanstack/react-query";
+import { createSnapshot } from "@/api/api";
 
 export default function Runbooks() {
   const refreshUser = useStore((store) => store.refreshUser);
@@ -29,7 +31,7 @@ export default function Runbooks() {
 
     return tag;
   });
-  const remoteRunbook = useRemoteRunbook(currentRunbook || undefined);
+  const [remoteRunbook, refreshRemoteRunbook] = useRemoteRunbook(currentRunbook || undefined);
   const [currentSnapshot, setCurrentSnapshot] = useState<Snapshot | null>(null);
 
   const location = useLocation();
@@ -37,11 +39,26 @@ export default function Runbooks() {
   const listenPtyBackend = usePtyStore((state) => state.listenBackend);
   const unlistenPtyBackend = usePtyStore((state) => state.unlistenBackend);
 
+  const shareSnapshot = useMutation({
+    mutationFn: async (snapshot: Snapshot) => {
+      return createSnapshot(snapshot);
+    },
+    onSuccess: (_data, snapshot) => {
+      console.info(`Successfully created snapshot ${snapshot.tag}`);
+    },
+    onError: (err: any) => {
+      console.error("Error creating snapshot", err);
+    },
+    scope: { id: `runbook` },
+  });
+
   useEffect(() => {
     if (!currentRunbook) {
       setSelectedTag("latest");
       return;
     }
+
+    refreshRemoteRunbook();
 
     let tag = getLastTagForRunbook(currentRunbook.id) || "latest";
     if (tag == "(no tag)") tag = "latest";
@@ -126,11 +143,17 @@ export default function Runbooks() {
     if (!currentRunbook) {
       throw new Error("Tried to create a new tag with no runbook selected");
     }
-    // 1. Create new local snapshot
+
     let snapshot = await Snapshot.create(tag, currentRunbook.id, currentRunbook.content);
     let snapshots = await Snapshot.findByRunbookId(currentRunbook.id);
-    // 2. Create remote snapshot
-    // 3. If creating remote shapshot fails, delete local snapshot???
+
+    if (remoteRunbook) {
+      shareSnapshot.mutate(snapshot, {
+        onError: (_err) => {
+          // TODO: how to handle if creating remote snapshot fails?
+        },
+      });
+    }
 
     setLastTagForRunbook(currentRunbook.id, snapshot.tag);
     if (currentRunbook == lastRunbookRef.current) {
@@ -154,6 +177,7 @@ export default function Runbooks() {
           <Topbar
             runbook={currentRunbook}
             remoteRunbook={remoteRunbook}
+            refreshRemoteRunbook={refreshRemoteRunbook}
             tags={snapshots.map((snap) => snap.tag)}
             showTagMenu={showTagMenu}
             onOpenTagMenu={() => setShowTagMenu(true)}

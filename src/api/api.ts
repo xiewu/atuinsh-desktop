@@ -3,6 +3,8 @@ import { fetch } from "@tauri-apps/plugin-http";
 import SocketManager from "@/socket";
 import { RemoteRunbook } from "@/state/models";
 import Logger from "@/lib/logger";
+import Runbook from "@/state/runbooks/runbook";
+import Snapshot from "@/state/runbooks/snapshot";
 
 type PasswordStore = {
   get: (service: string, user: string) => Promise<string | null>;
@@ -105,9 +107,11 @@ export function endpoint() {
 
 export class HttpResponseError extends Error {
   code: number;
-  constructor(code: number, message: string) {
-    super(message);
+  data: object | string;
+  constructor(code: number, data: object | string) {
+    super(`HTTP ${code}`);
     this.code = code;
+    this.data = data;
     this.name = "HttpResponseError";
   }
 }
@@ -219,6 +223,40 @@ export async function getRunbookID(id: string): Promise<RemoteRunbook> {
   return runbook;
 }
 
+export function createRunbook(runbook: Runbook, slug: string, visibility: string) {
+  const body = {
+    runbook: {
+      id: runbook.id,
+      name: runbook.name,
+      slug: slug,
+      version: 0,
+      created: runbook.created,
+      visibility: visibility,
+    },
+  };
+
+  return post("/runbooks", body);
+}
+
+export function updateRunbook(runbook: Runbook, slug: string, visibility: string) {
+  const body = {
+    runbook: {
+      id: runbook.id,
+      name: runbook.name,
+      slug: slug,
+      version: 0,
+      created: runbook.created,
+      visibility: visibility,
+    },
+  };
+
+  return put(`/runbooks/${runbook.id}`, body);
+}
+
+export function deleteRunbook(id: string) {
+  return del(`/runbooks/${id}`);
+}
+
 interface RemoteSnapshot {
   id: string;
   tag: string;
@@ -230,4 +268,16 @@ interface RemoteSnapshot {
 export async function getSnapshotById(id: string): Promise<RemoteSnapshot> {
   const { snapshot } = await get<{ snapshot: RemoteSnapshot }>(`/snapshots/${id}`);
   return snapshot;
+}
+
+export function createSnapshot(snapshot: Snapshot) {
+  const args = {
+    snapshot: {
+      id: snapshot.id,
+      tag: snapshot.tag,
+      client_created: snapshot.created,
+      content: snapshot.content,
+    },
+  };
+  return post(`/runbooks/${snapshot.runbook_id}/snapshots`, args);
 }

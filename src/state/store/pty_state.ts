@@ -1,0 +1,140 @@
+import { invoke } from "@tauri-apps/api/core";
+import { platform } from "@tauri-apps/plugin-os";
+import { FitAddon } from "@xterm/addon-fit";
+import { IDisposable, Terminal } from "@xterm/xterm";
+import { Settings } from "../settings";
+import { WebglAddon } from "@xterm/addon-webgl";
+import Logger from "@/lib/logger";
+import { StateCreator } from "zustand";
+const logger = new Logger("PtyStore", "purple", "pink");
+
+export class TerminalData {
+  terminal: Terminal;
+  fitAddon: FitAddon;
+  pty: string;
+
+  disposeResize: IDisposable;
+  disposeOnData: IDisposable;
+
+  constructor(pty: string, terminal: Terminal, fit: FitAddon) {
+    this.terminal = terminal;
+    this.fitAddon = fit;
+    this.pty = pty;
+
+    this.disposeResize = this.terminal.onResize((e) => this.onResize(e));
+    this.disposeOnData = this.terminal.onData((e) => this.onData(e));
+  }
+
+  async onData(event: any) {
+    await invoke("pty_write", { pid: this.pty, data: event });
+  }
+
+  async onResize(size: { cols: number; rows: number }) {
+    if (!this || !this.pty) return;
+    await invoke("pty_resize", {
+      pid: this.pty,
+      cols: size.cols,
+      rows: size.rows,
+    });
+  }
+
+  async write(data: string, doc: any) {
+    // Template the string before we execute it
+    logger.debug("templating with doc", doc);
+    let templated: string = await invoke("template_str", {
+      source: data,
+      pid: this.pty,
+      doc,
+    });
+
+    let isWindows = platform() == "windows";
+    let cmdEnd = isWindows ? "\r\n" : "\n";
+    let val = !templated.endsWith("\n") ? templated + cmdEnd : templated;
+
+    await invoke("pty_write", { pid: this.pty, data: val });
+  }
+
+  dispose() {
+    this.disposeResize.dispose();
+    this.disposeOnData.dispose();
+    this.terminal.dispose();
+  }
+
+  relisten(pty: string) {
+    this.pty = pty;
+
+    this.dispose();
+
+    this.disposeResize = this.terminal.onResize(this.onResize);
+    this.disposeOnData = this.terminal.onData(this.onData);
+  }
+}
+
+export interface RunbookPtyInfo {
+  id: string;
+  block: string;
+}
+
+export interface AtuinPtyState {
+  terminals: { [pty: string]: TerminalData };
+
+  setPtyTerm: (pty: string, terminal: any) => void;
+  newPtyTerm: (pty: string) => Promise<TerminalData>;
+  cleanupPtyTerm: (pty: string) => void;
+}
+
+export const persistPtyKeys: (keyof AtuinPtyState)[] = [];
+
+export const createPtyState: StateCreator<AtuinPtyState> = (set, get, _store): AtuinPtyState => ({
+  terminals: {},
+
+  setPtyTerm: (pty: string, terminal: TerminalData) => {
+    set({
+      terminals: { ...get().terminals, [pty]: terminal },
+    });
+  },
+
+  cleanupPtyTerm: (pty: string) => {
+    set((state: AtuinPtyState) => {
+      const terminals = Object.keys(state.terminals).reduce(
+        (terms: { [pty: string]: TerminalData }, key) => {
+          if (key !== pty) {
+            terms[key] = state.terminals[key];
+          }
+          return terms;
+        },
+        {},
+      );
+
+      return { terminals };
+    });
+  },
+
+  newPtyTerm: async (pty: string) => {
+    let font = await Settings.terminalFont();
+    let gl = await Settings.terminalGL();
+
+    let terminal = new Terminal({
+      fontFamily: `${font}, monospace`,
+      customGlyphs: false,
+    });
+
+    // TODO: fallback to canvas, also some sort of setting to allow disabling webgl usage
+    // probs fine for now though, it's widely supported. maybe issues on linux.
+    if (gl) {
+      // May have font issues
+      terminal.loadAddon(new WebglAddon());
+    }
+
+    let fitAddon = new FitAddon();
+    terminal.loadAddon(fitAddon);
+
+    let td = new TerminalData(pty, terminal, fitAddon);
+
+    set({
+      terminals: { ...get().terminals, [pty]: td },
+    });
+
+    return td;
+  },
+});

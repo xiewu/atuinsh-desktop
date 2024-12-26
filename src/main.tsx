@@ -25,6 +25,7 @@ import SocketManager from "./socket";
 import CollaborationManager from "./lib/collaboration_manager";
 import { useStore } from "@/state/store";
 import ServerNotificationManager from "./server_notification_manager";
+import { trackOnlineStatus } from "./lib/online_tracker";
 
 (async () => {
   try {
@@ -49,8 +50,14 @@ const queryClient = new QueryClient({
 });
 (window as any).queryClient = queryClient;
 
-new CollaborationManager(SocketManager.get(), useStore);
+const socketManager = SocketManager.get();
+new CollaborationManager(socketManager, useStore);
 ServerNotificationManager.get().setQueryClient(queryClient);
+
+trackOnlineStatus();
+// When the socket connects or disconnects, re-check online status immediately
+socketManager.onConnect(() => trackOnlineStatus());
+socketManager.onDisconnect(() => trackOnlineStatus());
 
 const router = createHashRouter([
   {

@@ -100,6 +100,7 @@ export default function Share({ runbook, remoteRunbook }: ShareProps) {
   useEffect(() => {
     if (remoteRunbook) {
       setSlug(remoteRunbook.slug);
+      setVisibility(remoteRunbook.visibility);
     } else if (runbook) {
       setSlug(slugify(runbook.name));
     }

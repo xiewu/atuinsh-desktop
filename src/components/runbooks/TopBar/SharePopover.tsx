@@ -3,7 +3,7 @@ import { Button, Popover, PopoverContent, PopoverTrigger } from "@nextui-org/rea
 import { useEffect, useState } from "react";
 import { useStore } from "@/state/store";
 import * as api from "@/api/api";
-import { CloudOffIcon, ShareIcon } from "lucide-react";
+import { CloudOffIcon, ShareIcon, WifiOffIcon } from "lucide-react";
 import Publish from "./sharing/Publish";
 import LoggedOut from "./sharing/LoggedOut";
 import Offline from "./sharing/Offline";
@@ -164,9 +164,9 @@ export default function Share({ runbook, remoteRunbook }: ShareProps) {
   }
 
   const buttonColor = (() => {
-    if (online && (canUpdate || !remoteRunbook)) return "success";
+    if (!online || !user.isLoggedIn()) return "danger";
+    else if (online && (canUpdate || !remoteRunbook)) return "success";
     else if (online && !canUpdate) return "warning";
-    else if (!online) return "danger";
   })();
 
   const enabled = !shareRunbook.isPending && slugDebounced && (!error || changedSinceValidate);
@@ -187,7 +187,8 @@ export default function Share({ runbook, remoteRunbook }: ShareProps) {
     >
       <PopoverTrigger>
         <Button size="sm" variant="flat" color={buttonColor} className="mt-1">
-          {!online && <CloudOffIcon size={16} />}
+          {!online && <WifiOffIcon size={16} />}
+          {online && !user.isLoggedIn() && <CloudOffIcon size={16} />}
           {online && user.isLoggedIn() && canUpdate && <ShareIcon size={16} />}
           {online && user.isLoggedIn() && !canUpdate && <ShareIcon size={16} />}
         </Button>
@@ -225,8 +226,8 @@ export default function Share({ runbook, remoteRunbook }: ShareProps) {
             isEnabled={enabled}
           />
         )}
+        {online && !user.isLoggedIn() && <LoggedOut />}
         {online && user.isLoggedIn() && remoteRunbook && !canUpdate && <NoPermission />}
-        {!user.isLoggedIn() && <LoggedOut />}
         {!online && <Offline />}
       </PopoverContent>
     </Popover>

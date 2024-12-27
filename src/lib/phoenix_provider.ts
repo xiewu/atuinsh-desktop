@@ -21,6 +21,7 @@ export default class PhoenixProvider extends Emittery {
   private readonly doc: Y.Doc;
   private readonly awareness: awarenessProtocol.Awareness;
   private readonly logger: Logger;
+  private isShutdown: boolean = false;
 
   constructor(runbookId: string, doc: Y.Doc) {
     super();
@@ -45,10 +46,12 @@ export default class PhoenixProvider extends Emittery {
     this.subscriptions.push(this.channel.on("apply_update", this.handleIncomingUpdate.bind(this)));
     this.subscriptions.push(this.channel.on("awareness", this.handleIncomingAwareness.bind(this)));
 
-    setTimeout(() => this.initSocket());
+    setTimeout(() => this.init());
   }
 
-  initSocket() {
+  init() {
+    if (this.isShutdown) return;
+
     if (this.connected) {
       this.onSocketConnected();
     } else {
@@ -71,6 +74,8 @@ export default class PhoenixProvider extends Emittery {
   }
 
   async onSocketConnected() {
+    if (this.isShutdown) return;
+
     this.connected = true;
 
     this.logger.debug("Socket connected");
@@ -156,6 +161,7 @@ export default class PhoenixProvider extends Emittery {
   }
 
   shutdown() {
+    this.isShutdown = true;
     this.logger.debug("Shutting down");
     // disconnect from the server
     this.channel.leave();

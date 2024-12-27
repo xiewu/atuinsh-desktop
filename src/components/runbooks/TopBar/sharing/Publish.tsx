@@ -73,6 +73,7 @@ export default function Publish(props: PublishProps) {
             value={props.visibility}
             onChange={handleVisibilityChange}
             selectedKeys={new Set([props.visibility as string])}
+            disallowEmptySelection
           >
             <SelectItem key="public" value="public">
               Public

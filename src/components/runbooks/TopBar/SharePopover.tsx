@@ -30,7 +30,6 @@ const slugRegex = /^[a-z0-9\-_]+$/i;
 export default function Share({ runbook, remoteRunbook }: ShareProps) {
   const [slug, setSlug] = useState<string>(slugify(runbook.name));
   const [visibility, setVisibility] = useState<RunbookVisibility>("private");
-  const [slugAvailable, setSlugAvailable] = useState<boolean>(true);
   const [error, setError] = useState<string | undefined>(undefined);
   const [slugDebounced, resetDebounced, _clearDebounced] = useDebounce(500, true);
   const [changedSinceValidate, setChangedSinceValidate] = useState(false);

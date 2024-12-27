@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 import {
   Dropdown,
   DropdownTrigger,
@@ -8,11 +8,11 @@ import {
   Chip,
   useDisclosure,
 } from "@nextui-org/react";
-import { Layers, Plus, Settings } from 'lucide-react';
-import { AtuinState, useStore } from '@/state/store';
-import Workspace from '@/state/runbooks/workspace';
-import WorkspaceSettings from './WorkspaceSettings';
-import track_event from '@/tracking';
+import { Layers, Plus, Settings } from "lucide-react";
+import { AtuinState, useStore } from "@/state/store";
+import Workspace from "@/state/runbooks/workspace";
+import WorkspaceSettings from "./WorkspaceSettings";
+import track_event from "@/tracking";
 
 const CompactWorkspaceSwitcher = () => {
   const refreshWorkspaces = useStore((store: AtuinState) => store.refreshWorkspaces);
@@ -53,43 +53,68 @@ const CompactWorkspaceSwitcher = () => {
           variant="flat"
           className="w-[280px]"
           topContent={<div className="text-default-600 font-semibold">Workspaces</div>}
-          bottomContent={<Button onPress={onNewWorkspace} variant="flat" startContent={<Plus size={16} />} size="sm" className="w-full">New Workspace</Button>}
+          bottomContent={
+            <Button
+              onPress={onNewWorkspace}
+              variant="flat"
+              startContent={<Plus size={16} />}
+              size="sm"
+              className="w-full"
+            >
+              New Workspace
+            </Button>
+          }
           items={workspaces}
         >
           {(workspace) => {
-            return <DropdownItem key={workspace.name} textValue={workspace.name} className="py-2" onPress={async () => {
-              await setCurrentWorkspace(workspace);
+            return (
+              <DropdownItem
+                key={workspace.id}
+                textValue={workspace.name}
+                className="py-2"
+                onPress={async () => {
+                  await setCurrentWorkspace(workspace);
 
-              track_event("workspace.switch", {});
-            }}
-              endContent={
-
-                <Button isIconOnly onPress={() => {
-                  settingsModalWorkspaceRef.current = workspace;
-                  onOpen();
-                  console.log('settingsModalWorkspaceRef', settingsModalWorkspaceRef.current);
-                }} size="sm" variant="flat">
-                  <Settings size={16} />
-                </Button>
-              }>
-              <div className="flex items-center gap-2">
-                <div className="flex flex-col">
-                  <span className="text-small font-semibold">{workspace.name}</span>
-                  <span className="text-tiny text-default-400">{workspace.meta?.totalRunbooks} runbooks</span>
+                  track_event("workspace.switch", {});
+                }}
+                endContent={
+                  <Button
+                    isIconOnly
+                    onPress={() => {
+                      settingsModalWorkspaceRef.current = workspace;
+                      onOpen();
+                      console.log("settingsModalWorkspaceRef", settingsModalWorkspaceRef.current);
+                    }}
+                    size="sm"
+                    variant="flat"
+                  >
+                    <Settings size={16} />
+                  </Button>
+                }
+              >
+                <div className="flex items-center gap-2">
+                  <div className="flex flex-col">
+                    <span className="text-small font-semibold">{workspace.name}</span>
+                    <span className="text-tiny text-default-400">
+                      {workspace.meta?.totalRunbooks} runbooks
+                    </span>
+                  </div>
+                  {workspace.id === currentWorkspace?.id && (
+                    <Chip size="sm" color="success" variant="flat" className="ml-auto">
+                      Current
+                    </Chip>
+                  )}
                 </div>
-                {workspace.id === currentWorkspace?.id && (
-                  <Chip size="sm" color="success" variant="flat" className="ml-auto">
-                    Current
-                  </Chip>
-                )}
-
-              </div>
-            </DropdownItem>
+              </DropdownItem>
+            );
           }}
         </DropdownMenu>
-
       </Dropdown>
-      <WorkspaceSettings workspace={settingsModalWorkspaceRef.current} isOpen={isOpen} onClose={onOpenChange} />
+      <WorkspaceSettings
+        workspace={settingsModalWorkspaceRef.current}
+        isOpen={isOpen}
+        onClose={onOpenChange}
+      />
     </>
   );
 };

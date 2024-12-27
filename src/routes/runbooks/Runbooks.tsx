@@ -13,6 +13,7 @@ import { useMemory } from "@/lib/utils";
 import { useCurrentRunbook } from "@/lib/useRunbook";
 import { useMutation } from "@tanstack/react-query";
 import { createSnapshot } from "@/api/api";
+import { ErrorBoundary } from "@sentry/react";
 
 export default function Runbooks() {
   const refreshUser = useStore((store) => store.refreshUser);
@@ -188,11 +189,13 @@ export default function Runbooks() {
             canInviteCollaborators={!!canInviteCollabs}
             onCreateTag={handleCreateTag}
           />
-          <Editor
-            runbook={currentRunbook}
-            snapshot={currentSnapshot || null}
-            editable={editable && selectedTag == "latest"}
-          />
+          <ErrorBoundary>
+            <Editor
+              runbook={currentRunbook}
+              snapshot={currentSnapshot || null}
+              editable={editable && selectedTag == "latest"}
+            />
+          </ErrorBoundary>
         </div>
       )}
 

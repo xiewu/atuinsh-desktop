@@ -12,6 +12,7 @@ export function useRunbook(id: string | null): Runbook | undefined {
         return Promise.resolve(undefined);
       }
     },
+    networkMode: "always",
   });
 
   if (query.isFetched) {

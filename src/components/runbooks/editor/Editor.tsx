@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import track_event from "@/tracking";
 import { randomColor } from "@/lib/colors";
 import Logger from "@/lib/logger";
@@ -31,7 +31,7 @@ import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 
 import { CodeIcon, FolderOpenIcon, VariableIcon } from "lucide-react";
-import { useDebounceCallback } from "usehooks-ts";
+import useDebouncedCallback from "@/lib/useDebouncedCallback";
 
 import Run from "@/components/runbooks/editor/blocks/Run";
 import Directory from "@/components/runbooks/editor/blocks/Directory";
@@ -55,6 +55,7 @@ import { DuplicateBlockItem } from "./ui/DuplicateBlockItem";
 
 import PhoenixProvider from "@/lib/phoenix_provider";
 import Snapshot from "@/state/runbooks/snapshot";
+import { useMemory } from "@/lib/utils";
 
 // Our schema with block specs, which contain the configs and implementations for blocks
 // that we want our editor to use.
@@ -141,19 +142,18 @@ export default function Editor({ runbook, snapshot, editable }: EditorProps) {
   const user = useStore((store: AtuinState) => store.user);
   const [ydoc, setYdoc] = useState<Y.Doc>(new Y.Doc());
   let [editor, setEditor] = useState<BlockNoteEditor | null>(null);
+  const lastRunbook = useMemory(runbook);
+  const lastEditor = useMemory<BlockNoteEditor>(editor as BlockNoteEditor);
 
-  const fetchName = (editor: BlockNoteEditor): string => {
+  const fetchName = (blocks: any[]): string => {
     // Infer the title from the first text block
-    if (!editor) return "Untitled";
-
-    let blocks = editor.document;
     for (const block of blocks) {
       if (block.type == "heading" || block.type == "paragraph") {
         if (block.content.length == 0) continue;
         // @ts-ignore
         if (block.content[0].text.length == 0) continue;
 
-        let name = block.content.filter((i) => i.type === "text").map((i) => i.text);
+        let name = block.content.filter((i: any) => i.type === "text").map((i: any) => i.text);
 
         // @ts-ignore
         return name.join(" ");
@@ -176,23 +176,48 @@ export default function Editor({ runbook, snapshot, editable }: EditorProps) {
     setYdoc(yDoc);
   }, [runbook?.id]);
 
-  const onChange = async (editor: BlockNoteEditor) => {
-    if (!runbook) return;
-    if (!editable) return;
+  const onChange = useCallback(
+    async (runbookArg: Runbook | undefined, editorArg: BlockNoteEditor) => {
+      if (!runbookArg) return;
+      if (runbookArg?.id !== lastRunbook.current?.id) {
+        logger.warn(
+          "Runbook from args not the same as last mounted runbook!",
+          runbookArg?.id,
+          lastRunbook.current?.id,
+        );
+        return;
+      }
+      if (editorArg !== lastEditor.current) {
+        logger.warn("Editor passed to onChange is not the current editor. Ignoring change.");
+        return;
+      }
+      if (!editable) return;
 
-    track_event("runbooks.save", {
-      total: await Runbook.count(),
-    });
+      // Not using await so the runbook gets updated immediately
+      Runbook.count().then((num) => {
+        track_event("runbooks.save", {
+          total: num,
+        });
+      });
 
-    runbook.name = fetchName(editor as BlockNoteEditor);
-    if (editor) runbook.content = JSON.stringify(editor.document);
-    if (ydoc) runbook.ydoc = Y.encodeStateAsUpdate(ydoc);
+      // The runbook object stored in the `lastRunbook` ref will always be
+      // the most up-to-date version of the runbook, even if it was modified
+      // outside of this component, due to `react-query` keeping it up-to-date.
+      const runbook = lastRunbook.current;
+      runbook.name = fetchName(editorArg.document);
+      if (editor) runbook.content = JSON.stringify(editorArg.document);
+      if (ydoc) runbook.ydoc = Y.encodeStateAsUpdate(ydoc);
 
-    await runbook.save();
-    refreshRunbooks();
-  };
+      await runbook.save();
+      refreshRunbooks();
+    },
+    [editor],
+  );
 
-  const debouncedOnChange = useDebounceCallback(onChange, 1000);
+  // When `onChange` changes due to the editor changing, `useDebouncedCallback`
+  // will flush any invocations of the current `onChange` before creating a new
+  // debounced function.
+  const debouncedOnChange = useDebouncedCallback(onChange, 1000);
 
   useEffect(() => {
     logger.debug("Runbook or snapshot changed:", runbook?.id, snapshot?.id);
@@ -263,7 +288,7 @@ export default function Editor({ runbook, snapshot, editable }: EditorProps) {
       (window as any).editor = editor;
 
       provider.on("remote_update", () => {
-        debouncedOnChange(editor as any);
+        debouncedOnChange(runbook, editor as any as BlockNoteEditor); // ugh
       });
       // provider.start();
     });
@@ -287,15 +312,7 @@ export default function Editor({ runbook, snapshot, editable }: EditorProps) {
     }
   }, [editor, user]);
 
-  if (!runbook) {
-    return (
-      <div className="flex w-full h-full flex-col justify-center items-center">
-        <Spinner />
-      </div>
-    );
-  }
-
-  if (!editor) {
+  if (!editor || !runbook || !debouncedOnChange) {
     return (
       <div className="flex w-full h-full flex-col justify-center items-center">
         <Spinner />
@@ -309,16 +326,13 @@ export default function Editor({ runbook, snapshot, editable }: EditorProps) {
       className="overflow-y-scroll editor flex-grow pt-3"
       onClick={(e) => {
         if ((e.target as Element).matches(".editor *")) return;
-
         // If the user clicks below the document, focus on the last block
         // But if the last block is not an empty paragraph, create it :D
         let blocks = editor.document;
         let lastBlock = blocks[blocks.length - 1];
         let id = lastBlock.id;
-
         if (lastBlock.type !== "paragraph" || lastBlock.content.length > 0) {
           id = uuidv7();
-
           editor.insertBlocks(
             [
               {
@@ -331,7 +345,6 @@ export default function Editor({ runbook, snapshot, editable }: EditorProps) {
             "after",
           );
         }
-
         editor.focus();
         editor.setTextCursorPosition(id, "start");
       }}
@@ -340,7 +353,9 @@ export default function Editor({ runbook, snapshot, editable }: EditorProps) {
         editor={editor}
         slashMenu={false}
         sideMenu={false}
-        onChange={() => debouncedOnChange(editor)}
+        onChange={() => {
+          debouncedOnChange(runbook, editor);
+        }}
         theme="light"
         editable={editable}
       >

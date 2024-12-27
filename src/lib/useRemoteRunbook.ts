@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { getRunbookID } from "@/api/api";
+import { getRunbookID, HttpResponseError } from "@/api/api";
 import Runbook from "@/state/runbooks/runbook";
 import { useQuery } from "@tanstack/react-query";
 
@@ -11,8 +11,9 @@ export default function useRemoteRunbook(runbook?: Runbook) {
         try {
           const rb = await getRunbookID(runbook.id);
           return rb;
-        } catch (err) {
-          return null;
+        } catch (err: any) {
+          if (err instanceof HttpResponseError && err.code === 404) return null;
+          else throw err;
         }
       } else {
         throw new Error("no runbook ID specified");
@@ -35,9 +36,5 @@ export default function useRemoteRunbook(runbook?: Runbook) {
     }
   }, [runbook?.id, query.status]);
 
-  if (query.isError) {
-    return [null, query.refetch];
-  } else {
-    return [query.data, query.refetch];
-  }
+  return [query.data, query.refetch];
 }

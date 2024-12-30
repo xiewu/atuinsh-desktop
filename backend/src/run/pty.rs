@@ -1,10 +1,17 @@
 use std::{collections::HashMap, sync::Arc};
+use uuid::Uuid;
 
 use eyre::Result;
 use minijinja::Environment;
 
-use crate::{pty::PtyMetadata, state::AtuinState};
-use tauri::{Emitter, State};
+use crate::{
+    pty::{Pty, PtyMetadata},
+    state::AtuinState,
+};
+use tauri::{
+    async_runtime::{block_on, RwLock},
+    Emitter, State,
+};
 
 const PTY_OPEN_CHANNEL: &str = "pty_open";
 const PTY_KILL_CHANNEL: &str = "pty_kill";
@@ -34,6 +41,8 @@ pub async fn pty_open(
     let reader = pty.reader.clone();
 
     let app_inner = app.clone();
+
+    let pty_sessions = state.pty_sessions.clone();
     tauri::async_runtime::spawn_blocking(move || loop {
         let mut buf = [0u8; 512];
 
@@ -41,6 +50,8 @@ pub async fn pty_open(
             // EOF
             Ok(0) => {
                 println!("reader loop hit eof");
+                block_on(remove_pty(app_inner.clone(), id, pty_sessions))
+                    .expect("failed to remove pty");
                 break;
             }
 
@@ -108,13 +119,12 @@ pub(crate) async fn pty_resize(
     Ok(())
 }
 
-#[tauri::command]
-pub(crate) async fn pty_kill(
+async fn remove_pty(
     app: tauri::AppHandle,
     pid: uuid::Uuid,
-    state: tauri::State<'_, AtuinState>,
+    pty_sessions: Arc<RwLock<HashMap<Uuid, Pty>>>,
 ) -> Result<(), String> {
-    let pty = state.pty_sessions.write().await.remove(&pid);
+    let pty = pty_sessions.write().await.remove(&pid);
 
     if let Some(pty) = pty {
         pty.kill_child().await.map_err(|e| e.to_string())?;
@@ -125,6 +135,15 @@ pub(crate) async fn pty_kill(
     }
 
     Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn pty_kill(
+    app: tauri::AppHandle,
+    pid: uuid::Uuid,
+    state: tauri::State<'_, AtuinState>,
+) -> Result<(), String> {
+    remove_pty(app, pid, state.pty_sessions.clone()).await
 }
 
 #[tauri::command]

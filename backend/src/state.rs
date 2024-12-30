@@ -6,7 +6,7 @@ use crate::pty::Pty;
 
 #[derive(Default)]
 pub(crate) struct AtuinState {
-    pub pty_sessions: RwLock<HashMap<uuid::Uuid, Pty>>,
+    pub pty_sessions: Arc<RwLock<HashMap<uuid::Uuid, Pty>>>,
 
     /// Map a runbook id, to a Jinja environment
     /// In the future it may make sense to map to our own abstracted

@@ -210,11 +210,7 @@ pub async fn template_str(
                     }
                 });
 
-            if name.is_none() {
-                None
-            } else {
-                Some((name.unwrap(), serialized_block_to_state(block.clone())))
-            }
+            name.map(|name| (name, serialized_block_to_state(block.clone())))
         })
         .collect();
 

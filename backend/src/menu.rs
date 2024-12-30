@@ -4,6 +4,7 @@ use tauri::{
     AppHandle, Emitter, Runtime,
 };
 
+#[allow(dead_code)]
 fn update_check<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
     let update_check = MenuItemBuilder::new("Check for updates")
         .id("update-check")
@@ -20,6 +21,7 @@ fn update_check<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
     Ok(update_check)
 }
 
+#[allow(dead_code)]
 fn import_runbook<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
     let import_runbook = MenuItemBuilder::new("Import Runbook")
         .id("import-runbook")
@@ -35,6 +37,7 @@ fn import_runbook<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
     Ok(import_runbook)
 }
 
+#[allow(dead_code)]
 fn new_runbook<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
     let new_runbook = MenuItemBuilder::new("New Runbook")
         .id("new-runbook")
@@ -50,6 +53,7 @@ fn new_runbook<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
     Ok(new_runbook)
 }
 
+#[allow(dead_code)]
 fn new_workspace<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
     let import_workspace = MenuItemBuilder::new("New Workspace")
         .id("new-workspace")
@@ -65,6 +69,7 @@ fn new_workspace<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
     Ok(import_workspace)
 }
 
+#[allow(dead_code)]
 fn export_runbook<R: Runtime>(handle: &AppHandle<R>) -> Result<Submenu<R>> {
     /*
     let export_markdown = MenuItemBuilder::new("Markdown")
@@ -99,6 +104,7 @@ fn export_runbook<R: Runtime>(handle: &AppHandle<R>) -> Result<Submenu<R>> {
     Ok(menu)
 }
 
+#[allow(dead_code)]
 fn export_workspace<R: Runtime>(handle: &AppHandle<R>) -> Result<Submenu<R>> {
     /*
     let export_markdown = MenuItemBuilder::new("Markdown")

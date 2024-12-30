@@ -80,9 +80,9 @@ const TerminalComponent = ({
         let isWindows = platform() == "windows";
         let cmdEnd = isWindows ? "\r\n" : "\n";
         let val = !script.endsWith("\n") ? script + cmdEnd : script;
+
         terminalData.write(val, editor.document);
       }
-
     }
 
     listen(`pty-${pty}`, (event: any) => {
@@ -113,16 +113,10 @@ const TerminalComponent = ({
 
     // Customize further as needed
     return () => {
-      if (
-        terminalData &&
-        terminalData.terminal &&
-        terminalData.terminal.element
-      ) {
+      if (terminalData && terminalData.terminal && terminalData.terminal.element) {
         // Instead of removing, we just detach
         if (terminalData.terminal.element.parentElement) {
-          terminalData.terminal.element.parentElement.removeChild(
-            terminalData.terminal.element,
-          );
+          terminalData.terminal.element.parentElement.removeChild(terminalData.terminal.element);
         }
         setIsAttached(false);
       }
@@ -131,16 +125,13 @@ const TerminalComponent = ({
         cleanupListenerRef.current();
       }
 
-
       window.removeEventListener("resize", windowResize);
     };
   }, [terminalData, isReady]);
 
   if (!isReady) return null;
 
-  return (
-    <div className="!max-w-full min-w-0 overflow-hidden" ref={terminalRef} />
-  );
+  return <div className="!max-w-full min-w-0 overflow-hidden" ref={terminalRef} />;
 };
 
 export default TerminalComponent;

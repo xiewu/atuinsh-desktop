@@ -206,8 +206,8 @@ const RunBlock = ({
                 />
               }
             </h1>
-            {commandRunning && <Spinner size="sm" />}
-            {commandDuration && (
+            {isRunning && commandRunning && <Spinner size="sm" />}
+            {isRunning && commandDuration && (
               <Chip
                 variant="flat"
                 size="sm"

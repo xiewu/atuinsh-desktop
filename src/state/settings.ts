@@ -5,9 +5,7 @@ const TERMINAL_FONT = "settings.runbooks.terminal.font";
 const TERMINAL_GL = "settings.runbooks.terminal.gl";
 
 export class Settings {
-  public static async runbookPrometheusUrl(
-    val: string | null = null,
-  ): Promise<string> {
+  public static async runbookPrometheusUrl(val: string | null = null): Promise<string> {
     let store = await KVStore.open_default();
 
     if (val) {
@@ -15,7 +13,7 @@ export class Settings {
       return val;
     }
 
-    return await store.get(PROMETHEUS_URL_KEY);
+    return (await store.get(PROMETHEUS_URL_KEY)) || "";
   }
 
   public static async terminalFont(val: string | null = null): Promise<string> {
@@ -26,7 +24,7 @@ export class Settings {
       return val;
     }
 
-    return await store.get(TERMINAL_FONT);
+    return (await store.get(TERMINAL_FONT)) || "";
   }
 
   public static async terminalGL(val: boolean | null = null): Promise<boolean> {
@@ -38,6 +36,6 @@ export class Settings {
       return val;
     }
 
-    return await store.get(TERMINAL_GL);
+    return (await store.get(TERMINAL_GL)) || false;
   }
 }

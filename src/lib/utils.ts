@@ -165,3 +165,9 @@ export function slugify(name: string | null): string {
 export function capitalize(text: string) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
+
+export function timeoutPromise<T>(ms: number, resolveValue: T) {
+  return new Promise<T>((resolve) => {
+    setTimeout(() => resolve(resolveValue), ms);
+  });
+}

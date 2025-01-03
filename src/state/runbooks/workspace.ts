@@ -15,7 +15,10 @@ class WorkspaceMeta {
     // This is a separate class to keep the workspace class clean.
     const db = await Database.load("sqlite:runbooks.db");
 
-    let runbookCount = await db.select<any[]>("select count(*) as count from runbooks where workspace_id = ?", [workspace_id]);
+    let runbookCount = await db.select<any[]>(
+      "select count(*) as count from runbooks where workspace_id = ?",
+      [workspace_id],
+    );
 
     return new WorkspaceMeta(runbookCount[0].count);
   }
@@ -25,14 +28,19 @@ export default class Workspace {
   id: string;
   name: string;
 
-
   created: Date;
   updated: Date;
 
   meta: WorkspaceMeta | null;
   watchDir: string | null;
 
-  constructor(id: string, name: string, created: Date, updated: Date, watchDir: string | null = null) {
+  constructor(
+    id: string,
+    name: string,
+    created: Date,
+    updated: Date,
+    watchDir: string | null = null,
+  ) {
     this.id = id;
     this.name = name;
     this.created = created;
@@ -47,7 +55,12 @@ export default class Workspace {
     let workspace = new Workspace(id, name, new Date(), new Date());
 
     const db = await Database.load("sqlite:runbooks.db");
-    await db.execute("insert into workspaces (id, name, created, updated) VALUES (?, ?, ?, ?)", [workspace.id, workspace.name, workspace.created, workspace.updated]);
+    await db.execute("insert into workspaces (id, name, created, updated) VALUES (?, ?, ?, ?)", [
+      workspace.id,
+      workspace.name,
+      workspace.created,
+      workspace.updated,
+    ]);
 
     return workspace;
   }
@@ -81,7 +94,7 @@ export default class Workspace {
     // If there is no current workspace, create one.
     const kv = await KVStore.open_default();
 
-    let current_workspace = await kv.get("current_workspace");
+    let current_workspace = await kv.get<string>("current_workspace");
 
     if (current_workspace == null) {
       let ws = await Workspace.create("Default Workspace");
@@ -126,12 +139,19 @@ export default class Workspace {
     this.name = name;
 
     const db = await Database.load("sqlite:runbooks.db");
-    await db.execute("update workspaces set name = ?, updated = ? where id = ?", [this.name, new Date(), this.id]);
+    await db.execute("update workspaces set name = ?, updated = ? where id = ?", [
+      this.name,
+      new Date(),
+      this.id,
+    ]);
   }
 
   async runbooks(): Promise<Runbook[]> {
     const db = await Database.load("sqlite:runbooks.db");
-    let rows = await db.select<any[]>("select * from runbooks where workspace_id = ? order by updated desc", [this.id]);
+    let rows = await db.select<any[]>(
+      "select * from runbooks where workspace_id = ? order by updated desc",
+      [this.id],
+    );
     let runbooks = rows.map(Runbook.fromRow);
 
     return runbooks;

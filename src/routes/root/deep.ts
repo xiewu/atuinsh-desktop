@@ -1,7 +1,6 @@
-import { me, endpoint, HttpResponseError } from "@/api/api";
-import Runbook, { RunbookFile } from "@/state/runbooks/runbook";
+import { me, HttpResponseError, getRunbookID } from "@/api/api";
+import RunbookSynchronizer from "@/lib/sync/runbook_synchronizer";
 import { useStore } from "@/state/store";
-import { fetch } from "@tauri-apps/plugin-http";
 
 interface RouteHandler {
   (params: string[]): void;
@@ -12,15 +11,20 @@ interface Routes {
 }
 
 async function createRunbookFromHub(id: string) {
-  // Fetch the runbook from the hub api
-  let resp = await fetch(`${endpoint}/api/runbooks/${id}?include=user,snapshots`);
-  let json = await resp.json();
-
-  if (json.runbook?.content?.data) json.runbook.content = json.runbook.content.data;
-
-  // TODO: also create snapshots
-
-  return Runbook.importJSON(json.runbook as RunbookFile, "hub", json.runbook.nwo, json);
+  try {
+    await getRunbookID(id);
+    // It exists; kick off a sync
+    const user = useStore.getState().user;
+    const sync = new RunbookSynchronizer(id, user);
+    const runbook = await sync.sync();
+    return runbook;
+  } catch (err) {
+    if (err instanceof HttpResponseError) {
+      console.error("Failed to fetch runbook from hub:", err.code);
+    } else {
+      console.error("Failed to fetch runbook from hub:", err);
+    }
+  }
 }
 
 const handleDeepLink = (navigate: any, url: string): void | null => {
@@ -32,9 +36,13 @@ const handleDeepLink = (navigate: any, url: string): void | null => {
 
         let runbook = await createRunbookFromHub(id);
 
-        useStore.getState().setCurrentRunbookId(runbook.id);
-        useStore.getState().refreshRunbooks();
-        navigate("/runbooks");
+        if (runbook) {
+          useStore.getState().setCurrentRunbookId(runbook.id);
+          useStore.getState().refreshRunbooks();
+          navigate("/runbooks");
+        } else {
+          console.error("Unable to open runbook from hub");
+        }
       },
 
     // New "Open in desktop" from the hub
@@ -45,9 +53,13 @@ const handleDeepLink = (navigate: any, url: string): void | null => {
 
       let runbook = await createRunbookFromHub(id);
 
-      useStore.getState().setCurrentRunbookId(runbook.id);
-      useStore.getState().refreshRunbooks();
-      navigate("/runbooks");
+      if (runbook) {
+        useStore.getState().setCurrentRunbookId(runbook.id);
+        useStore.getState().refreshRunbooks();
+        navigate("/runbooks");
+      } else {
+        console.error("Unable to open runbook from hub");
+      }
     },
 
     // Register an auth token with this desktop app

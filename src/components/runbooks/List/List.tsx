@@ -7,7 +7,15 @@ import {
   DropdownItem,
   DropdownSection,
 } from "@nextui-org/react";
-import { ChevronRightIcon, Import, MoreVertical, Plus, SearchIcon, Terminal } from "lucide-react";
+import {
+  ChevronRightIcon,
+  Import,
+  LoaderCircleIcon,
+  MoreVertical,
+  Plus,
+  SearchIcon,
+  Terminal,
+} from "lucide-react";
 import { DateTime } from "luxon";
 import Runbook from "@/state/runbooks/runbook";
 import { AtuinState, useStore } from "@/state/store";
@@ -26,6 +34,7 @@ const NoteSidebar = () => {
   const refreshRunbooks = useStore((state: AtuinState) => state.refreshRunbooks);
   const importRunbook = useStore((state: AtuinState) => state.importRunbook);
   const newRunbook = useStore((state: AtuinState) => state.newRunbook);
+  const isSyncing = useStore((state: AtuinState) => state.isSyncing);
   const [isSearchOpen, setSearchOpen] = useStore((store: AtuinState) => [
     store.searchOpen,
     store.setSearchOpen,
@@ -87,6 +96,11 @@ const NoteSidebar = () => {
     <div className="!w-64 !max-w-64 !min-w-64 h-full bg-gray-50 border-r border-gray-200 flex flex-col select-none">
       <div className="p-2 flex justify-between items-center border-b border-gray-200">
         <h2 className="text-lg font-semibold">Runbooks</h2>
+        <div className="flex justify-center items-center">
+          {isSyncing && (
+            <LoaderCircleIcon size={18} className="stroke-sky-600  animate-spinner-linear-spin" />
+          )}
+        </div>
         <div className="flex space-x-1">
           <Tooltip content="New">
             <Button isIconOnly size="sm" variant="light" onPress={handleNewRunbook}>

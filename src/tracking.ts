@@ -8,7 +8,7 @@ export const init_tracking = async () => {
   if (import.meta.env.MODE === "development") return;
 
   let db = await KVStore.open_default();
-  let track = await db.get("usage_tracking");
+  let track = await db.get<boolean>("usage_tracking");
 
   // Default to true, opt-out
   if (track === null) {

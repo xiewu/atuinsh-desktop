@@ -17,19 +17,14 @@ export class KVStore {
   static async open_default(): Promise<KVStore> {
     const db = await Database.load("sqlite:kv.db");
 
-    db.execute(
-      "create table if not exists kv(key text primary key, value text)",
-    );
+    db.execute("create table if not exists kv(key text primary key, value text)");
 
     return new KVStore(db);
   }
 
   // Get a value from the store, and decode the json
-  async get(key: string): Promise<any> {
-    let res = await this.db.select<any[]>(
-      "select value from kv where key = $1",
-      [key],
-    );
+  async get<T = string>(key: string): Promise<T | null> {
+    let res = await this.db.select<any[]>("select value from kv where key = $1", [key]);
 
     if (res.length == 0) {
       return null;
@@ -39,11 +34,11 @@ export class KVStore {
   }
 
   // Set a value in the store, encoded as JSON
-  async set(key: string, value: any): Promise<void> {
-    await this.db.execute(
-      "insert or replace into kv(key, value) values($1, $2)",
-      [key, JSON.stringify(value)],
-    );
+  async set<T = string>(key: string, value: T): Promise<void> {
+    await this.db.execute("insert or replace into kv(key, value) values($1, $2)", [
+      key,
+      JSON.stringify(value),
+    ]);
   }
 
   // Delete a key from the store

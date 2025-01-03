@@ -1,11 +1,21 @@
-import { QueryClient } from "@tanstack/react-query";
 import SocketManager, { WrappedChannel } from "./socket";
 import Runbook from "./state/runbooks/runbook";
+import Emittery from "emittery";
 
-export default class ServerNotificationManager {
+type ServerNotification = {
+  id: string;
+};
+
+/**
+ * Connects to the Hub via websocket and requests notifications for changes
+ * to subscribed runbooks.
+ *
+ * @emits `"runbook_updated", runbookId`
+ * @emits `"runbook_deleted", runbookId`
+ */
+export default class ServerNotificationManager extends Emittery {
   static instance: ServerNotificationManager;
   private manager: SocketManager;
-  private queryClient: QueryClient | undefined;
   private channel: WrappedChannel;
 
   static get() {
@@ -17,31 +27,35 @@ export default class ServerNotificationManager {
   }
 
   constructor() {
+    super();
     this.manager = SocketManager.get();
     this.channel = this.manager.channel("notifications");
-  }
-
-  public setQueryClient(queryClient: QueryClient) {
-    this.queryClient = queryClient;
-
-    this.manager.onConnect(async () => {
-      if (this.channel.state == "closed") {
-        await this.channel.join();
-      }
-
-      const rbs = await Runbook.allInAllWorkspaces();
-      const ids = rbs.map((r) => r.id);
-      // Subscribe is idempotent, so we can just call it with all the runbook IDs
-      this.channel.push("subscribe", { ids: ids });
-      this.channel.on("runbook_updated", (params) => {
-        this.queryClient!.invalidateQueries({ queryKey: ["remote_runbook", params.id] });
-      });
-      this.channel.on("runbook_deleted", (params) => {
-        this.queryClient!.invalidateQueries({ queryKey: ["remote_runbook", params.id] });
-      });
+    this.manager.onConnect(() => {
+      this.startNotifications();
     });
   }
 
+  public async startNotifications() {
+    if (this.channel.state == "closed") {
+      await this.channel.join();
+    }
+
+    // Subscribe is idempotent on the server, so we can just call it with all the runbook IDs
+    const ids = await Runbook.allIdsInAllWorkspaces();
+    this.channel.push("subscribe", { ids: ids });
+    this.channel.on("runbook_updated", (params: ServerNotification) => {
+      this.emit("runbook_updated", params.id);
+    });
+    this.channel.on("runbook_deleted", (params: ServerNotification) => {
+      this.emit("runbook_deleted", params.id);
+    });
+  }
+
+  /**
+   * Subscribe to notifications for a specific runbook. The server ignores
+   * duplicate subscriptions.
+   * @param runbookId The ID of the runbook to subscribe to
+   */
   public subscribe(runbookId: string) {
     this.channel.push("subscribe", { ids: [runbookId] });
   }

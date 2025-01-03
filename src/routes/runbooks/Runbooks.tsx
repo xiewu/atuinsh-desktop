@@ -11,9 +11,10 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useMemory } from "@/lib/utils";
 import { useCurrentRunbook } from "@/lib/useRunbook";
-import { useMutation } from "@tanstack/react-query";
-import { createSnapshot } from "@/api/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import * as api from "@/api/api";
 import { ErrorBoundary } from "@sentry/react";
+import { snapshotByRunbookAndTag, snapshotsByRunbook } from "@/lib/queries/snapshots";
 
 export default function Runbooks() {
   const refreshUser = useStore((store) => store.refreshUser);
@@ -24,7 +25,6 @@ export default function Runbooks() {
   const lastRunbookRef = useMemory(currentRunbook);
 
   const [showTagMenu, setShowTagMenu] = useState(false);
-  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [selectedTag, setSelectedTag] = useState<string>(() => {
     let tag = currentRunbook ? getLastTagForRunbook(currentRunbook.id) : "latest";
     if (!tag) tag = "latest";
@@ -32,17 +32,22 @@ export default function Runbooks() {
 
     return tag;
   });
-  const [remoteRunbook, refreshRemoteRunbook] = useRemoteRunbook(currentRunbook || undefined);
-  const [currentSnapshot, setCurrentSnapshot] = useState<Snapshot | null>(null);
-
-  const location = useLocation();
 
   const listenPtyBackend = usePtyStore((state) => state.listenBackend);
   const unlistenPtyBackend = usePtyStore((state) => state.unlistenBackend);
 
+  const queryClient = useQueryClient();
+  const location = useLocation();
+
+  const [remoteRunbook, refreshRemoteRunbook] = useRemoteRunbook(currentRunbook || undefined);
+  const { data: currentSnapshot } = useQuery(
+    snapshotByRunbookAndTag(currentRunbook?.id, selectedTag),
+  );
+  const { data: snapshots } = useQuery(snapshotsByRunbook(currentRunbook?.id));
+
   const shareSnapshot = useMutation({
     mutationFn: async (snapshot: Snapshot) => {
-      return createSnapshot(snapshot);
+      return api.createSnapshot(snapshot);
     },
     onSuccess: (_data, snapshot) => {
       console.info(`Successfully created snapshot ${snapshot.tag}`);
@@ -67,28 +72,13 @@ export default function Runbooks() {
   }, [currentRunbook?.id]);
 
   useEffect(() => {
-    (async () => {
-      if (!currentRunbook) {
-        setSnapshots([]);
-        return;
-      }
+    if (!snapshots || !currentRunbook) return;
 
-      let snapshots = await Snapshot.findByRunbookId(currentRunbook.id);
-      setSnapshots(snapshots);
-    })();
-  }, [currentRunbook]);
-
-  useEffect(() => {
-    (async () => {
-      if (!currentRunbook || selectedTag == "latest") {
-        setCurrentSnapshot(null);
-        return;
-      }
-
-      let snapshot = await Snapshot.findByRunbookIdAndTag(currentRunbook.id, selectedTag);
-      setCurrentSnapshot(snapshot);
-    })();
-  }, [currentRunbook, selectedTag]);
+    const tagExists = snapshots.some((snap) => snap.tag == selectedTag);
+    if (selectedTag !== "latest" && !tagExists) {
+      setSelectedTag("latest");
+    }
+  }, [selectedTag, snapshots]);
 
   useTauriEvent("export-runbook", async () => {
     if (!currentRunbook) return;
@@ -145,8 +135,13 @@ export default function Runbooks() {
       throw new Error("Tried to create a new tag with no runbook selected");
     }
 
-    let snapshot = await Snapshot.create(tag, currentRunbook.id, currentRunbook.content);
-    let snapshots = await Snapshot.findByRunbookId(currentRunbook.id);
+    let snapshot = await Snapshot.create({
+      id: undefined,
+      tag,
+      runbook_id: currentRunbook.id,
+      content: currentRunbook.content,
+    });
+    queryClient.invalidateQueries({ queryKey: snapshotsByRunbook(currentRunbook.id).queryKey });
 
     if (remoteRunbook) {
       shareSnapshot.mutate(snapshot, {
@@ -158,7 +153,6 @@ export default function Runbooks() {
 
     setLastTagForRunbook(currentRunbook.id, snapshot.tag);
     if (currentRunbook == lastRunbookRef.current) {
-      setSnapshots(snapshots);
       setSelectedTag(snapshot.tag);
       setShowTagMenu(false);
     }
@@ -179,7 +173,7 @@ export default function Runbooks() {
             runbook={currentRunbook}
             remoteRunbook={remoteRunbook}
             refreshRemoteRunbook={refreshRemoteRunbook}
-            tags={snapshots.map((snap) => snap.tag)}
+            tags={(snapshots || []).map((snap) => snap.tag)}
             showTagMenu={showTagMenu}
             onOpenTagMenu={() => setShowTagMenu(true)}
             onCloseTagMenu={() => setShowTagMenu(false)}

@@ -1,0 +1,171 @@
+import { useStore } from "@/state/store";
+import Logger from "../logger";
+import Mutex from "../mutex";
+import { User } from "@/state/models";
+import { DateTime } from "luxon";
+import Runbook from "@/state/runbooks/runbook";
+import { autobind } from "../decorators";
+import SyncSet from "./sync_set";
+import * as api from "@/api/api";
+
+type Store = typeof useStore;
+
+const NORMAL_SYNC_INTERVAL_SECS = 5 * 60;
+const EARLY_SYNC_INTERVAL_SECS = 30;
+
+/**
+ * Manages synchronization by watching online/offline state, timers, etc. and kicking off a sync
+ * pass as necessary. Creates a single `Synchronizer` instance for each sync pass.
+ */
+export default class SyncManager {
+  private static syncMutexes: Map<string, Mutex> = new Map();
+
+  private readonly logger: Logger = new Logger("SyncManager", "#ff33cc", "#ff6677");
+  private store: Store;
+  private handlers: Function[] = [];
+  private currentRunbookId: string | null = null;
+  private currentUser: User;
+  private syncSet: SyncSet | null = null;
+  private lastSync: DateTime | null = null;
+  private startNextSyncEarly: boolean = false;
+  private online: boolean = false;
+
+  constructor(store: Store) {
+    this.store = store;
+
+    this.currentUser = store.getState().user;
+    this.handlers.push(this.store.subscribe((state) => state.user, this.handleUserChange));
+    this.handlers.push(
+      this.store.subscribe((state) => state.currentRunbookId, this.handleCurrentRunbookIdChange, {
+        fireImmediately: true,
+      }),
+    );
+    // By checking the `online` state immediately, we begin syncinc if we're online
+    this.handlers.push(
+      this.store.subscribe((state) => state.online, this.handleOnlineChange, {
+        fireImmediately: true,
+      }),
+    );
+
+    setInterval(() => {
+      if (this.shouldSync()) {
+        this.startSync();
+      }
+    }, 10_000);
+  }
+
+  public static syncMutex(runbookId: string) {
+    let mutex: Mutex;
+    if (SyncManager.syncMutexes.has(runbookId)) {
+      mutex = SyncManager.syncMutexes.get(runbookId)!;
+    } else {
+      mutex = new Mutex();
+      SyncManager.syncMutexes.set(runbookId, mutex);
+    }
+
+    mutex.once("free").then(() => {
+      SyncManager.syncMutexes.delete(runbookId);
+    });
+
+    return mutex;
+  }
+
+  public runbookUpdated(runbookId: string) {
+    if (this.syncSet?.isWorking()) {
+      this.syncSet.addRunbook(runbookId);
+    } else {
+      this.startNextSyncEarly = true;
+      if (this.shouldSync()) {
+        this.startSync();
+      }
+    }
+  }
+
+  public runbookDeleted(runbookId: string) {
+    if (this.syncSet?.isWorking()) {
+      this.syncSet.removeRunbook(runbookId);
+    }
+  }
+
+  private async getRunbookIdsToSync() {
+    const serverIds: string[] = await api.allRunbookIds();
+    const localIds = await Runbook.allIdsInAllWorkspaces();
+
+    return new Set(localIds.concat(serverIds));
+  }
+
+  private async startSync() {
+    if (this.syncSet) {
+      throw new Error("Sync already in progress");
+    }
+
+    this.startNextSyncEarly = false;
+    const ids = await this.getRunbookIdsToSync();
+    this.syncSet = new SyncSet(ids, this.currentUser);
+    this.syncSet.setCurrentRunbookId(this.currentRunbookId);
+    try {
+      this.store.getState().setIsSyncing(true);
+      this.syncSet.start();
+      await this.syncSet.donePromise;
+      this.lastSync = DateTime.now();
+    } catch (err: any) {
+      this.logger.error(`Synchronizer threw an error: ${err}`);
+    }
+    this.store.getState().setIsSyncing(false);
+    this.store.getState().refreshRunbooks();
+    this.syncSet = null;
+  }
+
+  private shouldSync(): boolean {
+    const syncInterval = this.startNextSyncEarly
+      ? EARLY_SYNC_INTERVAL_SECS
+      : NORMAL_SYNC_INTERVAL_SECS;
+    return this.online && this.syncSet === null && this.secondsSinceLastSync() >= syncInterval;
+  }
+
+  private secondsSinceLastSync(): number {
+    return this.lastSync ? DateTime.now().diff(this.lastSync, "seconds").seconds : Infinity;
+  }
+
+  @autobind
+  private handleUserChange(newUser: User, lastUser: User) {
+    if (newUser.is(lastUser)) return;
+
+    this.logger.info("Current user changed; resyncing all runbooks");
+    if (this.syncSet) {
+      this.syncSet.stop();
+      this.syncSet = null;
+    }
+
+    // Allow any existing promise to settle
+    setTimeout(() => this.startSync());
+  }
+
+  @autobind
+  private handleCurrentRunbookIdChange(runbookId: string | null) {
+    this.currentRunbookId = runbookId;
+
+    if (this.syncSet) {
+      this.syncSet.setCurrentRunbookId(runbookId);
+    }
+  }
+
+  @autobind
+  private handleOnlineChange(online: boolean) {
+    this.online = online;
+    if (online) {
+      this.logger.debug("Connection to server established");
+      this.startNextSyncEarly = true;
+      if (this.shouldSync()) {
+        this.startSync();
+      }
+    } else {
+      this.logger.debug("Connection to server lost");
+      if (this.syncSet) {
+        this.logger.debug("Stopping sync");
+        this.syncSet.stop();
+        this.syncSet = null;
+      }
+    }
+  }
+}

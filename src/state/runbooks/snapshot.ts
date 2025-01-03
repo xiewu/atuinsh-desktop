@@ -1,6 +1,14 @@
 import Database from "@tauri-apps/plugin-sql";
 import { uuidv7 } from "uuidv7";
 
+export interface SnapshotAttrs {
+  id?: string;
+  tag: string;
+  runbook_id: string;
+  content: string;
+  created?: Date;
+}
+
 export default class Snapshot {
   id: string;
   tag: string;
@@ -9,17 +17,24 @@ export default class Snapshot {
 
   created: Date;
 
-  constructor(id: string, tag: string, runbook_id: string, content: string, created: Date) {
-    this.id = id;
-    this.tag = tag;
-    this.runbook_id = runbook_id;
-    this.content = content;
-    this.created = created;
+  constructor(attrs: SnapshotAttrs) {
+    this.id = attrs.id || uuidv7();
+    this.tag = attrs.tag;
+    this.runbook_id = attrs.runbook_id;
+    this.content = attrs.content;
+    this.created = attrs.created || new Date();
   }
 
-  static async create(tag: string, runbook_id: string, content: string): Promise<Snapshot> {
-    let id = uuidv7();
-    let snapshot = new Snapshot(id, tag, runbook_id, content, new Date());
+  static async create(attrs: SnapshotAttrs): Promise<Snapshot> {
+    const id = attrs.id || uuidv7();
+    const fullAttrs = {
+      id,
+      tag: attrs.tag,
+      runbook_id: attrs.runbook_id,
+      content: attrs.content,
+      created: attrs.created || new Date(),
+    };
+    let snapshot = new Snapshot(fullAttrs);
 
     const db = await Database.load("sqlite:runbooks.db");
     await db.execute(
@@ -39,7 +54,8 @@ export default class Snapshot {
       return null;
     }
 
-    return new Snapshot(row[0].id, row[0].tag, row[0].runbook_id, row[0].content, row[0].created);
+    const attrs = row[0];
+    return new Snapshot(attrs);
   }
 
   static async findByRunbookId(runbook_id: string): Promise<Snapshot[]> {
@@ -50,7 +66,7 @@ export default class Snapshot {
     );
 
     return rows.map((row) => {
-      let snap = new Snapshot(row.id, row.tag, row.runbook_id, row.content, row.created);
+      let snap = new Snapshot(row);
 
       return snap;
     });
@@ -68,7 +84,7 @@ export default class Snapshot {
     }
 
     let row = rows[0];
-    return new Snapshot(row.id, row.tag, row.runbook_id, row.content, row.created);
+    return new Snapshot(row);
   }
 
   static async deleteForRunbook(runbook_id: string) {

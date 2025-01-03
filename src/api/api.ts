@@ -5,6 +5,8 @@ import { RemoteRunbook } from "@/state/models";
 import Logger from "@/lib/logger";
 import Runbook from "@/state/runbooks/runbook";
 import Snapshot from "@/state/runbooks/snapshot";
+import Mutex from "@/lib/mutex";
+import { KVStore } from "@/state/kv";
 
 type PasswordStore = {
   get: (service: string, user: string) => Promise<string | null>;
@@ -47,7 +49,8 @@ const _deletePassword = (service: string, user: string) => getStorage().remove(s
 if (import.meta.env.MODE === "development") {
   (window as any).setHubCredentials = async (username: string, key: string) => {
     await _savePassword("sh.atuin.runbooks.api", username, key);
-    localStorage.setItem("username", username);
+    const kv = await KVStore.open_default();
+    await kv.set("username", username);
     SocketManager.setApiToken(key);
   };
 }
@@ -55,42 +58,46 @@ if (import.meta.env.MODE === "development") {
 let cachedHubApiToken: string | null = null;
 export async function setHubApiToken(username: string, token: string) {
   await _savePassword("sh.atuin.runbooks.api", username, token);
-  localStorage.setItem("username", username);
+  const kv = await KVStore.open_default();
+  await kv.set("username", username);
   cachedHubApiToken = token;
 }
 
-let requests = new Set<Promise<any>>();
-export async function getHubApiToken() {
-  if (cachedHubApiToken) return cachedHubApiToken;
+const mutex = new Mutex();
+// Calling `getHubApiToken` more than once in short succession will trigger multiple calls to
+// `_loadPassword`, but each call to `_loadPassword` blocks the successive ones, making the cache
+// ineffective. As such, each call to `getHubApiToken` is wrapped in a mutex to ensure only one call
+// is processed at a time.
+export function getHubApiToken() {
+  return mutex.runExclusive(async () => {
+    if (cachedHubApiToken) return cachedHubApiToken;
 
-  if (requests.size > 0) {
-    await Promise.all(requests);
-    return getHubApiToken();
-  }
-
-  let req = new Promise<string | null>(async (resolve, reject) => {
-    let username = localStorage.getItem("username");
-    if (!username) return reject(new Error("No username found in local storage"));
+    const kv = await KVStore.open_default();
+    let username = await kv.get<string>("username");
+    if (!username) {
+      // Try migrating local storage
+      const localStorageUsername = localStorage.getItem("username");
+      if (localStorageUsername) {
+        await kv.set("username", localStorageUsername);
+        localStorage.removeItem("username");
+        username = localStorageUsername;
+      }
+    }
+    if (!username) throw new Error("No username found in KVStore");
 
     const password = await _loadPassword("sh.atuin.runbooks.api", username);
     cachedHubApiToken = password;
-    resolve(password);
+    return password;
   });
-  requests.add(req);
-  req
-    .catch(() => {
-      /* don't log a warning */
-    })
-    .finally(() => requests.delete(req));
-  return req;
 }
 
 export async function clearHubApiToken() {
-  let username = localStorage.getItem("username");
-  if (!username) throw new Error("No username found in local storage");
+  const kv = await KVStore.open_default();
+  let username = await kv.get<string>("username");
+  if (!username) throw new Error("No username found in KVStore");
 
   await _deletePassword("sh.atuin.runbooks.api", username);
-  localStorage.removeItem("username");
+  await kv.delete("username");
   cachedHubApiToken = null;
 }
 
@@ -216,6 +223,11 @@ export function me(token?: string): Promise<MeResponse> {
   return get("/me", { token });
 }
 
+export async function allRunbookIds(): Promise<string[]> {
+  const { runbooks } = await get<{ runbooks: string[] }>("/runbooks?id_only=true");
+  return runbooks;
+}
+
 export async function getRunbookID(id: string): Promise<RemoteRunbook> {
   const { runbook } = await get<{ runbook: RemoteRunbook }>(
     `/runbooks/${id}?include=user,snapshots`,
@@ -257,7 +269,7 @@ export function deleteRunbook(id: string) {
   return del(`/runbooks/${id}`);
 }
 
-interface RemoteSnapshot {
+export interface RemoteSnapshot {
   id: string;
   tag: string;
   runbook_id: string;

@@ -4,47 +4,46 @@ import * as awarenessProtocol from "y-protocols/awareness";
 import SocketManager, { WrappedChannel } from "../socket";
 import Logger from "@/lib/logger";
 import Emittery from "emittery";
-
-function timeoutPromise<T>(ms: number, resolveValue: T) {
-  return new Promise<T>((resolve) => {
-    setTimeout(() => resolve(resolveValue), ms);
-  });
-}
+import SyncManager from "./sync/sync_manager";
+import { timeoutPromise } from "./utils";
+import { autobind } from "./decorators";
 
 type AwarenessData = { added: number[]; updated: number[]; removed: number[] };
 
-export default class PhoenixProvider extends Emittery {
-  private connected: boolean;
-  private channel: WrappedChannel;
-  private subscriptions: any[] = [];
-  private readonly runbookId: string;
-  private readonly doc: Y.Doc;
-  private readonly awareness: awarenessProtocol.Awareness;
-  private readonly logger: Logger;
-  private isShutdown: boolean = false;
+export type SyncType = "online" | "offline" | "timeout" | "error";
 
-  constructor(runbookId: string, doc: Y.Doc) {
+/**
+ * Handles synchronization of a Y.Doc with the server over a Phoenix channel.
+ *
+ * @emits `"synced", SyncType ("online" | "offline" | "timeout" | "error")`
+ */
+export class PhoenixSynchronizer extends Emittery {
+  protected connected: boolean;
+  protected channel: WrappedChannel;
+  protected subscriptions: any[] = [];
+  protected readonly runbookId: string;
+  protected readonly requireLock: boolean;
+  public readonly doc: Y.Doc;
+  protected readonly awareness: awarenessProtocol.Awareness;
+  protected logger: Logger;
+  protected isShutdown: boolean = false;
+
+  constructor(runbookId: string, doc: Y.Doc, requireLock: boolean = true) {
     super();
-    this.logger = new Logger(`PhoenixProvider (${runbookId})`, "blue", "cyan");
+    this.logger = new Logger(`PhoenixSynchronizer (${runbookId})`, "blue", "cyan");
     this.logger.debug("Creating new provider instance");
 
     const manager = SocketManager.get();
-    this.subscriptions.push(manager.onConnect(this.onSocketConnected.bind(this)));
-    this.subscriptions.push(manager.onDisconnect(this.onSocketDisconnected.bind(this)));
+    this.subscriptions.push(manager.onConnect(this.onSocketConnected));
+    this.subscriptions.push(manager.onDisconnect(this.onSocketDisconnected));
     this.connected = manager.isConnected();
 
     this.runbookId = runbookId;
     this.doc = doc;
     this.awareness = new awarenessProtocol.Awareness(this.doc);
-
-    this.handleDocUpdate = this.handleDocUpdate.bind(this);
-    this.handleAwarenessUpdate = this.handleAwarenessUpdate.bind(this);
-    this.doc.on("update", this.handleDocUpdate);
-    this.awareness.on("update", this.handleAwarenessUpdate);
+    this.requireLock = requireLock;
 
     this.channel = manager.channel(`doc:${this.runbookId}`);
-    this.subscriptions.push(this.channel.on("apply_update", this.handleIncomingUpdate.bind(this)));
-    this.subscriptions.push(this.channel.on("awareness", this.handleIncomingAwareness.bind(this)));
 
     setTimeout(() => this.init());
   }
@@ -61,18 +60,10 @@ export default class PhoenixProvider extends Emittery {
   }
 
   startOffline() {
-    this.emit("synced");
+    this.emit("synced", "offline");
   }
 
-  handleIncomingUpdate(payload: Uint8Array) {
-    Y.applyUpdate(this.doc, payload, this);
-    this.emit("remote_update");
-  }
-
-  handleIncomingAwareness(payload: Uint8Array) {
-    awarenessProtocol.applyAwarenessUpdate(this.awareness, payload, this);
-  }
-
+  @autobind
   async onSocketConnected() {
     if (this.isShutdown) return;
 
@@ -96,6 +87,7 @@ export default class PhoenixProvider extends Emittery {
     }
   }
 
+  @autobind
   onSocketDisconnected() {
     if (this.connected) {
       this.logger.warn("Socket disconnected");
@@ -103,27 +95,12 @@ export default class PhoenixProvider extends Emittery {
     }
   }
 
-  handleDocUpdate(update: Uint8Array, origin: any) {
-    if (origin === this || !this.channel) return;
-
-    if (this.connected) {
-      this.channel.push("client_update", update.buffer);
-    }
-  }
-
-  handleAwarenessUpdate({ added, updated, removed }: AwarenessData, origin: any) {
-    if (origin === this || !this.channel) return;
-
-    const changedClients = added.concat(updated).concat(removed);
-    if (this.connected) {
-      this.channel.push(
-        "client_awareness",
-        awarenessProtocol.encodeAwarenessUpdate(this.awareness, changedClients).buffer,
-      );
-    }
-  }
-
   async resync() {
+    let unlock = () => {};
+    if (this.requireLock) {
+      this.logger.debug("Acquiring sync lock...");
+      unlock = await SyncManager.syncMutex(this.runbookId).lock();
+    }
     this.logger.info("Starting resync");
 
     try {
@@ -132,11 +109,16 @@ export default class PhoenixProvider extends Emittery {
       const didResync = await Promise.race([timerPromise, resyncPromise]);
       if (!didResync) {
         this.logger.error("Resync timed out");
+        this.emit("synced", "timeout");
+      } else {
+        this.emit("synced", "online");
       }
     } catch (err) {
       this.logger.error("Failed to resync", err);
+      this.emit("synced", "error");
+    } finally {
+      unlock();
     }
-    this.emit("synced");
   }
 
   async doResync() {
@@ -167,9 +149,67 @@ export default class PhoenixProvider extends Emittery {
     this.channel.leave();
     this.subscriptions.forEach((unsub) => unsub());
     // disconnect from the ydoc
-    this.doc.off("update", this.handleDocUpdate);
-    this.awareness.off("update", this.handleAwarenessUpdate);
     // shut down the event emitter
     this.clearListeners();
+  }
+}
+
+/**
+ * As a sublcass of PhoenixSynchronizer, this class handles synchronization of a Y.Doc
+ * with the server over a Phoenix channel. It also serves as a two-way synchronization provider
+ * for BlockNote.
+ *
+ * @emits `"synced", SyncType ("online" | "offline" | "timeout" | "error")`
+ * @emits `"remote_update"` when a remote update is received
+ */
+export default class PhoenixProvider extends PhoenixSynchronizer {
+  constructor(runbookId: string, doc: Y.Doc, requireLock: boolean = true) {
+    super(runbookId, doc, requireLock);
+    this.logger = new Logger(`PhoenixProvider (${runbookId})`, "blue", "cyan");
+
+    this.doc.on("update", this.handleDocUpdate);
+    this.awareness.on("update", this.handleAwarenessUpdate);
+
+    this.subscriptions.push(this.channel.on("apply_update", this.handleIncomingUpdate));
+    this.subscriptions.push(this.channel.on("awareness", this.handleIncomingAwareness));
+  }
+
+  @autobind
+  handleDocUpdate(update: Uint8Array, origin: any) {
+    if (origin === this || !this.channel) return;
+
+    if (this.connected) {
+      this.channel.push("client_update", update.buffer);
+    }
+  }
+
+  @autobind
+  handleAwarenessUpdate({ added, updated, removed }: AwarenessData, origin: any) {
+    if (origin === this || !this.channel) return;
+
+    const changedClients = added.concat(updated).concat(removed);
+    if (this.connected) {
+      this.channel.push(
+        "client_awareness",
+        awarenessProtocol.encodeAwarenessUpdate(this.awareness, changedClients).buffer,
+      );
+    }
+  }
+
+  @autobind
+  handleIncomingUpdate(payload: Uint8Array) {
+    Y.applyUpdate(this.doc, payload, this);
+    this.emit("remote_update");
+  }
+
+  @autobind
+  handleIncomingAwareness(payload: Uint8Array) {
+    awarenessProtocol.applyAwarenessUpdate(this.awareness, payload, this);
+  }
+
+  shutdown() {
+    this.doc.off("update", this.handleDocUpdate);
+    this.awareness.off("update", this.handleAwarenessUpdate);
+    super.shutdown();
   }
 }

@@ -20,6 +20,8 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
+    "experimentalDecorators": true,
+
     "paths": {
       "@/*": ["./src/*"]
     }

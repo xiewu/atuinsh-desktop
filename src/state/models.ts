@@ -17,6 +17,10 @@ export class User {
   isLoggedIn(): boolean {
     return this.username !== "" && this.username !== null && this.email !== "anon";
   }
+
+  is(otherUser: User): boolean {
+    return this.username === otherUser.username && this.email === otherUser.email;
+  }
 }
 
 export const DefaultUser: User = new User("Anonymous User", "anon", "An anonymous user", "");
@@ -154,6 +158,7 @@ export interface RemoteRunbook {
   slug: string;
   nwo: string;
   visibility: "public" | "private" | "unlisted";
+  client_created: string;
   user: RemoteUser;
   snapshots: RemoteSnapshot[];
   permissions: string[];

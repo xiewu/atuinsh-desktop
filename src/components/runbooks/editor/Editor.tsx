@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import track_event from "@/tracking";
-import { randomColor } from "@/lib/colors";
 import Logger from "@/lib/logger";
 const logger = new Logger("Editor", "orange", "orange");
 import * as Y from "yjs";
@@ -9,13 +8,7 @@ import "./index.css";
 
 import { Spinner } from "@nextui-org/react";
 
-import {
-  BlockNoteSchema,
-  BlockNoteEditor,
-  defaultBlockSpecs,
-  filterSuggestionItems,
-  insertOrUpdateBlock,
-} from "@blocknote/core";
+import { BlockNoteEditor, filterSuggestionItems, insertOrUpdateBlock } from "@blocknote/core";
 
 import {
   SuggestionMenuController,
@@ -33,57 +26,23 @@ import "@blocknote/mantine/style.css";
 import { CodeIcon, FolderOpenIcon, VariableIcon } from "lucide-react";
 import useDebouncedCallback from "@/lib/useDebouncedCallback";
 
-import Run from "@/components/runbooks/editor/blocks/Run";
-import Directory from "@/components/runbooks/editor/blocks/Directory";
-import Env from "@/components/runbooks/editor/blocks/Env";
-import SQLite, { insertSQLite } from "@/components/runbooks/editor/blocks/SQLite/SQLite";
-import Postgres, { insertPostgres } from "@/components/runbooks/editor/blocks/Postgres/Postgres";
-import Clickhouse, {
-  insertClickhouse,
-} from "@/components/runbooks/editor/blocks/Clickhouse/Clickhouse";
+import { insertSQLite } from "@/components/runbooks/editor/blocks/SQLite/SQLite";
+import { insertPostgres } from "@/components/runbooks/editor/blocks/Postgres/Postgres";
+import { insertClickhouse } from "@/components/runbooks/editor/blocks/Clickhouse/Clickhouse";
 
-import Prometheus, {
-  insertPrometheus,
-} from "@/components/runbooks/editor/blocks/Prometheus/Prometheus";
-import CodeEditor, { insertEditor } from "@/components/runbooks/editor/blocks/Editor/Editor";
+import { insertPrometheus } from "@/components/runbooks/editor/blocks/Prometheus/Prometheus";
+import { insertEditor } from "@/components/runbooks/editor/blocks/Editor/Editor";
 
 import { AtuinState, useStore } from "@/state/store";
 import Runbook from "@/state/runbooks/runbook";
-import Http, { insertHttp } from "./blocks/Http/Http";
+import { insertHttp } from "./blocks/Http/Http";
 import { uuidv7 } from "uuidv7";
 import { DuplicateBlockItem } from "./ui/DuplicateBlockItem";
 
 import PhoenixProvider from "@/lib/phoenix_provider";
 import Snapshot from "@/state/runbooks/snapshot";
 import { useMemory } from "@/lib/utils";
-
-// Our schema with block specs, which contain the configs and implementations for blocks
-// that we want our editor to use.
-const schema = BlockNoteSchema.create({
-  blockSpecs: {
-    // Adds all default blocks.
-    ...defaultBlockSpecs,
-
-    // Execution
-    run: Run,
-    directory: Directory,
-    env: Env,
-
-    // Monitoring
-    prometheus: Prometheus,
-
-    // Databases
-    sqlite: SQLite,
-    postgres: Postgres,
-    clickhouse: Clickhouse,
-
-    // Network
-    http: Http,
-
-    // Misc
-    editor: CodeEditor,
-  },
-});
+import { createBasicEditor, createCollaborativeEditor, schema } from "./create_editor";
 
 // Slash menu item to insert an Alert block
 const insertRun = (editor: typeof schema.BlockNoteEditor) => ({
@@ -236,13 +195,8 @@ export default function Editor({ runbook, snapshot, editable }: EditorProps) {
       // We just want a basic, read-only editor with no
       // collaboration support and no YJS document content.
 
-      const editor = BlockNoteEditor.create({
-        schema,
-        initialContent: content,
-      });
-
+      const editor = createBasicEditor(content);
       setEditor(editor as any);
-
       return () => setEditor(null);
     }
 
@@ -250,17 +204,7 @@ export default function Editor({ runbook, snapshot, editable }: EditorProps) {
     let timer: number | undefined;
     let provider = new PhoenixProvider(runbook.id, ydoc);
 
-    const editor = BlockNoteEditor.create({
-      schema,
-      collaboration: {
-        provider: provider,
-        fragment: ydoc.getXmlFragment("document-store"),
-        user: {
-          name: user.username || "Anonymous",
-          color: randomColor(),
-        },
-      },
-    });
+    const editor = createCollaborativeEditor(provider, user);
 
     provider.once("synced").then(() => {
       // If the loaded YJS doc has no content, and the server has no content,

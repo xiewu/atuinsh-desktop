@@ -22,7 +22,7 @@ import History from "@/routes/history/History";
 import { init_tracking } from "./tracking";
 import { getHubApiToken } from "./api/api";
 import SocketManager from "./socket";
-import CollaborationManager from "./lib/collaboration_manager";
+import SyncManager from "./lib/sync/sync_manager";
 import { useStore } from "@/state/store";
 import ServerNotificationManager from "./server_notification_manager";
 import { trackOnlineStatus } from "./lib/online_tracker";
@@ -51,8 +51,18 @@ const queryClient = new QueryClient({
 (window as any).queryClient = queryClient;
 
 const socketManager = SocketManager.get();
-new CollaborationManager(socketManager, useStore);
-ServerNotificationManager.get().setQueryClient(queryClient);
+const notificationManager = ServerNotificationManager.get();
+const syncManager = new SyncManager(useStore);
+
+notificationManager.on("runbook_updated", (runbookId: string) => {
+  syncManager.runbookUpdated(runbookId);
+  queryClient.invalidateQueries({ queryKey: ["remote_runbook", runbookId] });
+});
+
+notificationManager.on("runbook_deleted", (runbookId: string) => {
+  syncManager.runbookDeleted(runbookId);
+  queryClient.invalidateQueries({ queryKey: ["remote_runbook", runbookId] });
+});
 
 trackOnlineStatus();
 // When the socket connects or disconnects, re-check online status immediately

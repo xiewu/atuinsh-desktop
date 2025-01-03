@@ -92,7 +92,7 @@ export default class Runbook {
   }
 
   /// Create a new Runbook, and automatically generate an ID.
-  public static async create(workspace?: Workspace): Promise<Runbook> {
+  public static async create(workspace?: Workspace, persist: boolean = true): Promise<Runbook> {
     let now = new Date();
 
     if (workspace === undefined || workspace === null) {
@@ -113,7 +113,10 @@ export default class Runbook {
       forkedFrom: null,
       remoteInfo: null,
     });
-    await runbook.save();
+
+    if (persist) {
+      await runbook.save();
+    }
 
     return runbook;
   }
@@ -255,6 +258,14 @@ export default class Runbook {
     });
 
     return runbooks;
+  }
+
+  static async allIdsInAllWorkspaces(): Promise<string[]> {
+    const db = await Database.load("sqlite:runbooks.db");
+    return logger.time("Selecting all runbook IDs", async () => {
+      const rows = await db.select<{ id: string }[]>("select id from runbooks order by id desc");
+      return rows.map((row) => row.id);
+    });
   }
 
   // Default to scoping by workspace

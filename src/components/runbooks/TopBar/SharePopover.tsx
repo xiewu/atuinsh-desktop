@@ -21,13 +21,20 @@ type ShareProps = {
   runbook: Runbook;
   remoteRunbook?: RemoteRunbook;
   refreshRemoteRunbook: () => void;
+  onShareToHub: () => void;
+  onDeleteFromHub: () => void;
 };
 
 type ShareRunbookMutationArgs = { runbook: Runbook; slug: string; visibility: RunbookVisibility };
 
 const slugRegex = /^[a-z0-9\-_]+$/i;
 
-export default function Share({ runbook, remoteRunbook }: ShareProps) {
+export default function Share({
+  runbook,
+  remoteRunbook,
+  onShareToHub,
+  onDeleteFromHub,
+}: ShareProps) {
   const [slug, setSlug] = useState<string>(slugify(runbook.name));
   const [visibility, setVisibility] = useState<RunbookVisibility>("private");
   const [error, setError] = useState<string | undefined>(undefined);
@@ -51,6 +58,7 @@ export default function Share({ runbook, remoteRunbook }: ShareProps) {
       // Now that the server can map the client ID to a server ID,
       // we can subscribe to changes in this runbook.
       ServerNotificationManager.get().subscribe(vars.runbook.id);
+      onShareToHub();
     },
     onError: (err: any) => {
       if (err instanceof api.HttpResponseError) handleHttpError(err);
@@ -92,7 +100,10 @@ export default function Share({ runbook, remoteRunbook }: ShareProps) {
 
   const deleteRunbook = useMutation({
     mutationFn: (id: string) => api.deleteRunbook(id),
-    onSuccess: (_data, id) => queryClient.invalidateQueries({ queryKey: ["remote_runbook", id] }),
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: ["remote_runbook", id] });
+      onDeleteFromHub();
+    },
     scope: { id: "runbook" },
   });
 

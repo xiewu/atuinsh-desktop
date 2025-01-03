@@ -24,6 +24,8 @@ export default function Runbooks() {
   const currentRunbook = useCurrentRunbook();
   const lastRunbookRef = useMemory(currentRunbook);
 
+  // Key used to re-render editor when making major changes to runbook
+  const [editorKey, setEditorKey] = useState<number>(0);
   const [showTagMenu, setShowTagMenu] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string>(() => {
     let tag = currentRunbook ? getLastTagForRunbook(currentRunbook.id) : "latest";
@@ -44,6 +46,10 @@ export default function Runbooks() {
     snapshotByRunbookAndTag(currentRunbook?.id, selectedTag),
   );
   const { data: snapshots } = useQuery(snapshotsByRunbook(currentRunbook?.id));
+
+  function updateEditorKey() {
+    setEditorKey((prev) => prev + 1);
+  }
 
   const shareSnapshot = useMutation({
     mutationFn: async (snapshot: Snapshot) => {
@@ -182,9 +188,12 @@ export default function Runbooks() {
             canEditTags={canEditTags}
             canInviteCollaborators={!!canInviteCollabs}
             onCreateTag={handleCreateTag}
+            onShareToHub={updateEditorKey}
+            onDeleteFromHub={updateEditorKey}
           />
           <ErrorBoundary>
             <Editor
+              key={editorKey}
               runbook={currentRunbook}
               snapshot={currentSnapshot || null}
               editable={editable && selectedTag == "latest"}

@@ -20,6 +20,8 @@ type TopbarProps = {
   onCreateTag: (tag: string) => Promise<void>;
   onOpenTagMenu: () => void;
   onCloseTagMenu: () => void;
+  onShareToHub: () => void;
+  onDeleteFromHub: () => void;
 };
 
 export default function Topbar(props: TopbarProps) {
@@ -82,6 +84,8 @@ export default function Topbar(props: TopbarProps) {
             Updated <RelativeTime time={DateTime.fromJSDate(runbook.updated)} />
           </span>
           <SharePopover
+            onShareToHub={props.onShareToHub}
+            onDeleteFromHub={props.onDeleteFromHub}
             runbook={runbook}
             remoteRunbook={props.remoteRunbook}
             refreshRemoteRunbook={props.refreshRemoteRunbook}

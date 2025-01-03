@@ -16,7 +16,7 @@ export function ydocToBlocknote(doc: Y.Doc): Promise<Block<any>[]> {
     const onChange = debounce(() => {
       resolve(editor.document);
       root.unmount();
-    }, 1000);
+    }, 100);
 
     root.render(<BlockNoteView editor={editor} editable={false} onChange={onChange} />);
   });

@@ -28,6 +28,7 @@ export default class SyncManager {
   private syncSet: SyncSet | null = null;
   private lastSync: DateTime | null = null;
   private startNextSyncEarly: boolean = false;
+  private priorityRunbookIds = new Set<string>();
   private online: boolean = false;
 
   constructor(store: Store) {
@@ -75,6 +76,7 @@ export default class SyncManager {
       this.syncSet.addRunbook(runbookId);
     } else {
       this.startNextSyncEarly = true;
+      this.priorityRunbookIds.add(runbookId);
       if (this.shouldSync()) {
         this.startSync();
       }
@@ -88,10 +90,12 @@ export default class SyncManager {
   }
 
   private async getRunbookIdsToSync() {
+    const priorityIds = Array.from(this.priorityRunbookIds);
     const serverIds: string[] = await api.allRunbookIds();
     const localIds = await Runbook.allIdsInAllWorkspaces();
 
-    return new Set(localIds.concat(serverIds));
+    // JS sets are ordered, so start with runbooks that have been updated on the server
+    return new Set([...priorityIds, ...serverIds, ...localIds]);
   }
 
   private async startSync() {
@@ -101,6 +105,7 @@ export default class SyncManager {
 
     this.startNextSyncEarly = false;
     const ids = await this.getRunbookIdsToSync();
+    this.priorityRunbookIds.clear();
     this.syncSet = new SyncSet(ids, this.currentUser);
     this.syncSet.setCurrentRunbookId(this.currentRunbookId);
     try {

@@ -1,5 +1,4 @@
 import { MessageRef, Socket, Channel, Push } from "phoenix";
-import { endpoint } from "./api/api";
 import Logger from "@/lib/logger";
 import Emittery from "emittery";
 const logger = new Logger("Socket");

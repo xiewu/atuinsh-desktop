@@ -1,3 +1,4 @@
+import { open } from "@tauri-apps/plugin-shell";
 import { endpoint } from "@/api/api";
 import { RemoteRunbook } from "@/state/models";
 import { Card, CardBody, CardHeader } from "@nextui-org/react";

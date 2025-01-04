@@ -145,6 +145,9 @@ const NoteSidebar = () => {
                   })}
                 >
                   <h3 className="font-medium text-sm truncate text-ellipsis">
+                    {!runbook.viewed_at && (
+                      <div className="rounded-lg bg-blue-500 w-2 h-2 inline-block mr-1 mb-[1px]" />
+                    )}
                     {runbook.name || "Untitled"}
                   </h3>
                   <p className="text-xs text-gray-500 mt-0.5">

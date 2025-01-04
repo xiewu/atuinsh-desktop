@@ -34,6 +34,7 @@ export interface RunbookAttrs {
   workspaceId: string;
   forkedFrom: string | null;
   remoteInfo: string | null;
+  viewed_at: Date | null;
 
   created: Date;
   updated: Date;
@@ -45,6 +46,7 @@ export default class Runbook {
   source: RunbookSource;
   sourceInfo: string | null;
   remoteInfo: string | null;
+  viewed_at: Date | null;
 
   created: Date;
   updated: Date;
@@ -89,6 +91,7 @@ export default class Runbook {
     this.forkedFrom = attrs.forkedFrom;
     this.workspaceId = attrs.workspaceId;
     this.remoteInfo = attrs.remoteInfo;
+    this.viewed_at = attrs.viewed_at || null;
   }
 
   /// Create a new Runbook, and automatically generate an ID.
@@ -112,6 +115,7 @@ export default class Runbook {
       workspaceId: workspace.id,
       forkedFrom: null,
       remoteInfo: null,
+      viewed_at: null,
     });
 
     if (persist) {
@@ -183,6 +187,7 @@ export default class Runbook {
       workspaceId: workspace.id,
       forkedFrom: null,
       remoteInfo: remoteInfo,
+      viewed_at: null,
     });
 
     await runbook.save();
@@ -204,7 +209,8 @@ export default class Runbook {
 
     let res = await logger.time(`Selecting runbook with ID ${id}`, async () =>
       db.select<any[]>(
-        "select id, name, source, source_info, content, created, updated, workspace_id, forked_from, remote_info from runbooks where id = $1",
+        "select id, name, source, source_info, content, created, updated, " +
+          "workspace_id, forked_from, remote_info, viewed_at from runbooks where id = $1",
         [id],
       ),
     );
@@ -242,6 +248,7 @@ export default class Runbook {
       workspaceId: row.workspace_id,
       forkedFrom: row.forked_from,
       remoteInfo: row.remote_info,
+      viewed_at: row.viewed_at ? new Date(row.viewed_at / 1000000) : null,
     });
   }
 
@@ -250,7 +257,7 @@ export default class Runbook {
 
     let runbooks = await logger.time("Selecting all runbooks", async () => {
       let res = await db.select<any[]>(
-        "select id, name, source, source_info, created, updated, workspace_id, forked_from, remote_info from runbooks " +
+        "select id, name, source, source_info, created, updated, workspace_id, forked_from, remote_info, viewed_at from runbooks " +
           "order by updated desc",
       );
 
@@ -278,7 +285,7 @@ export default class Runbook {
       `Selecting all runbooks for workspace ${workspace.id}`,
       async () => {
         let res = await db.select<any[]>(
-          "select id, name, source, source_info, created, updated, workspace_id, forked_from, remote_info from runbooks " +
+          "select id, name, source, source_info, created, updated, workspace_id, forked_from, remote_info, viewed_at from runbooks " +
             "where workspace_id = $1 or workspace_id is null order by updated desc",
           [workspace.id],
         );
@@ -308,8 +315,8 @@ export default class Runbook {
 
     logger.time(`Saving runbook ${this.id}`, async () => {
       await db.execute(
-        `insert into runbooks(id, name, content, created, updated, workspace_id, source, source_info, forked_from, remote_info)
-          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `insert into runbooks(id, name, content, created, updated, workspace_id, source, source_info, forked_from, remote_info, viewed_at)
+          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 
           on conflict(id) do update
             set
@@ -320,7 +327,8 @@ export default class Runbook {
               source=$7,
               source_info=$8,
               forked_from=$9,
-              remote_info=$10`,
+              remote_info=$10,
+              viewed_at=$11`,
 
         // getTime returns a timestamp as unix milliseconds
         // we won't need or use the resolution here, but elsewhere Atuin stores timestamps in sqlite as nanoseconds since epoch
@@ -336,12 +344,18 @@ export default class Runbook {
           this.sourceInfo,
           this.forkedFrom,
           this.remoteInfo,
+          this.viewed_at ? this.viewed_at.getTime() * 1000000 : null,
         ],
       );
 
       await Runbook.saveYDocForRunbook(this.id, this.ydoc);
       Runbook.invalidateCache(this.id);
     });
+  }
+
+  public async markViewed() {
+    this.viewed_at = new Date();
+    await this.save();
   }
 
   public static async loadYDocForRunbook(id: string) {
@@ -391,6 +405,7 @@ export default class Runbook {
       workspaceId: this.workspaceId,
       forkedFrom: this.forkedFrom,
       remoteInfo: this.remoteInfo,
+      viewed_at: this.viewed_at,
     });
   }
 

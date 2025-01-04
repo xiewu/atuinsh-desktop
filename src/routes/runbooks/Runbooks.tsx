@@ -18,6 +18,7 @@ import { snapshotByRunbookAndTag, snapshotsByRunbook } from "@/lib/queries/snaps
 
 export default function Runbooks() {
   const refreshUser = useStore((store) => store.refreshUser);
+  const refreshRunbooks = useStore((store) => store.refreshRunbooks);
   const newRunbook = useStore((store) => store.newRunbook);
   const getLastTagForRunbook = useStore((store) => store.getLastTagForRunbook);
   const setLastTagForRunbook = useStore((store) => store.selectTag);
@@ -85,6 +86,14 @@ export default function Runbooks() {
       setSelectedTag("latest");
     }
   }, [selectedTag, snapshots]);
+
+  useEffect(() => {
+    if (currentRunbook) {
+      currentRunbook.markViewed().then(() => {
+        refreshRunbooks();
+      });
+    }
+  }, [currentRunbook?.id]);
 
   useTauriEvent("export-runbook", async () => {
     if (!currentRunbook) return;

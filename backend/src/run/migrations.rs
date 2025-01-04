@@ -50,5 +50,11 @@ pub fn migrations() -> Vec<Migration> {
             sql: "ALTER TABLE runbooks ADD COLUMN remote_info TEXT;",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 9,
+            description: "add_viewed_at_to_runbook",
+            sql: "ALTER TABLE runbooks ADD COLUMN viewed_at BIGINT;",
+            kind: MigrationKind::Up,
+        }
     ]
 }

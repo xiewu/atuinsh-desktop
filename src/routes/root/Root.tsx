@@ -39,6 +39,7 @@ import DesktopConnect from "@/components/DesktopConnect/DesktopConnect";
 import DirectoryExportModal from "@/components/ExportWorkspace/ExportWorkspace";
 import { clearHubApiToken, endpoint } from "@/api/api";
 import SocketManager from "@/socket";
+import AtuinEnv from "@/atuin_env";
 
 function App() {
   const cleanupImportListener = useRef<UnlistenFn | null>(null);
@@ -70,7 +71,7 @@ function App() {
         handleDeepLink(navigate, urls[0]);
       });
 
-      if (import.meta.env.MODE === "development") {
+      if (AtuinEnv.isDev) {
         (window as any).handleDeepLink = (url: string) => handleDeepLink(navigate, url);
       }
 

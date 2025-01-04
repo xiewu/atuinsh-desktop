@@ -7,6 +7,7 @@ import Runbook from "@/state/runbooks/runbook";
 import Snapshot from "@/state/runbooks/snapshot";
 import Mutex from "@/lib/mutex";
 import { KVStore } from "@/state/kv";
+import AtuinEnv from "@/atuin_env";
 
 type PasswordStore = {
   get: (service: string, user: string) => Promise<string | null>;
@@ -31,7 +32,7 @@ const localStorageStore: PasswordStore = {
 };
 
 function getStorage() {
-  if (import.meta.env.MODE === "development") {
+  if (AtuinEnv.isDev) {
     return localStorageStore;
   } else {
     return keychainStore;
@@ -46,7 +47,7 @@ const _savePassword = (service: string, user: string, password: string) =>
 const _deletePassword = (service: string, user: string) => getStorage().remove(service, user);
 
 // Convenience function for setting the hub credentials in development
-if (import.meta.env.MODE === "development") {
+if (AtuinEnv.isDev) {
   (window as any).setHubCredentials = async (username: string, key: string) => {
     await _savePassword("sh.atuin.runbooks.api", username, key);
     const kv = await KVStore.open_default();
@@ -101,15 +102,8 @@ export async function clearHubApiToken() {
   cachedHubApiToken = null;
 }
 
-export function domain() {
-  if (import.meta.env.MODE === "development") return "localhost:4000";
-  return "hub.atuin.sh";
-}
-
 export function endpoint() {
-  if (import.meta.env.MODE === "development") return `http://${domain()}`;
-
-  return `https://${domain()}`;
+  return `${AtuinEnv.httpProtocol}://${AtuinEnv.hubDomain}`;
 }
 
 export class HttpResponseError extends Error {

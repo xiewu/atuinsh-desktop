@@ -7,6 +7,7 @@ import * as api from "@/api/api";
 import * as Y from "yjs";
 import { PhoenixSynchronizer, SyncType } from "../phoenix_provider";
 import { ydocToBlocknote } from "../ydoc_to_blocknote";
+import AtuinEnv from "@/atuin_env";
 
 function usernameFromNwo(nwo: string = "") {
   return nwo.split("/")[0];
@@ -64,7 +65,7 @@ export default class RunbookSynchronizer {
           // If the source of the local runbook is "hub" and the nwo specifies a different user,
           // then we should delete the local runbook.
           if (runbook) {
-            const isHubRunbook = runbook.source === "hub";
+            const isHubRunbook = runbook.source === AtuinEnv.hubRunbookSource;
             const creatingUser = usernameFromNwo(runbook.sourceInfo || undefined);
             const createdBySomeoneElse = creatingUser !== this.currentUser.username;
 
@@ -86,7 +87,7 @@ export default class RunbookSynchronizer {
         runbook = await Runbook.create(undefined, false);
         runbook.id = remoteRunbook.id;
         runbook.name = remoteRunbook.name;
-        runbook.source = "hub";
+        runbook.source = AtuinEnv.hubRunbookSource;
         runbook.sourceInfo = remoteRunbook.nwo;
         runbook.created = new Date(remoteRunbook.client_created);
       }

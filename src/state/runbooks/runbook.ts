@@ -21,7 +21,7 @@ export interface RunbookFile {
   content: string;
 }
 
-type RunbookSource = "local" | "hub" | "file";
+export type RunbookSource = "local" | "hub" | "hub-dev" | "file";
 export type RunbookVisibility = "private" | "public" | "unlisted";
 
 export interface RunbookAttrs {

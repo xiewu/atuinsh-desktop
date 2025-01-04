@@ -2,10 +2,11 @@ import * as Sentry from "@sentry/react";
 import posthog from "posthog-js";
 
 import { KVStore } from "./state/kv";
+import AtuinEnv from "./atuin_env";
 
 export const init_tracking = async () => {
   // don't need to spam sentry with my dumbass mistakes
-  if (import.meta.env.MODE === "development") return;
+  if (AtuinEnv.isDev) return;
 
   let db = await KVStore.open_default();
   let track = await db.get<boolean>("usage_tracking");
@@ -32,7 +33,7 @@ export const init_tracking = async () => {
 };
 
 export default function track_event(event: string, properties: any) {
-  if (import.meta.env.MODE === "development") {
+  if (AtuinEnv.isDev) {
     console.log(`[dev] track_event: ${event} -> ${JSON.stringify(properties)}`);
     return;
   }

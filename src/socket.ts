@@ -4,6 +4,7 @@ import Logger from "@/lib/logger";
 import Emittery from "emittery";
 const logger = new Logger("Socket");
 import { useStore } from "@/state/store";
+import AtuinEnv from "./atuin_env";
 
 export default class SocketManager extends Emittery {
   private static apiToken: string | null = null;
@@ -91,10 +92,7 @@ export default class SocketManager extends Emittery {
   }
 
   private buildSocket(apiToken: string | null) {
-    const uri = new URL(endpoint());
-    const host = uri.host;
-    const protocol = uri.protocol === "https:" ? "wss" : "ws";
-    const url = `${protocol}://${host}/sockets/doc`;
+    const url = `${AtuinEnv.websocketProtocol}://${AtuinEnv.hubDomain}/sockets/doc`;
 
     return new Socket(url, {
       params: { token: apiToken },

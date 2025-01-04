@@ -237,7 +237,9 @@ export default function Share({
           />
         )}
         {online && !user.isLoggedIn() && <LoggedOut />}
-        {online && user.isLoggedIn() && remoteRunbook && !canUpdate && <NoPermission />}
+        {online && user.isLoggedIn() && remoteRunbook && !canUpdate && (
+          <NoPermission remoteRunbook={remoteRunbook} />
+        )}
         {!online && <Offline />}
       </PopoverContent>
     </Popover>

@@ -52,7 +52,7 @@ const queryClient = new QueryClient({
 
 const socketManager = SocketManager.get();
 const notificationManager = ServerNotificationManager.get();
-const syncManager = new SyncManager(useStore);
+const syncManager = SyncManager.get(useStore);
 
 notificationManager.on("runbook_updated", (runbookId: string) => {
   syncManager.runbookUpdated(runbookId);

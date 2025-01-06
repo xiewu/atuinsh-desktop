@@ -19,6 +19,15 @@ const EARLY_SYNC_INTERVAL_SECS = 30;
  */
 export default class SyncManager {
   private static syncMutexes: Map<string, Mutex> = new Map();
+  private static instance: SyncManager | null = null;
+
+  public static get(store: Store): SyncManager {
+    if (!SyncManager.instance) {
+      SyncManager.instance = new SyncManager(store);
+    }
+
+    return SyncManager.instance;
+  }
 
   private readonly logger: Logger = new Logger("SyncManager", "#ff33cc", "#ff6677");
   private store: Store;
@@ -31,7 +40,7 @@ export default class SyncManager {
   private priorityRunbookIds = new Set<string>();
   private online: boolean = false;
 
-  constructor(store: Store) {
+  private constructor(store: Store) {
     this.store = store;
 
     this.currentUser = store.getState().user;
@@ -98,7 +107,7 @@ export default class SyncManager {
     return new Set([...priorityIds, ...serverIds, ...localIds]);
   }
 
-  private async startSync() {
+  public async startSync() {
     if (this.syncSet) {
       throw new Error("Sync already in progress");
     }

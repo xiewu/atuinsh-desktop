@@ -10,9 +10,9 @@ import {
 import {
   ChevronRightIcon,
   Import,
-  LoaderCircleIcon,
   MoreVertical,
   Plus,
+  RefreshCwIcon,
   SearchIcon,
   Terminal,
 } from "lucide-react";
@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import MoveToRunbookDropdown from "./MoveToRunbookDropdown";
 import ExportAsRunbookDropdown from "./ExportAsRunbookDropdown";
 import { useCurrentRunbook } from "@/lib/useRunbook";
+import SyncManager from "@/lib/sync/sync_manager";
 
 const NoteSidebar = () => {
   const runbooks = useStore((state: AtuinState) => state.runbooks);
@@ -87,6 +88,10 @@ const NoteSidebar = () => {
     if (!isSearchOpen) setSearchOpen(true);
   };
 
+  function handleSync() {
+    SyncManager.get(useStore).startSync();
+  }
+
   // sort runbooks alphabetically by name
   const sortedRunbooks = useMemo(() => {
     return runbooks.sort((a, b) => a.name.localeCompare(b.name));
@@ -96,11 +101,6 @@ const NoteSidebar = () => {
     <div className="!w-64 !max-w-64 !min-w-64 h-full bg-gray-50 border-r border-gray-200 flex flex-col select-none">
       <div className="p-2 flex justify-between items-center border-b border-gray-200">
         <h2 className="text-lg font-semibold">Runbooks</h2>
-        <div className="flex justify-center items-center">
-          {isSyncing && (
-            <LoaderCircleIcon size={18} className="stroke-sky-600  animate-spinner-linear-spin" />
-          )}
-        </div>
         <div className="flex space-x-1">
           <Tooltip content="New">
             <Button isIconOnly size="sm" variant="light" onPress={handleNewRunbook}>
@@ -118,6 +118,24 @@ const NoteSidebar = () => {
             <Button isIconOnly size="sm" variant="light" onPress={handleOpenSearch}>
               <SearchIcon size={18} />
             </Button>
+          </Tooltip>
+
+          <Tooltip content={isSyncing ? "Syncing..." : "Sync"}>
+            <div>
+              {isSyncing && <div />}
+              <Button
+                isIconOnly
+                size="sm"
+                variant="light"
+                onPress={handleSync}
+                isDisabled={isSyncing}
+              >
+                <RefreshCwIcon
+                  size={18}
+                  className={isSyncing ? "animate-spinner-linear-spin duration-1000" : ""}
+                />
+              </Button>
+            </div>
           </Tooltip>
         </div>
       </div>

@@ -34,10 +34,10 @@ const handleDeepLink = (navigate: any, url: string): void | null => {
       async (params: string[]) => {
         const [_username, id] = params;
 
-        let runbook = await createRunbookFromHub(id);
+        let result = await createRunbookFromHub(id);
 
-        if (runbook) {
-          useStore.getState().setCurrentRunbookId(runbook.id);
+        if (result && result.runbookId) {
+          useStore.getState().setCurrentRunbookId(result.runbookId);
           useStore.getState().refreshRunbooks();
           navigate("/runbooks");
         } else {
@@ -51,10 +51,10 @@ const handleDeepLink = (navigate: any, url: string): void | null => {
     ) => {
       const [id] = params;
 
-      let runbook = await createRunbookFromHub(id);
+      let result = await createRunbookFromHub(id);
 
-      if (runbook) {
-        useStore.getState().setCurrentRunbookId(runbook.id);
+      if (result) {
+        useStore.getState().setCurrentRunbookId(result.runbookId);
         useStore.getState().refreshRunbooks();
         navigate("/runbooks");
       } else {

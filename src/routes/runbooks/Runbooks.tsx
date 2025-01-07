@@ -1,5 +1,4 @@
 import Editor from "@/components/runbooks/editor/Editor";
-import List from "@/components/runbooks/List/List";
 import Topbar from "@/components/runbooks/TopBar/TopBar";
 import { useTauriEvent } from "@/lib/tauri";
 import useRemoteRunbook from "@/lib/useRemoteRunbook";
@@ -202,7 +201,6 @@ export default function Runbooks() {
 
   return (
     <div className="flex !w-full !max-w-full flex-row overflow-hidden">
-      <List />
       {currentRunbook && readyToRender && (
         <div className="flex w-full max-w-full overflow-hidden flex-col">
           <Topbar

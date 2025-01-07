@@ -40,6 +40,7 @@ import DirectoryExportModal from "@/components/ExportWorkspace/ExportWorkspace";
 import { clearHubApiToken, endpoint } from "@/api/api";
 import SocketManager from "@/socket";
 import AtuinEnv from "@/atuin_env";
+import List from "@/components/runbooks/List/List";
 
 function App() {
   const cleanupImportListener = useRef<UnlistenFn | null>(null);
@@ -330,6 +331,7 @@ function App() {
           </div>
         </div>
 
+        <List />
         <Outlet />
 
         <Toaster />

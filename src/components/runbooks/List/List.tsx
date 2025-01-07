@@ -30,6 +30,7 @@ import ExportAsRunbookDropdown from "./ExportAsRunbookDropdown";
 import { useCurrentRunbook } from "@/lib/useRunbook";
 import SyncManager from "@/lib/sync/sync_manager";
 import { PendingInvitations } from "./PendingInvitations";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const NoteSidebar = () => {
   const runbooks = useStore((state: AtuinState) => state.runbooks);
@@ -48,6 +49,9 @@ const NoteSidebar = () => {
 
   const [isMoveToOpen, setMoveToOpen] = useState(false);
   const [isExportAsOpen, setExportAsOpen] = useState(false);
+
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     refreshRunbooks();
@@ -144,7 +148,8 @@ const NoteSidebar = () => {
       <div className="flex-grow overflow-y-auto">
         {sortedRunbooks.map((runbook: Runbook) => {
           const count = Object.values(ptys).filter((pty) => pty.runbook === runbook.id).length;
-          const isActive = currentRunbook && currentRunbook.id === runbook.id;
+          const isActive =
+            currentRunbook && currentRunbook.id === runbook.id && location.pathname === "/runbooks";
 
           return (
             <div
@@ -154,6 +159,9 @@ const NoteSidebar = () => {
                   total: await Runbook.count(),
                 });
 
+                if (location.pathname !== "/runbooks") {
+                  navigate("/runbooks");
+                }
                 setCurrentRunbookId(runbook.id);
               }}
               className={`cursor-pointer p-2 border-b border-gray-200 hover:bg-gray-100 ${isActive ? "bg-gray-200" : ""} relative`}

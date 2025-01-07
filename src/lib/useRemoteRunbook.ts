@@ -3,9 +3,12 @@ import { getRunbookID, HttpResponseError } from "@/api/api";
 import Runbook from "@/state/runbooks/runbook";
 import { useQuery } from "@tanstack/react-query";
 import AtuinEnv from "@/atuin_env";
+import { RemoteRunbook } from "@/state/models";
 
-export default function useRemoteRunbook(runbook?: Runbook) {
-  const query = useQuery({
+export default function useRemoteRunbook(
+  runbook?: Runbook,
+): [RemoteRunbook | null | undefined, () => void] {
+  const query = useQuery<RemoteRunbook | null>({
     queryKey: ["remote_runbook", runbook?.id],
     queryFn: async () => {
       if (runbook) {
@@ -28,7 +31,9 @@ export default function useRemoteRunbook(runbook?: Runbook) {
         throw new Error("no runbook ID specified");
       }
     },
-    initialData: runbook?.remoteInfo ? JSON.parse(runbook.remoteInfo) : undefined,
+    initialData: runbook?.remoteInfo
+      ? (JSON.parse(runbook.remoteInfo) as RemoteRunbook)
+      : undefined,
     refetchOnMount: "always",
   });
 

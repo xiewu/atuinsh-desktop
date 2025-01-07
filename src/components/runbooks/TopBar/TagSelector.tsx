@@ -33,7 +33,7 @@ function validateTagName(tag: string, existingTags: string[]) {
 interface TagSelectorProps {
   runbookId: string;
   tags: { value: string; text: string }[];
-  currentTag: string;
+  currentTag: string | null;
   canEditTags: boolean;
   isOpen: boolean;
   onTrigger: () => void;
@@ -55,10 +55,10 @@ export default function TagSelector(props: TagSelectorProps) {
     return props.tags.map((t) => t.text);
   }, [props.tags]);
 
-  let tagLabel: string;
+  let tagLabel: string = "";
   if (tag == "latest") {
     tagLabel = "(no tag)";
-  } else {
+  } else if (tag) {
     tagLabel = tag;
   }
 

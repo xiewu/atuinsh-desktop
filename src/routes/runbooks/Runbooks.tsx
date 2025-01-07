@@ -7,7 +7,7 @@ import { usePtyStore } from "@/state/ptyStore";
 import { useStore } from "@/state/store";
 import { save } from "@tauri-apps/plugin-dialog";
 import Snapshot from "@/state/runbooks/snapshot";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useMemory } from "@/lib/utils";
 import { useCurrentRunbook } from "@/lib/useRunbook";
@@ -15,6 +15,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "@/api/api";
 import { ErrorBoundary } from "@sentry/react";
 import { snapshotByRunbookAndTag, snapshotsByRunbook } from "@/lib/queries/snapshots";
+import Runbook from "@/state/runbooks/runbook";
+
+function useMarkRunbookRead(runbook: Runbook | null, refreshRunbooks: () => void) {
+  useEffect(() => {
+    if (runbook) {
+      runbook.markViewed().then(() => {
+        refreshRunbooks();
+      });
+    }
+  }, [runbook?.id]);
+}
 
 export default function Runbooks() {
   const refreshUser = useStore((store) => store.refreshUser);
@@ -28,10 +39,9 @@ export default function Runbooks() {
   // Key used to re-render editor when making major changes to runbook
   const [editorKey, setEditorKey] = useState<number>(0);
   const [showTagMenu, setShowTagMenu] = useState(false);
-  const [selectedTag, setSelectedTag] = useState<string>(() => {
-    let tag = currentRunbook ? getLastTagForRunbook(currentRunbook.id) : "latest";
-    if (!tag) tag = "latest";
-    if (tag == "(no tag)") tag = "latest";
+  const [selectedTag, setSelectedTag] = useState<string | null>(() => {
+    let tag = currentRunbook ? getLastTagForRunbook(currentRunbook.id) : null;
+    if (tag == "(no tag)") tag = null;
 
     return tag;
   });
@@ -47,6 +57,15 @@ export default function Runbooks() {
     snapshotByRunbookAndTag(currentRunbook?.id, selectedTag),
   );
   const { data: snapshots } = useQuery(snapshotsByRunbook(currentRunbook?.id));
+
+  const tags = useMemo(() => {
+    let tags = (snapshots || []).map((snap) => ({ text: snap.tag, value: snap.tag })) || [];
+    if (!remoteRunbook || remoteRunbook?.permissions.includes("update_content")) {
+      tags = [{ text: "(no tag)", value: "latest" }, ...tags];
+    }
+
+    return tags;
+  }, [snapshots, remoteRunbook]);
 
   function updateEditorKey() {
     setEditorKey((prev) => prev + 1);
@@ -67,33 +86,31 @@ export default function Runbooks() {
 
   useEffect(() => {
     if (!currentRunbook) {
-      setSelectedTag("latest");
+      setSelectedTag(null);
       return;
     }
 
     refreshRemoteRunbook();
 
-    let tag = getLastTagForRunbook(currentRunbook.id) || "latest";
-    if (tag == "(no tag)") tag = "latest";
+    let tag = getLastTagForRunbook(currentRunbook.id);
+    if (tag == "(no tag)") tag = null;
     setSelectedTag(tag);
   }, [currentRunbook?.id]);
 
   useEffect(() => {
     if (!snapshots || !currentRunbook) return;
 
-    const tagExists = snapshots.some((snap) => snap.tag == selectedTag);
-    if (selectedTag !== "latest" && !tagExists) {
-      setSelectedTag("latest");
-    }
-  }, [selectedTag, snapshots]);
+    const tagExists = tags.some((tag) => tag.value == selectedTag);
+    if (tagExists) return;
 
-  useEffect(() => {
-    if (currentRunbook) {
-      currentRunbook.markViewed().then(() => {
-        refreshRunbooks();
-      });
+    if (!tagExists && tags.some((tag) => tag.value == "latest")) {
+      setSelectedTag("latest");
+    } else if (!tagExists) {
+      setSelectedTag(tags[0]?.value || null);
     }
-  }, [currentRunbook?.id]);
+  }, [selectedTag, snapshots, tags]);
+
+  useMarkRunbookRead(currentRunbook, refreshRunbooks);
 
   useTauriEvent("export-runbook", async () => {
     if (!currentRunbook) return;
@@ -176,8 +193,12 @@ export default function Runbooks() {
   const editable = !remoteRunbook || remoteRunbook?.permissions.includes("update_content");
   const canEditTags = !remoteRunbook || remoteRunbook?.permissions.includes("update");
   const canInviteCollabs = remoteRunbook?.permissions.includes("update");
+  const hasNoTags = tags.length == 0;
 
-  const readyToRender = selectedTag == "latest" || selectedTag == currentSnapshot?.tag;
+  const readyToRender =
+    selectedTag == "latest" ||
+    (currentSnapshot && selectedTag == currentSnapshot.tag) ||
+    (selectedTag == null && hasNoTags);
 
   return (
     <div className="flex !w-full !max-w-full flex-row overflow-hidden">
@@ -186,9 +207,9 @@ export default function Runbooks() {
         <div className="flex w-full max-w-full overflow-hidden flex-col">
           <Topbar
             runbook={currentRunbook}
-            remoteRunbook={remoteRunbook}
+            remoteRunbook={remoteRunbook || undefined}
             refreshRemoteRunbook={refreshRemoteRunbook}
-            tags={(snapshots || []).map((snap) => snap.tag)}
+            tags={tags}
             showTagMenu={showTagMenu}
             onOpenTagMenu={() => setShowTagMenu(true)}
             onCloseTagMenu={() => setShowTagMenu(false)}
@@ -201,12 +222,19 @@ export default function Runbooks() {
             onDeleteFromHub={updateEditorKey}
           />
           <ErrorBoundary>
-            <Editor
-              key={editorKey}
-              runbook={currentRunbook}
-              snapshot={currentSnapshot || null}
-              editable={editable && selectedTag == "latest"}
-            />
+            {!hasNoTags && (
+              <Editor
+                key={editorKey}
+                runbook={currentRunbook}
+                snapshot={currentSnapshot || null}
+                editable={editable && selectedTag == "latest"}
+              />
+            )}
+            {hasNoTags && (
+              <div className="flex align-middle justify-center flex-col h-screen w-full">
+                <h1 className="text-center">This runbook has no published tags</h1>
+              </div>
+            )}
           </ErrorBoundary>
         </div>
       )}

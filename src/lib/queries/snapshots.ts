@@ -16,7 +16,7 @@ export function snapshotsByRunbook(runbookId: string | undefined) {
   });
 }
 
-export function snapshotByRunbookAndTag(runbookId: string | undefined, tag: string | undefined) {
+export function snapshotByRunbookAndTag(runbookId: string | undefined, tag?: string | null) {
   return queryOptions({
     ...localQuery,
     queryKey: ["snapshot", runbookId, tag],

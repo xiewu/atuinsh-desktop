@@ -11,8 +11,8 @@ type TopbarProps = {
   runbook: Runbook;
   remoteRunbook?: RemoteRunbook;
   refreshRemoteRunbook: () => void;
-  tags: string[];
-  currentTag: string;
+  tags: Array<{ text: string; value: string }>;
+  currentTag: string | null;
   showTagMenu: boolean;
   canEditTags: boolean;
   canInviteCollaborators: boolean;
@@ -35,9 +35,6 @@ export default function Topbar(props: TopbarProps) {
     name = runbook.name;
   }
 
-  let tags = [{ value: "latest", text: "(no tag)" }];
-  tags = tags.concat(props.tags.map((tag) => ({ value: tag, text: tag })));
-
   function onSelectTag(tag: string) {
     props.onSelectTag(tag);
   }
@@ -57,18 +54,20 @@ export default function Topbar(props: TopbarProps) {
               />
             )}
             {name}
-            <TagSelector
-              runbookId={runbook.id}
-              isOpen={props.showTagMenu}
-              onTrigger={props.onOpenTagMenu}
-              onClose={props.onCloseTagMenu}
-              tags={tags}
-              currentTag={props.currentTag}
-              canEditTags={props.canEditTags}
-              onSelectTag={onSelectTag}
-              onCreateTag={props.onCreateTag}
-            />
-            {props.currentTag !== "latest" && (
+            {(props.tags.length > 0 || props.canEditTags) && (
+              <TagSelector
+                runbookId={runbook.id}
+                isOpen={props.showTagMenu}
+                onTrigger={props.onOpenTagMenu}
+                onClose={props.onCloseTagMenu}
+                tags={props.tags}
+                currentTag={props.currentTag}
+                canEditTags={props.canEditTags}
+                onSelectTag={onSelectTag}
+                onCreateTag={props.onCreateTag}
+              />
+            )}
+            {props.currentTag && props.currentTag !== "latest" && (
               <Tooltip
                 content="This runbook is in read-only mode because you are viewing a tag"
                 placement="bottom"

@@ -17,6 +17,7 @@ import { create, StateCreator } from "zustand";
 import { persist, subscribeWithSelector } from "zustand/middleware";
 import Logger from "@/lib/logger";
 import { User } from "./models";
+import AtuinEnv from "@/atuin_env";
 const logger = new Logger("AtuinStore", "purple", "pink");
 
 // To add a new state slice to the store:
@@ -62,7 +63,7 @@ export type AtuinState = AtuinPtyState &
 const middleware = (f: StateCreator<AtuinState>) =>
   subscribeWithSelector(
     persist(f, {
-      name: "atuin-storage",
+      name: AtuinEnv.stateStorageName,
       version: 1,
 
       // don't serialize the terminals map

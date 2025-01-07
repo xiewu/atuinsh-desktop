@@ -1,7 +1,7 @@
-import Database from "@tauri-apps/plugin-sql";
 import { KVStore } from "../kv";
 import { uuidv7 } from "uuidv7";
 import Runbook from "./runbook";
+import AtuinDB from "../atuin_db";
 
 class WorkspaceMeta {
   totalRunbooks: number;
@@ -13,7 +13,7 @@ class WorkspaceMeta {
   static async load(workspace_id: string): Promise<WorkspaceMeta> {
     // Load the meta for the workspace.
     // This is a separate class to keep the workspace class clean.
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
 
     let runbookCount = await db.select<any[]>(
       "select count(*) as count from runbooks where workspace_id = ?",
@@ -54,7 +54,7 @@ export default class Workspace {
     let id = uuidv7();
     let workspace = new Workspace(id, name, new Date(), new Date());
 
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
     await db.execute("insert into workspaces (id, name, created, updated) VALUES (?, ?, ?, ?)", [
       workspace.id,
       workspace.name,
@@ -66,7 +66,7 @@ export default class Workspace {
   }
 
   async delete() {
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
 
     // First, delete all runbooks belonging to this workspace.
     let runbooks = await this.runbooks();
@@ -79,7 +79,7 @@ export default class Workspace {
   }
 
   static async findById(id: string): Promise<Workspace | null> {
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
 
     let row = await db.select<any[]>("select * from workspaces where id = ?", [id]);
     if (row == null) {
@@ -113,7 +113,7 @@ export default class Workspace {
   }
 
   static async all(): Promise<Workspace[]> {
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
     let rows = await db.select<any[]>("select * from workspaces");
 
     return rows.map((row) => {
@@ -124,7 +124,7 @@ export default class Workspace {
   }
 
   static async count(): Promise<number> {
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
     let res = await db.select<any[]>("select count(1) as count from workspaces");
 
     return res[0]["count"];
@@ -138,7 +138,7 @@ export default class Workspace {
   async rename(name: string) {
     this.name = name;
 
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
     await db.execute("update workspaces set name = ?, updated = ? where id = ?", [
       this.name,
       new Date(),
@@ -147,7 +147,7 @@ export default class Workspace {
   }
 
   async runbooks(): Promise<Runbook[]> {
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
     let rows = await db.select<any[]>(
       "select * from runbooks where workspace_id = ? order by updated desc",
       [this.id],
@@ -160,7 +160,7 @@ export default class Workspace {
   async setWatchDir(dir: string) {
     this.watchDir = dir;
 
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
     await db.execute("update workspaces set watch_dir = ? where id = ?", [this.watchDir, this.id]);
   }
 }

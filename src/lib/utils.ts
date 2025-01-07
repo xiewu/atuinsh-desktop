@@ -1,3 +1,4 @@
+import AtuinEnv from "@/atuin_env";
 import { invoke } from "@tauri-apps/api/core";
 import type { ClassValue } from "clsx";
 
@@ -170,4 +171,8 @@ export function timeoutPromise<T>(ms: number, resolveValue: T) {
   return new Promise<T>((resolve) => {
     setTimeout(() => resolve(resolveValue), ms);
   });
+}
+
+export function dbPath(filename: string) {
+  return `${AtuinEnv.sqliteDirPrefix}${filename}`;
 }

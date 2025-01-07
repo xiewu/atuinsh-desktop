@@ -1,11 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
-import Database from "@tauri-apps/plugin-sql";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { uuidv7 } from "uuidv7";
 import Workspace from "./workspace";
 import Logger from "@/lib/logger";
 import Snapshot from "./snapshot";
 import { atuinToBlocknote, blocknoteToAtuin } from "./convert";
+import { dbPath } from "@/lib/utils";
+import AtuinDB from "../atuin_db";
 const logger = new Logger("Runbook", "green", "green");
 
 // Definition of an atrb file
@@ -126,7 +127,7 @@ export default class Runbook {
   }
 
   public static async count(): Promise<number> {
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
     let res = await db.select<any[]>("select count(1) as count from runbooks");
 
     return res[0]["count"];
@@ -205,7 +206,7 @@ export default class Runbook {
   }
 
   public static async load(id: String): Promise<Runbook | null> {
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
 
     let res = await logger.time(`Selecting runbook with ID ${id}`, async () =>
       db.select<any[]>(
@@ -253,7 +254,7 @@ export default class Runbook {
   }
 
   static async allInAllWorkspaces(): Promise<Runbook[]> {
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
 
     let runbooks = await logger.time("Selecting all runbooks", async () => {
       let res = await db.select<any[]>(
@@ -268,7 +269,7 @@ export default class Runbook {
   }
 
   static async allIdsInAllWorkspaces(): Promise<string[]> {
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
     return logger.time("Selecting all runbook IDs", async () => {
       const rows = await db.select<{ id: string }[]>("select id from runbooks order by id desc");
       return rows.map((row) => row.id);
@@ -279,7 +280,7 @@ export default class Runbook {
   // Reduces the chance of accidents
   // If we ever need to fetch all runbooks for all workspaces, name it allInAllWorkspace or something
   static async all(workspace: Workspace): Promise<Runbook[]> {
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
 
     let runbooks = await logger.time(
       `Selecting all runbooks for workspace ${workspace.id}`,
@@ -311,7 +312,7 @@ export default class Runbook {
   }
 
   public async save() {
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
 
     logger.time(`Saving runbook ${this.id}`, async () => {
       await db.execute(
@@ -364,7 +365,7 @@ export default class Runbook {
       async () => {
         return await invoke("load_ydoc_for_runbook", {
           runbookId: id,
-          dbPath: "runbooks.db",
+          dbPath: dbPath("runbooks.db"),
         });
       },
     );
@@ -378,7 +379,7 @@ export default class Runbook {
         await invoke("save_ydoc_for_runbook", update, {
           headers: {
             id: id,
-            db: "runbooks.db",
+            db: dbPath("runbooks.db"),
           },
         });
       });
@@ -410,7 +411,7 @@ export default class Runbook {
   }
 
   public static async delete(id: string) {
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
 
     const p1 = db.execute("delete from runbooks where id=$1", [id]);
     const p2 = Snapshot.deleteForRunbook(id);

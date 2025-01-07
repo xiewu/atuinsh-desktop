@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { getRunbookID, HttpResponseError } from "@/api/api";
 import Runbook from "@/state/runbooks/runbook";
 import { useQuery } from "@tanstack/react-query";
+import AtuinEnv from "@/atuin_env";
 
 export default function useRemoteRunbook(runbook?: Runbook) {
   const query = useQuery({
@@ -12,8 +13,16 @@ export default function useRemoteRunbook(runbook?: Runbook) {
           const rb = await getRunbookID(runbook.id);
           return rb;
         } catch (err: any) {
-          if (err instanceof HttpResponseError && err.code === 404) return null;
-          else throw err;
+          if (
+            err instanceof HttpResponseError &&
+            err.code === 404 &&
+            // Only clear out the cache on 404 if the runbook is from our environment
+            runbook.source === AtuinEnv.hubRunbookSource
+          ) {
+            return null;
+          } else {
+            throw err;
+          }
         }
       } else {
         throw new Error("no runbook ID specified");

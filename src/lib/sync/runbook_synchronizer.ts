@@ -13,6 +13,11 @@ function usernameFromNwo(nwo: string = "") {
   return nwo.split("/")[0];
 }
 
+export type SyncResult = {
+  runbookId: string;
+  action: "created" | "updated" | "deleted" | "nothing";
+};
+
 /**
  * Handles synchronization of a single runbook based on its ID.
  * The runbook doesn't not need to exist locally, it can exist only on the server.
@@ -35,7 +40,7 @@ export default class RunbookSynchronizer {
     this.logger = new Logger(`RunbookSynchronizer ${runbookId}`, "#ff33cc", "#ff6677");
   }
 
-  public sync(attemptYjsSync: boolean = false) {
+  public sync(attemptYjsSync: boolean = false): Promise<SyncResult> {
     this.logger.debug("Acquiring sync lock...");
     const mutex = SyncManager.syncMutex(this.runbookId);
     return mutex.runExclusive(async () => {
@@ -46,8 +51,8 @@ export default class RunbookSynchronizer {
     });
   }
 
-  private doSync(attemptYjsSync: boolean = false) {
-    return new Promise<Runbook | null>(async (resolve, reject) => {
+  private doSync(attemptYjsSync: boolean = false): Promise<SyncResult> {
+    return new Promise(async (resolve, reject) => {
       this.isSyncing = true;
       this.resolve = resolve;
       this.reject = reject;
@@ -72,9 +77,11 @@ export default class RunbookSynchronizer {
             const shouldDelete = isHubRunbook && createdBySomeoneElse;
             if (shouldDelete) {
               await Runbook.delete(runbook.id);
+              this.resolve({ runbookId: this.runbookId, action: "deleted" });
+            } else {
+              this.resolve({ runbookId: this.runbookId, action: "nothing" });
             }
           }
-          this.resolve(null);
           return;
         } else {
           this.reject(err);
@@ -82,7 +89,9 @@ export default class RunbookSynchronizer {
         }
       }
 
+      let created = false;
       if (!runbook) {
+        created = true;
         // Create local runbook from remote runbook
         runbook = await Runbook.create(undefined, false);
         runbook.id = remoteRunbook.id;
@@ -149,7 +158,7 @@ export default class RunbookSynchronizer {
         if (syncType !== "online") {
           this.logger.error("Failed to sync YJS document");
         } else {
-          this.logger.debug("Sync completed with type:", syncType);
+          this.logger.debug("YJS sync completed with type:", syncType);
           const blocks = await ydocToBlocknote(doc);
           runbook.content = JSON.stringify(blocks);
         }
@@ -159,7 +168,7 @@ export default class RunbookSynchronizer {
 
       if (!this.isSyncing) return;
       await runbook.save();
-      this.resolve(runbook);
+      this.resolve({ runbookId: this.runbookId, action: created ? "created" : "updated" });
     });
   }
 

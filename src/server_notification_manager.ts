@@ -12,6 +12,9 @@ type ServerNotification = {
  *
  * @emits `"runbook_updated", runbookId`
  * @emits `"runbook_deleted", runbookId`
+ * @emits `"collab_invited", collabId`
+ * @emits `"collab_accepted", collabId`
+ * @emits `"collab_deleted", collabId`
  */
 export default class ServerNotificationManager extends Emittery {
   static instance: ServerNotificationManager;
@@ -48,6 +51,15 @@ export default class ServerNotificationManager extends Emittery {
     });
     this.channel.on("runbook_deleted", (params: ServerNotification) => {
       this.emit("runbook_deleted", params.id);
+    });
+    this.channel.on("collab_invited", (params: ServerNotification) => {
+      this.emit("collab_invited", params.id);
+    });
+    this.channel.on("collab_accepted", (params: ServerNotification) => {
+      this.emit("collab_accepted", params.id);
+    });
+    this.channel.on("collab_deleted", (params: ServerNotification) => {
+      this.emit("collab_deleted", params.id);
     });
   }
 

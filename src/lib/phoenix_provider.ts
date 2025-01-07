@@ -27,6 +27,7 @@ export class PhoenixSynchronizer extends Emittery {
   protected readonly awareness: awarenessProtocol.Awareness;
   protected logger: Logger;
   protected isShutdown: boolean = false;
+  protected unlock: Function | null = null;
 
   constructor(runbookId: string, doc: Y.Doc, requireLock: boolean = true) {
     super();
@@ -96,10 +97,9 @@ export class PhoenixSynchronizer extends Emittery {
   }
 
   async resync() {
-    let unlock = () => {};
     if (this.requireLock) {
       this.logger.debug("Acquiring sync lock...");
-      unlock = await SyncManager.syncMutex(this.runbookId).lock();
+      this.unlock = await SyncManager.syncMutex(this.runbookId).lock();
     }
     this.logger.info("Starting resync");
 
@@ -117,7 +117,10 @@ export class PhoenixSynchronizer extends Emittery {
       this.logger.error("Failed to resync", err);
       this.emit("synced", "error");
     } finally {
-      unlock();
+      if (this.unlock) {
+        this.unlock();
+        this.unlock = null;
+      }
     }
   }
 
@@ -143,6 +146,9 @@ export class PhoenixSynchronizer extends Emittery {
   }
 
   shutdown() {
+    if (this.unlock) {
+      this.unlock();
+    }
     this.isShutdown = true;
     this.logger.debug("Shutting down");
     // disconnect from the server

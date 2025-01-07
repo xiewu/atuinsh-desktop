@@ -8,7 +8,7 @@
   },
 };
 
-import React from "react";
+import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { createHashRouter, RouterProvider } from "react-router-dom";
 import { NextUIProvider } from "@nextui-org/react";
@@ -20,7 +20,7 @@ import Home from "@/routes/home/Home";
 import Runbooks from "@/routes/runbooks/Runbooks";
 import History from "@/routes/history/History";
 import { init_tracking } from "./tracking";
-import { getHubApiToken } from "./api/api";
+import * as api from "./api/api";
 import SocketManager from "./socket";
 import SyncManager from "./lib/sync/sync_manager";
 import { useStore } from "@/state/store";
@@ -29,7 +29,7 @@ import { trackOnlineStatus } from "./lib/online_tracker";
 
 (async () => {
   try {
-    const token = await getHubApiToken();
+    const token = await api.getHubApiToken();
     SocketManager.setApiToken(token);
   } catch (_err) {
     console.warn("Not able to fetch Hub API token for socket manager");
@@ -60,8 +60,32 @@ notificationManager.on("runbook_updated", (runbookId: string) => {
 });
 
 notificationManager.on("runbook_deleted", (runbookId: string) => {
-  syncManager.runbookDeleted(runbookId);
+  syncManager.runbookUpdated(runbookId);
   queryClient.invalidateQueries({ queryKey: ["remote_runbook", runbookId] });
+});
+
+notificationManager.on("collab_invited", async (collabId: string) => {
+  try {
+    const collab = await api.getCollaborationById(collabId);
+    useStore.getState().addCollaboration(collab);
+  } catch (err) {}
+});
+
+notificationManager.on("collab_accepted", async (collabId: string) => {
+  useStore.getState().markCollaborationAccepted(collabId);
+  try {
+    const collab = await api.getCollaborationById(collabId);
+    syncManager.runbookUpdated(collab.runbook.id);
+  } catch (err) {}
+});
+
+notificationManager.on("collab_deleted", (collabId: string) => {
+  const { collaborations, removeCollaboration } = useStore.getState();
+  const collaboration = collaborations.find((c) => c.id === collabId);
+  if (collaboration) {
+    syncManager.runbookUpdated(collaboration.runbook.id);
+  }
+  removeCollaboration(collabId);
 });
 
 trackOnlineStatus();
@@ -92,19 +116,45 @@ const router = createHashRouter([
   },
 ]);
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    <NextUIProvider>
-      <QueryClientProvider client={queryClient}>
-        <main className="text-foreground bg-background">
-          <div data-tauri-drag-region className="w-full min-h-8 z-10 border-b-1" />
+function Application() {
+  const { refreshUser, refreshCollaborations, online, user } = useStore();
 
-          <div className="z-20 ">
-            <RouterProvider router={router} />
-          </div>
-        </main>
-      </QueryClientProvider>
-    </NextUIProvider>
-    <div id="portal" />
-  </React.StrictMode>,
-);
+  // Initial setup to be run no matter which route we're on
+  useEffect(() => {
+    (async () => {
+      //
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (online) {
+      refreshUser();
+      refreshCollaborations();
+    }
+  }, [online]);
+
+  useEffect(() => {
+    if (user) {
+      refreshCollaborations();
+    }
+  }, [user]);
+
+  return (
+    <React.StrictMode>
+      <NextUIProvider>
+        <QueryClientProvider client={queryClient}>
+          <main className="text-foreground bg-background">
+            <div data-tauri-drag-region className="w-full min-h-8 z-10 border-b-1" />
+
+            <div className="z-20 ">
+              <RouterProvider router={router} />
+            </div>
+          </main>
+        </QueryClientProvider>
+      </NextUIProvider>
+      <div id="portal" />
+    </React.StrictMode>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")!).render(<Application />);

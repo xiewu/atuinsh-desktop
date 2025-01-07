@@ -50,7 +50,7 @@ const DesktopConnect = () => {
             </Card>
 
             <div className="flex justify-end gap-2">
-              <Button variant="flat" color="danger" onClick={cancel}>
+              <Button variant="flat" color="default" onClick={cancel}>
                 Cancel
               </Button>
 

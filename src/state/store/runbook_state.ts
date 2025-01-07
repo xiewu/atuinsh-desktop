@@ -19,6 +19,7 @@ export interface AtuinRunbookState {
   newRunbook: () => Promise<Runbook>;
   importRunbook: () => Promise<Runbook[] | null>;
   refreshRunbooks: () => Promise<void>;
+  deleteRunbookFromCache: (runbookId: string) => void;
 
   setCurrentRunbookId: (id: string | null) => void;
   selectTag: (runbookId: string, tag: string | null) => void;
@@ -103,6 +104,13 @@ export const createRunbookState: StateCreator<AtuinRunbookState> = (
     index.bulkAddRunbooks(runbooks);
 
     set({ runbooks, runbookIndex: index });
+  },
+
+  deleteRunbookFromCache: (runbookId: string) => {
+    const { runbooks, currentRunbookId } = get();
+    const newRunbookId = currentRunbookId === runbookId ? null : currentRunbookId;
+    const newRunbooks = runbooks.filter((rb) => rb.id !== runbookId);
+    set({ runbooks: newRunbooks, currentRunbookId: newRunbookId });
   },
 
   setCurrentRunbookId: async (id: string | null) => {

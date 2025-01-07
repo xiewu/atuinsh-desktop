@@ -10,6 +10,7 @@ import * as api from "@/api/api";
 
 type Store = typeof useStore;
 
+const SYNC_CHECK_INTERVAL = 10_000;
 const NORMAL_SYNC_INTERVAL_SECS = 5 * 60;
 const EARLY_SYNC_INTERVAL_SECS = 30;
 
@@ -56,12 +57,16 @@ export default class SyncManager {
         fireImmediately: true,
       }),
     );
+  }
 
-    setInterval(() => {
-      if (this.shouldSync()) {
-        this.startSync();
-      }
-    }, 10_000);
+  @autobind
+  private async periodicSyncCheck() {
+    if (this.shouldSync()) {
+      // startSync() responsible for rescheduling
+      await this.startSync();
+    } else {
+      setTimeout(this.periodicSyncCheck, SYNC_CHECK_INTERVAL);
+    }
   }
 
   public static syncMutex(runbookId: string) {
@@ -92,12 +97,6 @@ export default class SyncManager {
     }
   }
 
-  public runbookDeleted(runbookId: string) {
-    if (this.syncSet?.isWorking()) {
-      this.syncSet.removeRunbook(runbookId);
-    }
-  }
-
   private async getRunbookIdsToSync() {
     const priorityIds = Array.from(this.priorityRunbookIds);
     const serverIds: string[] = await api.allRunbookIds();
@@ -116,6 +115,12 @@ export default class SyncManager {
     const ids = await this.getRunbookIdsToSync();
     this.priorityRunbookIds.clear();
     this.syncSet = new SyncSet(ids, this.currentUser);
+    this.syncSet.on("deleted", (runbookId: string) => {
+      this.store.getState().deleteRunbookFromCache(runbookId);
+    });
+    this.syncSet.on("created", () => {
+      this.store.getState().refreshRunbooks();
+    });
     this.syncSet.setCurrentRunbookId(this.currentRunbookId);
     try {
       this.store.getState().setIsSyncing(true);
@@ -124,10 +129,14 @@ export default class SyncManager {
       this.lastSync = DateTime.now();
     } catch (err: any) {
       this.logger.error(`Synchronizer threw an error: ${err}`);
+    } finally {
+      this.syncSet.clearListeners();
+      this.store.getState().setIsSyncing(false);
+      this.store.getState().refreshRunbooks();
+      this.syncSet = null;
+
+      setTimeout(this.periodicSyncCheck, SYNC_CHECK_INTERVAL);
     }
-    this.store.getState().setIsSyncing(false);
-    this.store.getState().refreshRunbooks();
-    this.syncSet = null;
   }
 
   private shouldSync(): boolean {

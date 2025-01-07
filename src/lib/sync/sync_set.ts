@@ -1,11 +1,12 @@
 import { User } from "@/state/models";
 import Logger from "../logger";
 import RunbookSynchronizer from "./runbook_synchronizer";
+import Emittery from "emittery";
 
 /**
  * Handles one synchronization pass for a set of runbook IDs.
  */
-export default class SyncSet {
+export default class SyncSet extends Emittery {
   private readonly logger: Logger = new Logger("Synchronizer", "#ff33cc", "#ff6677");
   private runbookIds: Set<string>;
   private currentRunbookId: string | null = null;
@@ -20,6 +21,7 @@ export default class SyncSet {
   private doneReject!: Function;
 
   constructor(runbookIds: Set<string>, currentUser: User) {
+    super();
     this.runbookIds = runbookIds;
     this.currentUser = currentUser;
     this.donePromise = new Promise((resolve, reject) => {
@@ -74,7 +76,8 @@ export default class SyncSet {
         }
 
         try {
-          await this.currentSync.sync(doYjsSync);
+          const result = await this.currentSync.sync(doYjsSync);
+          this.emit(result.action, result.runbookId);
         } catch (err: any) {
           this.logger.error(`Failed to sync runbook ${id}: ${err.message}`);
         }

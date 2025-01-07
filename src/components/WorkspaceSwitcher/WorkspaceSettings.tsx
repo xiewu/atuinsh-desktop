@@ -77,16 +77,16 @@ Are you sure you want to delete the workspace "${workspace.name}"?
               />
 
               <h2 className="text-xl font-semibold">Danger</h2>
-              <Button color="danger" variant='flat' onPress={handleDelete}>
+              <Button color="danger" variant="flat" onPress={handleDelete}>
                 Delete workspace
               </Button>
             </ModalBody>
 
             <ModalFooter>
-              <Button color="primary" variant="flat" onPress={onClose}>
+              <Button color="default" variant="flat" onPress={onClose}>
                 Cancel
               </Button>
-              <Button color="success" variant='flat' onPress={handleSave}>
+              <Button color="success" variant="flat" onPress={handleSave}>
                 Save Changes
               </Button>
             </ModalFooter>

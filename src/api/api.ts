@@ -287,3 +287,32 @@ export function createSnapshot(snapshot: Snapshot) {
   };
   return post(`/runbooks/${snapshot.runbook_id}/snapshots`, args);
 }
+
+export interface RemoteCollaboration {
+  id: string;
+  accepted: boolean;
+  runbook: {
+    id: string;
+    owner: string;
+    slug: string;
+    name: string;
+  };
+}
+
+interface CollaborationsIndexResponse {
+  accepted: RemoteCollaboration[];
+  pending: RemoteCollaboration[];
+}
+
+interface CollaborationResponse {
+  collaboration: RemoteCollaboration;
+}
+
+export function getCollaborations(): Promise<CollaborationsIndexResponse> {
+  return get("/collaborations");
+}
+
+export async function getCollaborationById(id: string): Promise<RemoteCollaboration> {
+  const { collaboration } = await get<CollaborationResponse>(`/collaborations/${id}`);
+  return collaboration;
+}

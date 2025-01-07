@@ -7,6 +7,11 @@ import {
   persistShellInfoKeys,
   AtuinShellInfoState,
 } from "./store/shell_info_state";
+import {
+  AtuinCollaborationState,
+  createCollaborationState,
+  persistCollaborationKeys,
+} from "./store/collaboration_state";
 
 import { create, StateCreator } from "zustand";
 import { persist, subscribeWithSelector } from "zustand/middleware";
@@ -44,13 +49,15 @@ const persistKeys = [
   persistUiKeys,
   persistUserKeys,
   persistShellInfoKeys,
+  persistCollaborationKeys,
 ].flat();
 
 export type AtuinState = AtuinPtyState &
   AtuinRunbookState &
   AtuinUiState &
   AtuinUserState &
-  AtuinShellInfoState;
+  AtuinShellInfoState &
+  AtuinCollaborationState;
 
 const middleware = (f: StateCreator<AtuinState>) =>
   subscribeWithSelector(
@@ -107,6 +114,7 @@ export const useStore = create<AtuinState>()(
     ...createUiState(...a),
     ...createUserState(...a),
     ...createShellInfoState(...a),
+    ...createCollaborationState(...a),
   })),
 );
 

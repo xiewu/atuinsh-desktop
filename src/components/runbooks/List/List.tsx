@@ -29,6 +29,7 @@ import MoveToRunbookDropdown from "./MoveToRunbookDropdown";
 import ExportAsRunbookDropdown from "./ExportAsRunbookDropdown";
 import { useCurrentRunbook } from "@/lib/useRunbook";
 import SyncManager from "@/lib/sync/sync_manager";
+import { PendingInvitations } from "./PendingInvitations";
 
 const NoteSidebar = () => {
   const runbooks = useStore((state: AtuinState) => state.runbooks);
@@ -99,6 +100,7 @@ const NoteSidebar = () => {
 
   return (
     <div className="!w-64 !max-w-64 !min-w-64 h-full bg-gray-50 border-r border-gray-200 flex flex-col select-none">
+      <PendingInvitations />
       <div className="p-2 flex justify-between items-center border-b border-gray-200">
         <h2 className="text-lg font-semibold">Runbooks</h2>
         <div className="flex space-x-1">

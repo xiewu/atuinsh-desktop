@@ -8,7 +8,7 @@ export class Settings {
   public static async runbookPrometheusUrl(val: string | null = null): Promise<string> {
     let store = await KVStore.open_default();
 
-    if (val) {
+    if (val || val === "") {
       await store.set(PROMETHEUS_URL_KEY, val);
       return val;
     }
@@ -19,7 +19,7 @@ export class Settings {
   public static async terminalFont(val: string | null = null): Promise<string | null> {
     let store = await KVStore.open_default();
 
-    if (val) {
+    if (val || val === "") {
       await store.set(TERMINAL_FONT, val);
       return val;
     }

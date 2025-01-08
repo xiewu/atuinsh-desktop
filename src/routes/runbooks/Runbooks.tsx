@@ -7,7 +7,6 @@ import { useStore } from "@/state/store";
 import { save } from "@tauri-apps/plugin-dialog";
 import Snapshot from "@/state/runbooks/snapshot";
 import { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
 import { useMemory } from "@/lib/utils";
 import { useCurrentRunbook } from "@/lib/useRunbook";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -27,9 +26,7 @@ function useMarkRunbookRead(runbook: Runbook | null, refreshRunbooks: () => void
 }
 
 export default function Runbooks() {
-  const refreshUser = useStore((store) => store.refreshUser);
   const refreshRunbooks = useStore((store) => store.refreshRunbooks);
-  const newRunbook = useStore((store) => store.newRunbook);
   const getLastTagForRunbook = useStore((store) => store.getLastTagForRunbook);
   const setLastTagForRunbook = useStore((store) => store.selectTag);
   const currentRunbook = useCurrentRunbook();
@@ -49,7 +46,6 @@ export default function Runbooks() {
   const unlistenPtyBackend = usePtyStore((state) => state.unlistenBackend);
 
   const queryClient = useQueryClient();
-  const location = useLocation();
 
   const [remoteRunbook, refreshRemoteRunbook] = useRemoteRunbook(currentRunbook || undefined);
   const { data: currentSnapshot } = useQuery(
@@ -136,20 +132,8 @@ export default function Runbooks() {
   });
 
   useEffect(() => {
-    (async () => {
-      await listenPtyBackend();
-      await refreshUser();
-
-      if (location.state?.createNew) {
-        window.getSelection()?.removeAllRanges();
-
-        await newRunbook();
-      }
-    })();
-
-    return () => {
-      unlistenPtyBackend();
-    };
+    listenPtyBackend();
+    return unlistenPtyBackend;
   }, []);
 
   function handleSelectTag(tag: string | null) {

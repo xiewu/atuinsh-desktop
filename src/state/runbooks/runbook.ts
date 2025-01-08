@@ -1,12 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { uuidv7 } from "uuidv7";
-import Workspace from "./workspace";
 import Logger from "@/lib/logger";
 import Snapshot from "./snapshot";
 import { atuinToBlocknote, blocknoteToAtuin } from "./convert";
 import { dbPath } from "@/lib/utils";
 import AtuinDB from "../atuin_db";
+import untitledRunbook from "../runbooks/untitled.json";
 const logger = new Logger("Runbook", "green", "green");
 
 // Definition of an atrb file
@@ -96,12 +96,12 @@ export default class Runbook {
   }
 
   /// Create a new Runbook, and automatically generate an ID.
-  public static async create(workspace?: Workspace, persist: boolean = true): Promise<Runbook> {
+  public static async create(workspaceId: string, persist: boolean = true): Promise<Runbook> {
     let now = new Date();
 
-    if (workspace === undefined || workspace === null) {
-      workspace = await Workspace.current();
-    }
+    // if (workspace === undefined || workspace === null) {
+    //   workspace = await Workspace.current();
+    // }
 
     // Initialize with the same value for created/updated, to avoid needing null.
     let runbook = new Runbook({
@@ -113,7 +113,7 @@ export default class Runbook {
       ydoc: null,
       created: now,
       updated: now,
-      workspaceId: workspace.id,
+      workspaceId: workspaceId,
       forkedFrom: null,
       remoteInfo: null,
       viewed_at: null,
@@ -122,6 +122,15 @@ export default class Runbook {
     if (persist) {
       await runbook.save();
     }
+
+    return runbook;
+  }
+
+  public static async createUntitled(workspaceId: string) {
+    let runbook = await Runbook.create(workspaceId);
+    runbook.name = "Untitled";
+    runbook.content = JSON.stringify(untitledRunbook);
+    runbook.save();
 
     return runbook;
   }
@@ -167,12 +176,8 @@ export default class Runbook {
     source: RunbookSource,
     sourceInfo: string | null,
     remoteInfo: string | null,
-    workspace?: Workspace,
+    workspaceId: string,
   ): Promise<Runbook> {
-    if (workspace === undefined || workspace === null) {
-      workspace = await Workspace.current();
-    }
-
     let content = typeof obj.content === "object" ? obj.content : JSON.parse(obj.content);
     let mappedContent = atuinToBlocknote(content);
 
@@ -185,7 +190,7 @@ export default class Runbook {
       ydoc: null,
       created: new Date(obj.created),
       updated: new Date(),
-      workspaceId: workspace.id,
+      workspaceId: workspaceId,
       forkedFrom: null,
       remoteInfo: remoteInfo,
       viewed_at: null,
@@ -196,13 +201,13 @@ export default class Runbook {
     return runbook;
   }
 
-  public static async importFile(filePath: string) {
+  public static async importFile(filePath: string, workspaceId: string) {
     // For some reason, we're getting an ArrayBuffer here? Supposedly it should be passing a string.
     // But it's not.
     let file = await readTextFile(filePath);
     var enc = new TextDecoder("utf-8");
 
-    return Runbook.importJSON(JSON.parse(enc.decode(file as any)), "file", null, null);
+    return Runbook.importJSON(JSON.parse(enc.decode(file as any)), "file", null, null, workspaceId);
   }
 
   public static async load(id: String): Promise<Runbook | null> {
@@ -279,34 +284,37 @@ export default class Runbook {
   // Default to scoping by workspace
   // Reduces the chance of accidents
   // If we ever need to fetch all runbooks for all workspaces, name it allInAllWorkspace or something
-  static async all(workspace: Workspace): Promise<Runbook[]> {
+  static async all(workspaceId: string): Promise<Runbook[]> {
     const db = await AtuinDB.load("runbooks");
 
     let runbooks = await logger.time(
-      `Selecting all runbooks for workspace ${workspace.id}`,
+      `Selecting all runbooks for workspace ${workspaceId}`,
       async () => {
         let res = await db.select<any[]>(
           "select id, name, source, source_info, created, updated, workspace_id, forked_from, remote_info, viewed_at from runbooks " +
             "where workspace_id = $1 or workspace_id is null order by updated desc",
-          [workspace.id],
+          [workspaceId],
         );
 
         return res.map(Runbook.fromRow);
       },
     );
 
-    let currentWorkspace = await Workspace.current();
+    return runbooks;
+  }
 
-    // Handle migrations
-    for (let rb of runbooks) {
-      // Workspaces didn't exist to start with,
-      // so for some users could be null
-      if (rb.workspaceId === null || rb.workspaceId === undefined) {
-        rb.workspaceId = currentWorkspace.id;
+  static async withNullWorkspaces(): Promise<Runbook[]> {
+    const db = await AtuinDB.load("runbooks");
 
-        await rb.save();
-      }
-    }
+    let runbooks = await logger.time(`Selecting all runbooks with a null workspace`, async () => {
+      let res = await db.select<Runbook[]>(
+        "select id, name, source, source_info, created, updated, workspace_id, forked_from, remote_info, viewed_at from runbooks " +
+          "where workspace_id is null or workspace_id = '' order by updated desc",
+        [],
+      );
+
+      return res.map(Runbook.fromRow);
+    });
 
     return runbooks;
   }
@@ -388,8 +396,8 @@ export default class Runbook {
     }
   }
 
-  public async moveTo(workspace: Workspace) {
-    this.workspaceId = workspace.id;
+  public async moveTo(workspaceId: string) {
+    this.workspaceId = workspaceId;
     await this.save();
   }
 

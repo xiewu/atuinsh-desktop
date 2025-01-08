@@ -20,9 +20,8 @@ import { DateTime } from "luxon";
 import Runbook from "@/state/runbooks/runbook";
 import { AtuinState, useStore } from "@/state/store";
 import { ptyForRunbook, PtyMetadata, usePtyStore } from "@/state/ptyStore";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import welcome from "./welcome.json";
 import track_event from "@/tracking";
 import { cn } from "@/lib/utils";
 import MoveToRunbookDropdown from "./MoveToRunbookDropdown";
@@ -31,18 +30,19 @@ import { useCurrentRunbook } from "@/lib/useRunbook";
 import SyncManager from "@/lib/sync/sync_manager";
 import { PendingInvitations } from "./PendingInvitations";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { runbooksByWorkspaceId } from "@/lib/queries/runbooks";
 
 const NoteSidebar = () => {
-  const runbooks = useStore((state: AtuinState) => state.runbooks);
   const refreshRunbooks = useStore((state: AtuinState) => state.refreshRunbooks);
   const importRunbook = useStore((state: AtuinState) => state.importRunbook);
-  const newRunbook = useStore((state: AtuinState) => state.newRunbook);
   const isSyncing = useStore((state: AtuinState) => state.isSyncing);
   const [isSearchOpen, setSearchOpen] = useStore((store: AtuinState) => [
     store.searchOpen,
     store.setSearchOpen,
   ]);
   const currentRunbook = useCurrentRunbook();
+  const currentWorkspaceId = useStore((state: AtuinState) => state.currentWorkspaceId);
 
   const setCurrentRunbookId = useStore((state: AtuinState) => state.setCurrentRunbookId);
   const ptys: { [pid: string]: PtyMetadata } = usePtyStore((state) => state.ptys);
@@ -52,28 +52,13 @@ const NoteSidebar = () => {
 
   const location = useLocation();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    refreshRunbooks();
-
-    (async () => {
-      if ((await Runbook.count()) === 0) {
-        let runbook = await Runbook.create();
-
-        runbook.name = "Welcome to Atuin!";
-        runbook.content = JSON.stringify(welcome);
-        runbook.save();
-
-        refreshRunbooks();
-        setCurrentRunbookId(runbook.id);
-      }
-    })();
-  }, []);
+  const queryClient = useQueryClient();
 
   const handleNewRunbook = async () => {
     window.getSelection()?.removeAllRanges();
 
-    newRunbook();
+    await Runbook.createUntitled(currentWorkspaceId);
+    queryClient.invalidateQueries(runbooksByWorkspaceId(currentWorkspaceId));
 
     track_event("runbooks.create", {
       total: await Runbook.count(),
@@ -97,9 +82,11 @@ const NoteSidebar = () => {
     SyncManager.get(useStore).startSync();
   }
 
+  const { data: runbooks } = useQuery(runbooksByWorkspaceId(currentWorkspaceId));
+
   // sort runbooks alphabetically by name
   const sortedRunbooks = useMemo(() => {
-    return runbooks.sort((a, b) => a.name.localeCompare(b.name));
+    return (runbooks || []).sort((a, b) => a.name.localeCompare(b.name));
   }, [runbooks]);
 
   return (

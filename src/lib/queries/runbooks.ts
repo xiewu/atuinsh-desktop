@@ -15,3 +15,25 @@ export function runbookById(id: string | undefined) {
     },
   });
 }
+
+export function runbooksByWorkspaceId(workspaceId: string | undefined) {
+  return queryOptions({
+    ...localQuery,
+    queryKey: ["runbooks", "workspace", workspaceId],
+    queryFn: () => {
+      if (workspaceId) {
+        return Runbook.all(workspaceId);
+      } else {
+        return Promise.resolve([]);
+      }
+    },
+  });
+}
+
+export function allRunbooks() {
+  return queryOptions({
+    ...localQuery,
+    queryKey: ["runbooks", "all"],
+    queryFn: () => Runbook.allInAllWorkspaces(),
+  });
+}

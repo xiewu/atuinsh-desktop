@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import {
   Dropdown,
   DropdownTrigger,
@@ -13,27 +13,24 @@ import { AtuinState, useStore } from "@/state/store";
 import Workspace from "@/state/runbooks/workspace";
 import WorkspaceSettings from "./WorkspaceSettings";
 import track_event from "@/tracking";
+import { allWorkspaces } from "@/lib/queries/workspaces";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const CompactWorkspaceSwitcher = () => {
-  const refreshWorkspaces = useStore((store: AtuinState) => store.refreshWorkspaces);
-  const currentWorkspace = useStore((store: AtuinState) => store.workspace);
-  const workspaces = useStore((store: AtuinState) => store.workspaces);
-  const newWorkspace = useStore((store: AtuinState) => store.newWorkspace);
-  const setCurrentWorkspace = useStore((store: AtuinState) => store.setCurrentWorkspace);
+  const currentWorkspaceId = useStore((store: AtuinState) => store.currentWorkspaceId);
+  const setCurrentWorkspaceId = useStore((store: AtuinState) => store.setCurrentWorkspaceId);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
   // Which workspace to open the settings modal for. We cannot make the modal a child of the
   // DropDownItem, as the dropdown closes as soon as it gains focus. Boooo.
   const settingsModalWorkspaceRef = useRef<Workspace | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      await refreshWorkspaces();
-    })();
-  }, []);
+  const queryClient = useQueryClient();
+  const { data: workspaces } = useQuery(allWorkspaces());
 
   const onNewWorkspace = async () => {
-    await newWorkspace("New Workspace");
+    await Workspace.create("New Workspace");
+    queryClient.invalidateQueries(allWorkspaces());
 
     track_event("workspace.create", {
       total: await Workspace.count(),
@@ -73,8 +70,7 @@ const CompactWorkspaceSwitcher = () => {
                 textValue={workspace.name}
                 className="py-2"
                 onPress={async () => {
-                  await setCurrentWorkspace(workspace);
-
+                  setCurrentWorkspaceId(workspace.id);
                   track_event("workspace.switch", {});
                 }}
                 endContent={
@@ -99,7 +95,7 @@ const CompactWorkspaceSwitcher = () => {
                       {workspace.meta?.totalRunbooks} runbooks
                     </span>
                   </div>
-                  {workspace.id === currentWorkspace?.id && (
+                  {workspace.id === currentWorkspaceId && (
                     <Chip size="sm" color="success" variant="flat" className="ml-auto">
                       Current
                     </Chip>
@@ -112,6 +108,7 @@ const CompactWorkspaceSwitcher = () => {
       </Dropdown>
       <WorkspaceSettings
         workspace={settingsModalWorkspaceRef.current}
+        workspaceCount={workspaces?.length || 0}
         isOpen={isOpen}
         onClose={onOpenChange}
       />

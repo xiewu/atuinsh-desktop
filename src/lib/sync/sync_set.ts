@@ -11,6 +11,7 @@ export default class SyncSet extends Emittery {
   private runbookIds: Set<string>;
   private currentRunbookId: string | null = null;
   private currentUser: User;
+  private workspaceId: string;
 
   private syncQueue: any[] = [];
   private currentSync: RunbookSynchronizer | null = null;
@@ -20,9 +21,10 @@ export default class SyncSet extends Emittery {
   private doneResolve!: Function;
   private doneReject!: Function;
 
-  constructor(runbookIds: Set<string>, currentUser: User) {
+  constructor(runbookIds: Set<string>, workspaceId: string, currentUser: User) {
     super();
     this.runbookIds = runbookIds;
+    this.workspaceId = workspaceId;
     this.currentUser = currentUser;
     this.donePromise = new Promise((resolve, reject) => {
       this.doneResolve = resolve;
@@ -42,7 +44,7 @@ export default class SyncSet extends Emittery {
     const isInQueue = this.syncQueue.some((sync) => sync.runbookId === runbookId);
     if (!isInQueue && this.working) {
       this.runbookIds.add(runbookId);
-      this.syncQueue.push(new RunbookSynchronizer(runbookId, this.currentUser));
+      this.syncQueue.push(new RunbookSynchronizer(runbookId, this.workspaceId, this.currentUser));
     }
   }
 
@@ -52,7 +54,7 @@ export default class SyncSet extends Emittery {
 
   public async start() {
     this.syncQueue = Array.from(this.runbookIds).map(
-      (id) => new RunbookSynchronizer(id, this.currentUser),
+      (id) => new RunbookSynchronizer(id, this.workspaceId, this.currentUser),
     );
     if (this.syncQueue.length === 0) {
       this.logger.debug("No runbooks to sync");

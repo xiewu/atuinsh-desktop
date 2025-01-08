@@ -343,7 +343,7 @@ fn main() {
         ])
         .plugin(
             tauri_plugin_sql::Builder::default()
-                .add_migrations(&migration_path, run::migrations::migrations())
+                .add_migrations(migration_path, run::migrations::migrations())
                 .build(),
         )
         .plugin(tauri_plugin_http::init())

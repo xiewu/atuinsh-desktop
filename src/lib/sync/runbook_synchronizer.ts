@@ -30,12 +30,14 @@ export default class RunbookSynchronizer {
   public readonly runbookId: string;
   public isSyncing: boolean = false;
   private currentUser: User;
+  private workspaceId: string;
   private resolve: Function | null = null;
   private reject: Function | null = null;
   private logger: Logger;
 
-  constructor(runbookId: string, currentUser: User) {
+  constructor(runbookId: string, workspaceId: string, currentUser: User) {
     this.runbookId = runbookId;
+    this.workspaceId = workspaceId;
     this.currentUser = currentUser;
     this.logger = new Logger(`RunbookSynchronizer ${runbookId}`, "#ff33cc", "#ff6677");
   }
@@ -93,7 +95,7 @@ export default class RunbookSynchronizer {
       if (!runbook) {
         created = true;
         // Create local runbook from remote runbook
-        runbook = await Runbook.create(undefined, false);
+        runbook = await Runbook.create(this.workspaceId, false);
         runbook.id = remoteRunbook.id;
         runbook.name = remoteRunbook.name;
         runbook.source = AtuinEnv.hubRunbookSource;

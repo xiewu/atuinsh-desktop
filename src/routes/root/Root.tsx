@@ -28,7 +28,7 @@ import {
 } from "@nextui-org/react";
 import { UnlistenFn } from "@tauri-apps/api/event";
 import { message } from "@tauri-apps/plugin-dialog";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { isAppleDevice } from "@react-aria/utils";
 import CompactWorkspaceSwitcher from "@/components/WorkspaceSwitcher/WorkspaceSwitcher";
 import { useTauriEvent } from "@/lib/tauri";
@@ -41,15 +41,26 @@ import { clearHubApiToken, endpoint } from "@/api/api";
 import SocketManager from "@/socket";
 import AtuinEnv from "@/atuin_env";
 import List from "@/components/runbooks/List/List";
+import Workspace from "@/state/runbooks/workspace";
+import Onboarding from "@/components/Onboarding/Onboarding";
+import { KVStore } from "@/state/kv";
+import Runbook from "@/state/runbooks/runbook";
+
+async function isOnboardingComplete(): Promise<boolean> {
+  let db = await KVStore.open_default();
+  return (await db.get<boolean>("onboarding_complete")) || false;
+}
 
 function App() {
   const cleanupImportListener = useRef<UnlistenFn | null>(null);
 
   const refreshUser = useStore((state: AtuinState) => state.refreshUser);
   const importRunbook = useStore((state: AtuinState) => state.importRunbook);
-  const newRunbook = useStore((state: AtuinState) => state.newRunbook);
-  const newWorkspace = useStore((state: AtuinState) => state.newWorkspace);
+  const refreshRunbooks = useStore((state: AtuinState) => state.refreshRunbooks);
+  const currentWorkspaceId = useStore((state: AtuinState) => state.currentWorkspaceId);
+  const setCurrentWorkspaceId = useStore((state: AtuinState) => state.setCurrentWorkspaceId);
   const setCurrentRunbookId = useStore((state: AtuinState) => state.setCurrentRunbookId);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -58,6 +69,15 @@ function App() {
   const showDesktopConnect = useStore((state: AtuinState) => state.proposedDesktopConnectUser);
 
   let onOpenUrlListener = useRef<UnlistenFn | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const onboardingComplete = await isOnboardingComplete();
+      setShowOnboarding(!onboardingComplete);
+    })();
+
+    refreshRunbooks();
+  }, []);
 
   const {
     isOpen: isSettingsOpen,
@@ -121,7 +141,7 @@ function App() {
   useTauriEvent("new-runbook", async () => {
     // Consider the case where we are already on the runbooks page
     if (location.pathname === "/runbooks") {
-      let runbook = await newRunbook();
+      let runbook = await Runbook.createUntitled(currentWorkspaceId);
       setCurrentRunbookId(runbook.id);
 
       return;
@@ -131,7 +151,8 @@ function App() {
   });
 
   useTauriEvent("new-workspace", async () => {
-    await newWorkspace("Untitled Workspace");
+    const workspace = await Workspace.create("Untitled Workspace");
+    setCurrentWorkspaceId(workspace.id);
     navigate(`/runbooks`);
   });
 
@@ -338,6 +359,7 @@ function App() {
         <Settings onOpenChange={onSettingsOpenChange} isOpen={isSettingsOpen} />
 
         {showDesktopConnect && <DesktopConnect />}
+        {showOnboarding && <Onboarding />}
 
         <Settings onOpenChange={onSettingsOpenChange} isOpen={isSettingsOpen} />
         <DirectoryExportModal />

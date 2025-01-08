@@ -15,7 +15,8 @@ async function createRunbookFromHub(id: string) {
     await getRunbookID(id);
     // It exists; kick off a sync
     const user = useStore.getState().user;
-    const sync = new RunbookSynchronizer(id, user);
+    const currentWorkspaceId = useStore.getState().currentWorkspaceId;
+    const sync = new RunbookSynchronizer(id, currentWorkspaceId, user);
     const runbook = await sync.sync();
     return runbook;
   } catch (err) {

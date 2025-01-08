@@ -1,13 +1,10 @@
 import Runbook from "../runbooks/runbook";
 import RunbookIndexService from "../runbooks/search";
-import Workspace from "../runbooks/workspace";
 import { open } from "@tauri-apps/plugin-dialog";
 import track_event from "@/tracking";
-import { KVStore } from "../kv";
 import Logger from "@/lib/logger";
 const logger = new Logger("RunbookStore", "purple", "pink");
 
-import untitledRunbook from "../runbooks/untitled.json";
 import { StateCreator } from "zustand";
 
 export interface AtuinRunbookState {
@@ -16,7 +13,6 @@ export interface AtuinRunbookState {
   currentRunbookId: string | null;
   lastTagForRunbook: { [key: string]: string };
 
-  newRunbook: () => Promise<Runbook>;
   importRunbook: () => Promise<Runbook[] | null>;
   refreshRunbooks: () => Promise<void>;
   deleteRunbookFromCache: (runbookId: string) => void;
@@ -25,17 +21,14 @@ export interface AtuinRunbookState {
   selectTag: (runbookId: string, tag: string | null) => void;
   getLastTagForRunbook: (runbookId: string) => string | null;
 
-  workspace: Workspace | null;
-  workspaces: Workspace[];
-  refreshWorkspaces: () => Promise<void>;
-  newWorkspace: (name: string) => Promise<Workspace>;
-  deleteWorkspace: (workspace: Workspace) => Promise<void>;
-  setCurrentWorkspace: (ws: Workspace) => Promise<void>;
+  currentWorkspaceId: string;
+  setCurrentWorkspaceId: (id: string) => void;
 }
 
 export const persistRunbookKeys: (keyof AtuinRunbookState)[] = [
   "currentRunbookId",
   "lastTagForRunbook",
+  "currentWorkspaceId",
 ];
 
 export const createRunbookState: StateCreator<AtuinRunbookState> = (
@@ -47,19 +40,6 @@ export const createRunbookState: StateCreator<AtuinRunbookState> = (
   currentRunbookId: null,
   lastTagForRunbook: {},
   runbookIndex: new RunbookIndexService(),
-
-  newRunbook: async (): Promise<Runbook> => {
-    let runbook = await Runbook.create();
-    runbook.name = "Untitled";
-    runbook.content = JSON.stringify(untitledRunbook);
-    runbook.save();
-
-    get().setCurrentRunbookId(runbook.id);
-    await get().refreshRunbooks();
-    await get().refreshWorkspaces();
-
-    return runbook;
-  },
 
   importRunbook: async (): Promise<Runbook[] | null> => {
     let filePath = await open({
@@ -75,10 +55,10 @@ export const createRunbookState: StateCreator<AtuinRunbookState> = (
 
     if (!filePath || filePath.length === 0) return null;
 
+    const { currentWorkspaceId } = get();
     let runbooks = await Promise.all(
       filePath.map(async (file) => {
-        // @ts-ignore
-        return await Runbook.importFile(file);
+        return await Runbook.importFile(file, currentWorkspaceId);
       }),
     );
 
@@ -93,13 +73,9 @@ export const createRunbookState: StateCreator<AtuinRunbookState> = (
 
   // PERF: Yeah this won't work long term. Let's see how many runbooks people have in reality and optimize for 10x that
   refreshRunbooks: async () => {
-    if (get().workspace == null) {
-      await get().refreshWorkspaces();
-    }
+    logger.debug("loading runbooks for WS", get().currentWorkspaceId);
 
-    logger.debug("loading runbooks for", get().workspace?.name);
-
-    let runbooks = await Runbook.all(get().workspace!);
+    let runbooks = await Runbook.all(get().currentWorkspaceId!);
     let index = new RunbookIndexService();
     index.bulkAddRunbooks(runbooks);
 
@@ -135,44 +111,14 @@ export const createRunbookState: StateCreator<AtuinRunbookState> = (
     }
   },
 
-  workspace: null,
-  workspaces: [],
+  currentWorkspaceId: "",
 
-  refreshWorkspaces: async () => {
-    let wss = await Workspace.all();
-    let ws = await Workspace.current();
-
-    for (let w of wss) {
-      await w.refreshMeta();
+  setCurrentWorkspaceId: (id: string) => {
+    const lastWorkspaceId = get().currentWorkspaceId;
+    let runbookId = get().currentRunbookId;
+    if (id !== lastWorkspaceId) {
+      runbookId = null;
     }
-
-    set({ workspaces: wss, workspace: ws });
-  },
-
-  newWorkspace: async (name: string): Promise<Workspace> => {
-    let ws = await Workspace.create(name);
-
-    await get().setCurrentWorkspace(ws);
-    await get().refreshWorkspaces();
-
-    return ws;
-  },
-
-  deleteWorkspace: async (workspace: Workspace) => {
-    if (get().workspace?.id === workspace.id) {
-      throw new Error("Cannot delete current workspace");
-    }
-
-    await workspace.delete();
-    get().refreshWorkspaces();
-  },
-
-  setCurrentWorkspace: async (ws: Workspace) => {
-    const kv = await KVStore.open_default();
-    kv.set("current_workspace", ws.id);
-
-    set({ workspace: ws });
-    get().refreshRunbooks();
-    get().setCurrentRunbookId(null);
+    set({ currentWorkspaceId: id, currentRunbookId: runbookId });
   },
 });

@@ -34,6 +34,7 @@ export default class SyncManager {
   private store: Store;
   private handlers: Function[] = [];
   private currentRunbookId: string | null = null;
+  private workspaceId: string;
   private currentUser: User;
   private syncSet: SyncSet | null = null;
   private lastSync: DateTime | null = null;
@@ -45,6 +46,7 @@ export default class SyncManager {
     this.store = store;
 
     this.currentUser = store.getState().user;
+    this.workspaceId = store.getState().currentWorkspaceId;
     this.handlers.push(this.store.subscribe((state) => state.user, this.handleUserChange));
     this.handlers.push(
       this.store.subscribe((state) => state.currentRunbookId, this.handleCurrentRunbookIdChange, {
@@ -114,7 +116,7 @@ export default class SyncManager {
     this.startNextSyncEarly = false;
     const ids = await this.getRunbookIdsToSync();
     this.priorityRunbookIds.clear();
-    this.syncSet = new SyncSet(ids, this.currentUser);
+    this.syncSet = new SyncSet(ids, this.workspaceId, this.currentUser);
     this.syncSet.on("deleted", (runbookId: string) => {
       this.store.getState().deleteRunbookFromCache(runbookId);
     });

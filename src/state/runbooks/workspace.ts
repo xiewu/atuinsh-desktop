@@ -1,4 +1,3 @@
-import { KVStore } from "../kv";
 import { uuidv7 } from "uuidv7";
 import Runbook from "./runbook";
 import AtuinDB from "../atuin_db";
@@ -50,19 +49,29 @@ export default class Workspace {
     this.meta = null;
   }
 
-  static async create(name: string): Promise<Workspace> {
+  static build(name: string): Workspace {
     let id = uuidv7();
-    let workspace = new Workspace(id, name, new Date(), new Date());
+    return new Workspace(id, name, new Date(), new Date());
+  }
 
-    const db = await AtuinDB.load("runbooks");
-    await db.execute("insert into workspaces (id, name, created, updated) VALUES (?, ?, ?, ?)", [
-      workspace.id,
-      workspace.name,
-      workspace.created,
-      workspace.updated,
-    ]);
-
+  static async create(name: string): Promise<Workspace> {
+    let workspace = Workspace.build(name);
+    await workspace.save();
     return workspace;
+  }
+
+  public async save() {
+    const db = await AtuinDB.load("runbooks");
+    await db.execute(
+      `insert into workspaces (id, name, created, updated) VALUES ($1, $2, $3, $4)
+
+        on conflict(id) do update
+          set
+            name = $2,
+            created = $3,
+            updated = $4`,
+      [this.id, this.name, this.created, this.updated],
+    );
   }
 
   async delete() {
@@ -87,29 +96,6 @@ export default class Workspace {
     }
 
     return new Workspace(row[0].id, row[0].name, row[0].created, row[0].updated);
-  }
-
-  static async current(): Promise<Workspace> {
-    // Get the current workspace.
-    // If there is no current workspace, create one.
-    const kv = await KVStore.open_default();
-
-    let current_workspace = await kv.get<string>("current_workspace");
-
-    if (current_workspace == null) {
-      let ws = await Workspace.create("Default Workspace");
-      await kv.set("current_workspace", ws.id);
-
-      return ws;
-    }
-
-    let ws = await Workspace.findById(current_workspace);
-
-    if (ws == null) {
-      throw new Error("Current workspace not found");
-    }
-
-    return ws;
   }
 
   static async all(): Promise<Workspace[]> {

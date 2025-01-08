@@ -3,22 +3,9 @@ import { Tooltip as ReactTooltip } from "react-tooltip";
 
 import { AtuinState, useStore } from "@/state/store";
 import { getVersion } from "@tauri-apps/api/app";
-import {
-  Card,
-  CardHeader,
-  CardBody,
-  Listbox,
-  ListboxItem,
-} from "@nextui-org/react";
+import { Card, CardHeader, CardBody, Listbox, ListboxItem } from "@nextui-org/react";
 
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  LabelList,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts";
 import { ChartConfig, ChartContainer } from "@/components/ui/chart";
 
 import { Clock, Terminal, UsersIcon } from "lucide-react";
@@ -27,9 +14,9 @@ import ActivityCalendar from "react-activity-calendar";
 import HistoryRow from "@/components/history/HistoryRow";
 import { ShellHistory } from "@/state/models";
 import { useNavigate } from "react-router-dom";
-import Onboarding from "@/components/Onboarding/Onboarding";
-
-import { KVStore } from "@/state/kv";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { allRunbooks, runbooksByWorkspaceId } from "@/lib/queries/runbooks";
+import Runbook from "@/state/runbooks/runbook";
 
 function StatCard({ name, stat }: any) {
   return (
@@ -99,31 +86,23 @@ const explicitTheme = {
   dark: ["#f0f0f0", "#c4edde", "#7ac7c4", "#f73859", "#384259"],
 };
 
-const isOnboardingComplete = async () => {
-  let db = await KVStore.open_default();
-  return await db.get("onboarding_complete");
-};
-
 export default function Home() {
   const navigate = useNavigate();
   const homeInfo = useStore((state: AtuinState) => state.homeInfo);
   const calendar = useStore((state: AtuinState) => state.calendar);
-  const runbooks = useStore((state: AtuinState) => state.runbooks);
   const weekStart = useStore((state: AtuinState) => state.weekStart);
 
-  const refreshHomeInfo = useStore(
-    (state: AtuinState) => state.refreshHomeInfo,
-  );
+  const refreshHomeInfo = useStore((state: AtuinState) => state.refreshHomeInfo);
   const refreshUser = useStore((state: AtuinState) => state.refreshUser);
-  const refreshCalendar = useStore(
-    (state: AtuinState) => state.refreshCalendar,
-  );
-  const refreshRunbooks = useStore(
-    (state: AtuinState) => state.refreshRunbooks,
-  );
+  const refreshCalendar = useStore((state: AtuinState) => state.refreshCalendar);
+  const refreshRunbooks = useStore((state: AtuinState) => state.refreshRunbooks);
+  const currentWorkspaceId = useStore((state: AtuinState) => state.currentWorkspaceId);
+  const setCurrentRunbookId = useStore((state: AtuinState) => state.setCurrentRunbookId);
 
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const [version, setVersion] = useState<string | null>(null);
+
+  const queryClient = useQueryClient();
+  const { data: runbooks } = useQuery(allRunbooks());
 
   useEffect(() => {
     refreshHomeInfo();
@@ -134,9 +113,6 @@ export default function Home() {
     let setup = async () => {
       let ver = await getVersion();
       setVersion(ver);
-
-      const onboardingComplete = await isOnboardingComplete();
-      setShowOnboarding(!onboardingComplete);
     };
 
     setup();
@@ -149,14 +125,8 @@ export default function Home() {
   return (
     <div className="w-full flex-1 flex-col p-4 overflow-y-auto select-none">
       <div className="p-10 grid grid-cols-4 gap-4">
-        <StatCard
-          name="Total Commands"
-          stat={homeInfo.historyCount.toLocaleString()}
-        />
-        <StatCard
-          name="Total Runbooks"
-          stat={runbooks.length.toLocaleString()}
-        />
+        <StatCard name="Total Commands" stat={homeInfo.historyCount.toLocaleString()} />
+        <StatCard name="Total Runbooks" stat={(runbooks || []).length.toLocaleString()} />
         <StatCard name="Version" stat={version} />
 
         <Card shadow="sm" className="col-span-3">
@@ -191,9 +161,13 @@ export default function Home() {
                 key="new-runbook"
                 description="Create an executable runbook"
                 startContent={<Terminal />}
-                onPress={() =>
-                  navigate("/runbooks", { state: { createNew: true } })
-                }
+                onPress={async () => {
+                  const rb = await Runbook.createUntitled(currentWorkspaceId);
+                  setCurrentRunbookId(rb.id);
+                  queryClient.invalidateQueries(runbooksByWorkspaceId(currentWorkspaceId));
+                  queryClient.invalidateQueries(allRunbooks());
+                  navigate("/runbooks");
+                }}
               >
                 New runbook
               </ListboxItem>
@@ -238,8 +212,6 @@ export default function Home() {
           </CardBody>
         </Card>
       </div>
-
-      {showOnboarding && <Onboarding />}
     </div>
   );
 }

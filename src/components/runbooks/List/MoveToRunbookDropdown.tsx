@@ -1,6 +1,9 @@
+import { runbooksByWorkspaceId } from "@/lib/queries/runbooks";
+import { allWorkspaces } from "@/lib/queries/workspaces";
 import Runbook from "@/state/runbooks/runbook";
 import { AtuinState, useStore } from "@/state/store";
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Chip } from "@nextui-org/react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface MoveRunbookDropdownProps {
   runbook: Runbook;
@@ -8,11 +11,16 @@ interface MoveRunbookDropdownProps {
   onClose: () => void;
 }
 
-export default function MoveRunbookDropdown({ runbook, isOpen, onClose }: MoveRunbookDropdownProps) {
-  const workspaces = useStore((store: AtuinState) => store.workspaces);
-  const currentWorkspace = useStore((store: AtuinState) => store.workspace);
-  const refreshWorkspaces = useStore((store: AtuinState) => store.refreshWorkspaces);
+export default function MoveRunbookDropdown({
+  runbook,
+  isOpen,
+  onClose,
+}: MoveRunbookDropdownProps) {
+  const currentWorkspaceId = useStore((store: AtuinState) => store.currentWorkspaceId);
   const refreshRunbooks = useStore((store: AtuinState) => store.refreshRunbooks);
+
+  const queryClient = useQueryClient();
+  const { data: workspaces } = useQuery(allWorkspaces());
 
   return (
     <Dropdown isOpen={isOpen} placement="right-start" className="ml-32">
@@ -26,29 +34,37 @@ export default function MoveRunbookDropdown({ runbook, isOpen, onClose }: MoveRu
         items={workspaces}
       >
         {(workspace) => {
-          return <DropdownItem key={workspace.name} textValue={workspace.name} className="py-2" onPress={async () => {
-            await runbook.moveTo(workspace);
-            await refreshRunbooks();
-            await refreshWorkspaces();
+          return (
+            <DropdownItem
+              key={workspace.name}
+              textValue={workspace.name}
+              className="py-2"
+              onPress={async () => {
+                await runbook.moveTo(workspace.id);
+                await refreshRunbooks();
+                queryClient.invalidateQueries(runbooksByWorkspaceId(currentWorkspaceId));
+                queryClient.invalidateQueries(runbooksByWorkspaceId(workspace.id));
 
-            onClose();
-          }}
-          >
-            <div className="flex items-center gap-2">
-              <div className="flex flex-col">
-                <span className="text-small font-semibold">{workspace.name}</span>
-                <span className="text-tiny text-default-400">{workspace.meta?.totalRunbooks} runbooks</span>
+                onClose();
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <div className="flex flex-col">
+                  <span className="text-small font-semibold">{workspace.name}</span>
+                  <span className="text-tiny text-default-400">
+                    {workspace.meta?.totalRunbooks} runbooks
+                  </span>
+                </div>
+                {workspace.id === currentWorkspaceId && (
+                  <Chip size="sm" color="success" variant="flat" className="ml-auto">
+                    Current
+                  </Chip>
+                )}
               </div>
-              {workspace.id === currentWorkspace?.id && (
-                <Chip size="sm" color="success" variant="flat" className="ml-auto">
-                  Current
-                </Chip>
-              )}
-
-            </div>
-          </DropdownItem>
+            </DropdownItem>
+          );
         }}
       </DropdownMenu>
     </Dropdown>
-  )
+  );
 }

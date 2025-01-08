@@ -26,6 +26,11 @@ import SyncManager from "./lib/sync/sync_manager";
 import { useStore } from "@/state/store";
 import ServerNotificationManager from "./server_notification_manager";
 import { trackOnlineStatus } from "./lib/online_tracker";
+import Workspace from "./state/runbooks/workspace";
+import Runbook from "./state/runbooks/runbook";
+import welcome from "@/state/runbooks/welcome.json";
+import Logger from "./lib/logger";
+const logger = new Logger("Main");
 
 (async () => {
   try {
@@ -119,25 +124,17 @@ const router = createHashRouter([
 function Application() {
   const { refreshUser, refreshCollaborations, online, user } = useStore();
 
-  // Initial setup to be run no matter which route we're on
-  useEffect(() => {
-    (async () => {
-      //
-    })();
-  }, []);
-
   useEffect(() => {
     if (online) {
       refreshUser();
-      refreshCollaborations();
     }
   }, [online]);
 
   useEffect(() => {
-    if (user) {
+    if (online) {
       refreshCollaborations();
     }
-  }, [user]);
+  }, [online, user]);
 
   return (
     <React.StrictMode>
@@ -157,4 +154,48 @@ function Application() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(<Application />);
+async function setup() {
+  const { currentWorkspaceId, setCurrentWorkspaceId, setCurrentRunbookId } = useStore.getState();
+
+  // Ensure at least one workspace exists
+  let wss = await Workspace.all();
+  let ws;
+  if (wss.length === 0) {
+    ws = await Workspace.create("Default Workspace");
+    wss = [ws];
+  }
+
+  let wsId = currentWorkspaceId;
+  if (!wsId || !wss.some((ws) => ws.id === wsId)) {
+    wsId = wss[0].id;
+    setCurrentWorkspaceId(wsId);
+  }
+
+  // Ensure runbooks have a workspace assigned
+  // Workspaces didn't exist to start with,
+  // so for some users could be null
+  const rbs = await Runbook.withNullWorkspaces();
+  let promises = [];
+  for (let rb of rbs) {
+    rb.workspaceId = wsId;
+    promises.push(rb.save());
+  }
+
+  const allRbIds = await Runbook.allIdsInAllWorkspaces();
+  if (allRbIds.length === 0) {
+    let runbook = await Runbook.create(wsId);
+
+    runbook.name = "Welcome to Atuin!";
+    runbook.content = JSON.stringify(welcome);
+    await runbook.save();
+    setCurrentRunbookId(runbook.id);
+  }
+
+  useStore.getState().refreshRunbooks();
+  await Promise.allSettled(promises);
+}
+
+(async () => {
+  await logger.time("Running setup...", setup);
+  ReactDOM.createRoot(document.getElementById("root")!).render(<Application />);
+})();

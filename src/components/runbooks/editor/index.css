@@ -1,7 +1,14 @@
+@font-face {
+    font-family: "FiraCode";
+    src:
+        local("FiraCode"),
+        url(./assets/fonts/MyFont.woff) format("truetype");
+}
+
 .editor a {
-  color: #0000ee;
+    color: #0000ee;
 }
 
 .editor a:hover {
-  cursor: pointer;
+    cursor: pointer;
 }

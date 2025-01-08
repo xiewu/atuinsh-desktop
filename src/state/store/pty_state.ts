@@ -111,7 +111,10 @@ export const createPtyState: StateCreator<AtuinPtyState> = (set, get, _store): A
   },
 
   newPtyTerm: async (pty: string) => {
-    let font = await Settings.terminalFont();
+    // FiraCode is included as part of our build
+    // We could consider including a few different popular fonts, and providing a dropdown
+    // for the user to select from.
+    let font = (await Settings.terminalFont()) || "FiraCode";
     let gl = await Settings.terminalGL();
 
     let terminal = new Terminal({

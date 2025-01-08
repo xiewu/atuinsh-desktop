@@ -283,6 +283,11 @@ fn show_window(app: &AppHandle) {
 }
 
 fn main() {
+    let migration_path = if tauri::is_dev() {
+        "sqlite:dev_runbooks.db"
+    } else {
+        "sqlite:runbooks.db"
+    };
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             show_window(app);
@@ -338,7 +343,7 @@ fn main() {
         ])
         .plugin(
             tauri_plugin_sql::Builder::default()
-                .add_migrations("sqlite:runbooks.db", run::migrations::migrations())
+                .add_migrations(&migration_path, run::migrations::migrations())
                 .build(),
         )
         .plugin(tauri_plugin_http::init())

@@ -6,6 +6,7 @@
 /// On the other hand, the DiskStore uses SQLite, and cannot be easily cleared.
 /// The idea here is to be a super-simple store for longer-term state.
 import Database from "@tauri-apps/plugin-sql";
+import AtuinDB from "./atuin_db";
 
 export class KVStore {
   private db: Database;
@@ -15,7 +16,7 @@ export class KVStore {
   }
 
   static async open_default(): Promise<KVStore> {
-    const db = await Database.load("sqlite:kv.db");
+    const db = await AtuinDB.load("kv");
 
     db.execute("create table if not exists kv(key text primary key, value text)");
 

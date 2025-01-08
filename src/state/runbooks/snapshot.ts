@@ -1,5 +1,5 @@
-import Database from "@tauri-apps/plugin-sql";
 import { uuidv7 } from "uuidv7";
+import AtuinDB from "../atuin_db";
 
 export interface SnapshotAttrs {
   id?: string;
@@ -36,7 +36,7 @@ export default class Snapshot {
     };
     let snapshot = new Snapshot(fullAttrs);
 
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
     await db.execute(
       "insert into snapshots (id, tag, runbook_id, content, created) VALUES (?, ?, ?, ?, ?)",
       [snapshot.id, snapshot.tag, snapshot.runbook_id, snapshot.content, snapshot.created],
@@ -46,7 +46,7 @@ export default class Snapshot {
   }
 
   static async get(id: string): Promise<Snapshot | null> {
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
 
     let row = await db.select<Snapshot[]>("select * from snapshots where id = ?", [id]);
 
@@ -59,7 +59,7 @@ export default class Snapshot {
   }
 
   static async findByRunbookId(runbook_id: string): Promise<Snapshot[]> {
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
     let rows = await db.select<Snapshot[]>(
       "select * from snapshots where runbook_id = ? order by created desc, tag desc",
       [runbook_id],
@@ -73,7 +73,7 @@ export default class Snapshot {
   }
 
   static async findByRunbookIdAndTag(runbook_id: string, tag: string): Promise<Snapshot | null> {
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
     let rows = await db.select<Snapshot[]>(
       "select * from snapshots where runbook_id = ? and tag = ?",
       [runbook_id, tag],
@@ -88,12 +88,12 @@ export default class Snapshot {
   }
 
   static async deleteForRunbook(runbook_id: string) {
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
     await db.execute("delete from snapshots where runbook_id = ?", [runbook_id]);
   }
 
   async delete() {
-    const db = await Database.load("sqlite:runbooks.db");
+    const db = await AtuinDB.load("runbooks");
     await db.execute("delete from snapshots where id = ?", [this.id]);
   }
 }

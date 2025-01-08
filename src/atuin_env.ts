@@ -7,6 +7,8 @@ interface AtuinEnv {
   isDev: boolean;
   isProd: boolean;
   hubRunbookSource: RunbookSource;
+  sqliteDirPrefix: string;
+  stateStorageName: string;
 }
 
 const dev: AtuinEnv = {
@@ -16,6 +18,8 @@ const dev: AtuinEnv = {
   isDev: true,
   isProd: false,
   hubRunbookSource: "hub-dev",
+  sqliteDirPrefix: "dev_",
+  stateStorageName: "atuin-storage-dev",
 };
 
 const prod: AtuinEnv = {
@@ -25,6 +29,8 @@ const prod: AtuinEnv = {
   isDev: false,
   isProd: true,
   hubRunbookSource: "hub",
+  sqliteDirPrefix: "",
+  stateStorageName: "atuin-storage",
 };
 
 // Setting a const rather than exporting directly

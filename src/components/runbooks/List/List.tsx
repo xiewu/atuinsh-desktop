@@ -31,7 +31,7 @@ import SyncManager from "@/lib/sync/sync_manager";
 import { PendingInvitations } from "./PendingInvitations";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { runbooksByWorkspaceId } from "@/lib/queries/runbooks";
+import { allRunbooks, allRunbooksIds, runbooksByWorkspaceId } from "@/lib/queries/runbooks";
 
 const NoteSidebar = () => {
   const refreshRunbooks = useStore((state: AtuinState) => state.refreshRunbooks);
@@ -59,6 +59,8 @@ const NoteSidebar = () => {
 
     await Runbook.createUntitled(currentWorkspaceId);
     queryClient.invalidateQueries(runbooksByWorkspaceId(currentWorkspaceId));
+    queryClient.invalidateQueries(allRunbooks());
+    queryClient.invalidateQueries(allRunbooksIds());
 
     track_event("runbooks.create", {
       total: await Runbook.count(),

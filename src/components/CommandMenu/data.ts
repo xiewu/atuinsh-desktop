@@ -133,6 +133,8 @@ export type GroupInfo = {
 
 export interface SearchResultItem {
   id: string;
+  workspaceId: string;
+  workspaceName: string | null;
   type: "runbook" | "action";
   title: string;
   subtitle: string;

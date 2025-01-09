@@ -45,6 +45,10 @@ import Workspace from "@/state/runbooks/workspace";
 import Onboarding from "@/components/Onboarding/Onboarding";
 import { KVStore } from "@/state/kv";
 import Runbook from "@/state/runbooks/runbook";
+import RunbookSearchIndex from "@/components/CommandMenu/RunbookSearchIndex";
+import RunbookIndexService from "@/state/runbooks/search";
+
+const runbookIndex = new RunbookIndexService();
 
 async function isOnboardingComplete(): Promise<boolean> {
   let db = await KVStore.open_default();
@@ -238,7 +242,8 @@ function App() {
 
   return (
     <div className="flex w-screen " style={{ maxWidth: "100vw", height: "calc(100dvh - 2rem)" }}>
-      <CommandMenu />
+      <CommandMenu index={runbookIndex} />
+      <RunbookSearchIndex index={runbookIndex} />
 
       <div className="flex w-full">
         <div className="relative flex flex-col !border-r-small border-divider transition-width pb-6 pt-4 items-center select-none">

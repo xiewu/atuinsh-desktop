@@ -37,3 +37,11 @@ export function allRunbooks() {
     queryFn: () => Runbook.allInAllWorkspaces(),
   });
 }
+
+export function allRunbooksIds() {
+  return queryOptions({
+    ...localQuery,
+    queryKey: ["runbooks", "all-ids"],
+    queryFn: () => Runbook.allIdsInAllWorkspaces(),
+  });
+}

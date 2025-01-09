@@ -1,5 +1,3 @@
-import type { FC } from "react";
-
 import { type ButtonProps } from "@nextui-org/react";
 import { Command } from "cmdk";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
@@ -15,12 +13,11 @@ import { type SearchResultItem } from "./data";
 
 import { AtuinState, useStore } from "@/state/store";
 import { useNavigate } from "react-router-dom";
-import {
-  ChevronRightIcon,
-  NotebookIcon,
-  SearchIcon,
-  XIcon,
-} from "lucide-react";
+import { ChevronRightIcon, NotebookIcon, SearchIcon, XIcon } from "lucide-react";
+import RunbookIndexService from "@/state/runbooks/search";
+import { useQuery } from "@tanstack/react-query";
+import { allRunbooks } from "@/lib/queries/runbooks";
+import { allWorkspaces } from "@/lib/queries/workspaces";
 
 const cmdk = tv({
   slots: {
@@ -70,13 +67,7 @@ const cmdk = tv({
       "data-[active=true]:text-primary-foreground",
     ],
     leftWrapper: ["flex", "gap-3", "items-center", "w-full", "max-w-full"],
-    leftWrapperOnMobile: [
-      "flex",
-      "gap-3",
-      "items-center",
-      "w-full",
-      "max-w-[166px]",
-    ],
+    leftWrapperOnMobile: ["flex", "gap-3", "items-center", "w-full", "max-w-[166px]"],
     rightWrapper: ["flex", "flex-row", "gap-2", "items-center"],
     leftIcon: [
       "text-default-500 dark:text-default-300",
@@ -95,14 +86,7 @@ const cmdk = tv({
       "group-data-[active=true]:text-primary-foreground",
       "select-none",
     ],
-    emptyWrapper: [
-      "flex",
-      "flex-col",
-      "text-center",
-      "items-center",
-      "justify-center",
-      "h-32",
-    ],
+    emptyWrapper: ["flex", "flex-col", "text-center", "items-center", "justify-center", "h-32"],
     sectionTitle: ["text-xs", "font-semibold", "leading-4", "text-default-900"],
     categoryItem: [
       "h-[50px]",
@@ -133,7 +117,11 @@ const cmdk = tv({
   },
 });
 
-const Component: FC<{}> = () => {
+interface CommandMenuProps {
+  index: RunbookIndexService;
+}
+
+export default function CommandMenu(props: CommandMenuProps) {
   const [query, setQuery] = useState("");
   const [activeItem, setActiveItem] = useState(0);
   const [menuNodes] = useState(() => new MultiRef<number, HTMLElement>());
@@ -141,17 +129,15 @@ const Component: FC<{}> = () => {
   const eventRef = useRef<"mouse" | "keyboard">();
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const runbookSearchIndex = useStore(
-    (store: AtuinState) => store.runbookIndex,
-  );
-  const runbooks = useStore((store: AtuinState) => store.runbooks);
+  const { data: runbooks } = useQuery(allRunbooks());
+  const { data: workspaces } = useQuery(allWorkspaces());
   const [isOpen, setOpen] = useStore((store: AtuinState) => [
     store.searchOpen,
     store.setSearchOpen,
   ]);
-  const setCurrentRunbookId = useStore(
-    (store: AtuinState) => store.setCurrentRunbookId,
-  );
+  const setCurrentRunbookId = useStore((store: AtuinState) => store.setCurrentRunbookId);
+  const currentWorkspaceId = useStore((store: AtuinState) => store.currentWorkspaceId);
+  const setCurrentWorkspaceId = useStore((store: AtuinState) => store.setCurrentWorkspaceId);
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const navigate = useNavigate();
 
@@ -166,30 +152,38 @@ const Component: FC<{}> = () => {
   const isMobile = useMediaQuery("(max-width: 650px)");
 
   useEffect(() => {
+    let cancelled = false;
     if (query.length < 2) setResults([]);
 
     (async () => {
-      let matches = await runbookSearchIndex.searchRunbooks(query);
+      let matches = await props.index.searchRunbooks(query);
       let res: (SearchResultItem | null)[] = matches.map((id) => {
-        let rb = runbooks.find((runbook) => runbook.id === id);
+        let rb = (runbooks || []).find((runbook) => runbook.id === id);
 
         if (!rb) return null;
 
         return {
           id: rb.id,
+          workspaceId: rb.workspaceId,
+          workspaceName: (workspaces || []).find((w) => w.id === rb.workspaceId)?.name || null,
           title: rb.name,
           type: "runbook",
           subtitle: "edited xyz ago",
         };
       });
 
-      setResults(res.filter((r) => r !== null));
+      if (!cancelled) setResults(res.filter((r) => r !== null));
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [query]);
 
   useEffect(() => {
-    if (inputRef.current) {
+    if (isOpen && inputRef.current) {
       inputRef.current.focus();
+      inputRef.current.select();
     }
   }, [isOpen]);
 
@@ -216,6 +210,9 @@ const Component: FC<{}> = () => {
 
       setQuery("");
       navigate("/runbooks");
+      if (item.workspaceId) {
+        setCurrentWorkspaceId(item.workspaceId);
+      }
       setCurrentRunbookId(item.id);
     },
     [onClose],
@@ -335,14 +332,15 @@ const Component: FC<{}> = () => {
             onItemSelect(item);
           }}
         >
-          <div
-            className={
-              isMobile ? slots.leftWrapperOnMobile() : slots.leftWrapper()
-            }
-          >
+          <div className={isMobile ? slots.leftWrapperOnMobile() : slots.leftWrapper()}>
             <NotebookIcon size={18} />
 
-            <p className={slots.itemTitle()}>{item.title}</p>
+            <div className="flex justify-between items-center w-full">
+              <p className={slots.itemTitle()}>{item.title}</p>
+              {item.workspaceId !== currentWorkspaceId && (
+                <p className={slots.itemContent() + " text-sm"}>{item.workspaceName}</p>
+              )}
+            </div>
           </div>
           {query.length > 0 && (
             <div className={slots.rightWrapper()}>
@@ -388,11 +386,7 @@ const Component: FC<{}> = () => {
         disableAnimation
       >
         <ModalContent>
-          <Command
-            className={slots.base()}
-            label="Quick search command"
-            shouldFilter={false}
-          >
+          <Command className={slots.base()} label="Quick search command" shouldFilter={false}>
             <div className={slots.header()}>
               <SearchIcon fontSize="20" />
               <Command.Input
@@ -410,10 +404,7 @@ const Component: FC<{}> = () => {
               </Kbd>
             </div>
             <div ref={listRef} className={cn(slots.listScroll(), "pl-4")}>
-              <Command.List
-                className={cn(slots.list(), "[&>div]:pb-4")}
-                role="listbox"
-              >
+              <Command.List className={cn(slots.list(), "[&>div]:pb-4")} role="listbox">
                 {query.length > 0 && (
                   <Command.Empty>
                     <div className={slots.emptyWrapper()}>
@@ -424,9 +415,7 @@ const Component: FC<{}> = () => {
                             Try adding more characters to your search term.
                           </p>
                         ) : (
-                          <p className="text-default-400">
-                            Try searching for something else.
-                          </p>
+                          <p className="text-default-400">Try searching for something else.</p>
                         )}
                       </div>
                     </div>
@@ -440,6 +429,4 @@ const Component: FC<{}> = () => {
       </Modal>
     </>
   );
-};
-
-export default Component;
+}

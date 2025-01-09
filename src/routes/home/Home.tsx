@@ -15,7 +15,7 @@ import HistoryRow from "@/components/history/HistoryRow";
 import { ShellHistory } from "@/state/models";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { allRunbooks, runbooksByWorkspaceId } from "@/lib/queries/runbooks";
+import { allRunbooks, allRunbooksIds, runbooksByWorkspaceId } from "@/lib/queries/runbooks";
 import Runbook from "@/state/runbooks/runbook";
 
 function StatCard({ name, stat }: any) {
@@ -166,6 +166,7 @@ export default function Home() {
                   setCurrentRunbookId(rb.id);
                   queryClient.invalidateQueries(runbooksByWorkspaceId(currentWorkspaceId));
                   queryClient.invalidateQueries(allRunbooks());
+                  queryClient.invalidateQueries(allRunbooksIds());
                   navigate("/runbooks");
                 }}
               >

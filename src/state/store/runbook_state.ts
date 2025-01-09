@@ -1,5 +1,4 @@
 import Runbook from "../runbooks/runbook";
-import RunbookIndexService from "../runbooks/search";
 import { open } from "@tauri-apps/plugin-dialog";
 import track_event from "@/tracking";
 import Logger from "@/lib/logger";
@@ -9,7 +8,6 @@ import { StateCreator } from "zustand";
 
 export interface AtuinRunbookState {
   runbooks: Runbook[];
-  runbookIndex: RunbookIndexService;
   currentRunbookId: string | null;
   lastTagForRunbook: { [key: string]: string };
 
@@ -39,7 +37,6 @@ export const createRunbookState: StateCreator<AtuinRunbookState> = (
   runbooks: [],
   currentRunbookId: null,
   lastTagForRunbook: {},
-  runbookIndex: new RunbookIndexService(),
 
   importRunbook: async (): Promise<Runbook[] | null> => {
     let filePath = await open({
@@ -76,10 +73,8 @@ export const createRunbookState: StateCreator<AtuinRunbookState> = (
     logger.debug("loading runbooks for WS", get().currentWorkspaceId);
 
     let runbooks = await Runbook.all(get().currentWorkspaceId!);
-    let index = new RunbookIndexService();
-    index.bulkAddRunbooks(runbooks);
 
-    set({ runbooks, runbookIndex: index });
+    set({ runbooks });
   },
 
   deleteRunbookFromCache: (runbookId: string) => {

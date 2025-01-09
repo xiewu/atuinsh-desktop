@@ -100,6 +100,11 @@ export class PhoenixSynchronizer extends Emittery {
     if (this.requireLock) {
       this.logger.debug("Acquiring sync lock...");
       this.unlock = await SyncManager.syncMutex(this.runbookId).lock();
+      if (this.isShutdown) {
+        this.unlock();
+        this.unlock = null;
+        return;
+      }
     }
     this.logger.info("Starting resync");
 
@@ -146,11 +151,11 @@ export class PhoenixSynchronizer extends Emittery {
   }
 
   shutdown() {
+    this.logger.debug("Shutting down");
     if (this.unlock) {
       this.unlock();
     }
     this.isShutdown = true;
-    this.logger.debug("Shutting down");
     // disconnect from the server
     this.channel.leave();
     this.subscriptions.forEach((unsub) => unsub());

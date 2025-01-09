@@ -6,6 +6,15 @@ import { useStore } from "@/state/store";
 const CHECK_TIMEOUT = 10_000;
 
 let checkTimer: number | null = null;
+let online = false;
+
+function setOnline(newOnline: boolean) {
+  if (newOnline === online) return;
+
+  onlineManager.setOnline(newOnline);
+  useStore.getState().setOnline(newOnline);
+}
+
 export async function trackOnlineStatus() {
   if (checkTimer) {
     clearTimeout(checkTimer);
@@ -15,15 +24,12 @@ export async function trackOnlineStatus() {
   try {
     const response = await fetch(`${endpoint()}/up`);
     if (response.status === 200) {
-      onlineManager.setOnline(true);
-      useStore.getState().setOnline(true);
+      setOnline(true);
     } else {
-      onlineManager.setOnline(false);
-      useStore.getState().setOnline(false);
+      setOnline(false);
     }
   } catch (err: any) {
-    onlineManager.setOnline(false);
-    useStore.getState().setOnline(false);
+    setOnline(false);
   }
 
   checkTimer = setTimeout(() => {

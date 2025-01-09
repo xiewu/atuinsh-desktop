@@ -42,9 +42,13 @@ export default function useRemoteRunbook(
 
     if (query.isSuccess) {
       const newRemoteInfo = query.data ? JSON.stringify(query.data) : null;
-      runbook.remoteInfo = newRemoteInfo;
-      runbook.save();
-    } else if (query.isError) {
+      const currentRemoteInfo = runbook.remoteInfo ? JSON.stringify(runbook.remoteInfo) : null;
+
+      if (newRemoteInfo != currentRemoteInfo) {
+        runbook.remoteInfo = newRemoteInfo;
+        runbook.save();
+      }
+    } else if (query.isError && runbook.remoteInfo !== null) {
       runbook.remoteInfo = null;
       runbook.save();
     }

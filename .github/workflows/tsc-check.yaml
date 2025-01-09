@@ -1,0 +1,22 @@
+name: "tsc-check"
+
+on: pull_request
+
+jobs:
+  tsc-check:
+    name: TypeScript Check
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+      - name: Install Dependencies
+        run: pnpm install
+      - name: TypeScript Check
+        run: ./node_modules/.bin/tsc --noEmit

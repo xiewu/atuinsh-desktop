@@ -10,15 +10,7 @@ import {
   Divider,
   Button,
 } from "@nextui-org/react";
-import {
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Info,
-  WifiOff,
-  CircleCheck,
-  TrashIcon,
-} from "lucide-react";
+import { Clock, CheckCircle, AlertCircle, Info, WifiOff, TrashIcon } from "lucide-react";
 import JsonView from "@uiw/react-json-view";
 
 import "./style.css";

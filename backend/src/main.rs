@@ -288,11 +288,17 @@ fn main() {
     } else {
         "sqlite:runbooks.db"
     };
-    tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+
+    let builder = tauri::Builder::default();
+    let builder = if cfg!(debug_assertions) {
+        builder
+    } else {
+        builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             show_window(app);
             println!("app opened with {argv:?}");
         }))
+    };
+    builder
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())

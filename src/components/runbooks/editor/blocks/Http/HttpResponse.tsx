@@ -8,8 +8,17 @@ import {
   Chip,
   Tooltip,
   Divider,
+  Button,
 } from "@nextui-org/react";
-import { Clock, CheckCircle, AlertCircle, Info, WifiOff } from "lucide-react";
+import {
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  Info,
+  WifiOff,
+  CircleCheck,
+  TrashIcon,
+} from "lucide-react";
 import JsonView from "@uiw/react-json-view";
 
 import "./style.css";
@@ -31,21 +40,13 @@ const renderBody = (body: string, headers: any) => {
         />
       );
     } catch (error) {
-      return (
-        <pre className="whitespace-pre-wrap break-words text-sm select-text">
-          {body}
-        </pre>
-      );
+      return <pre className="whitespace-pre-wrap break-words text-sm select-text">{body}</pre>;
     }
   }
-  return (
-    <pre className="whitespace-pre-wrap break-words text-sm select-text">
-      {body}
-    </pre>
-  );
+  return <pre className="whitespace-pre-wrap break-words text-sm select-text">{body}</pre>;
 };
 
-const HttpResponse = ({ response, error }: any) => {
+const HttpResponse = ({ response, error, dismiss }: any) => {
   const [activeTab, setActiveTab] = useState<any>("body");
 
   if (error) {
@@ -53,6 +54,9 @@ const HttpResponse = ({ response, error }: any) => {
       <Card shadow="sm" className="w-full max-w-full border border-danger-200">
         <CardHeader className="flex justify-between items-center bg-danger-50">
           <div className="flex items-center gap-3">
+            <Button variant="flat" isIconOnly onClick={dismiss} size="sm">
+              <TrashIcon size={16} />
+            </Button>
             <Chip
               color="danger"
               variant="flat"
@@ -61,9 +65,7 @@ const HttpResponse = ({ response, error }: any) => {
             >
               Error
             </Chip>
-            <span className="text-danger-700 font-semibold">
-              Connection Error
-            </span>
+            <span className="text-danger-700 font-semibold">Connection Error</span>
           </div>
         </CardHeader>
         <CardBody className="p-4">
@@ -85,8 +87,7 @@ const HttpResponse = ({ response, error }: any) => {
   const headerEntries = Array.from(Object.entries(headers));
 
   const getStatusInfo = (status: any) => {
-    if (status >= 200 && status < 300)
-      return { color: "success", icon: CheckCircle };
+    if (status >= 200 && status < 300) return { color: "success", icon: CheckCircle };
     if (status >= 300 && status < 400) return { color: "warning", icon: Info };
     if (status >= 400) return { color: "danger", icon: AlertCircle };
     return { color: "default", icon: Info };
@@ -98,6 +99,9 @@ const HttpResponse = ({ response, error }: any) => {
     <Card shadow="sm" className="http-response w-full max-w-full border border-default-200">
       <CardHeader className="flex justify-between items-center bg-default-50">
         <div className="flex items-center gap-3">
+          <Button variant="flat" isIconOnly onClick={dismiss} size="sm">
+            <TrashIcon size={16} />
+          </Button>
           <Chip
             color={statusInfo.color as any}
             variant="flat"
@@ -106,9 +110,7 @@ const HttpResponse = ({ response, error }: any) => {
           >
             {status}
           </Chip>
-          <span className="text-default-700 font-semibold select-text">
-            {statusText}
-          </span>
+          <span className="text-default-700 font-semibold select-text">{statusText}</span>
         </div>
         <div className="flex items-center gap-4">
           <Tooltip content="Request duration">

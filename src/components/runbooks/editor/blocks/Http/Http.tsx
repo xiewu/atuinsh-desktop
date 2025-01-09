@@ -152,7 +152,18 @@ const Http = ({
           />
         </div>
       }
-      footer={(response || error) && <HttpResponse response={response} error={error} />}
+      footer={
+        (response || error) && (
+          <HttpResponse
+            response={response}
+            error={error}
+            dismiss={() => {
+              setResponse(null);
+              setError(null);
+            }}
+          />
+        )
+      }
     >
       <Tabs
         aria-label="Options"

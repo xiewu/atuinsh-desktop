@@ -28,7 +28,6 @@ export class Settings {
   }
 
   public static async terminalGL(val: boolean | null = null): Promise<boolean> {
-    console.log(val);
     let store = await KVStore.open_default();
 
     if (val !== null) {

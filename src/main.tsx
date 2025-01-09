@@ -30,6 +30,7 @@ import Workspace from "./state/runbooks/workspace";
 import Runbook from "./state/runbooks/runbook";
 import welcome from "@/state/runbooks/welcome.json";
 import Logger from "./lib/logger";
+import AtuinEnv from "./atuin_env";
 const logger = new Logger("Main");
 
 (async () => {
@@ -141,7 +142,15 @@ function Application() {
       <NextUIProvider>
         <QueryClientProvider client={queryClient}>
           <main className="text-foreground bg-background">
-            <div data-tauri-drag-region className="w-full min-h-8 z-10 border-b-1" />
+            {AtuinEnv.isProd && (
+              <div data-tauri-drag-region className="w-full min-h-8 z-10 border-b-1" />
+            )}
+            {AtuinEnv.isDev && (
+              <div
+                data-tauri-drag-region
+                className="w-full min-h-8 z-10 border-b-1 bg-striped bg-[length:7px_7px]"
+              />
+            )}
 
             <div className="z-20 ">
               <RouterProvider router={router} />

@@ -38,7 +38,6 @@ const useSettingsState = (
   const updateSetting = async (newValue: any) => {
     setValue(newValue);
     await settingsSetter(newValue);
-    console.log("SET", newValue);
   };
 
   return [value, updateSetting, isLoading];
@@ -85,9 +84,7 @@ const SettingSwitch = ({
   >
     <div className="flex flex-col">
       <span>{label}</span>
-      {description && (
-        <span className="text-tiny text-default-400">{description}</span>
-      )}
+      {description && <span className="text-tiny text-default-400">{description}</span>}
     </div>
   </Switch>
 );
@@ -215,9 +212,7 @@ const SettingsModal = ({ isOpen, onOpenChange }: SettingsModalProps) => {
           <>
             <ModalHeader className="flex flex-col gap-1">
               <h1 className="text-2xl font-bold">Settings</h1>
-              <p className="text-small text-default-500">
-                Customize your experience
-              </p>
+              <p className="text-small text-default-500">Customize your experience</p>
             </ModalHeader>
             <ModalBody className="overflow-scroll">
               <div className="flex flex-col gap-4">

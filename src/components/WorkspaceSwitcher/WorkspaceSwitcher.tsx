@@ -79,7 +79,6 @@ const CompactWorkspaceSwitcher = () => {
                     onPress={() => {
                       settingsModalWorkspaceRef.current = workspace;
                       onOpen();
-                      console.log("settingsModalWorkspaceRef", settingsModalWorkspaceRef.current);
                     }}
                     size="sm"
                     variant="flat"

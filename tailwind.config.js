@@ -21,6 +21,10 @@ export default {
       },
     },
     extend: {
+      backgroundImage: {
+        striped:
+          "linear-gradient(135deg,#eeeeee 10%,#0000 0,#0000 50%,#eeeeee 0,#eeeeee 60%,#0000 0,#0000)",
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

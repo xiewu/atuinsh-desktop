@@ -44,7 +44,6 @@ class RunbookIndexService {
   }
 
   public addRunbook(runbook: Runbook) {
-    console.log("adding", runbook.name);
     this.stored.set(runbook.id, runbook);
     return this.index.addAsync(runbook.id, runbook.content);
   }

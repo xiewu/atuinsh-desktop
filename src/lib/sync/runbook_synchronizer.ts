@@ -157,6 +157,7 @@ export default class RunbookSynchronizer {
         }
         const provider = new PhoenixSynchronizer(this.runbookId, doc, false);
         const syncType: SyncType = await provider.once("synced");
+        provider.shutdown();
         if (syncType !== "online") {
           this.logger.error("Failed to sync YJS document");
         } else {
@@ -164,8 +165,6 @@ export default class RunbookSynchronizer {
           const blocks = await ydocToBlocknote(doc);
           runbook.content = JSON.stringify(blocks);
         }
-
-        provider.shutdown();
       }
 
       if (!this.isSyncing) return;

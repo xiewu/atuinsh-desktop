@@ -22,7 +22,7 @@ export default class Snapshot {
     this.tag = attrs.tag;
     this.runbook_id = attrs.runbook_id;
     this.content = attrs.content;
-    this.created = attrs.created || new Date();
+    this.created = attrs.created ? new Date(attrs.created) : new Date();
   }
 
   static async create(attrs: SnapshotAttrs): Promise<Snapshot> {

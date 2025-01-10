@@ -10,6 +10,11 @@ import { autobind } from "./decorators";
 
 type AwarenessData = { added: number[]; updated: number[]; removed: number[] };
 
+export type PresenceUserInfo = { id: string; username: string; avatar_url: string };
+type PresenceEntry = { metas: any[]; user: PresenceUserInfo };
+type PresenceEntries = Record<string, PresenceEntry>;
+type PresenceDiff = { joins: PresenceEntries; leaves: PresenceEntries };
+
 export type SyncType = "online" | "offline" | "timeout" | "error";
 
 /**
@@ -29,10 +34,15 @@ export class PhoenixSynchronizer extends Emittery {
   protected isShutdown: boolean = false;
   protected unlock: Function | null = null;
 
-  constructor(runbookId: string, doc: Y.Doc, requireLock: boolean = true) {
+  constructor(runbookId: string, doc: Y.Doc, requireLock: boolean = true, isProvider = false) {
     super();
-    this.logger = new Logger(`PhoenixSynchronizer (${runbookId})`, "blue", "cyan");
-    this.logger.debug("Creating new provider instance");
+    if (isProvider) {
+      this.logger = new Logger(`PhoenixProvider (${runbookId})`, "blue", "cyan");
+      this.logger.debug("Creating new provider instance");
+    } else {
+      this.logger = new Logger(`PhoenixSynchronizer (${runbookId})`, "blue", "cyan");
+      this.logger.debug("Creating new synchronizer instance");
+    }
 
     const manager = SocketManager.get();
     this.subscriptions.push(manager.onConnect(this.onSocketConnected));
@@ -175,14 +185,15 @@ export class PhoenixSynchronizer extends Emittery {
  */
 export default class PhoenixProvider extends PhoenixSynchronizer {
   constructor(runbookId: string, doc: Y.Doc, requireLock: boolean = true) {
-    super(runbookId, doc, requireLock);
-    this.logger = new Logger(`PhoenixProvider (${runbookId})`, "blue", "cyan");
+    super(runbookId, doc, requireLock, true);
 
     this.doc.on("update", this.handleDocUpdate);
     this.awareness.on("update", this.handleAwarenessUpdate);
 
     this.subscriptions.push(this.channel.on("apply_update", this.handleIncomingUpdate));
     this.subscriptions.push(this.channel.on("awareness", this.handleIncomingAwareness));
+    this.subscriptions.push(this.channel.on("presence_state", this.handlePresenceState));
+    this.subscriptions.push(this.channel.on("presence_diff", this.handlePresenceDiff));
   }
 
   @autobind
@@ -218,9 +229,27 @@ export default class PhoenixProvider extends PhoenixSynchronizer {
     awarenessProtocol.applyAwarenessUpdate(this.awareness, payload, this);
   }
 
+  @autobind
+  handlePresenceState(presences: PresenceEntries) {
+    for (const id in presences) {
+      this.emit("presence:join", presences[id].user);
+    }
+  }
+
+  @autobind
+  handlePresenceDiff(diff: PresenceDiff) {
+    for (const id in diff.joins) {
+      this.emit("presence:join", diff.joins[id].user);
+    }
+
+    for (const id in diff.leaves) {
+      this.emit("presence:leave", diff.joins[id].user);
+    }
+  }
+
   shutdown() {
+    super.shutdown();
     this.doc.off("update", this.handleDocUpdate);
     this.awareness.off("update", this.handleAwarenessUpdate);
-    super.shutdown();
   }
 }

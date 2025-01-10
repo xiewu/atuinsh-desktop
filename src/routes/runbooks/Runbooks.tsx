@@ -14,6 +14,7 @@ import * as api from "@/api/api";
 import { ErrorBoundary } from "@sentry/react";
 import { snapshotByRunbookAndTag, snapshotsByRunbook } from "@/lib/queries/snapshots";
 import Runbook from "@/state/runbooks/runbook";
+import { PresenceUserInfo } from "@/lib/phoenix_provider";
 
 function useMarkRunbookRead(runbook: Runbook | null, refreshRunbooks: () => void) {
   useEffect(() => {
@@ -31,6 +32,7 @@ export default function Runbooks() {
   const setLastTagForRunbook = useStore((store) => store.selectTag);
   const currentRunbook = useCurrentRunbook();
   const lastRunbookRef = useMemory(currentRunbook);
+  const [presences, setPresences] = useState<PresenceUserInfo[]>([]);
 
   // Key used to re-render editor when making major changes to runbook
   const [editorKey, setEditorKey] = useState<number>(0);
@@ -78,6 +80,27 @@ export default function Runbooks() {
     },
     scope: { id: `runbook` },
   });
+
+  useEffect(() => {
+    setPresences([]);
+  }, [currentRunbook?.id, currentSnapshot?.id]);
+
+  function onPresenceJoin(user: PresenceUserInfo) {
+    setPresences((prev) => {
+      const index = prev.findIndex((u) => u.id == user.id);
+      if (index > -1) {
+        const before = prev.slice(0, index);
+        const after = prev.slice(index + 1);
+        return [...before, user, ...after];
+      } else {
+        return [...prev, user];
+      }
+    });
+  }
+
+  function onPresenceLeave(user: PresenceUserInfo) {
+    setPresences((prev) => prev.filter((u) => u.id != user.id));
+  }
 
   useEffect(() => {
     if (!currentRunbook) {
@@ -192,6 +215,7 @@ export default function Runbooks() {
             remoteRunbook={remoteRunbook || undefined}
             refreshRemoteRunbook={refreshRemoteRunbook}
             tags={tags}
+            presences={presences}
             showTagMenu={showTagMenu}
             onOpenTagMenu={() => setShowTagMenu(true)}
             onCloseTagMenu={() => setShowTagMenu(false)}
@@ -210,6 +234,8 @@ export default function Runbooks() {
                 runbook={currentRunbook}
                 snapshot={currentSnapshot || null}
                 editable={editable && selectedTag == "latest"}
+                onPresenceJoin={onPresenceJoin}
+                onPresenceLeave={onPresenceLeave}
               />
             )}
             {hasNoTags && (

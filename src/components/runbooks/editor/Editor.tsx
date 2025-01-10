@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import track_event from "@/tracking";
 import Logger from "@/lib/logger";
 const logger = new Logger("Editor", "orange", "orange");
@@ -39,7 +39,7 @@ import { insertHttp } from "./blocks/Http/Http";
 import { uuidv7 } from "uuidv7";
 import { DuplicateBlockItem } from "./ui/DuplicateBlockItem";
 
-import PhoenixProvider from "@/lib/phoenix_provider";
+import PhoenixProvider, { PresenceUserInfo } from "@/lib/phoenix_provider";
 import Snapshot from "@/state/runbooks/snapshot";
 import { useMemory } from "@/lib/utils";
 import { createBasicEditor, createCollaborativeEditor, schema } from "./create_editor";
@@ -94,15 +94,35 @@ type EditorProps = {
   runbook: Runbook | null;
   snapshot: Snapshot | null;
   editable: boolean;
+  onPresenceJoin: (user: PresenceUserInfo) => void;
+  onPresenceLeave: (user: PresenceUserInfo) => void;
 };
 
-export default function Editor({ runbook, snapshot, editable }: EditorProps) {
+export default function Editor({
+  runbook,
+  snapshot,
+  editable,
+  onPresenceJoin,
+  onPresenceLeave,
+}: EditorProps) {
   const refreshRunbooks = useStore((store: AtuinState) => store.refreshRunbooks);
   const user = useStore((store: AtuinState) => store.user);
-  const [ydoc, setYdoc] = useState<Y.Doc>(new Y.Doc());
   let [editor, setEditor] = useState<BlockNoteEditor | null>(null);
   const lastRunbook = useMemory(runbook);
   const lastEditor = useMemory<BlockNoteEditor>(editor as BlockNoteEditor);
+
+  const yDoc = useMemo(() => {
+    let doc = new Y.Doc();
+    if (!runbook) {
+      return doc;
+    }
+
+    if (runbook.ydoc) {
+      Y.applyUpdate(doc, runbook.ydoc);
+    }
+
+    return doc;
+  }, [runbook?.id]);
 
   const fetchName = (blocks: any[]): string => {
     // Infer the title from the first text block
@@ -121,19 +141,6 @@ export default function Editor({ runbook, snapshot, editable }: EditorProps) {
 
     return "Untitled";
   };
-
-  useEffect(() => {
-    if (!runbook) {
-      setYdoc(new Y.Doc());
-      return;
-    }
-
-    const yDoc = new Y.Doc();
-    if (runbook.ydoc) {
-      Y.applyUpdate(yDoc, runbook.ydoc);
-    }
-    setYdoc(yDoc);
-  }, [runbook?.id]);
 
   const onChange = useCallback(
     async (runbookArg: Runbook | undefined, editorArg: BlockNoteEditor) => {
@@ -165,7 +172,7 @@ export default function Editor({ runbook, snapshot, editable }: EditorProps) {
       const runbook = lastRunbook.current;
       runbook.name = fetchName(editorArg.document);
       if (editor) runbook.content = JSON.stringify(editorArg.document);
-      if (ydoc) runbook.ydoc = Y.encodeStateAsUpdate(ydoc);
+      if (yDoc) runbook.ydoc = Y.encodeStateAsUpdate(yDoc);
 
       await runbook.save();
       refreshRunbooks();
@@ -180,7 +187,7 @@ export default function Editor({ runbook, snapshot, editable }: EditorProps) {
 
   useEffect(() => {
     logger.debug("Runbook or snapshot changed:", runbook?.id, snapshot?.id);
-    if (!runbook || !ydoc) return undefined;
+    if (!runbook || !yDoc) return undefined;
 
     let content = snapshot ? JSON.parse(snapshot.content) : JSON.parse(runbook.content || "[]");
 
@@ -202,7 +209,10 @@ export default function Editor({ runbook, snapshot, editable }: EditorProps) {
 
     // Otherwise, we want a full editor with all the trimmings
     let timer: number | undefined;
-    let provider = new PhoenixProvider(runbook.id, ydoc);
+    let provider = new PhoenixProvider(runbook.id, yDoc);
+
+    provider.on("presence:join", onPresenceJoin);
+    provider.on("presence:leave", onPresenceLeave);
 
     const editor = createCollaborativeEditor(provider, user);
 
@@ -245,7 +255,7 @@ export default function Editor({ runbook, snapshot, editable }: EditorProps) {
     };
     // zustand state is immutable, so `runbook` will change every runbook.save()
     // to avoid creating a new editor and provider every save, depend on the runbook ID
-  }, [runbook?.id, snapshot, ydoc]);
+  }, [runbook?.id, snapshot, yDoc]);
 
   useEffect(() => {
     if (editor) {

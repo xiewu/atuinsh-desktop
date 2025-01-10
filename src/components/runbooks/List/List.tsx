@@ -57,7 +57,8 @@ const NoteSidebar = () => {
   const handleNewRunbook = async () => {
     window.getSelection()?.removeAllRanges();
 
-    await Runbook.createUntitled(currentWorkspaceId);
+    const rb = await Runbook.createUntitled(currentWorkspaceId);
+    setCurrentRunbookId(rb.id);
     queryClient.invalidateQueries(runbooksByWorkspaceId(currentWorkspaceId));
     queryClient.invalidateQueries(allRunbooks());
     queryClient.invalidateQueries(allRunbooksIds());

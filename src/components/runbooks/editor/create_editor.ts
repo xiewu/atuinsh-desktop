@@ -51,6 +51,12 @@ export function createBasicEditor(content: any) {
 export function createCollaborativeEditor(provider: PhoenixProvider, user: User) {
   return BlockNoteEditor.create({
     schema,
+    _tiptapOptions: {
+      editorProps: {
+        scrollThreshold: 80,
+        scrollMargin: 80,
+      },
+    },
     collaboration: {
       provider: provider,
       fragment: provider.doc.getXmlFragment("document-store"),

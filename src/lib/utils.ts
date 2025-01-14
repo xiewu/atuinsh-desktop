@@ -5,6 +5,7 @@ import type { ClassValue } from "clsx";
 import clsx from "clsx";
 import { useEffect, useRef, useState } from "react";
 import { extendTailwindMerge } from "tailwind-merge";
+import { clearTimeout, setTimeout } from "worker-timers";
 
 const COMMON_UNITS = ["small", "medium", "large"];
 

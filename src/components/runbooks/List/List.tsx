@@ -160,6 +160,7 @@ const NoteSidebar = () => {
                 <div
                   className={cn("flex-grow mr-2", {
                     "!max-w-[10.5rem]": count > 0,
+                    "!max-w-[12rem]": count == 0,
                   })}
                 >
                   <h3 className="font-medium text-sm truncate text-ellipsis">

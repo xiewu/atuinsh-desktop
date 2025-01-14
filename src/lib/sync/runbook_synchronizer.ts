@@ -29,8 +29,10 @@ export type SyncResult = {
 export default class RunbookSynchronizer {
   public readonly runbookId: string;
   public isSyncing: boolean = false;
+  public syncStarted: Date | null = null;
   private currentUser: User;
   private workspaceId: string;
+  private provider: PhoenixSynchronizer | null = null;
   private resolve: Function | null = null;
   private reject: Function | null = null;
   private logger: Logger;
@@ -53,9 +55,16 @@ export default class RunbookSynchronizer {
     });
   }
 
+  public syncTimeMs() {
+    if (!this.syncStarted) return -Infinity;
+
+    return Date.now() - this.syncStarted.getTime();
+  }
+
   private doSync(attemptYjsSync: boolean = false): Promise<SyncResult> {
     return new Promise(async (resolve, reject) => {
       this.isSyncing = true;
+      this.syncStarted = new Date();
       this.resolve = resolve;
       this.reject = reject;
 
@@ -80,10 +89,16 @@ export default class RunbookSynchronizer {
             if (shouldDelete) {
               await Runbook.delete(runbook.id);
               this.resolve({ runbookId: this.runbookId, action: "deleted" });
+              return;
             } else {
               this.resolve({ runbookId: this.runbookId, action: "nothing" });
+              return;
             }
           }
+          // We should never hit this branch; it means the runbook exists neither on
+          // the client nor on the server, in which case the ID shouldn't have been
+          // added to the SyncSet.
+          this.resolve({ runbookId: this.runbookId, action: "nothing" });
           return;
         } else {
           this.reject(err);
@@ -149,15 +164,18 @@ export default class RunbookSynchronizer {
         }
       }
 
+      if (!this.isSyncing) return;
+
       if (attemptYjsSync && remoteRunbook.permissions.includes("update_content")) {
         this.logger.debug("Updating YJS document");
         const doc = new Y.Doc();
         if (runbook.ydoc) {
           Y.applyUpdate(doc, runbook.ydoc);
         }
-        const provider = new PhoenixSynchronizer(this.runbookId, doc, false);
-        const syncType: SyncType = await provider.once("synced");
-        provider.shutdown();
+        this.provider = new PhoenixSynchronizer(this.runbookId, doc, false);
+        const syncType: SyncType = await this.provider.once("synced");
+        this.provider.shutdown();
+        this.provider = null;
         if (syncType !== "online") {
           this.logger.error("Failed to sync YJS document");
         } else {
@@ -171,6 +189,11 @@ export default class RunbookSynchronizer {
       await runbook.save();
       this.resolve({ runbookId: this.runbookId, action: created ? "created" : "updated" });
     });
+  }
+
+  public forceUnlockMutex() {
+    SyncManager.syncMutex(this.runbookId).forceUnlock();
+    this.provider?.shutdown();
   }
 
   public cancelSync() {

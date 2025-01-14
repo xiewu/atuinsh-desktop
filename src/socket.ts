@@ -172,7 +172,9 @@ export class WrappedChannel {
 
     return () => {
       unsub();
-      if (this.handlers.get(event)?.count == 1) {
+      if (!this.handlers.has(event)) {
+        console.warn(`${event} wasn't found in handlers, but an unsub was called.`);
+      } else if (this.handlers.get(event)!.count === 1) {
         this.channel.off(event, this.handlers.get(event)!.ref);
         this.handlers.delete(event);
       } else {

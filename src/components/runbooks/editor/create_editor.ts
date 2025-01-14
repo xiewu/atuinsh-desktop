@@ -48,7 +48,12 @@ export function createBasicEditor(content: any) {
   });
 }
 
-export function createCollaborativeEditor(provider: PhoenixProvider, user: User) {
+export function createCollaborativeEditor(
+  provider: PhoenixProvider,
+  user: User,
+  presenceColor?: string,
+) {
+  presenceColor = presenceColor || randomColor();
   return BlockNoteEditor.create({
     schema,
     _tiptapOptions: {
@@ -62,7 +67,7 @@ export function createCollaborativeEditor(provider: PhoenixProvider, user: User)
       fragment: provider.doc.getXmlFragment("document-store"),
       user: {
         name: user.username || "Anonymous",
-        color: randomColor(),
+        color: presenceColor,
       },
     },
   });

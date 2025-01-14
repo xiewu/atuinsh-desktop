@@ -2,6 +2,7 @@ import Runbook from "@/state/runbooks/runbook";
 import RelativeTime from "@/components/relative_time.tsx";
 import SharePopover from "./SharePopover";
 import TagSelector from "./TagSelector";
+import ColorAvatar from "@/components/ColorAvatar";
 import { DateTime } from "luxon";
 import { Avatar, AvatarGroup, Tooltip } from "@nextui-org/react";
 import { RemoteRunbook } from "@/state/models";
@@ -103,12 +104,14 @@ export default function Topbar(props: TopbarProps) {
             }}
           >
             {props.presences.map((user) => (
-              <Avatar
+              <ColorAvatar
+                key={user.id}
                 isBordered
                 size="sm"
                 name={user.username}
                 src={user.avatar_url}
                 imgProps={{ title: user.username }}
+                outlineColor={user.color}
                 classNames={{ base: "inline-block mb-2" }}
               />
             ))}

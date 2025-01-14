@@ -101,6 +101,7 @@
     "usehooks-ts": "^3.1.0",
     "uuidv7": "^1.0.2",
     "vaul": "^0.9.9",
+    "worker-timers": "^8.0.13",
     "y-protocols": "^1.0.6",
     "yjs": "^13.6.20",
     "zustand": "^4.5.5"

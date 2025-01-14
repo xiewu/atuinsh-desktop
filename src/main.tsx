@@ -8,6 +8,7 @@
   },
 };
 
+import { event } from "@tauri-apps/api";
 import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { createHashRouter, RouterProvider } from "react-router-dom";
@@ -59,6 +60,14 @@ const queryClient = new QueryClient({
 const socketManager = SocketManager.get();
 const notificationManager = ServerNotificationManager.get();
 const syncManager = SyncManager.get(useStore);
+
+event.listen("tauri://blur", () => {
+  useStore.getState().setFocused(false);
+});
+
+event.listen("tauri://focus", () => {
+  useStore.getState().setFocused(true);
+});
 
 notificationManager.on("runbook_updated", (runbookId: string) => {
   syncManager.runbookUpdated(runbookId);

@@ -7,11 +7,13 @@ import Runbook from "@/state/runbooks/runbook";
 import { autobind } from "../decorators";
 import SyncSet from "./sync_set";
 import * as api from "@/api/api";
+import { clearTimeout, setTimeout } from "worker-timers";
 
 type Store = typeof useStore;
 
 const SYNC_CHECK_INTERVAL = 10_000;
-const NORMAL_SYNC_INTERVAL_SECS = 5 * 60;
+const STUCK_SYNC_TIMEOUT = 15_000;
+const NORMAL_SYNC_INTERVAL_SECS = 10 * 60;
 const EARLY_SYNC_INTERVAL_SECS = 30;
 
 /**
@@ -37,10 +39,13 @@ export default class SyncManager {
   private workspaceId: string;
   private currentUser: User;
   private syncSet: SyncSet | null = null;
+  private syncing: boolean = false;
   private lastSync: DateTime | null = null;
   private startNextSyncEarly: boolean = false;
   private priorityRunbookIds = new Set<string>();
-  private online: boolean = false;
+  private online: boolean | null = null;
+  private focused: boolean | null = null;
+  private periodicSyncTimeout: number | null = null;
 
   private constructor(store: Store) {
     this.store = store;
@@ -53,22 +58,39 @@ export default class SyncManager {
         fireImmediately: true,
       }),
     );
-    // By checking the `online` state immediately, we begin syncinc if we're online
     this.handlers.push(
       this.store.subscribe((state) => state.online, this.handleOnlineChange, {
         fireImmediately: true,
       }),
     );
+    this.handlers.push(
+      this.store.subscribe((state) => state.focused, this.handleFocusedChange, {
+        fireImmediately: true,
+      }),
+    );
+
+    this.periodicSyncCheck();
   }
 
   @autobind
   private async periodicSyncCheck() {
-    if (this.shouldSync()) {
-      // startSync() responsible for rescheduling
-      await this.startSync();
-    } else {
-      setTimeout(this.periodicSyncCheck, SYNC_CHECK_INTERVAL);
+    if (this.periodicSyncTimeout) {
+      clearTimeout(this.periodicSyncTimeout);
+      this.periodicSyncTimeout = null;
     }
+
+    if (this.isSyncStuck()) {
+      this.logger.error("Sync appears to be stuck; force killing");
+      await this.syncSet?.stop(true);
+      this.syncSet = null;
+      this.syncing = false;
+    }
+
+    if (this.shouldSync()) {
+      this.startSync();
+    }
+
+    this.periodicSyncTimeout = setTimeout(this.periodicSyncCheck, SYNC_CHECK_INTERVAL);
   }
 
   public static syncMutex(runbookId: string) {
@@ -87,36 +109,43 @@ export default class SyncManager {
     return mutex;
   }
 
+  isSyncStuck(): boolean {
+    if (!this.syncSet) return false;
+
+    const currentSyncTime = this.syncSet.currentSyncTimeMs();
+    return currentSyncTime !== undefined && currentSyncTime > STUCK_SYNC_TIMEOUT;
+  }
+
   public runbookUpdated(runbookId: string) {
     if (this.syncSet?.isWorking()) {
       this.syncSet.addRunbook(runbookId);
     } else {
       this.startNextSyncEarly = true;
       this.priorityRunbookIds.add(runbookId);
-      if (this.shouldSync()) {
-        this.startSync();
-      }
     }
   }
 
   private async getRunbookIdsToSync() {
-    const priorityIds = Array.from(this.priorityRunbookIds);
     const serverIds: string[] = await api.allRunbookIds();
     const localIds = await Runbook.allIdsInAllWorkspaces();
+    const priorityIds = Array.from(this.priorityRunbookIds);
 
     // JS sets are ordered, so start with runbooks that have been updated on the server
     return new Set([...priorityIds, ...serverIds, ...localIds]);
   }
 
   public async startSync() {
-    if (this.syncSet) {
+    if (this.syncing) {
       throw new Error("Sync already in progress");
     }
 
+    this.syncing = true;
     this.startNextSyncEarly = false;
+
     const ids = await this.getRunbookIdsToSync();
     this.priorityRunbookIds.clear();
     this.syncSet = new SyncSet(ids, this.workspaceId, this.currentUser);
+
     this.syncSet.on("deleted", (runbookId: string) => {
       this.store.getState().deleteRunbookFromCache(runbookId);
     });
@@ -124,6 +153,7 @@ export default class SyncManager {
       this.store.getState().refreshRunbooks();
     });
     this.syncSet.setCurrentRunbookId(this.currentRunbookId);
+
     try {
       this.store.getState().setIsSyncing(true);
       this.syncSet.start();
@@ -136,8 +166,7 @@ export default class SyncManager {
       this.store.getState().setIsSyncing(false);
       this.store.getState().refreshRunbooks();
       this.syncSet = null;
-
-      setTimeout(this.periodicSyncCheck, SYNC_CHECK_INTERVAL);
+      this.syncing = false;
     }
   }
 
@@ -145,7 +174,12 @@ export default class SyncManager {
     const syncInterval = this.startNextSyncEarly
       ? EARLY_SYNC_INTERVAL_SECS
       : NORMAL_SYNC_INTERVAL_SECS;
-    return this.online && this.syncSet === null && this.secondsSinceLastSync() >= syncInterval;
+    return (
+      !!this.online &&
+      !!this.focused &&
+      !this.syncing &&
+      this.secondsSinceLastSync() >= syncInterval
+    );
   }
 
   private secondsSinceLastSync(): number {
@@ -153,17 +187,18 @@ export default class SyncManager {
   }
 
   @autobind
-  private handleUserChange(newUser: User, lastUser: User) {
+  private async handleUserChange(newUser: User, lastUser: User) {
     if (newUser.is(lastUser)) return;
 
     this.logger.info("Current user changed; resyncing all runbooks");
-    if (this.syncSet) {
-      this.syncSet.stop();
+    if (this.syncing) {
+      await this.syncSet?.stop();
       this.syncSet = null;
+      this.syncing = false;
     }
 
-    // Allow any existing promise to settle
-    setTimeout(() => this.startSync());
+    this.startNextSyncEarly = true;
+    this.periodicSyncCheck();
   }
 
   @autobind
@@ -177,20 +212,37 @@ export default class SyncManager {
 
   @autobind
   private handleOnlineChange(online: boolean) {
+    if (online === this.online) return;
     this.online = online;
+
     if (online) {
       this.logger.debug("Connection to server established");
       this.startNextSyncEarly = true;
-      if (this.shouldSync()) {
-        this.startSync();
+      if (this.focused) {
+        // Prevent sycning for 10 seconds to allow the connection to settle
+        // and let the next periodic check pick up the sync
+        this.lastSync = DateTime.now().minus({
+          seconds: EARLY_SYNC_INTERVAL_SECS - SYNC_CHECK_INTERVAL / 1000 + 1,
+        });
+
+        // Reset the timer
+        this.periodicSyncCheck();
       }
     } else {
       this.logger.debug("Connection to server lost");
       if (this.syncSet) {
         this.logger.debug("Stopping sync");
-        this.syncSet.stop();
-        this.syncSet = null;
+        this.syncSet.stop().then(() => {
+          this.syncSet = null;
+          this.syncing = false;
+        });
       }
     }
+  }
+
+  @autobind
+  private handleFocusedChange(focused: boolean) {
+    if (focused === this.focused) return;
+    this.focused = focused;
   }
 }

@@ -10,7 +10,7 @@ import { autobind } from "./decorators";
 
 type AwarenessData = { added: number[]; updated: number[]; removed: number[] };
 
-export type PresenceUserInfo = { id: string; username: string; avatar_url: string };
+export type PresenceUserInfo = { id: string; username: string; avatar_url: string; color: string };
 type PresenceEntry = { metas: any[]; user: PresenceUserInfo };
 type PresenceEntries = Record<string, PresenceEntry>;
 type PresenceDiff = { joins: PresenceEntries; leaves: PresenceEntries };
@@ -23,8 +23,10 @@ export type SyncType = "online" | "offline" | "timeout" | "error";
  * @emits `"synced", SyncType ("online" | "offline" | "timeout" | "error")`
  */
 export class PhoenixSynchronizer extends Emittery {
+  public static instances = 0;
+
   protected connected: boolean;
-  protected channel: WrappedChannel;
+  protected _channel: WrappedChannel | null = null;
   protected subscriptions: any[] = [];
   protected readonly runbookId: string;
   protected readonly requireLock: boolean;
@@ -33,14 +35,24 @@ export class PhoenixSynchronizer extends Emittery {
   protected logger: Logger;
   protected isShutdown: boolean = false;
   protected unlock: Function | null = null;
+  protected presenceColor: string | null = null;
 
   constructor(runbookId: string, doc: Y.Doc, requireLock: boolean = true, isProvider = false) {
     super();
+    PhoenixSynchronizer.instances++;
     if (isProvider) {
-      this.logger = new Logger(`PhoenixProvider (${runbookId})`, "blue", "cyan");
+      this.logger = new Logger(
+        `PhoenixProvider (${runbookId}) - #${PhoenixSynchronizer.instances}`,
+        "blue",
+        "cyan",
+      );
       this.logger.debug("Creating new provider instance");
     } else {
-      this.logger = new Logger(`PhoenixSynchronizer (${runbookId})`, "blue", "cyan");
+      this.logger = new Logger(
+        `PhoenixSynchronizer (${runbookId}) - #${PhoenixSynchronizer.instances}`,
+        "blue",
+        "cyan",
+      );
       this.logger.debug("Creating new synchronizer instance");
     }
 
@@ -54,9 +66,19 @@ export class PhoenixSynchronizer extends Emittery {
     this.awareness = new awarenessProtocol.Awareness(this.doc);
     this.requireLock = requireLock;
 
-    this.channel = manager.channel(`doc:${this.runbookId}`);
-
     setTimeout(() => this.init());
+  }
+
+  get channel() {
+    if (this._channel) return this._channel;
+
+    const manager = SocketManager.get();
+    const channelParams = {
+      use_presence: this.presenceColor !== null,
+      presence_color: this.presenceColor,
+    };
+    this._channel = manager.channel(`doc:${this.runbookId}`, channelParams);
+    return this._channel;
   }
 
   init() {
@@ -107,6 +129,8 @@ export class PhoenixSynchronizer extends Emittery {
   }
 
   async resync() {
+    if (this.isShutdown) return;
+
     if (this.requireLock) {
       this.logger.debug("Acquiring sync lock...");
       this.unlock = await SyncManager.syncMutex(this.runbookId).lock();
@@ -155,17 +179,25 @@ export class PhoenixSynchronizer extends Emittery {
     this.logger.debug(`⬇️ Received server diff (${serverDiff.byteLength} bytes)`);
 
     // Step 3: Apply the diff from the server
-    Y.applyUpdate(this.doc, serverDiff, this);
-    this.logger.info("Resync complete");
-    return true;
+    if (!this.isShutdown) {
+      Y.applyUpdate(this.doc, serverDiff, this);
+      this.logger.info("Resync complete");
+      return true;
+    } else {
+      this.logger.info("Skipping applying diff from server because provider is shut down");
+      return false;
+    }
   }
 
   shutdown() {
+    if (this.isShutdown) return;
+
     this.logger.debug("Shutting down");
+    this.isShutdown = true;
+    PhoenixSynchronizer.instances--;
     if (this.unlock) {
       this.unlock();
     }
-    this.isShutdown = true;
     // disconnect from the server
     this.channel.leave();
     this.subscriptions.forEach((unsub) => unsub());
@@ -184,8 +216,9 @@ export class PhoenixSynchronizer extends Emittery {
  * @emits `"remote_update"` when a remote update is received
  */
 export default class PhoenixProvider extends PhoenixSynchronizer {
-  constructor(runbookId: string, doc: Y.Doc, requireLock: boolean = true) {
+  constructor(runbookId: string, doc: Y.Doc, presenceColor: string, requireLock: boolean = true) {
     super(runbookId, doc, requireLock, true);
+    this.presenceColor = presenceColor;
 
     this.doc.on("update", this.handleDocUpdate);
     this.awareness.on("update", this.handleAwarenessUpdate);
@@ -248,6 +281,8 @@ export default class PhoenixProvider extends PhoenixSynchronizer {
   }
 
   shutdown() {
+    if (this.isShutdown) return;
+
     super.shutdown();
     this.doc.off("update", this.handleDocUpdate);
     this.awareness.off("update", this.handleAwarenessUpdate);

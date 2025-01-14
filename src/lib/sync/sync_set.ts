@@ -52,6 +52,12 @@ export default class SyncSet extends Emittery {
     this.syncQueue = this.syncQueue.filter((sync) => sync.runbookId !== runbookId);
   }
 
+  public currentSyncTimeMs(): number | undefined {
+    if (!this.currentSync) return undefined;
+
+    return this.currentSync.syncTimeMs();
+  }
+
   public async start() {
     this.syncQueue = Array.from(this.runbookIds).map(
       (id) => new RunbookSynchronizer(id, this.workspaceId, this.currentUser),
@@ -96,7 +102,13 @@ export default class SyncSet extends Emittery {
     this.doneResolve();
   }
 
-  public stop() {
+  public async stop(forceStop = false) {
+    if (forceStop) {
+      this.currentSync?.cancelSync();
+      this.currentSync?.forceUnlockMutex();
+    }
+
     this.working = false;
+    return this.donePromise;
   }
 }

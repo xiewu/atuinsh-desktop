@@ -6,7 +6,7 @@ import { usePtyStore } from "@/state/ptyStore";
 import { useStore } from "@/state/store";
 import { save } from "@tauri-apps/plugin-dialog";
 import Snapshot from "@/state/runbooks/snapshot";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMemory } from "@/lib/utils";
 import { useCurrentRunbook } from "@/lib/useRunbook";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +15,7 @@ import { ErrorBoundary } from "@sentry/react";
 import { snapshotByRunbookAndTag, snapshotsByRunbook } from "@/lib/queries/snapshots";
 import Runbook from "@/state/runbooks/runbook";
 import { PresenceUserInfo } from "@/lib/phoenix_provider";
+import RunbookEditor from "@/lib/runbook_editor";
 
 function useMarkRunbookRead(runbook: Runbook | null, refreshRunbooks: () => void) {
   useEffect(() => {
@@ -27,15 +28,18 @@ function useMarkRunbookRead(runbook: Runbook | null, refreshRunbooks: () => void
 }
 
 export default function Runbooks() {
+  const user = useStore((store) => store.user);
   const refreshRunbooks = useStore((store) => store.refreshRunbooks);
   const getLastTagForRunbook = useStore((store) => store.getLastTagForRunbook);
   const setLastTagForRunbook = useStore((store) => store.selectTag);
   const currentRunbook = useCurrentRunbook();
   const lastRunbookRef = useMemory(currentRunbook);
   const [presences, setPresences] = useState<PresenceUserInfo[]>([]);
+  const [runbookEditor, setRunbookEditor] = useState<RunbookEditor | null>(null);
+  const lastRunbookEditor = useRef<RunbookEditor | null>(runbookEditor);
 
   // Key used to re-render editor when making major changes to runbook
-  const [editorKey, setEditorKey] = useState<number>(0);
+  const [editorKey, setEditorKey] = useState<boolean>(false);
   const [showTagMenu, setShowTagMenu] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(() => {
     let tag = currentRunbook ? getLastTagForRunbook(currentRunbook.id) : null;
@@ -65,7 +69,7 @@ export default function Runbooks() {
   }, [snapshots, remoteRunbook]);
 
   function updateEditorKey() {
-    setEditorKey((prev) => prev + 1);
+    setEditorKey((prev) => !prev);
   }
 
   const shareSnapshot = useMutation({
@@ -196,15 +200,51 @@ export default function Runbooks() {
     }
   }
 
+  useEffect(() => {
+    if (lastRunbookEditor.current && lastRunbookEditor.current.runbook.id === currentRunbook?.id) {
+      return;
+    } else if (lastRunbookEditor.current) {
+      lastRunbookEditor.current.shutdown();
+      setRunbookEditor(null);
+    }
+
+    if (!currentRunbook) {
+      return;
+    }
+
+    const newRunbookEditor = new RunbookEditor(
+      currentRunbook,
+      user,
+      selectedTag,
+      onPresenceJoin,
+      onPresenceLeave,
+    );
+    lastRunbookEditor.current = newRunbookEditor;
+    setEditorKey((prev) => !prev);
+    setRunbookEditor(newRunbookEditor);
+  }, [currentRunbook?.id]);
+
+  useEffect(() => {
+    if (!currentRunbook || !runbookEditor) return;
+
+    if (runbookEditor.runbook.id !== currentRunbook.id) return;
+
+    runbookEditor.updateRunbook(currentRunbook);
+    runbookEditor.updateUser(user);
+    runbookEditor.updateSelectedTag(selectedTag);
+    setRunbookEditor(runbookEditor);
+  }, [runbookEditor, currentRunbook, user, selectedTag]);
+
   const editable = !remoteRunbook || remoteRunbook?.permissions.includes("update_content");
   const canEditTags = !remoteRunbook || remoteRunbook?.permissions.includes("update");
   const canInviteCollabs = remoteRunbook?.permissions.includes("update");
   const hasNoTags = tags.length == 0;
 
   const readyToRender =
-    selectedTag == "latest" ||
-    (currentSnapshot && selectedTag == currentSnapshot.tag) ||
-    (selectedTag == null && hasNoTags);
+    runbookEditor &&
+    (selectedTag == "latest" ||
+      (currentSnapshot && selectedTag == currentSnapshot.tag) ||
+      (selectedTag == null && hasNoTags));
 
   return (
     <div className="flex !w-full !max-w-full flex-row overflow-hidden">
@@ -230,12 +270,10 @@ export default function Runbooks() {
           <ErrorBoundary>
             {!hasNoTags && (
               <Editor
-                key={editorKey}
+                key={editorKey ? "1" : "2"}
                 runbook={currentRunbook}
-                snapshot={currentSnapshot || null}
+                runbookEditor={runbookEditor}
                 editable={editable && selectedTag == "latest"}
-                onPresenceJoin={onPresenceJoin}
-                onPresenceLeave={onPresenceLeave}
               />
             )}
             {hasNoTags && (

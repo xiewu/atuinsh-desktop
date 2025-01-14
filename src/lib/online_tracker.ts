@@ -2,11 +2,12 @@ import { fetch } from "@tauri-apps/plugin-http";
 import { onlineManager } from "@tanstack/react-query";
 import { endpoint } from "../api/api";
 import { useStore } from "@/state/store";
+import { clearTimeout, setTimeout } from "worker-timers";
 
 const CHECK_TIMEOUT = 10_000;
 
 let checkTimer: number | null = null;
-let online = false;
+let online: boolean | null = null;
 
 function setOnline(newOnline: boolean) {
   if (newOnline === online) return;

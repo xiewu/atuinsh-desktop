@@ -9,6 +9,7 @@ type UnlockFn = () => void;
  */
 export default class Mutex extends Emittery {
   currentLock: Promise<void> | null = null;
+  currentUnlock: UnlockFn | null = null;
 
   constructor() {
     super();
@@ -29,6 +30,7 @@ export default class Mutex extends Emittery {
 
         if (this.currentLock === newLock) {
           this.currentLock = null;
+          this.currentUnlock = null;
           this.emit("free");
         }
       };
@@ -40,7 +42,17 @@ export default class Mutex extends Emittery {
       await waitForPrevious;
     }
 
+    this.currentUnlock = _resolve!;
     return _resolve!;
+  }
+
+  /**
+   * Forces the lock to be released.
+   */
+  public forceUnlock() {
+    if (this.currentUnlock) {
+      this.currentUnlock();
+    }
   }
 
   /**
@@ -48,12 +60,17 @@ export default class Mutex extends Emittery {
    *
    * @returns a promise resolving to the return value of the passed function
    */
-  public async runExclusive<T>(fn: () => Promise<T> | T): Promise<T> {
-    const unlock = await this.lock();
-    try {
-      return await fn();
-    } finally {
-      unlock();
-    }
+  public runExclusive<T>(fn: () => Promise<T> | T): Promise<T> {
+    let _unlock;
+    return this.lock()
+      .then((unlock) => {
+        _unlock = unlock;
+      })
+      .then(() => {
+        return fn();
+      })
+      .finally(() => {
+        _unlock!();
+      });
   }
 }

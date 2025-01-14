@@ -397,8 +397,16 @@ export default class Runbook {
   }
 
   public async moveTo(workspaceId: string) {
+    const db = await AtuinDB.load("runbooks");
     this.workspaceId = workspaceId;
-    await this.save();
+
+    logger.time(`Moving runbook to workspace ${workspaceId}`, async () => {
+      await db.execute(`UPDATE runbooks SET workspace_id = $1 where id = $2`, [
+        workspaceId,
+        this.id,
+      ]);
+    });
+    Runbook.invalidateCache(this.id);
   }
 
   public clone() {

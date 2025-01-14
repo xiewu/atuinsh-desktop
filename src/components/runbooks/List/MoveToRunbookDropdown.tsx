@@ -17,6 +17,9 @@ export default function MoveRunbookDropdown({
   onClose,
 }: MoveRunbookDropdownProps) {
   const currentWorkspaceId = useStore((store: AtuinState) => store.currentWorkspaceId);
+  const setCurrentWorkspaceId = useStore((store: AtuinState) => store.setCurrentWorkspaceId);
+  const currentRunbookId = useStore((store: AtuinState) => store.currentRunbookId);
+  const setCurrentRunbookId = useStore((store: AtuinState) => store.setCurrentRunbookId);
   const refreshRunbooks = useStore((store: AtuinState) => store.refreshRunbooks);
 
   const queryClient = useQueryClient();
@@ -41,9 +44,13 @@ export default function MoveRunbookDropdown({
               className="py-2"
               onPress={async () => {
                 await runbook.moveTo(workspace.id);
-                await refreshRunbooks();
+                if (currentRunbookId === runbook.id) {
+                  setCurrentWorkspaceId(workspace.id);
+                  setCurrentRunbookId(runbook.id);
+                }
                 queryClient.invalidateQueries(runbooksByWorkspaceId(currentWorkspaceId));
                 queryClient.invalidateQueries(runbooksByWorkspaceId(workspace.id));
+                await refreshRunbooks();
 
                 onClose();
               }}

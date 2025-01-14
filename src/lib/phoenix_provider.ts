@@ -276,7 +276,7 @@ export default class PhoenixProvider extends PhoenixSynchronizer {
     }
 
     for (const id in diff.leaves) {
-      this.emit("presence:leave", diff.joins[id].user);
+      this.emit("presence:leave", diff.leaves[id].user);
     }
   }
 

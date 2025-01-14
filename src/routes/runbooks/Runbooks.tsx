@@ -106,6 +106,10 @@ export default function Runbooks() {
     setPresences((prev) => prev.filter((u) => u.id != user.id));
   }
 
+  function onClearPresences() {
+    setPresences([]);
+  }
+
   useEffect(() => {
     if (!currentRunbook) {
       setSelectedTag(null);
@@ -200,10 +204,22 @@ export default function Runbooks() {
     }
   }
 
+  async function handleSharedToHub() {
+    await currentRunbook?.clearRemoteInfo();
+    lastRunbookEditor.current?.resetEditor();
+    refreshRemoteRunbook();
+    updateEditorKey();
+  }
+
+  async function handleDeletedFromHub() {
+    await currentRunbook?.clearRemoteInfo();
+    lastRunbookEditor.current?.resetEditor();
+    refreshRemoteRunbook();
+    updateEditorKey();
+  }
+
   useEffect(() => {
-    if (lastRunbookEditor.current && lastRunbookEditor.current.runbook.id === currentRunbook?.id) {
-      return;
-    } else if (lastRunbookEditor.current) {
+    if (lastRunbookEditor.current) {
       lastRunbookEditor.current.shutdown();
       setRunbookEditor(null);
     }
@@ -218,6 +234,7 @@ export default function Runbooks() {
       selectedTag,
       onPresenceJoin,
       onPresenceLeave,
+      onClearPresences,
     );
     lastRunbookEditor.current = newRunbookEditor;
     setEditorKey((prev) => !prev);
@@ -264,8 +281,8 @@ export default function Runbooks() {
             canEditTags={canEditTags}
             canInviteCollaborators={!!canInviteCollabs}
             onCreateTag={handleCreateTag}
-            onShareToHub={updateEditorKey}
-            onDeleteFromHub={updateEditorKey}
+            onShareToHub={handleSharedToHub}
+            onDeleteFromHub={handleDeletedFromHub}
           />
           <ErrorBoundary>
             {!hasNoTags && (

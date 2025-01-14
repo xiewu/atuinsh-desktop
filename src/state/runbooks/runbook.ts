@@ -367,6 +367,11 @@ export default class Runbook {
     await this.save();
   }
 
+  public async clearRemoteInfo() {
+    this.remoteInfo = null;
+    await this.save();
+  }
+
   public static async loadYDocForRunbook(id: string) {
     const update: ArrayBuffer | null = await logger.time(
       `Loading Y.Doc for runbook ${id}...`,

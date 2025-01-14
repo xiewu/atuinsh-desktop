@@ -60,10 +60,11 @@ export function remoteRunbook(runbook?: Runbook) {
           return rb;
         } catch (err: any) {
           if (
-            err instanceof HttpResponseError &&
-            err.code === 404 &&
-            // Only clear out the cache on 404 if the runbook is from our environment
-            runbook.source === AtuinEnv.hubRunbookSource
+            (err instanceof HttpResponseError &&
+              err.code === 404 &&
+              // Only clear out the cache on 404 if the runbook is from our environment or was created locally
+              runbook.source === AtuinEnv.hubRunbookSource) ||
+            runbook.source === "local"
           ) {
             return null;
           } else {

@@ -29,6 +29,7 @@ export default class RunbookEditor {
   private selectedTag: string;
   private onPresenceJoin: (user: PresenceUserInfo) => void;
   private onPresenceLeave: (user: PresenceUserInfo) => void;
+  private onClearPresences: () => void;
   private yDoc: Y.Doc;
 
   private editor: Promise<BlockNoteEditor> | null = null;
@@ -45,6 +46,7 @@ export default class RunbookEditor {
     selectedTag: string | null,
     onPresenceJoin: (user: PresenceUserInfo) => void,
     onPresenceLeave: (user: PresenceUserInfo) => void,
+    onClearPresences: () => void,
   ) {
     this.logger = new Logger(`RunbookEditor (${runbook.id})`, "black", "white");
     this.runbook = runbook;
@@ -52,6 +54,7 @@ export default class RunbookEditor {
     this.selectedTag = selectedTag || "latest";
     this.onPresenceJoin = onPresenceJoin;
     this.onPresenceLeave = onPresenceLeave;
+    this.onClearPresences = onClearPresences;
     this.yDoc = new Y.Doc();
     if (this.runbook.ydoc) {
       Y.applyUpdate(this.yDoc, this.runbook.ydoc);
@@ -85,10 +88,19 @@ export default class RunbookEditor {
     this.editor = null;
     if (tag !== "latest") {
       this.flushSave();
+      this.onClearPresences();
       this.provider?.shutdown();
       this.provider = null;
     }
     this.selectedTag = tag;
+  }
+
+  resetEditor() {
+    this.flushSave();
+    this.onClearPresences();
+    this.provider?.shutdown();
+    this.provider = null;
+    this.editor = null;
   }
 
   getEditor(): Promise<BlockNoteEditor> {
@@ -230,6 +242,7 @@ export default class RunbookEditor {
 
   shutdown() {
     this.isShutdown = true;
+    this.onClearPresences();
     this.provider?.shutdown();
     this.flushSave();
   }

@@ -44,25 +44,25 @@ export default function Topbar(props: TopbarProps) {
 
   const renderBarContents = () => {
     return (
-      <>
-        <div className="flex h-full">
+      <div id="topbar" className="flex h-full w-full justify-between">
+        <div id="avatar-name" className="flex min-w-0 md:max-w-full md:grow mr-2">
           {remoteRunbook && (
             <Avatar
               size="sm"
               radius="sm"
               name={remoteRunbook.user.username}
               src={remoteRunbook.user.avatar_url}
-              classNames={{ base: "inline-block mr-2 mt-1" }}
+              classNames={{ base: "inline-block mr-2 mt-1 min-w-[32px]" }}
             />
           )}
-          {!remoteRunbook && <BookTextIcon size={24} className="mt-2 mr-2 ml-1" />}
-          <div className="flex flex-col">
-            <span className="mb-[-1px]">{name}</span>
-            <span className="text-gray-400 text-xs italic">
+          {!remoteRunbook && <BookTextIcon size={24} className="mt-2 mr-2 ml-1 min-w-[26px]" />}
+          <div className="flex-col truncate shrink">
+            <div className="hidden md:block mb-[-1px] whitespace-nowrap">{name}</div>
+            <div className="hidden md:block text-gray-400 text-xs italic whitespace-nowrap">
               Updated <RelativeTime time={DateTime.fromJSDate(runbook.updated)} />
-            </span>
+            </div>
           </div>
-          <div className="mt-[7px]">
+          <div className="mt-[7px] inline-block">
             {(props.tags.length > 0 || props.canEditTags) && (
               <TagSelector
                 runbookId={runbook.id}
@@ -78,23 +78,23 @@ export default function Topbar(props: TopbarProps) {
             )}
           </div>
           {props.currentTag && props.currentTag !== "latest" && (
-            <div className="mt-[7px]">
+            <div className="mt-[7px] basis-4 inline-block">
               <Tooltip
                 content="This runbook is in read-only mode because you are viewing a tag"
                 placement="bottom"
                 showArrow
               >
-                <PencilOffIcon className="h-4 w-4 text-red-400 ml-4 inline" />
+                <PencilOffIcon className="h-4 w-4 text-red-400 ml-4 mr-4 inline" />
               </Tooltip>
             </div>
           )}
         </div>
-        <div>
+        <div className="basis-[100px] shrink-0 flex">
           <AvatarGroup
             size="sm"
             max={5}
             total={props.presences.length}
-            classNames={{ base: "inline-block mr-2" }}
+            classNames={{ base: "hidden lg:inline-block mr-2 mt-1" }}
             renderCount={(count) => {
               if (count - 5 > 0) {
                 return <span className="ml-2 text-gray-500">+{count - 5} others</span>;
@@ -124,7 +124,7 @@ export default function Topbar(props: TopbarProps) {
             refreshRemoteRunbook={props.refreshRemoteRunbook}
           />
         </div>
-      </>
+      </div>
     );
   };
 

@@ -93,7 +93,7 @@ const NoteSidebar = () => {
   }, [runbooks]);
 
   return (
-    <div className="!w-64 !max-w-64 !min-w-64 h-full bg-gray-50 border-r border-gray-200 flex flex-col select-none">
+    <div className="hidden !w-64 !max-w-64 !min-w-64 h-full bg-gray-50 border-r border-gray-200 md:flex md:flex-col select-none">
       <PendingInvitations />
       <div className="p-2 flex justify-between items-center border-b border-gray-200">
         <h2 className="text-lg font-semibold">Runbooks</h2>

@@ -195,8 +195,13 @@ export default function Share({
         content: ["p-0"],
       }}
     >
-      <PopoverTrigger>
-        <Button size="sm" variant="flat" color={buttonColor} className="mt-1">
+      <PopoverTrigger className="">
+        <Button
+          size="sm"
+          variant="flat"
+          color={buttonColor}
+          className="basis-[100px] min-w-[100px] mt-1 w-full shrink-0"
+        >
           {!online && <WifiOffIcon size={16} />}
           {online && !user.isLoggedIn() && <CloudOffIcon size={16} />}
           {online && user.isLoggedIn() && canUpdate && <ShareIcon size={16} />}

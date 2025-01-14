@@ -16,7 +16,8 @@
         "height": 1000,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
-        "dragDropEnabled": false
+        "dragDropEnabled": false,
+        "minWidth": 500
       }
     ]
   },
@@ -45,9 +46,7 @@
     },
     "deep-link": {
       "desktop": {
-        "schemes": [
-          "atuin"
-        ]
+        "schemes": ["atuin"]
       }
     },
     "updater": {

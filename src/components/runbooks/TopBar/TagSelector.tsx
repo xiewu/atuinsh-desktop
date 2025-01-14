@@ -8,6 +8,7 @@ import {
   PopoverTrigger,
   ScrollShadow,
 } from "@nextui-org/react";
+import clsx from "clsx";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 
@@ -144,16 +145,24 @@ export default function TagSelector(props: TagSelectorProps) {
       backdrop="opaque"
       classNames={{
         backdrop: "bg-transparent",
-        content: "w-[350px] p-4",
+        content: "w-[350px] p-4 grow-1",
       }}
       isOpen={props.isOpen}
       shouldCloseOnInteractOutside={() => true}
       onClose={props.onClose}
     >
       <PopoverTrigger onClick={props.onTrigger}>
-        <span className="ml-2 border-1 border-gray-300 rounded-md p-[5px] pb-[6px] cursor-pointer bg-gray-200 text-gray-700">
-          @ {tagLabel} <ChevronDownIcon className="inline-block" size={16} />
-        </span>
+        <div
+          className={clsx({
+            "flex max-w-[220px] md:min-w-[90px] md:max-w-[55px] lg:max-w-[200px]": true,
+            "ml-0 md:ml-2 border-1 border-gray-300 rounded-md p-[5px] pb-[6px]": true,
+            "cursor-pointer bg-gray-200 text-gray-700 mt-[-5px] truncate": true,
+            "sm:grow md:grow-0": true,
+          })}
+        >
+          <span className="w-full truncate overflow-ellipsis">@ {tagLabel}</span>
+          <ChevronDownIcon className="inline mt-2 !min-w-[16px]" size={16} />
+        </div>
       </PopoverTrigger>
       <PopoverContent>
         <div>Select a tag to view a previously saved snapshot of this runbook</div>

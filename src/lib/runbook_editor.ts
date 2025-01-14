@@ -83,7 +83,8 @@ export default class RunbookEditor {
     if (tag === this.selectedTag) return;
 
     this.editor = null;
-    if (tag !== "latest" && tag !== null) {
+    if (tag !== "latest") {
+      this.flushSave();
       this.provider?.shutdown();
       this.provider = null;
     }
@@ -171,6 +172,10 @@ export default class RunbookEditor {
   }
 
   save(runbook: Runbook | undefined, editor: BlockNoteEditor) {
+    // Don't allow `onChange` events from BlockNote to fire a save
+    // if we're viewing a tag
+    if (this.selectedTag !== "latest") return;
+
     if (this.saveTimer) {
       clearTimeout(this.saveTimer);
     }
@@ -191,6 +196,7 @@ export default class RunbookEditor {
 
     if (this.saveArgs) {
       this._save(...this.saveArgs);
+      this.saveArgs = null;
     }
   }
 
@@ -200,7 +206,6 @@ export default class RunbookEditor {
       this.logger.warn(
         "Runbook from args not the same as runbook from container",
         runbookArg?.id,
-        this.runbook.id,
         this.runbook.id,
       );
       return;

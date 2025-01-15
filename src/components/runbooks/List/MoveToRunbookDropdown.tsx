@@ -26,7 +26,7 @@ export default function MoveRunbookDropdown({
   const { data: workspaces } = useQuery(allWorkspaces());
 
   return (
-    <Dropdown isOpen={isOpen} placement="right-start" className="ml-32">
+    <Dropdown isOpen={isOpen} placement="right-start" className="absolute left-[7rem] top-[-1rem]">
       <DropdownTrigger title="Move to">
         <span className="w-full">Move to</span>
       </DropdownTrigger>

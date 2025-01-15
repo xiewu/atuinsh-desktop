@@ -1,10 +1,5 @@
 import Runbook from "@/state/runbooks/runbook";
-import {
-  Dropdown,
-  DropdownTrigger,
-  DropdownMenu,
-  DropdownItem,
-} from "@nextui-org/react";
+import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@nextui-org/react";
 import { save } from "@tauri-apps/plugin-dialog";
 
 interface ExportRunbookDropdownProps {
@@ -50,16 +45,18 @@ export default function ExportRunbookDropdown({
   ];
 
   return (
-    <Dropdown isOpen={isOpen} placement="right-start" className="ml-[7.5rem]">
+    <Dropdown
+      isOpen={isOpen}
+      placement="right-start"
+      className="absolute left-[6.5rem] top-[-1rem]"
+    >
       <DropdownTrigger title="Export as">
         <span className="w-full">Export as</span>
       </DropdownTrigger>
       <DropdownMenu
         aria-label="Workspace selection"
         variant="flat"
-        topContent={
-          <div className="text-default-600 font-semibold">Export</div>
-        }
+        topContent={<div className="text-default-600 font-semibold">Export</div>}
         items={exportTypes}
       >
         {(exportType) => {

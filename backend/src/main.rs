@@ -1,9 +1,10 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::fs;
 use std::path::PathBuf;
 
-use tauri::{AppHandle, Manager};
+use tauri::{App, AppHandle, Manager};
 use time::format_description::well_known::Rfc3339;
 
 mod blocks;
@@ -271,6 +272,33 @@ async fn cli_settings() -> Result<Settings, String> {
     Ok(settings)
 }
 
+fn backup_databases(app: &App) -> tauri::Result<()> {
+    let version = app.package_info().version.to_string();
+    // This seems like the wrong directory to use, but it's what the SQL plugin uses so ¯\_(ツ)_/¯
+    let base_dir = app.path().app_config_dir()?;
+    let backup_dir = base_dir.join("backup");
+    let target_dir = backup_dir.join(version);
+
+    if !fs::exists(&backup_dir)? {
+        fs::create_dir(&backup_dir)?
+    }
+
+    if !fs::exists(&target_dir)? {
+        fs::create_dir(&target_dir)?;
+
+        for entry in fs::read_dir(&base_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_file() {
+                let target = target_dir.join(path.file_name().unwrap());
+                fs::copy(&path, &target)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
 fn show_window(app: &AppHandle) {
     let windows = app.webview_windows();
 
@@ -355,6 +383,8 @@ fn main() {
         .plugin(tauri_plugin_http::init())
         .manage(state::AtuinState::default())
         .setup(|app| {
+            backup_databases(app)?;
+
             let handle = app.handle();
 
             handle.set_menu(menu::menu(handle).expect("Failed to build menu"))?;

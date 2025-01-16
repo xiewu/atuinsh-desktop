@@ -316,3 +316,11 @@ export async function getCollaborationById(id: string): Promise<RemoteCollaborat
   const { collaboration } = await get<CollaborationResponse>(`/collaborations/${id}`);
   return collaboration;
 }
+
+export function acceptCollaboration(id: string) {
+  return put(`/collaborations/${id}`, { accepted: true });
+}
+
+export function declineCollaboration(id: string) {
+  return put(`/collaborations/${id}`, { accepted: false });
+}

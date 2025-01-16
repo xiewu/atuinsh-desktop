@@ -1,7 +1,7 @@
 import { StateCreator } from "zustand";
 import * as api from "@/api/api";
 
-interface Collaboration {
+export interface Collaboration {
   id: string;
   accepted: boolean;
   runbook: {

@@ -116,6 +116,7 @@ export default class RunbookSynchronizer {
         runbook.source = AtuinEnv.hubRunbookSource;
         runbook.sourceInfo = remoteRunbook.nwo;
         runbook.created = new Date(remoteRunbook.client_created);
+        runbook.workspaceId = this.workspaceId;
       }
       runbook.remoteInfo = JSON.stringify(remoteRunbook);
 

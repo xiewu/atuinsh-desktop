@@ -90,15 +90,20 @@ notificationManager.on("collab_accepted", async (collabId: string) => {
   useStore.getState().markCollaborationAccepted(collabId);
   try {
     const collab = await api.getCollaborationById(collabId);
-    syncManager.runbookUpdated(collab.runbook.id);
+    queryClient.invalidateQueries({ queryKey: ["remote_runbook", collab.runbook.id] });
   } catch (err) {}
 });
 
-notificationManager.on("collab_deleted", (collabId: string) => {
+notificationManager.on("collab_deleted", async (collabId: string) => {
   const { collaborations, removeCollaboration } = useStore.getState();
   const collaboration = collaborations.find((c) => c.id === collabId);
   if (collaboration) {
-    syncManager.runbookUpdated(collaboration.runbook.id);
+    const existingIds = await Runbook.allIdsInAllWorkspaces();
+    // Only schedule the runbook for a sync update if it already exists locally
+    if (collaboration.runbook.id in existingIds) {
+      syncManager.runbookUpdated(collaboration.runbook.id);
+    }
+    queryClient.invalidateQueries({ queryKey: ["remote_runbook", collaboration.runbook.id] });
   }
   removeCollaboration(collabId);
 });

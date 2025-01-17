@@ -362,11 +362,6 @@ export default class Runbook {
     });
   }
 
-  public async markViewed() {
-    this.viewed_at = new Date();
-    await this.save();
-  }
-
   public async clearRemoteInfo() {
     this.remoteInfo = null;
     await this.save();
@@ -411,6 +406,23 @@ export default class Runbook {
         this.id,
       ]);
     });
+    Runbook.invalidateCache(this.id);
+  }
+
+  public async updateRemoteInfo(remoteInfo: string | null) {
+    const db = await AtuinDB.load("runbooks");
+
+    await db.execute(`UPDATE runbooks SET remote_info = $1 where id = $2`, [remoteInfo, this.id]);
+    Runbook.invalidateCache(this.id);
+  }
+
+  public async markViewed() {
+    const db = await AtuinDB.load("runbooks");
+
+    await db.execute(`UPDATE runbooks SET viewed_at = $1 where id = $2`, [
+      new Date().getTime() * 1000000,
+      this.id,
+    ]);
     Runbook.invalidateCache(this.id);
   }
 

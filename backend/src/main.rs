@@ -279,6 +279,11 @@ fn backup_databases(app: &App) -> tauri::Result<()> {
     let backup_dir = base_dir.join("backup");
     let target_dir = backup_dir.join(version);
 
+    // On first start, the main dir may not exist
+    if !fs::exists(&base_dir)? {
+        fs::create_dir(&base_dir)?
+    }
+
     if !fs::exists(&backup_dir)? {
         fs::create_dir(&backup_dir)?
     }

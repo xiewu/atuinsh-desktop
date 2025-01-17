@@ -204,6 +204,17 @@ async function setup() {
     promises.push(rb.save());
   }
 
+  // It's also possible for a runbook to have a workspace_id that doesn't
+  // actually exist -- for example, a sync happened when `currentWorkspaceId`
+  // wasn't set right.
+  //
+  // This likely only happens in dev, when removing the SQLite database files
+  // and logging in as a new user.
+  const runbooks = await Runbook.selectWhere("workspace_id NOT IN (SELECT id FROM workspaces)");
+  for (const runbook of runbooks) {
+    runbook.moveTo(wsId);
+  }
+
   const allRbIds = await Runbook.allIdsInAllWorkspaces();
   if (allRbIds.length === 0) {
     let runbook = await Runbook.create(wsId);

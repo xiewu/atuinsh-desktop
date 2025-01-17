@@ -231,6 +231,15 @@ export default class Runbook {
     return Runbook.fromRow(rb);
   }
 
+  public static async selectWhere(whereClause: string, bindValues?: any[]): Promise<Runbook[]> {
+    const db = await AtuinDB.load("runbooks");
+
+    const query = `SELECT * FROM runbooks WHERE ${whereClause}`;
+    const rows = await db.select<any[]>(query, bindValues);
+
+    return rows.map(Runbook.fromRow);
+  }
+
   static fromRow(row: any): Runbook {
     let update: Uint8Array | null = null;
     if (row.ydoc) {

@@ -8,6 +8,7 @@ import { autobind } from "../decorators";
 import SyncSet from "./sync_set";
 import * as api from "@/api/api";
 import { clearTimeout, setTimeout } from "worker-timers";
+import { processUnprocessedOperations } from "@/state/runbooks/operation_processor";
 
 type Store = typeof useStore;
 
@@ -110,7 +111,7 @@ export default class SyncManager {
   }
 
   isSyncStuck(): boolean {
-    if (!this.syncSet) return false;
+    if (!this.syncSet || !this.syncSet.isWorking()) return false;
 
     const currentSyncTime = this.syncSet.currentSyncTimeMs();
     return currentSyncTime !== undefined && currentSyncTime > STUCK_SYNC_TIMEOUT;
@@ -139,6 +140,8 @@ export default class SyncManager {
       throw new Error("Sync already in progress");
     }
 
+    if (!this.online) return;
+
     this.syncing = true;
     this.startNextSyncEarly = false;
 
@@ -156,6 +159,7 @@ export default class SyncManager {
 
     try {
       this.store.getState().setIsSyncing(true);
+      await processUnprocessedOperations();
       this.syncSet.start();
       await this.syncSet.donePromise;
       this.lastSync = DateTime.now();

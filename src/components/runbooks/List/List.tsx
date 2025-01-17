@@ -33,8 +33,11 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { allRunbooks, allRunbooksIds, runbooksByWorkspaceId } from "@/lib/queries/runbooks";
 
-const NoteSidebar = () => {
-  const refreshRunbooks = useStore((state: AtuinState) => state.refreshRunbooks);
+interface NotesSidebarProps {
+  onDeleteRunbook: (runbookId: string) => void;
+}
+
+const NoteSidebar = (props: NotesSidebarProps) => {
   const importRunbook = useStore((state: AtuinState) => state.importRunbook);
   const isSyncing = useStore((state: AtuinState) => state.isSyncing);
   const [isSearchOpen, setSearchOpen] = useStore((store: AtuinState) => [
@@ -243,10 +246,7 @@ const NoteSidebar = () => {
                           className="text-danger"
                           color="danger"
                           onPress={async () => {
-                            await Runbook.delete(runbook.id);
-                            if (currentRunbook && runbook.id === currentRunbook.id)
-                              setCurrentRunbookId(null);
-                            refreshRunbooks();
+                            props.onDeleteRunbook(runbook.id);
                           }}
                         >
                           Delete

@@ -8,10 +8,7 @@ import * as Y from "yjs";
 import { PhoenixSynchronizer, SyncType } from "../phoenix_provider";
 import { ydocToBlocknote } from "../ydoc_to_blocknote";
 import AtuinEnv from "@/atuin_env";
-
-function usernameFromNwo(nwo: string = "") {
-  return nwo.split("/")[0];
-}
+import { usernameFromNwo } from "../utils";
 
 export type SyncResult = {
   runbookId: string;

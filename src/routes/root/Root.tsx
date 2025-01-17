@@ -37,7 +37,7 @@ import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import handleDeepLink from "./deep";
 import DesktopConnect from "@/components/DesktopConnect/DesktopConnect";
 import DirectoryExportModal from "@/components/ExportWorkspace/ExportWorkspace";
-import { clearHubApiToken, endpoint } from "@/api/api";
+import * as api from "@/api/api";
 import SocketManager from "@/socket";
 import AtuinEnv from "@/atuin_env";
 import List from "@/components/runbooks/List/List";
@@ -47,6 +47,7 @@ import { KVStore } from "@/state/kv";
 import Runbook from "@/state/runbooks/runbook";
 import RunbookSearchIndex from "@/components/CommandMenu/RunbookSearchIndex";
 import RunbookIndexService from "@/state/runbooks/search";
+import DeleteRunbookModal from "./DeleteRunbookModal";
 
 const runbookIndex = new RunbookIndexService();
 
@@ -65,6 +66,7 @@ function App() {
   const setCurrentWorkspaceId = useStore((state: AtuinState) => state.setCurrentWorkspaceId);
   const setCurrentRunbookId = useStore((state: AtuinState) => state.setCurrentRunbookId);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [runbookIdToDelete, setRunbookIdToDelete] = useState<string | null>(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -73,6 +75,10 @@ function App() {
   const showDesktopConnect = useStore((state: AtuinState) => state.proposedDesktopConnectUser);
 
   let onOpenUrlListener = useRef<UnlistenFn | null>(null);
+
+  function handleDeleteRunbook(runbookId: string) {
+    setRunbookIdToDelete(runbookId);
+  }
 
   useEffect(() => {
     (async () => {
@@ -210,7 +216,7 @@ function App() {
   ];
 
   async function logOut() {
-    await clearHubApiToken();
+    await api.clearHubApiToken();
     SocketManager.setApiToken(null);
     refreshUser();
   }
@@ -232,7 +238,7 @@ function App() {
         <DropdownItem
           key="login"
           description="Sign in to Atuin Hub"
-          onPress={() => open(`${endpoint()}/settings/desktop-connect`)}
+          onPress={() => open(`${api.endpoint()}/settings/desktop-connect`)}
         >
           Log in
         </DropdownItem>
@@ -357,7 +363,7 @@ function App() {
           </div>
         </div>
 
-        <List />
+        <List onDeleteRunbook={handleDeleteRunbook} />
         <Outlet />
 
         <Toaster />
@@ -368,6 +374,12 @@ function App() {
 
         <Settings onOpenChange={onSettingsOpenChange} isOpen={isSettingsOpen} />
         <DirectoryExportModal />
+        {runbookIdToDelete && (
+          <DeleteRunbookModal
+            runbookId={runbookIdToDelete}
+            onClose={() => setRunbookIdToDelete(null)}
+          />
+        )}
       </div>
     </div>
   );

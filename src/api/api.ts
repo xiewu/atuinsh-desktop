@@ -174,8 +174,10 @@ async function makeRequest<T>(
   const delta = Math.floor(end - start); // dammit javascript
   logger.debug(`${resp.status} (${delta}ms)`);
 
-  if (resp.ok) {
+  if (resp.ok && resp.status != 204) {
     return resp.json();
+  } else if (resp.status == 204) {
+    return {} as T;
   } else {
     let data = await resp.text();
     try {
@@ -312,6 +314,15 @@ export function getCollaborations(): Promise<CollaborationsIndexResponse> {
   return get("/collaborations");
 }
 
+export async function getCollaborationForRunbook(
+  runbookId: string,
+): Promise<RemoteCollaboration | null> {
+  const collabResponse = await getCollaborations();
+  const collabs = [...collabResponse.accepted, ...collabResponse.pending];
+  const collab = collabs.find((c) => c.runbook.id === runbookId);
+  return collab || null;
+}
+
 export async function getCollaborationById(id: string): Promise<RemoteCollaboration> {
   const { collaboration } = await get<CollaborationResponse>(`/collaborations/${id}`);
   return collaboration;
@@ -323,4 +334,8 @@ export function acceptCollaboration(id: string) {
 
 export function declineCollaboration(id: string) {
   return put(`/collaborations/${id}`, { accepted: false });
+}
+
+export function deleteCollaboration(id: string) {
+  return del<null>(`/collaborations/${id}`);
 }

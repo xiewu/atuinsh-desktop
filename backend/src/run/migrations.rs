@@ -55,6 +55,12 @@ pub fn migrations() -> Vec<Migration> {
             description: "add_viewed_at_to_runbook",
             sql: "ALTER TABLE runbooks ADD COLUMN viewed_at BIGINT;",
             kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 10,
+            description: "create_operation_log",
+            sql: "CREATE TABLE operation_log(id STRING PRIMARY KEY, operation TEXT, processed_at BIGINT, created BIGINT, updated BIGINT);",
+            kind: MigrationKind::Up,
         }
     ]
 }

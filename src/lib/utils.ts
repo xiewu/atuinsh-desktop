@@ -177,3 +177,51 @@ export function timeoutPromise<T>(ms: number, resolveValue: T) {
 export function dbPath(filename: string) {
   return `${AtuinEnv.sqliteDirPrefix}${filename}`;
 }
+
+export function usernameFromNwo(nwo: string = "") {
+  return nwo.split("/")[0];
+}
+
+interface OptionMethods<T> {
+  isSome: () => boolean;
+  isNone: () => boolean;
+  unwrap: () => T;
+  unwrapOr: (defaultValue: T) => T;
+  map: <U>(fn: (value: T) => U) => Option<U>;
+}
+
+export type None = {
+  readonly _type: "None";
+} & OptionMethods<never>;
+
+export type Some<T> = {
+  readonly _type: "Some";
+  readonly value: T;
+} & OptionMethods<T>;
+
+export type Option<T> = Some<T> | None;
+
+export function Some<T>(value: T): Some<T> {
+  return {
+    _type: "Some",
+    value,
+    isSome: () => true,
+    isNone: () => false,
+    unwrap: () => value,
+    unwrapOr: (_defaultValue: T) => value,
+    map: (fn) => Some(fn(value)),
+  };
+}
+
+export function None(): None {
+  return {
+    _type: "None",
+    isSome: () => false,
+    isNone: () => true,
+    unwrap: () => {
+      throw new Error("Tried to unwrap None");
+    },
+    unwrapOr: (defaultValue) => defaultValue,
+    map: <U>(_fn: (value: never) => U) => None(),
+  };
+}

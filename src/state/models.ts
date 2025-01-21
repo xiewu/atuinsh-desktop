@@ -2,8 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import Database from "@tauri-apps/plugin-sql";
 
 export class User {
-  username: string | null;
-  email: string | null;
+  username: string;
+  email: string;
   avatar_url: string | null;
   bio: string | null;
 

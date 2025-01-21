@@ -8,6 +8,9 @@
   },
 };
 
+// import sentry before anything else
+import { init_tracking } from "./tracking";
+
 import { event } from "@tauri-apps/api";
 import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
@@ -20,7 +23,6 @@ import Root from "@/routes/root/Root";
 import Home from "@/routes/home/Home";
 import Runbooks from "@/routes/runbooks/Runbooks";
 import History from "@/routes/history/History";
-import { init_tracking } from "./tracking";
 import * as api from "./api/api";
 import SocketManager from "./socket";
 import SyncManager from "./lib/sync/sync_manager";
@@ -83,7 +85,7 @@ notificationManager.on("collab_invited", async (collabId: string) => {
   try {
     const collab = await api.getCollaborationById(collabId);
     useStore.getState().addCollaboration(collab);
-  } catch (err) {}
+  } catch (err) { }
 });
 
 notificationManager.on("collab_accepted", async (collabId: string) => {
@@ -91,7 +93,7 @@ notificationManager.on("collab_accepted", async (collabId: string) => {
   try {
     const collab = await api.getCollaborationById(collabId);
     queryClient.invalidateQueries({ queryKey: ["remote_runbook", collab.runbook.id] });
-  } catch (err) {}
+  } catch (err) { }
 });
 
 notificationManager.on("collab_deleted", async (collabId: string) => {

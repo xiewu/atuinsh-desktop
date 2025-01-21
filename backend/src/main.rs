@@ -272,6 +272,12 @@ async fn cli_settings() -> Result<Settings, String> {
     Ok(settings)
 }
 
+#[tauri::command]
+async fn get_app_version(app: AppHandle) -> Result<String, String> {
+    let version = app.package_info().version.to_string();
+    Ok(version)
+}
+
 fn backup_databases(app: &App) -> tauri::Result<()> {
     let version = app.package_info().version.to_string();
     // This seems like the wrong directory to use, but it's what the SQL plugin uses so ¯\_(ツ)_/¯
@@ -353,6 +359,7 @@ fn main() {
             register,
             history_calendar,
             cli_settings,
+            get_app_version,
             run::pty::pty_open,
             run::pty::pty_write,
             run::pty::pty_resize,

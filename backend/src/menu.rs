@@ -69,76 +69,6 @@ fn new_workspace<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
     Ok(import_workspace)
 }
 
-#[allow(dead_code)]
-fn export_runbook<R: Runtime>(handle: &AppHandle<R>) -> Result<Submenu<R>> {
-    /*
-    let export_markdown = MenuItemBuilder::new("Markdown")
-        .id("export-markdown")
-        .build(handle)?;
-        */
-
-    let export_runbook = MenuItemBuilder::new("Runbook")
-        .id("export-runbook")
-        .build(handle)?;
-
-    let menu = Submenu::with_items(
-        handle,
-        "Export",
-        true,
-        &[/*&export_markdown,*/ &export_runbook],
-    )?;
-
-    handle.on_menu_event(move |window, event| {
-        if event.id().0 == "export-runbook" {
-            window
-                .emit("export-runbook", 0)
-                .expect("Failed to emit menu event");
-        }
-
-        if event.id().0 == "export-markdown" {
-            window
-                .emit("export-markdown", 0)
-                .expect("Failed to emit menu event");
-        }
-    });
-    Ok(menu)
-}
-
-#[allow(dead_code)]
-fn export_workspace<R: Runtime>(handle: &AppHandle<R>) -> Result<Submenu<R>> {
-    /*
-    let export_markdown = MenuItemBuilder::new("Markdown")
-        .id("export-workspace-markdown")
-        .build(handle)?;
-        */
-
-    let export_runbook = MenuItemBuilder::new("Runbook")
-        .id("export-workspace-runbook")
-        .build(handle)?;
-
-    let menu = Submenu::with_items(
-        handle,
-        "Export",
-        true,
-        &[/*&export_markdown,*/ &export_runbook],
-    )?;
-
-    handle.on_menu_event(move |window, event| {
-        if event.id().0 == "export-workspace-markdown" {
-            window
-                .emit("export-workspace-markdown", 0)
-                .expect("Failed to emit menu event");
-        }
-
-        if event.id().0 == "export-workspace-runbook" {
-            window
-                .emit("export-workspace-runbook", 0)
-                .expect("Failed to emit menu event");
-        }
-    });
-    Ok(menu)
-}
-
 fn link_menu_item<R: Runtime>(
     id: &str,
     name: &str,
@@ -246,17 +176,13 @@ pub fn menu<R: Runtime>(app_handle: &AppHandle<R>) -> Result<Menu<R>> {
                         app_handle,
                         "Runbooks",
                         true,
-                        &[
-                            &new_runbook(app_handle)?,
-                            &import_runbook(app_handle)?,
-                            &export_runbook(app_handle)?,
-                        ],
+                        &[&new_runbook(app_handle)?, &import_runbook(app_handle)?],
                     )?,
                     &Submenu::with_items(
                         app_handle,
                         "Workspaces",
                         true,
-                        &[&new_workspace(app_handle)?, &export_workspace(app_handle)?],
+                        &[&new_workspace(app_handle)?],
                     )?,
                     &PredefinedMenuItem::separator(app_handle)?,
                     &PredefinedMenuItem::close_window(app_handle, None)?,

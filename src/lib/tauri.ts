@@ -1,4 +1,3 @@
-
 /// This is a hook. Given a function and an event name, it will
 /// listen for the event and call the function when it is emitted.
 /// It will also handle automatically disposing of the listener
@@ -22,6 +21,5 @@ const useTauriEvent = (eventName: string, func: () => Promise<void>) => {
     };
   }, [eventName, func]);
 };
-
 
 export { useTauriEvent };

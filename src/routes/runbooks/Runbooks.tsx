@@ -1,10 +1,8 @@
 import Editor from "@/components/runbooks/editor/Editor";
 import Topbar from "@/components/runbooks/TopBar/TopBar";
-import { useTauriEvent } from "@/lib/tauri";
 import useRemoteRunbook from "@/lib/useRemoteRunbook";
 import { usePtyStore } from "@/state/ptyStore";
 import { useStore } from "@/state/store";
-import { save } from "@tauri-apps/plugin-dialog";
 import Snapshot from "@/state/runbooks/snapshot";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMemory } from "@/lib/utils";
@@ -137,30 +135,6 @@ export default function Runbooks() {
   }, [selectedTag, snapshots, tags]);
 
   useMarkRunbookRead(currentRunbook, refreshRunbooks);
-
-  useTauriEvent("export-runbook", async () => {
-    if (!currentRunbook) return;
-
-    let filePath = await save({
-      defaultPath: currentRunbook.name + ".atrb",
-    });
-
-    if (!filePath) return;
-
-    currentRunbook.export(filePath);
-  });
-
-  useTauriEvent("export-markdown", async () => {
-    if (!currentRunbook) return;
-
-    let filePath = await save({
-      defaultPath: currentRunbook.name + ".atmd",
-    });
-
-    if (!filePath) return;
-
-    currentRunbook.exportMarkdown(filePath);
-  });
 
   useEffect(() => {
     listenPtyBackend();

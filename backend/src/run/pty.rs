@@ -10,11 +10,27 @@ use crate::{
 };
 use tauri::{
     async_runtime::{block_on, RwLock},
-    Emitter, State,
+    Emitter, Manager, State,
 };
 
 const PTY_OPEN_CHANNEL: &str = "pty_open";
 const PTY_KILL_CHANNEL: &str = "pty_kill";
+
+async fn update_badge_count(
+    app: &tauri::AppHandle,
+    sessions: Arc<RwLock<HashMap<Uuid, Pty>>>,
+) -> Result<()> {
+    let len = sessions.read().await.len();
+    let len = if len == 0 { None } else { Some(len as i64) };
+
+    app.webview_windows()
+        .values()
+        .next()
+        .expect("no window found")
+        .set_badge_count(len)?;
+
+    Ok(())
+}
 
 #[tauri::command]
 pub async fn pty_open(
@@ -81,6 +97,9 @@ pub async fn pty_open(
         .insert(runbook, Arc::new(env));
 
     state.pty_sessions.write().await.insert(id, pty);
+    update_badge_count(&app, state.pty_sessions.clone())
+        .await
+        .map_err(|e| e.to_string())?;
 
     app.emit(PTY_OPEN_CHANNEL, metadata)
         .map_err(|e| e.to_string())?;
@@ -133,6 +152,10 @@ async fn remove_pty(
         app.emit(PTY_KILL_CHANNEL, pty.metadata)
             .map_err(|e| e.to_string())?;
     }
+
+    update_badge_count(&app, pty_sessions.clone())
+        .await
+        .map_err(|e| e.to_string())?;
 
     Ok(())
 }

@@ -27,7 +27,7 @@ pub struct Pty {
 }
 
 impl Pty {
-    pub async fn open<'a>(
+    pub async fn open(
         rows: u16,
         cols: u16,
         cwd: Option<String>,

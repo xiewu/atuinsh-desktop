@@ -39,6 +39,7 @@ export default class RunbookEditor {
   private saveTimer: number | null = null;
   private saveArgs: [Runbook | undefined, BlockNoteEditor] | null = null;
   private isShutdown = false;
+  private maybeNeedsContentConversion = true;
 
   constructor(
     runbook: Runbook,
@@ -56,8 +57,11 @@ export default class RunbookEditor {
     this.onPresenceLeave = onPresenceLeave;
     this.onClearPresences = onClearPresences;
     this.yDoc = new Y.Doc();
-    if (this.runbook.ydoc) {
+    if (this.runbook.ydoc && this.runbook.ydoc.byteLength > 0) {
       Y.applyUpdate(this.yDoc, this.runbook.ydoc);
+      // If the runbook had any bytes at all in its ydoc field, then the content
+      // is already in the YJS document and we won't need to convert it.
+      this.maybeNeedsContentConversion = false;
     }
   }
 
@@ -139,27 +143,31 @@ export default class RunbookEditor {
       provider.on("presence:join", this.onPresenceJoin);
       provider.on("presence:leave", this.onPresenceLeave);
 
-      provider.once("synced").then(() => {
-        // If the loaded YJS doc has no content, and the server has no content,
-        // we should take the old `content` field (if any) and populate the editor
-        // so that we trigger a save, creating the YJS document.
-        //
-        // This doesn't work if we set the content on the same tick, so defer it.
-        setTimeout(() => {
-          let currentContent = editor.document;
+      if (this.maybeNeedsContentConversion) {
+        provider.once("synced").then(() => {
+          // If the loaded YJS doc has no content, and the server has no content,
+          // we should take the old `content` field (if any) and populate the editor
+          // so that we trigger a save, creating the YJS document.
+          //
+          // This doesn't work if we set the content on the same tick, so defer it.
+          setTimeout(() => {
+            let currentContent = editor.document;
 
-          if (isContentBlank(currentContent) && !this.isShutdown) {
-            this.logger.info(
-              "BlockNote editor has empty content after sync; inserting existing content.",
-              currentContent,
-              content,
-            );
+            if (isContentBlank(currentContent) && !this.isShutdown) {
+              this.logger.info(
+                "BlockNote editor has empty content after sync; inserting existing content.",
+                currentContent,
+                content,
+              );
 
-            editor.replaceBlocks(currentContent, content);
-          }
-        }, 100);
+              editor.replaceBlocks(currentContent, content);
+            }
+          }, 100);
+          resolve(editor as any as BlockNoteEditor);
+        });
+      } else {
         resolve(editor as any as BlockNoteEditor);
-      });
+      }
     });
 
     return this.editor;

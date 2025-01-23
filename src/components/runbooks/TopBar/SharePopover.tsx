@@ -40,6 +40,7 @@ export default function Share({
   const [error, setError] = useState<string | undefined>(undefined);
   const [slugDebounced, resetDebounced, _clearDebounced] = useDebounce(500, true);
   const [changedSinceValidate, setChangedSinceValidate] = useState(false);
+  const [userChangedSlug, setUserChangedSlug] = useState(false);
 
   const online = useStore((state) => state.online);
   const user = useStore((state) => state.user);
@@ -108,10 +109,10 @@ export default function Share({
   });
 
   useEffect(() => {
-    if (remoteRunbook) {
+    if (remoteRunbook && !userChangedSlug) {
       setSlug(remoteRunbook.slug);
       setVisibility(remoteRunbook.visibility);
-    } else if (runbook) {
+    } else if (runbook && !userChangedSlug) {
       setSlug(slugify(runbook.name));
     }
   }, [runbook, remoteRunbook]);
@@ -141,6 +142,7 @@ export default function Share({
   }
 
   function handleSetSlug(newSlug: string) {
+    setUserChangedSlug(true);
     setSlug(newSlug);
     setChangedSinceValidate(true);
     resetDebounced();

@@ -157,7 +157,7 @@ export function slugify(name: string | null): string {
     return name
       .trim()
       .toLowerCase()
-      .replace(/\s+/g, "-")
+      .replace(/[\s\-]+/g, "-")
       .replace(/[^a-z0-9_\-]/gi, "");
   } else {
     return "";

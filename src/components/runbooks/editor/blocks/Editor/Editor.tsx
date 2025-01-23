@@ -172,7 +172,7 @@ const EditorBlock = ({
         className="!pt-0 max-w-full border border-gray-300 rounded flex-grow max-h-1/2 overflow-scroll"
         placeholder={"Write some code..."}
         value={code}
-        editable={isEditable}
+        readOnly={!isEditable}
         onChange={(val) => {
           onChange(val);
         }}

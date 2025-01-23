@@ -114,11 +114,13 @@ export const createPtyState: StateCreator<AtuinPtyState> = (set, get, _store): A
     // FiraCode is included as part of our build
     // We could consider including a few different popular fonts, and providing a dropdown
     // for the user to select from.
-    let font = (await Settings.terminalFont()) || "FiraCode";
+    let font = (await Settings.terminalFont()) || Settings.DEFAULT_FONT;
+    let fontSize = (await Settings.terminalFontSize()) || Settings.DEFAULT_FONT_SIZE;
     let gl = await Settings.terminalGL();
 
     let terminal = new Terminal({
       fontFamily: `${font}, monospace`,
+      fontSize: fontSize,
       customGlyphs: false,
     });
 

@@ -49,13 +49,22 @@ interface SettingsInputProps {
   onChange: (e: string) => void;
   placeholder: string;
   description: string;
+  type: string;
 }
 
 // Reusable setting components
-const SettingInput = ({ label, value, onChange, placeholder, description }: SettingsInputProps) => (
+const SettingInput = ({
+  label,
+  value,
+  onChange,
+  placeholder,
+  description,
+  type,
+}: SettingsInputProps) => (
   <Input
     label={label}
     value={value}
+    type={type}
     onChange={(e) => onChange(e.target.value)}
     placeholder={placeholder}
     description={description}
@@ -140,6 +149,12 @@ const RunbookSettings = () => {
     Settings.terminalFont,
     Settings.terminalFont,
   );
+  const [terminalFontSize, setTerminalFontSize, fontSizeLoading] = useSettingsState(
+    "terminal_font_size",
+    "",
+    Settings.terminalFontSize,
+    Settings.terminalFontSize,
+  );
   const [terminalGl, setTerminalGl, glLoading] = useSettingsState(
     "terminal_gl",
     false,
@@ -153,20 +168,31 @@ const RunbookSettings = () => {
     Settings.runbookPrometheusUrl,
   );
 
-  if (fontLoading || glLoading || urlLoading) return <Spinner />;
+  if (fontLoading || glLoading || urlLoading || fontSizeLoading) return <Spinner />;
 
   return (
     <>
       <Card shadow="sm">
         <CardBody className="flex flex-col gap-4">
           <h2 className="text-xl font-semibold">Terminal</h2>
-          <SettingInput
-            label="Terminal font"
-            value={terminalFont}
-            onChange={setTerminalFont}
-            placeholder="Enter font name"
-            description="Font to use for the terminal"
-          />
+          <div className="flex flex-row gap-4">
+            <SettingInput
+              type="text"
+              label="Terminal font"
+              value={terminalFont}
+              onChange={setTerminalFont}
+              placeholder="Enter font name"
+              description="Font to use for the terminal"
+            />
+            <div>
+              <Input
+                type="number"
+                value={terminalFontSize || Settings.DEFAULT_FONT_SIZE}
+                onChange={(e) => setTerminalFontSize(parseInt(e.target.value))}
+                className="input"
+              />
+            </div>
+          </div>
           <SettingSwitch
             label="Enable WebGL rendering"
             isSelected={terminalGl}
@@ -180,6 +206,7 @@ const RunbookSettings = () => {
         <CardBody className="flex flex-col gap-4">
           <h2 className="text-xl font-semibold">Prometheus</h2>
           <SettingInput
+            type="url"
             label="Prometheus server URL"
             value={prometheusUrl}
             onChange={setPrometheusUrl}

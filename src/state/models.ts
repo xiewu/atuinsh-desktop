@@ -128,20 +128,10 @@ interface Sync {
   records: boolean;
 }
 
-interface RemoteUser {
+export interface RemoteUser {
   id: string;
   avatar_url: string;
-  bio: string | null;
-  company: string | null;
   display_name: string | null;
-  homepage: string | null;
-  location: string | null;
-  note: string | null;
-  social_1: string | null;
-  social_2: string | null;
-  social_3: string | null;
-  social_4: string | null;
-  social_5: string | null;
   username: string;
 }
 
@@ -150,6 +140,13 @@ interface RemoteSnapshot {
   tag: string;
   inserted_at: string;
   updated_at: string;
+}
+
+interface RemoteCollaboration {
+  id: string;
+  accepted: boolean;
+  runbook_id: string;
+  user: RemoteUser;
 }
 
 export interface RemoteRunbook {
@@ -161,6 +158,7 @@ export interface RemoteRunbook {
   client_created: string;
   user: RemoteUser;
   snapshots: RemoteSnapshot[];
+  collaborations: RemoteCollaboration[];
   permissions: string[];
 }
 

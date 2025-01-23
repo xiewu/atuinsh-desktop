@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { fetch } from "@tauri-apps/plugin-http";
 import SocketManager from "@/socket";
-import { RemoteRunbook } from "@/state/models";
+import { RemoteRunbook, RemoteUser } from "@/state/models";
 import Logger from "@/lib/logger";
 import Runbook from "@/state/runbooks/runbook";
 import Snapshot from "@/state/runbooks/snapshot";
@@ -226,7 +226,7 @@ export async function allRunbookIds(): Promise<string[]> {
 
 export async function getRunbookID(id: string): Promise<RemoteRunbook> {
   const { runbook } = await get<{ runbook: RemoteRunbook }>(
-    `/runbooks/${id}?include=user,snapshots`,
+    `/runbooks/${id}?include=user,snapshots,collaborations`,
   );
   return runbook;
 }
@@ -328,6 +328,10 @@ export async function getCollaborationById(id: string): Promise<RemoteCollaborat
   return collaboration;
 }
 
+export async function createCollaborationInvitation(runbookId: string, userId: string) {
+  return post(`/collaborations`, { runbook_id: runbookId, user_id: userId });
+}
+
 export function acceptCollaboration(id: string) {
   return put(`/collaborations/${id}`, { accepted: true });
 }
@@ -338,4 +342,12 @@ export function declineCollaboration(id: string) {
 
 export function deleteCollaboration(id: string) {
   return del<null>(`/collaborations/${id}`);
+}
+
+export async function searchUsers(query: string) {
+  if (!query || query.length <= 2) return [];
+
+  const { users } = await get<{ users: RemoteUser[] }>(`/users?query=${query}`);
+  console.log(users);
+  return users;
 }

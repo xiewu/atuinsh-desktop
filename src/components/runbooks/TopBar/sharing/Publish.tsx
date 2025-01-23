@@ -15,6 +15,7 @@ import {
 } from "@nextui-org/react";
 import { open } from "@tauri-apps/plugin-shell";
 import { TrashIcon } from "lucide-react";
+import CollaborationManager from "./CollaborationManager";
 
 interface PublishProps {
   mode: "publish" | "edit";
@@ -130,6 +131,9 @@ export default function Publish(props: PublishProps) {
             </Tooltip>
           )}
         </div>
+        {!publishMode && props.remoteRunbook && (
+          <CollaborationManager runbook={props.runbook} remoteRunbook={props.remoteRunbook} />
+        )}
       </CardBody>
     </Card>
   );

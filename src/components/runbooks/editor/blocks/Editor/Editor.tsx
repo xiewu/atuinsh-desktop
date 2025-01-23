@@ -20,6 +20,40 @@ import {
 } from "@nextui-org/react";
 import EditableHeading from "@/components/EditableHeading/index.tsx";
 
+// Extra languages
+// Note that the languagedata package handles the dynamic loading of languages. This is different,
+// as by importing it we have already loaded it. Not really a big deal for our use case.
+import { hcl } from "codemirror-lang-hcl";
+
+interface LanguageLoader {
+  name: string;
+  extension: () => Promise<Extension>;
+}
+
+// Seeing as we now have a mix of _custom_ languages, and also teh default languages, we use this to generate
+// a cohesive list of languages with a consistent interface.
+function languageLoaders(): LanguageLoader[] {
+  // Build an array of language loaders, first of the default languages
+  let languages = LanguageData.languages.map((lang) => {
+    return {
+      name: lang.name,
+      extension: async () => {
+        let loaded = await lang.load();
+        return loaded.extension;
+      },
+    };
+  });
+
+  // then append the custom languages
+  languages.push({
+    name: "HCL",
+    extension: async () => hcl(),
+  });
+
+  // sort it alphabetically by name
+  return languages.toSorted((a, b) => a.name.localeCompare(b.name));
+}
+
 interface CodeBlockProps {
   name: string;
   setName: (name: string) => void;
@@ -40,7 +74,8 @@ const EditorBlock = ({
   name,
   setName,
 }: CodeBlockProps) => {
-  const languages = LanguageData.languages;
+  const languages: LanguageLoader[] = useMemo(() => languageLoaders(), []);
+
   const [extension, setExtension] = useState<Extension | null>(null);
   const [selected, setSelected] = useState<any | null>(
     languages.find((lang) => lang.name.toLowerCase() === language),
@@ -49,7 +84,9 @@ const EditorBlock = ({
   const [isOpen, setIsOpen] = useState(false);
 
   const filteredItems = useMemo(() => {
-    return languages.filter((item) => item.name.toLowerCase().includes(filterText.toLowerCase()));
+    return languages
+      .filter((item) => item.name.toLowerCase().includes(filterText.toLowerCase()))
+      .toSorted((a, b) => a.name.localeCompare(b.name));
   }, [languages, filterText]);
 
   useEffect(() => {
@@ -64,9 +101,9 @@ const EditorBlock = ({
       let linfo = languages.find((lang) => lang.name.toLowerCase() === language);
       if (!linfo) return;
 
-      let loaded = await linfo.load();
+      let extension = await linfo.extension();
 
-      setExtension(loaded.extension);
+      setExtension(extension);
     })();
   }, [language]);
 

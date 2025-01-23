@@ -173,6 +173,9 @@ importers:
       cmdk:
         specifier: ^1.0.4
         version: 1.0.4(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      codemirror-lang-hcl:
+        specifier: 0.0.0-beta.2
+        version: 0.0.0-beta.2
       core:
         specifier: link:@tauri-apps/api/core
         version: link:@tauri-apps/api/core
@@ -3142,6 +3145,9 @@ packages:
     peerDependencies:
       react: ^18 || ^19 || ^19.0.0-rc
       react-dom: ^18 || ^19 || ^19.0.0-rc
+
+  codemirror-lang-hcl@0.0.0-beta.2:
+    resolution: {integrity: sha512-R3ew7Z2EYTdHTMXsWKBW9zxnLoLPYO+CrAa3dPZjXLrIR96Q3GR4cwJKF7zkSsujsnWgwRQZonyWpXYXfhQYuQ==}
 
   codemirror-lang-mermaid@0.5.0:
     resolution: {integrity: sha512-Taw/2gPCyNArQJCxIP/HSUif+3zrvD+6Ugt7KJZ2dUKou/8r3ZhcfG8krNTZfV2iu8AuGnymKuo7bLPFyqsh/A==}
@@ -8919,6 +8925,12 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
       - '@types/react-dom'
+
+  codemirror-lang-hcl@0.0.0-beta.2:
+    dependencies:
+      '@codemirror/language': 6.10.8
+      '@lezer/highlight': 1.2.1
+      '@lezer/lr': 1.4.2
 
   codemirror-lang-mermaid@0.5.0:
     dependencies:

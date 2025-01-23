@@ -13,7 +13,7 @@ import {
 } from "@nextui-org/react";
 import { useEffect, useMemo, useReducer } from "react";
 import { None, Option, Some, usernameFromNwo } from "@/lib/utils";
-import Operation from "@/state/runbooks/operations";
+import Operation from "@/state/runbooks/operation";
 
 interface DeleteRunbookModalProps {
   runbookId: string;
@@ -30,17 +30,17 @@ type DeleteState = {
 
 type Action =
   | {
-      type: "set_runbook";
-      runbook: Runbook | null;
-    }
+    type: "set_runbook";
+    runbook: Runbook | null;
+  }
   | {
-      type: "set_remote_runbook";
-      remoteRunbook: Option<RemoteRunbook> | null;
-    }
+    type: "set_remote_runbook";
+    remoteRunbook: Option<RemoteRunbook> | null;
+  }
   | {
-      type: "set_deleting";
-      isDeleting: boolean;
-    };
+    type: "set_deleting";
+    isDeleting: boolean;
+  };
 
 function reducer(state: DeleteState, action: Action): DeleteState {
   switch (action.type) {

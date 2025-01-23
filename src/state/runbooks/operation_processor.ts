@@ -1,6 +1,6 @@
 import { usernameFromNwo } from "@/lib/utils";
 import { RemoteRunbook } from "../models";
-import Operation from "./operations";
+import Operation from "./operation";
 import * as api from "@/api/api";
 import { useStore } from "../store";
 import Logger from "@/lib/logger";
@@ -28,7 +28,7 @@ export async function processUnprocessedOperations(): Promise<void> {
     }
 
     if (success) {
-      op.processedAt = new Date();
+      op.set("processedAt", new Date());
       await op.save();
     }
   }
@@ -37,11 +37,11 @@ export async function processUnprocessedOperations(): Promise<void> {
 }
 
 export function processOperation(op: Operation): Promise<boolean> {
-  const type = op.operation.type;
+  const type = op.get("operation").type;
 
   switch (type) {
     case "runbook_deleted": {
-      return processRunbookDeleted(op.operation.runbookId);
+      return processRunbookDeleted(op.get("operation").runbookId);
     }
   }
 

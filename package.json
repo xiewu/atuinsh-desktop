@@ -99,6 +99,7 @@
     "tailwind-merge": "^2.6.0",
     "tailwind-variants": "^0.2.1",
     "tailwindcss-animate": "^1.0.7",
+    "ts-tiny-activerecord": "atuinsh/ts-tiny-activerecord.git#v0.0.4",
     "usehooks-ts": "^3.1.0",
     "uuidv7": "^1.0.2",
     "vaul": "^0.9.9",

@@ -463,6 +463,6 @@ export default class Runbook {
 
   public static invalidateCache(id: string) {
     // Don't love this, but unsure the best way to invalidate the cache on save otherwise
-    (window as any).queryClient.invalidateQueries(["runbook", id]);
+    (window as any).queryClient.invalidateQueries({ queryKey: ["runbook", id] });
   }
 }

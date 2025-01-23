@@ -33,6 +33,7 @@ export class PhoenixSynchronizer extends Emittery {
   public readonly doc: Y.Doc;
   protected readonly awareness: awarenessProtocol.Awareness;
   protected logger: Logger;
+  protected isSyncing: boolean = false;
   protected isShutdown: boolean = false;
   protected unlock: Function | null = null;
   protected presenceColor: string | null = null;
@@ -130,7 +131,12 @@ export class PhoenixSynchronizer extends Emittery {
 
   async resync() {
     if (this.isShutdown) return;
+    if (this.isSyncing) {
+      this.logger.error("Already syncing; skipping resync");
+      return;
+    }
 
+    this.isSyncing = true;
     if (this.requireLock) {
       this.logger.debug("Acquiring sync lock...");
       this.unlock = await SyncManager.syncMutex(this.runbookId).lock();
@@ -156,6 +162,7 @@ export class PhoenixSynchronizer extends Emittery {
       this.logger.error("Failed to resync", err);
       this.emit("synced", "error");
     } finally {
+      this.isSyncing = false;
       if (this.unlock) {
         this.unlock();
         this.unlock = null;
@@ -216,6 +223,9 @@ export class PhoenixSynchronizer extends Emittery {
  * @emits `"remote_update"` when a remote update is received
  */
 export default class PhoenixProvider extends PhoenixSynchronizer {
+  protected pendingUpdate: Uint8Array | null = null;
+  protected scheduledEmitAfterSync: boolean = false;
+
   constructor(runbookId: string, doc: Y.Doc, presenceColor: string, requireLock: boolean = true) {
     super(runbookId, doc, requireLock, true);
     this.presenceColor = presenceColor;
@@ -229,6 +239,20 @@ export default class PhoenixProvider extends PhoenixSynchronizer {
     this.subscriptions.push(this.channel.on("presence_diff", this.handlePresenceDiff));
   }
 
+  emitAfterSync() {
+    if (this.scheduledEmitAfterSync) return;
+
+    this.scheduledEmitAfterSync = true;
+    this.once("synced").then(() => {
+      if (this.pendingUpdate) {
+        Y.applyUpdate(this.doc, this.pendingUpdate, this);
+        this.emit("remote_update")
+      }
+      this.pendingUpdate = null;
+      this.scheduledEmitAfterSync = false;
+    })
+  }
+
   @autobind
   handleDocUpdate(update: Uint8Array, origin: any) {
     if (origin === this || !this.channel) return;
@@ -240,7 +264,7 @@ export default class PhoenixProvider extends PhoenixSynchronizer {
 
   @autobind
   handleAwarenessUpdate({ added, updated, removed }: AwarenessData, origin: any) {
-    if (origin === this || !this.channel) return;
+    if (origin === this || !this.channel || this.channel.state != "joined") return;
 
     const changedClients = added.concat(updated).concat(removed);
     if (this.connected) {
@@ -253,6 +277,17 @@ export default class PhoenixProvider extends PhoenixSynchronizer {
 
   @autobind
   handleIncomingUpdate(payload: Uint8Array) {
+    if (this.isSyncing) {
+      if (this.pendingUpdate) {
+        this.pendingUpdate = Y.mergeUpdates([this.pendingUpdate, payload]);
+      } else {
+        this.pendingUpdate = payload;
+      }
+
+      this.emitAfterSync();
+      return;
+    }
+
     Y.applyUpdate(this.doc, payload, this);
     this.emit("remote_update");
   }

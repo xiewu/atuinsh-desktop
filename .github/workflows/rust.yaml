@@ -5,6 +5,12 @@ concurrency:
   cancel-in-progress: true
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/**"
+
   pull_request:
     branches: [main]
     paths:

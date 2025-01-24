@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Pencil } from "lucide-react";
-import { Input } from "@nextui-org/react";
+import { Input } from "@heroui/react";
 
 interface EditableHeadingProps {
   initialText?: string;

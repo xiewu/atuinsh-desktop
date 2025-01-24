@@ -1,5 +1,5 @@
 import track_event from "@/tracking";
-import { Button, Tooltip } from "@nextui-org/react";
+import { Button, Tooltip } from "@heroui/react";
 import { Play, RefreshCw, Square } from "lucide-react";
 import { useEffect, useState } from "react";
 

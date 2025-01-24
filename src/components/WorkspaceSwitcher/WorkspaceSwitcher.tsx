@@ -7,7 +7,7 @@ import {
   Button,
   Chip,
   useDisclosure,
-} from "@nextui-org/react";
+} from "@heroui/react";
 import { Layers, Plus, Settings } from "lucide-react";
 import { AtuinState, useStore } from "@/state/store";
 import Workspace from "@/state/runbooks/workspace";
@@ -39,7 +39,7 @@ const CompactWorkspaceSwitcher = () => {
 
   return (
     <>
-      <Dropdown disableAnimation>
+      <Dropdown>
         <DropdownTrigger>
           <Button isIconOnly variant="light" radius="full">
             <Layers size={20} className="text-default-500" />

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Input, Tooltip, Button } from "@nextui-org/react";
+import { Input, Tooltip, Button } from "@heroui/react";
 import { FolderInputIcon } from "lucide-react";
 
 // @ts-ignore

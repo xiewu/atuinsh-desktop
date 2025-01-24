@@ -9,7 +9,7 @@ import {
   Tooltip,
   Divider,
   Button,
-} from "@nextui-org/react";
+} from "@heroui/react";
 import { Clock, CheckCircle, AlertCircle, Info, WifiOff, TrashIcon } from "lucide-react";
 import JsonView from "@uiw/react-json-view";
 

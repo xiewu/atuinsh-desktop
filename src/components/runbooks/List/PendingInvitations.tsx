@@ -1,5 +1,5 @@
 import { useStore } from "@/state/store";
-import { Chip } from "@nextui-org/react";
+import { Chip } from "@heroui/react";
 import { useState } from "react";
 import CollaborationsModal from "./CollaborationsModal";
 

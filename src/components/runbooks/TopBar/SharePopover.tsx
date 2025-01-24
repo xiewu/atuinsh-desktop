@@ -1,5 +1,5 @@
 import Runbook, { RunbookVisibility } from "@/state/runbooks/runbook";
-import { Button, Popover, PopoverContent, PopoverTrigger } from "@nextui-org/react";
+import { Button, Popover, PopoverContent, PopoverTrigger } from "@heroui/react";
 import { useEffect, useState } from "react";
 import { useStore } from "@/state/store";
 import * as api from "@/api/api";

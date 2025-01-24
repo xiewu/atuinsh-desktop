@@ -16,7 +16,7 @@ import Terminal from "./terminal.tsx";
 
 import "@xterm/xterm/css/xterm.css";
 import { AtuinState, useStore } from "@/state/store.ts";
-import { Chip, Spinner } from "@nextui-org/react";
+import { Chip, Spinner } from "@heroui/react";
 import { formatDuration } from "@/lib/utils.ts";
 import { usePtyStore } from "@/state/ptyStore.ts";
 import track_event from "@/tracking.ts";
@@ -80,6 +80,7 @@ const RunBlock = ({
   onStop,
   editor,
 }: RunBlockProps) => {
+  const colorMode = useStore((state) => state.colorMode);
   const cleanupPtyTerm = useStore((store: AtuinState) => store.cleanupPtyTerm);
   const terminals = useStore((store: AtuinState) => store.terminals);
 
@@ -239,6 +240,7 @@ const RunBlock = ({
               }}
               extensions={[customKeymap, ...extensions(), langs.shell()]}
               basicSetup={false}
+              theme={colorMode === "dark" ? "dark" : "light"}
             />
           </div>
         </>

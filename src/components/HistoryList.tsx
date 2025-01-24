@@ -4,7 +4,7 @@ export default function HistoryList(props: any) {
   return (
     <div
       role="list"
-      className="divide-y divide-gray-100 bg-white shadow-sm ring-1 ring-gray-900/5 overflow-auto select-none"
+      className="divide-y divide-gray-100 bg-content1 shadow-sm ring-1 ring-gray-900/5 overflow-auto select-none"
       style={{
         height: `${props.height}px`,
         position: "relative",
@@ -25,7 +25,7 @@ export default function HistoryList(props: any) {
               transform: `translateY(${i.start}px)`,
             }}
           >
-            <HistoryRow h={h} />
+            <HistoryRow h={h} drawer={true} />
           </div>
         );
       })}

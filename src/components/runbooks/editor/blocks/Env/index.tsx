@@ -1,5 +1,5 @@
 import React from "react";
-import { Input, Tooltip, Button } from "@nextui-org/react";
+import { Input, Tooltip, Button } from "@heroui/react";
 import { VariableIcon } from "lucide-react";
 
 // @ts-ignore

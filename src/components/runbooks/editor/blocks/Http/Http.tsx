@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Input, Tabs, Tab } from "@nextui-org/react";
+import { Input, Tabs, Tab } from "@heroui/react";
 import { GlobeIcon } from "lucide-react";
 import { fetch } from "@tauri-apps/plugin-http";
 import CodeMirror from "@uiw/react-codemirror";
@@ -13,6 +13,7 @@ import HttpResponse from "./HttpResponse";
 import HttpVerbDropdown from "./VerbDropdown";
 import RequestHeaders from "./RequestHeaders";
 import Block from "../common/Block";
+import { useStore } from "@/state/store";
 
 enum HttpVerb {
   GET = "GET",
@@ -89,6 +90,7 @@ const Http = ({
   setBody,
   setHeaders,
 }: HttpProps) => {
+  const colorMode = useStore((state) => state.colorMode);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [response, setResponse] = useState<any | null>(null);
   const [error, setError] = useState<any | null>(null);
@@ -185,6 +187,7 @@ const Http = ({
             basicSetup={true}
             extensions={[langs.json()]}
             editable={isEditable}
+            theme={colorMode === "dark" ? "dark" : "light"}
           />
         </Tab>
       </Tabs>

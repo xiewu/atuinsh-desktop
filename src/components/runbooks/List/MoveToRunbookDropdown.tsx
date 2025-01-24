@@ -2,7 +2,7 @@ import { runbooksByWorkspaceId } from "@/lib/queries/runbooks";
 import { allWorkspaces } from "@/lib/queries/workspaces";
 import Runbook from "@/state/runbooks/runbook";
 import { AtuinState, useStore } from "@/state/store";
-import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Chip } from "@nextui-org/react";
+import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Chip } from "@heroui/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface MoveRunbookDropdownProps {

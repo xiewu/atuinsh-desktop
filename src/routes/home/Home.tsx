@@ -3,7 +3,7 @@ import { Tooltip as ReactTooltip } from "react-tooltip";
 
 import { AtuinState, useStore } from "@/state/store";
 import { getVersion } from "@tauri-apps/api/app";
-import { Card, CardHeader, CardBody, Listbox, ListboxItem } from "@nextui-org/react";
+import { Card, CardHeader, CardBody, Listbox, ListboxItem } from "@heroui/react";
 
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts";
 import { ChartConfig, ChartContainer } from "@/components/ui/chart";
@@ -22,20 +22,22 @@ function StatCard({ name, stat }: any) {
   return (
     <Card shadow="sm">
       <CardHeader>
-        <h3 className="uppercase text-gray-500">{name}</h3>
+        <h3 className="uppercase text-gray-500 dark:text-gray-400">{name}</h3>
       </CardHeader>
       <CardBody>
-        <h2 className="font-bold text-xl">{stat}</h2>
+        <h2 className="font-bold text-xl dark:text-gray-300">{stat}</h2>
       </CardBody>
     </Card>
   );
 }
 
 function TopChart({ chartData }: any) {
+  const colorMode = useStore((state) => state.colorMode);
+
   const chartConfig = {
     command: {
       label: "Command",
-      color: "#c4edde",
+      color: colorMode === "dark" ? "#66aaf9" : "#c4edde",
     },
   } satisfies ChartConfig;
 
@@ -60,7 +62,7 @@ function TopChart({ chartData }: any) {
           hide
         />
         <XAxis dataKey="count" type="number" hide />
-        <Bar dataKey="count" layout="vertical" fill="#c4edde" radius={4}>
+        <Bar dataKey="count" layout="vertical" fill={chartConfig.command.color} radius={4}>
           <LabelList
             dataKey="command"
             position="insideLeft"
@@ -83,7 +85,7 @@ function TopChart({ chartData }: any) {
 
 const explicitTheme = {
   light: ["#f0f0f0", "#c4edde", "#7ac7c4", "#f73859", "#384259"],
-  dark: ["#f0f0f0", "#c4edde", "#7ac7c4", "#f73859", "#384259"],
+  dark: ["#27272a", "#002e62", "#005bc4", "#338ef7", "#66aaf9"],
 };
 
 export default function Home() {
@@ -91,6 +93,7 @@ export default function Home() {
   const homeInfo = useStore((state: AtuinState) => state.homeInfo);
   const calendar = useStore((state: AtuinState) => state.calendar);
   const weekStart = useStore((state: AtuinState) => state.weekStart);
+  const colorMode = useStore((state: AtuinState) => state.colorMode);
 
   const refreshHomeInfo = useStore((state: AtuinState) => state.refreshHomeInfo);
   const refreshUser = useStore((state: AtuinState) => state.refreshUser);
@@ -122,6 +125,8 @@ export default function Home() {
     return <div>Loading...</div>;
   }
 
+  let colorScheme = colorMode === "dark" ? "dark" : "light";
+
   return (
     <div className="w-full flex-1 flex-col p-4 overflow-y-auto select-none">
       <div className="p-10 grid grid-cols-4 gap-4">
@@ -137,6 +142,7 @@ export default function Home() {
             <ActivityCalendar
               hideTotalCount
               theme={explicitTheme}
+              colorScheme={colorScheme as any}
               data={calendar}
               weekStart={weekStart as any}
               renderBlock={(block, activity) =>
@@ -199,7 +205,7 @@ export default function Home() {
           </CardHeader>
           <CardBody>
             {homeInfo.recentCommands?.map((i: ShellHistory) => {
-              return <HistoryRow compact key={i.id} h={i} />;
+              return <HistoryRow compact drawer key={i.id} h={i} />;
             })}
           </CardBody>
         </Card>

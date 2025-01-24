@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { QueryResult } from "./database";
 import ResultTable from "./ResultTable";
 import { GridColumn } from "@glideapps/glide-data-grid";
-import { Card, CardBody, CardHeader, Chip, Tooltip } from "@nextui-org/react";
+import { Card, CardBody, CardHeader, Chip, Tooltip } from "@heroui/react";
 import {
   CheckCircle,
   CircleXIcon,

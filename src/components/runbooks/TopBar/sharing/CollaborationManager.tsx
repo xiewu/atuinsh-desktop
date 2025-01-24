@@ -1,6 +1,6 @@
 import { RemoteRunbook, RemoteUser } from "@/state/models";
 import Runbook from "@/state/runbooks/runbook";
-import { Avatar, Button, Autocomplete, AutocompleteItem } from "@nextui-org/react";
+import { Avatar, Button, Autocomplete, AutocompleteItem } from "@heroui/react";
 import { useAsyncList } from "@react-stately/data";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { TrashIcon } from "lucide-react";

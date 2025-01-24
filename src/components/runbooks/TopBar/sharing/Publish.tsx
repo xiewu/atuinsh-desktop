@@ -12,7 +12,7 @@ import {
   Select,
   SelectItem,
   Tooltip,
-} from "@nextui-org/react";
+} from "@heroui/react";
 import { open } from "@tauri-apps/plugin-shell";
 import { TrashIcon } from "lucide-react";
 import CollaborationManager from "./CollaborationManager";

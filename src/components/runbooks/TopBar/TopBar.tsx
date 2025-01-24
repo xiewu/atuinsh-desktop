@@ -4,7 +4,7 @@ import SharePopover from "./SharePopover";
 import TagSelector from "./TagSelector";
 import ColorAvatar from "@/components/ColorAvatar";
 import { DateTime } from "luxon";
-import { Avatar, AvatarGroup, Tooltip } from "@nextui-org/react";
+import { Avatar, AvatarGroup, Tooltip } from "@heroui/react";
 import { RemoteRunbook } from "@/state/models";
 import { BookTextIcon, PencilOffIcon } from "lucide-react";
 import { PresenceUserInfo } from "@/lib/phoenix_provider";
@@ -129,7 +129,7 @@ export default function Topbar(props: TopbarProps) {
   };
 
   return (
-    <div className="flex w-full max-w-full overflow-hidden bg-gray-50 h-12 min-h-12 flex-row border-b px-2 justify-between pt-1">
+    <div className="flex w-full max-w-full overflow-hidden bg-gray-50 dark:bg-content1 h-[60px] min-h-[60px] flex-row border-b dark:border-default-300 px-2 justify-between pt-2">
       {renderBarContents()}
     </div>
   );

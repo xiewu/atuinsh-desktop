@@ -15,7 +15,7 @@ import { event } from "@tauri-apps/api";
 import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { createHashRouter, RouterProvider } from "react-router-dom";
-import { NextUIProvider } from "@nextui-org/react";
+import { HeroUIProvider } from "@heroui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./styles.css";
 
@@ -110,6 +110,22 @@ notificationManager.on("collab_deleted", async (collabId: string) => {
   removeCollaboration(collabId);
 });
 
+useStore.subscribe(
+  (state) => state.colorMode,
+  (colorMode) => {
+    if (colorMode === "dark") {
+      document.documentElement.classList.remove("light");
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("light");
+    }
+  },
+  {
+    fireImmediately: true,
+  },
+);
+
 trackOnlineStatus();
 // When the socket connects or disconnects, re-check online status immediately
 socketManager.onConnect(() => trackOnlineStatus());
@@ -155,7 +171,7 @@ function Application() {
 
   return (
     <React.StrictMode>
-      <NextUIProvider>
+      <HeroUIProvider>
         <QueryClientProvider client={queryClient}>
           <main className="text-foreground bg-background">
             {AtuinEnv.isProd && (
@@ -164,7 +180,7 @@ function Application() {
             {AtuinEnv.isDev && (
               <div
                 data-tauri-drag-region
-                className="w-full min-h-8 z-10 border-b-1 bg-striped bg-[length:7px_7px]"
+                className="w-full min-h-8 z-10 border-b-1 bg-striped dark:bg-dark-striped bg-[length:7px_7px]"
               />
             )}
 
@@ -173,7 +189,7 @@ function Application() {
             </div>
           </main>
         </QueryClientProvider>
-      </NextUIProvider>
+      </HeroUIProvider>
       <div id="portal" />
     </React.StrictMode>
   );

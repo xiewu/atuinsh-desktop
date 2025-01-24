@@ -14,7 +14,7 @@ function renderLoading() {
   );
 }
 
-export default function HistoryInspect({ history }: any) {
+export default function HistoryInspect({ history, theme }: any) {
   let [other, setOther] = useState<ShellHistory[]>([]);
 
   useEffect(() => {
@@ -28,11 +28,11 @@ export default function HistoryInspect({ history }: any) {
 
   return (
     <div className="overflow-y-auto" style={{ zIndex: 99999 }}>
-      <CodeBlock code={history.command} language="bash" />
+      <CodeBlock code={history.command} language="bash" theme={theme} />
 
       <div>
         {other.map((i: any) => {
-          return <HistoryRow h={i} />;
+          return <HistoryRow h={i} drawer={false} />;
         })}
       </div>
     </div>

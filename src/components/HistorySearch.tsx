@@ -26,7 +26,7 @@ export default function HistorySearch(props: HistorySearchProps) {
         <input
           id="search-field"
           autoFocus
-          className="block h-full w-full border-0 py-0 pl-8 pr-0 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm outline-none"
+          className="block h-full w-full border-0 py-0 pl-8 pr-0 text-gray-900 dark:text-gray-200 placeholder:text-gray-400 focus:ring-0 sm:text-sm outline-none bg-content1"
           placeholder="Search..."
           autoComplete="off"
           autoCapitalize="off"

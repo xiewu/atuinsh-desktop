@@ -1,7 +1,7 @@
-import { type ButtonProps } from "@nextui-org/react";
+import { type ButtonProps } from "@heroui/react";
 import { Command } from "cmdk";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import { Button, Kbd, Modal, ModalContent, cn } from "@nextui-org/react";
+import { Button, Kbd, Modal, ModalContent, cn } from "@heroui/react";
 import { tv } from "tailwind-variants";
 import MultiRef from "react-multi-ref";
 import scrollIntoView from "scroll-into-view-if-needed";

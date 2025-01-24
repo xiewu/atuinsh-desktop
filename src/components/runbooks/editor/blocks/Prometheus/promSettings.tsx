@@ -7,7 +7,7 @@ import {
   Button,
   useDisclosure,
   Input,
-} from "@nextui-org/react";
+} from "@heroui/react";
 import { SettingsIcon } from "lucide-react";
 import { useState } from "react";
 

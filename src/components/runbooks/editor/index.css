@@ -9,6 +9,13 @@
     color: #0000ee;
 }
 
+.dark .editor a {
+    color: rgb(152, 152, 243);
+}
 .editor a:hover {
     cursor: pointer;
+}
+
+.bn-container[data-color-scheme="dark"] {
+    --bn-colors-editor-background: #18181b !important;
 }

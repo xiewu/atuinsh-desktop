@@ -7,6 +7,7 @@ export interface AtuinUiState {
   searchOpen: boolean;
   proposedDesktopConnectUser: { username: string; token: string } | undefined;
   isSyncing: boolean;
+  colorMode: "light" | "dark";
 
   setOnline: (online: boolean) => void;
   setFocused: (focused: boolean) => void;
@@ -14,9 +15,10 @@ export interface AtuinUiState {
   setSearchOpen: (open: boolean) => void;
   setProposedDesktopConnectuser: (proposedUser?: { username: string; token: string }) => void;
   setIsSyncing: (isSyncing: boolean) => void;
+  setColorMode: (colorMode: "light" | "dark") => void;
 }
 
-export const persistUiKeys: (keyof AtuinUiState)[] = [];
+export const persistUiKeys: (keyof AtuinUiState)[] = ["colorMode"];
 
 export const createUiState: StateCreator<AtuinUiState> = (set, _get, _store): AtuinUiState => ({
   online: false,
@@ -25,6 +27,7 @@ export const createUiState: StateCreator<AtuinUiState> = (set, _get, _store): At
   searchOpen: false,
   proposedDesktopConnectUser: undefined,
   isSyncing: false,
+  colorMode: "light",
 
   setOnline: (online: boolean) => set(() => ({ online })),
   setFocused: (focused: boolean) => set(() => ({ focused })),
@@ -33,4 +36,5 @@ export const createUiState: StateCreator<AtuinUiState> = (set, _get, _store): At
   setProposedDesktopConnectuser: (proposedUser?) =>
     set(() => ({ proposedDesktopConnectUser: proposedUser })),
   setIsSyncing: (isSyncing: boolean) => set(() => ({ isSyncing })),
+  setColorMode: (colorMode: "light" | "dark") => set(() => ({ colorMode })),
 });

@@ -25,10 +25,10 @@ import {
   Spacer,
   useDisclosure,
   User,
-} from "@nextui-org/react";
+} from "@heroui/react";
 import { UnlistenFn } from "@tauri-apps/api/event";
 import { message } from "@tauri-apps/plugin-dialog";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { isAppleDevice } from "@react-aria/utils";
 import CompactWorkspaceSwitcher from "@/components/WorkspaceSwitcher/WorkspaceSwitcher";
 import { useTauriEvent } from "@/lib/tauri";
@@ -65,6 +65,8 @@ function App() {
   const currentWorkspaceId = useStore((state: AtuinState) => state.currentWorkspaceId);
   const setCurrentWorkspaceId = useStore((state: AtuinState) => state.setCurrentWorkspaceId);
   const setCurrentRunbookId = useStore((state: AtuinState) => state.setCurrentRunbookId);
+  const colorMode = useStore((state: AtuinState) => state.colorMode);
+  const setColorMode = useStore((state: AtuinState) => state.setColorMode);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [runbookIdToDelete, setRunbookIdToDelete] = useState<string | null>(null);
 
@@ -182,38 +184,49 @@ function App() {
     };
   }, []);
 
-  const navigation: SidebarItem[] = [
-    {
-      key: "personal",
-      title: "Personal",
-      items: [
-        {
-          key: "home",
-          icon: "solar:home-2-linear",
-          title: "Home",
-          onPress: () => {
-            navigate("/");
+  const navigation: SidebarItem[] = useMemo(
+    () => [
+      {
+        key: "personal",
+        title: "Personal",
+        items: [
+          {
+            key: "home",
+            icon: "solar:home-2-linear",
+            title: "Home",
+            onPress: () => {
+              navigate("/");
+            },
           },
-        },
-        {
-          key: "runbooks",
-          icon: "solar:notebook-linear",
-          title: "Runbooks",
-          onPress: () => {
-            navigate("/runbooks");
+          {
+            key: "runbooks",
+            icon: "solar:notebook-linear",
+            title: "Runbooks",
+            onPress: () => {
+              navigate("/runbooks");
+            },
           },
-        },
-        {
-          key: "history",
-          icon: "solar:history-outline",
-          title: "History",
-          onPress: () => {
-            navigate("/history");
+          {
+            key: "history",
+            icon: "solar:history-outline",
+            title: "History",
+            onPress: () => {
+              navigate("/history");
+            },
           },
-        },
-      ],
-    },
-  ];
+          {
+            key: "color-mode",
+            icon: colorMode === "dark" ? "solar:sun-bold" : "solar:moon-bold",
+            title: colorMode === "dark" ? "Light Mode" : "Dark Mode",
+            onPress: () => {
+              setColorMode(colorMode === "dark" ? "light" : "dark");
+            },
+          },
+        ],
+      },
+    ],
+    [colorMode],
+  );
 
   async function logOut() {
     await api.clearHubApiToken();
@@ -247,7 +260,10 @@ function App() {
   }
 
   return (
-    <div className="flex w-screen " style={{ maxWidth: "100vw", height: "calc(100dvh - 2rem)" }}>
+    <div
+      className="flex w-screen dark:bg-default-50"
+      style={{ maxWidth: "100vw", height: "calc(100dvh - 2rem)" }}
+    >
       <CommandMenu index={runbookIndex} />
       <RunbookSearchIndex index={runbookIndex} />
 

@@ -7,7 +7,7 @@ import {
   PopoverContent,
   PopoverTrigger,
   ScrollShadow,
-} from "@nextui-org/react";
+} from "@heroui/react";
 import clsx from "clsx";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -121,7 +121,7 @@ export default function TagSelector(props: TagSelectorProps) {
         {props.tags.map(({ value, text }) => (
           <div
             key={value}
-            className="flex flex-row justify-between hover:bg-gray-300 hover:cursor-pointer px-2 mb-1 py-1 rounded-md"
+            className="flex flex-row justify-between hover:bg-gray-300 hover:cursor-pointer px-2 mb-1 py-1 rounded-md dark:hover:bg-content3"
             onClick={() => props.onSelectTag(value)}
             data-selected={value == props.currentTag}
           >
@@ -157,6 +157,8 @@ export default function TagSelector(props: TagSelectorProps) {
             "flex max-w-[220px] md:min-w-[90px] md:max-w-[55px] lg:max-w-[200px]": true,
             "ml-0 md:ml-2 border-1 border-gray-300 rounded-md p-[5px] pb-[6px]": true,
             "cursor-pointer bg-gray-200 text-gray-700 mt-[-5px] truncate": true,
+            "dark:bg-content2 dark:text-gray-300 dark:border-default-300 hover:dark:bg-content3":
+              true,
             "sm:grow md:grow-0": true,
           })}
         >

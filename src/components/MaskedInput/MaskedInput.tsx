@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Input, InputProps } from '@nextui-org/react';
+import { Input, InputProps } from "@heroui/react";
 import { Eye, EyeOff } from 'lucide-react';
 
 interface MaskedInputProps extends Omit<InputProps, 'value' | 'onChange'> {

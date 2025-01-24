@@ -10,7 +10,7 @@ import {
   Button,
   DropdownItem,
   ButtonGroup,
-} from "@nextui-org/react";
+} from "@heroui/react";
 import { ChevronDown, DatabaseIcon, RefreshCwIcon } from "lucide-react";
 import CodeMirror, { Extension } from "@uiw/react-codemirror";
 import { GridColumn } from "@glideapps/glide-data-grid";
@@ -26,6 +26,7 @@ import { QueryResult } from "./database";
 import SQLResults from "./SQLResults";
 import MaskedInput from "@/components/MaskedInput/MaskedInput";
 import Block from "./Block";
+import { useStore } from "@/state/store";
 
 interface SQLProps {
   name: string;
@@ -73,6 +74,7 @@ const SQL = ({
   eventName,
   extensions = [],
 }: SQLProps) => {
+  const colorMode = useStore((state) => state.colorMode);
   const [isRunning, setIsRunning] = useState<boolean>(false);
 
   const [results, setResults] = useState<QueryResult | null>(null);
@@ -147,6 +149,7 @@ const SQL = ({
               value={query}
               onChange={setQuery}
               editable={isEditable}
+              theme={colorMode === "dark" ? "dark" : "light"}
             />
           </div>
         </>

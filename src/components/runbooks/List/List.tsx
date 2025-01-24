@@ -6,7 +6,7 @@ import {
   DropdownMenu,
   DropdownItem,
   DropdownSection,
-} from "@nextui-org/react";
+} from "@heroui/react";
 import {
   ChevronRightIcon,
   Import,
@@ -96,9 +96,9 @@ const NoteSidebar = (props: NotesSidebarProps) => {
   }, [runbooks]);
 
   return (
-    <div className="hidden !w-64 !max-w-64 !min-w-64 h-full bg-gray-50 border-r border-gray-200 md:flex md:flex-col select-none">
+    <div className="hidden !w-64 !max-w-64 !min-w-64 h-full bg-gray-50 dark:bg-content1 border-r border-gray-200 dark:border-default-300 md:flex md:flex-col select-none">
       <PendingInvitations />
-      <div className="p-2 flex justify-between items-center border-b border-gray-200">
+      <div className="p-2 h-[60px] min-height-[60px] flex justify-between items-center border-b border-gray-200 dark:border-gray-600">
         <h2 className="text-lg font-semibold">Runbooks</h2>
         <div className="flex space-x-1">
           <Tooltip content="New">
@@ -157,7 +157,9 @@ const NoteSidebar = (props: NotesSidebarProps) => {
                 }
                 setCurrentRunbookId(runbook.id);
               }}
-              className={`cursor-pointer p-2 border-b border-gray-200 hover:bg-gray-100 ${isActive ? "bg-gray-200" : ""} relative`}
+              className={`cursor-pointer p-2 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-content2 ${
+                isActive ? "bg-gray-200 dark:bg-content2" : ""
+              } relative`}
             >
               <div className="flex justify-between items-start">
                 <div

@@ -15,7 +15,7 @@ import {
   ModalBody,
   ModalContent,
   ModalHeader,
-} from "@nextui-org/react";
+} from "@heroui/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { open } from "@tauri-apps/plugin-shell";
 import { ChevronDownIcon } from "lucide-react";
@@ -159,6 +159,7 @@ export default function CollaborationsModal(props: CollaborationsModalProps) {
                               >
                                 {(ws) => (
                                   <DropdownItem
+                                    key={ws.id}
                                     onClick={() => setWorkspaceForCollab(collab.id, ws)}
                                   >
                                     Accept into {ws.name}

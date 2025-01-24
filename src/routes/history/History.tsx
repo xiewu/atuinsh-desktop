@@ -7,15 +7,11 @@ import HistorySearch from "@/components/HistorySearch.tsx";
 import { AtuinState, useStore } from "@/state/store";
 import { invoke } from "@tauri-apps/api/core";
 import InstallCLI from "@/components/history/InstallCLI";
-
+import clsx from "clsx";
 export default function Search() {
   const history = useStore((state: AtuinState) => state.shellHistory);
-  const refreshHistory = useStore(
-    (state: AtuinState) => state.refreshShellHistory,
-  );
-  const historyNextPage = useStore(
-    (state: AtuinState) => state.historyNextPage,
-  );
+  const refreshHistory = useStore((state: AtuinState) => state.refreshShellHistory);
+  const historyNextPage = useStore((state: AtuinState) => state.historyNextPage);
 
   let [query, setQuery] = useState("");
   let [cliInstalled, setCLIInstalled] = useState<boolean | null>(null);
@@ -58,7 +54,13 @@ export default function Search() {
   return (
     <>
       <div className="w-full flex-1 flex-col">
-        <div className="flex h-16 shrink-0 items-center gap-x-4 border-b border-t border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8 history-search">
+        <div
+          className={clsx({
+            "flex shrink-0 items-center gap-x-4 border-b border-t": true,
+            "border-gray-200 dark:border-gray-900 border-t-0 dark:border-divider bg-content1": true,
+            "px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8 history-search": true,
+          })}
+        >
           <HistorySearch
             query={query}
             setQuery={(q) => {

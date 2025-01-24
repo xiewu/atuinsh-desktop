@@ -14,7 +14,7 @@ import {
   TableBody,
   TableRow,
   TableCell,
-} from "@nextui-org/react";
+} from "@heroui/react";
 
 import { useTauriEvent } from "@/lib/tauri";
 import { open } from "@tauri-apps/plugin-dialog";

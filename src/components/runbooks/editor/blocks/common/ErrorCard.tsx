@@ -1,4 +1,4 @@
-import { Card, CardBody, CardHeader, Chip } from "@nextui-org/react";
+import { Card, CardBody, CardHeader, Chip } from "@heroui/react";
 import { CircleXIcon } from "lucide-react";
 
 const ErrorCard = ({ error }: any) => {

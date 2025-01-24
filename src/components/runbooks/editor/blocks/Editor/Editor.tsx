@@ -17,13 +17,14 @@ import {
   DropdownMenu,
   DropdownItem,
   Input,
-} from "@nextui-org/react";
+} from "@heroui/react";
 import EditableHeading from "@/components/EditableHeading/index.tsx";
 
 // Extra languages
 // Note that the languagedata package handles the dynamic loading of languages. This is different,
 // as by importing it we have already loaded it. Not really a big deal for our use case.
 import { hcl } from "codemirror-lang-hcl";
+import { useStore } from "@/state/store.ts";
 
 interface LanguageLoader {
   name: string;
@@ -74,6 +75,7 @@ const EditorBlock = ({
   name,
   setName,
 }: CodeBlockProps) => {
+  const colorMode = useStore((state) => state.colorMode);
   const languages: LanguageLoader[] = useMemo(() => languageLoaders(), []);
 
   const [extension, setExtension] = useState<Extension | null>(null);
@@ -178,6 +180,7 @@ const EditorBlock = ({
         }}
         extensions={extension ? [extension] : []}
         basicSetup={true}
+        theme={colorMode === "dark" ? "dark" : "light"}
       />
     </Block>
   );

@@ -1,5 +1,5 @@
 import Runbook from "@/state/runbooks/runbook";
-import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@nextui-org/react";
+import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/react";
 import { save } from "@tauri-apps/plugin-dialog";
 
 interface ExportRunbookDropdownProps {

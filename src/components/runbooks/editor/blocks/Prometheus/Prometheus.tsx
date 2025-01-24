@@ -15,7 +15,7 @@ import {
   ButtonGroup,
   Spinner,
   Switch,
-} from "@nextui-org/react";
+} from "@heroui/react";
 
 import { ChevronDownIcon, ClockIcon, LineChartIcon } from "lucide-react";
 import CodeMirror from "@uiw/react-codemirror";
@@ -35,6 +35,7 @@ import { Settings } from "@/state/settings";
 import ErrorCard from "../common/ErrorCard";
 import PlayButton from "../common/PlayButton";
 import EditableHeading from "@/components/EditableHeading";
+import { useStore } from "@/state/store";
 
 interface PromProps {
   name: string;
@@ -95,6 +96,7 @@ const calculateStepSize = (ago: any, maxDataPoints = 11000) => {
 };
 
 const Prometheus = (props: PromProps) => {
+  const colorMode = useStore((state) => state.colorMode);
   const [value, setValue] = useState<string>(props.query);
   const [data, setData] = useState<any[]>([]);
   const [config, _setConfig] = useState<{}>({});
@@ -235,6 +237,7 @@ const Prometheus = (props: PromProps) => {
             extensions={[promExtension.asExtension()]}
             basicSetup={true}
             editable={props.isEditable}
+            theme={colorMode === "dark" ? "dark" : "light"}
           />
         </div>
       </CardHeader>

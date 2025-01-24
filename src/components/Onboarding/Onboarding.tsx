@@ -8,7 +8,7 @@ import {
   CardBody,
   CardHeader,
   Divider,
-} from "@nextui-org/react";
+} from "@heroui/react";
 
 import { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";

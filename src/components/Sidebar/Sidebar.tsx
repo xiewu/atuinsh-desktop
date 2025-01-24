@@ -6,7 +6,7 @@ import {
   type ListboxProps,
   type ListboxSectionProps,
   type Selection,
-} from "@nextui-org/react";
+} from "@heroui/react";
 
 import React, { useEffect } from "react";
 import {
@@ -14,7 +14,7 @@ import {
   Tooltip,
   ListboxItem,
   ListboxSection,
-} from "@nextui-org/react";
+} from "@heroui/react";
 import { Icon } from "@iconify/react";
 
 import { cn } from "@/lib/utils";

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Input, Button } from "@nextui-org/react";
+import { Input, Button } from "@heroui/react";
 import { CirclePlusIcon, TrashIcon } from "lucide-react";
 
 const RequestHeaders = ({ pairs, setPairs, disabled }: any) => {

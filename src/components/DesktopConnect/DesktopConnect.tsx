@@ -1,5 +1,5 @@
 import { useStore } from "@/state/store";
-import { Modal, ModalContent, Button, Card, CardBody } from "@nextui-org/react";
+import { Modal, ModalContent, Button, Card, CardBody } from "@heroui/react";
 import { setHubApiToken } from "@/api/api";
 import SocketManager from "@/socket";
 

@@ -1,4 +1,4 @@
-import { nextui } from "@nextui-org/react";
+import { heroui } from "@heroui/react";
 import tailwindAnimate from "tailwindcss-animate";
 
 /** @type {import('tailwindcss').Config} */
@@ -9,7 +9,7 @@ export default {
     "./components/**/*.{ts,tsx}",
     "./app/**/*.{ts,tsx}",
     "./src/**/*.{ts,tsx}",
-    "./node_modules/@nextui-org/theme/dist/**/*.{js,ts,jsx,tsx}",
+    "./node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}",
   ],
   prefix: "",
   theme: {
@@ -24,6 +24,8 @@ export default {
       backgroundImage: {
         striped:
           "linear-gradient(135deg,#eeeeee 10%,#0000 0,#0000 50%,#eeeeee 0,#eeeeee 60%,#0000 0,#0000)",
+        "dark-striped":
+          "linear-gradient(135deg,#222222 10%,#0000 0,#0000 50%,#222222 0,#222222 60%,#0000 0,#0000)",
       },
       colors: {
         border: "hsl(var(--border))",
@@ -81,5 +83,5 @@ export default {
       },
     },
   },
-  plugins: [tailwindAnimate, nextui()],
+  plugins: [tailwindAnimate, heroui()],
 };

@@ -7,7 +7,7 @@ import {
   ModalFooter,
   Button,
   Input,
-} from "@nextui-org/react";
+} from "@heroui/react";
 import Workspace from "@/state/runbooks/workspace";
 import { AtuinState, useStore } from "@/state/store";
 import { ask, message } from "@tauri-apps/plugin-dialog";

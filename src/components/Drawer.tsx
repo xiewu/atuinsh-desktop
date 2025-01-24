@@ -14,7 +14,7 @@ export default function Drawer({
         <VDrawer.Overlay className="fixed inset-0 bg-black/40 z-50" />
         <VDrawer.Content
           style={{ width: width || "400px" }}
-          className={`bg-white flex flex-col z-50 h-full mt-24 fixed bottom-0 right-0`}
+          className={`bg-white dark:bg-content1 flex flex-col z-50 h-full mt-24 fixed bottom-0 right-0`}
         >
           {children}
         </VDrawer.Content>

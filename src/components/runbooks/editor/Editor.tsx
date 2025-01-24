@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import "./index.css";
 
-import { Spinner } from "@nextui-org/react";
+import { Spinner } from "@heroui/react";
 
 import { filterSuggestionItems, insertOrUpdateBlock } from "@blocknote/core";
 
@@ -45,6 +45,7 @@ import { DuplicateBlockItem } from "./ui/DuplicateBlockItem";
 
 import { schema } from "./create_editor";
 import RunbookEditor from "@/lib/runbook_editor";
+import { useStore } from "@/state/store";
 
 // Slash menu item to insert an Alert block
 const insertRun = (editor: typeof schema.BlockNoteEditor) => ({
@@ -91,6 +92,7 @@ type EditorProps = {
 
 export default function Editor({ runbook, editable, runbookEditor }: EditorProps) {
   const editor = usePromise(runbookEditor.getEditor());
+  const colorMode = useStore((state) => state.colorMode);
 
   if (!editor || !runbook) {
     return (
@@ -136,7 +138,7 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
         onChange={() => {
           runbookEditor.save(runbook, editor);
         }}
-        theme="light"
+        theme={colorMode === "dark" ? "dark" : "light"}
         editable={editable}
       >
         <SuggestionMenuController

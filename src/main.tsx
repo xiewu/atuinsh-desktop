@@ -12,6 +12,7 @@
 import { init_tracking } from "./tracking";
 
 import { event } from "@tauri-apps/api";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { createHashRouter, RouterProvider } from "react-router-dom";
@@ -110,21 +111,48 @@ notificationManager.on("collab_deleted", async (collabId: string) => {
   removeCollaboration(collabId);
 });
 
+function setFunctionalColorMode(mode: "light" | "dark") {
+  useStore.getState().setFunctionalColorMode(mode);
+}
+
 useStore.subscribe(
   (state) => state.colorMode,
-  (colorMode) => {
+  async (colorMode) => {
     if (colorMode === "dark") {
-      document.documentElement.classList.remove("light");
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      document.documentElement.classList.add("light");
+      setFunctionalColorMode("dark");
+    } else if (colorMode === "light") {
+      setFunctionalColorMode("light");
+    } else if (colorMode === "system") {
+      const systemTheme = await getCurrentWindow().theme();
+      if (systemTheme === "light") {
+        setFunctionalColorMode("light");
+      } else {
+        setFunctionalColorMode("dark");
+      }
     }
   },
   {
     fireImmediately: true,
   },
 );
+
+useStore.subscribe(
+  (state) => state.functionalColorMode,
+  (functionalColorMode) => {
+    document.documentElement.classList.remove("light", "dark");
+    document.documentElement.classList.add(functionalColorMode);
+  },
+  {
+    fireImmediately: true,
+  },
+);
+
+event.listen("tauri://theme-changed", ({ payload }) => {
+  const { colorMode } = useStore.getState();
+  if (colorMode === "system") {
+    setFunctionalColorMode(payload as "light" | "dark");
+  }
+});
 
 trackOnlineStatus();
 // When the socket connects or disconnects, re-check online status immediately

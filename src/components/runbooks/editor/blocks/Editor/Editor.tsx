@@ -75,7 +75,7 @@ const EditorBlock = ({
   name,
   setName,
 }: CodeBlockProps) => {
-  const colorMode = useStore((state) => state.colorMode);
+  const colorMode = useStore((state) => state.functionalColorMode);
   const languages: LanguageLoader[] = useMemo(() => languageLoaders(), []);
 
   const [extension, setExtension] = useState<Extension | null>(null);

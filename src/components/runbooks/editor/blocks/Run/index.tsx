@@ -80,7 +80,7 @@ const RunBlock = ({
   onStop,
   editor,
 }: RunBlockProps) => {
-  const colorMode = useStore((state) => state.colorMode);
+  const colorMode = useStore((state) => state.functionalColorMode);
   const cleanupPtyTerm = useStore((store: AtuinState) => store.cleanupPtyTerm);
   const terminals = useStore((store: AtuinState) => store.terminals);
 

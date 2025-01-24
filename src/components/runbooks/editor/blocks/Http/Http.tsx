@@ -96,7 +96,7 @@ const Http = ({
   setHeaders,
 }: HttpProps) => {
   let editor = useBlockNoteEditor();
-  const colorMode = useStore((state) => state.colorMode);
+  const colorMode = useStore((state) => state.functionalColorMode);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [response, setResponse] = useState<any | null>(null);
   const [error, setError] = useState<any | null>(null);

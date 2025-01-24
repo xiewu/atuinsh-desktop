@@ -65,8 +65,7 @@ function App() {
   const currentWorkspaceId = useStore((state: AtuinState) => state.currentWorkspaceId);
   const setCurrentWorkspaceId = useStore((state: AtuinState) => state.setCurrentWorkspaceId);
   const setCurrentRunbookId = useStore((state: AtuinState) => state.setCurrentRunbookId);
-  const colorMode = useStore((state: AtuinState) => state.colorMode);
-  const setColorMode = useStore((state: AtuinState) => state.setColorMode);
+  const colorMode = useStore((state: AtuinState) => state.functionalColorMode);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [runbookIdToDelete, setRunbookIdToDelete] = useState<string | null>(null);
 
@@ -212,14 +211,6 @@ function App() {
             title: "History",
             onPress: () => {
               navigate("/history");
-            },
-          },
-          {
-            key: "color-mode",
-            icon: colorMode === "dark" ? "solar:sun-bold" : "solar:moon-bold",
-            title: colorMode === "dark" ? "Light Mode" : "Dark Mode",
-            onPress: () => {
-              setColorMode(colorMode === "dark" ? "light" : "dark");
             },
           },
         ],

@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import {
+  Autocomplete,
+  AutocompleteItem,
   Input,
   Switch,
   Card,
@@ -10,13 +12,15 @@ import {
   ModalBody,
   ModalContent,
   ModalHeader,
-  Autocomplete,
-  AutocompleteItem,
+  Select,
+  SelectItem,
+  SharedSelection,
 } from "@heroui/react";
 import { Settings } from "@/state/settings";
 import { KVStore } from "@/state/kv";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { useStore } from "@/state/store";
 import { invoke } from "@tauri-apps/api/core";
 import { usePromise } from "@/lib/utils";
 
@@ -132,6 +136,12 @@ const GeneralSettings = () => {
     },
   );
 
+  const colorMode = useStore((state) => state.colorMode);
+
+  function setColorMode(keys: SharedSelection) {
+    useStore.getState().setColorMode(keys.currentKey as "light" | "dark" | "system");
+  }
+
   if (isLoading) return <Spinner />;
 
   return (
@@ -146,6 +156,24 @@ const GeneralSettings = () => {
           onValueChange={setTrackingOptIn}
           description="Track usage and errors to improve Atuin"
         />
+        <Select
+          label="Color Mode"
+          value={colorMode}
+          onSelectionChange={setColorMode}
+          className="mt-8"
+          placeholder="Select color mode"
+          selectedKeys={[colorMode]}
+        >
+          <SelectItem key="light" value="light">
+            Light
+          </SelectItem>
+          <SelectItem key="dark" value="dark">
+            Dark
+          </SelectItem>
+          <SelectItem key="system" value="system">
+            Follow System
+          </SelectItem>
+        </Select>
       </CardBody>
     </Card>
   );

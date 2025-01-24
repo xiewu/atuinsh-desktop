@@ -82,7 +82,7 @@ type EditorProps = {
 
 export default function Editor({ runbook, editable, runbookEditor }: EditorProps) {
   const editor = usePromise(runbookEditor.getEditor());
-  const colorMode = useStore((state) => state.colorMode);
+  const colorMode = useStore((state) => state.functionalColorMode);
 
   if (!editor || !runbook) {
     return (

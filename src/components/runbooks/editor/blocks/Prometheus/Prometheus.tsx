@@ -99,7 +99,7 @@ const calculateStepSize = (ago: any, maxDataPoints = 11000) => {
 
 const Prometheus = (props: PromProps) => {
   let editor = useBlockNoteEditor();
-  const colorMode = useStore((state) => state.colorMode);
+  const colorMode = useStore((state) => state.functionalColorMode);
   const [value, setValue] = useState<string>(props.query);
   const [data, setData] = useState<any[]>([]);
   const [config, _setConfig] = useState<{}>({});

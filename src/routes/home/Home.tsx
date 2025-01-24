@@ -32,7 +32,7 @@ function StatCard({ name, stat }: any) {
 }
 
 function TopChart({ chartData }: any) {
-  const colorMode = useStore((state) => state.colorMode);
+  const colorMode = useStore((state) => state.functionalColorMode);
 
   const chartConfig = {
     command: {
@@ -93,7 +93,7 @@ export default function Home() {
   const homeInfo = useStore((state: AtuinState) => state.homeInfo);
   const calendar = useStore((state: AtuinState) => state.calendar);
   const weekStart = useStore((state: AtuinState) => state.weekStart);
-  const colorMode = useStore((state: AtuinState) => state.colorMode);
+  const colorMode = useStore((state: AtuinState) => state.functionalColorMode);
 
   const refreshHomeInfo = useStore((state: AtuinState) => state.refreshHomeInfo);
   const refreshUser = useStore((state: AtuinState) => state.refreshUser);

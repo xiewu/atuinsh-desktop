@@ -30,7 +30,7 @@ function msToTime(ms: number) {
 }
 
 export default function HistoryRow({ h, compact, drawer }: any) {
-  const colorMode = useStore((state) => state.colorMode);
+  const colorMode = useStore((state) => state.functionalColorMode);
   const theme = colorMode === "dark" ? themes.oneDark : themes.github;
 
   return (

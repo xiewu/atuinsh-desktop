@@ -79,7 +79,7 @@ const SQL = ({
   extensions = [],
 }: SQLProps) => {
   let editor = useBlockNoteEditor();
-  const colorMode = useStore((state) => state.colorMode);
+  const colorMode = useStore((state) => state.functionalColorMode);
   const [isRunning, setIsRunning] = useState<boolean>(false);
 
   const [results, setResults] = useState<QueryResult | null>(null);

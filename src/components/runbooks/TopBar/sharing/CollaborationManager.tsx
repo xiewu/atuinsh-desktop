@@ -13,6 +13,16 @@ interface CollaborationManagerProps {
   remoteRunbook: RemoteRunbook;
 }
 
+interface CreateCollabMutationArgs {
+  runbookId: string;
+  userId: string;
+}
+
+interface DeleteCollabMutationArgs {
+  runbookId: string;
+  collaborationId: string;
+}
+
 export default function CollaborationManager(props: CollaborationManagerProps) {
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
 
@@ -35,13 +45,13 @@ export default function CollaborationManager(props: CollaborationManagerProps) {
   const queryClient = useQueryClient();
 
   const inviteUserToCollabMutation = useMutation({
-    mutationFn: (userId: string) => {
-      return api.createCollaborationInvitation(props.remoteRunbook.id, userId);
+    mutationFn: ({ runbookId, userId }: CreateCollabMutationArgs) => {
+      return api.createCollaborationInvitation(runbookId, userId);
     },
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       setSelectedUser(null);
       list.setFilterText("");
-      queryClient.invalidateQueries({ queryKey: ["remote_runbook", props.remoteRunbook.id] });
+      queryClient.invalidateQueries({ queryKey: ["remote_runbook", vars.runbookId] });
     },
     onError: (_error: any) => {
       alert("Error inviting user to collaboration");
@@ -49,11 +59,11 @@ export default function CollaborationManager(props: CollaborationManagerProps) {
   });
 
   const deleteCollaborationMutation = useMutation({
-    mutationFn: (collaborationId: string) => {
+    mutationFn: ({ collaborationId }: DeleteCollabMutationArgs) => {
       return api.deleteCollaboration(collaborationId);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["remote_runbook", props.remoteRunbook.id] });
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["remote_runbook", vars.runbookId] });
     },
     onError: (_error: any) => {
       alert("Error deleting collaboration");
@@ -67,7 +77,7 @@ export default function CollaborationManager(props: CollaborationManagerProps) {
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!selectedUser) return;
-    inviteUserToCollabMutation.mutate(selectedUser);
+    inviteUserToCollabMutation.mutate({ runbookId: props.remoteRunbook.id, userId: selectedUser });
   }
 
   async function handleDeleteClicked(collaborationId: string) {
@@ -78,7 +88,10 @@ export default function CollaborationManager(props: CollaborationManagerProps) {
 
     if (!doDelete) return;
 
-    deleteCollaborationMutation.mutate(collaborationId);
+    deleteCollaborationMutation.mutate({
+      runbookId: props.remoteRunbook.id,
+      collaborationId,
+    });
   }
 
   const mutationInProgress = inviteUserToCollabMutation.isPending;
@@ -126,7 +139,7 @@ export default function CollaborationManager(props: CollaborationManagerProps) {
           onSelectionChange={handleUserSelect}
           isDisabled={mutationInProgress}
         >
-          {(user) => (
+          {(user: RemoteUser) => (
             <AutocompleteItem
               key={user.id}
               startContent={

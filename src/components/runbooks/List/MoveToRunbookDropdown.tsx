@@ -50,6 +50,7 @@ export default function MoveRunbookDropdown({
                 }
                 queryClient.invalidateQueries(runbooksByWorkspaceId(currentWorkspaceId));
                 queryClient.invalidateQueries(runbooksByWorkspaceId(workspace.id));
+                queryClient.invalidateQueries(allWorkspaces());
                 await refreshRunbooks();
 
                 onClose();

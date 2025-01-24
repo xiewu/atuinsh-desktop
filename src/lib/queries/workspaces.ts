@@ -14,3 +14,17 @@ export function allWorkspaces() {
     },
   });
 }
+
+export function workspaceById(id: string) {
+  return queryOptions({
+    ...localQuery,
+    queryKey: ["workspace", id],
+    queryFn: async () => {
+      const ws = await Workspace.findById(id);
+      if (ws) {
+        await ws.refreshMeta();
+      }
+      return ws;
+    },
+  });
+}

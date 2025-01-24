@@ -62,6 +62,7 @@ walkdir = "2.5.0"
 thiserror = "2.0.11"
 pretty_assertions = "1.4.1"
 typed-builder = "0.20.0"
+font-kit = "0.14.2"
 
 [dependencies.sqlx]
 version = "0.8"

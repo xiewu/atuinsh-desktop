@@ -231,3 +231,13 @@ export function normalizeInput(input: string) {
     .replace(/\u201c|\u201d/g, '"') // Replace opening/closing double quotes
     .replace(/\u2018|\u2019/g, "'"); // Replace opening/closing single quotes
 }
+
+export function usePromise<T>(promise: Promise<T>) {
+  const [value, setValue] = useState<T | undefined>(undefined);
+
+  useEffect(() => {
+    promise.then(setValue);
+  }, [promise]);
+
+  return value;
+}

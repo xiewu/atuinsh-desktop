@@ -10,11 +10,20 @@ import {
   ModalBody,
   ModalContent,
   ModalHeader,
+  Autocomplete,
+  AutocompleteItem,
 } from "@heroui/react";
 import { Settings } from "@/state/settings";
 import { KVStore } from "@/state/kv";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { invoke } from "@tauri-apps/api/core";
+import { usePromise } from "@/lib/utils";
+
+async function loadFonts(): Promise<string[]> {
+  const fonts = await invoke<string[]>("list_fonts");
+  return fonts;
+}
 
 // Custom hook for managing settings
 const useSettingsState = (
@@ -143,6 +152,8 @@ const GeneralSettings = () => {
 };
 
 const RunbookSettings = () => {
+  const fonts = usePromise(loadFonts());
+
   const [terminalFont, setTerminalFont, fontLoading] = useSettingsState(
     "terminal_font",
     "",
@@ -168,7 +179,7 @@ const RunbookSettings = () => {
     Settings.runbookPrometheusUrl,
   );
 
-  if (fontLoading || glLoading || urlLoading || fontSizeLoading) return <Spinner />;
+  if (fontLoading || glLoading || urlLoading || fontSizeLoading || !fonts) return <Spinner />;
 
   return (
     <>
@@ -176,14 +187,15 @@ const RunbookSettings = () => {
         <CardBody className="flex flex-col gap-4">
           <h2 className="text-xl font-semibold">Terminal</h2>
           <div className="flex flex-row gap-4">
-            <SettingInput
-              type="text"
+            <Autocomplete
               label="Terminal font"
-              value={terminalFont}
-              onChange={setTerminalFont}
-              placeholder="Enter font name"
+              selectedKey={terminalFont}
+              onSelectionChange={setTerminalFont}
               description="Font to use for the terminal"
-            />
+              defaultItems={fonts.map((font) => ({ label: font, key: font }))}
+            >
+              {(item) => <AutocompleteItem key={item.key}>{item.label}</AutocompleteItem>}
+            </Autocomplete>
             <div>
               <Input
                 type="number"

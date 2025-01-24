@@ -1,20 +1,9 @@
-import { useEffect, useState } from "react";
-
 import "./index.css";
 
 import { Spinner } from "@heroui/react";
 
 import { filterSuggestionItems, insertOrUpdateBlock } from "@blocknote/core";
 
-function usePromise<T>(promise: Promise<T>) {
-  const [value, setValue] = useState<T | undefined>(undefined);
-
-  useEffect(() => {
-    promise.then(setValue);
-  }, [promise]);
-
-  return value;
-}
 
 import {
   SuggestionMenuController,
@@ -46,6 +35,7 @@ import { DuplicateBlockItem } from "./ui/DuplicateBlockItem";
 import { schema } from "./create_editor";
 import RunbookEditor from "@/lib/runbook_editor";
 import { useStore } from "@/state/store";
+import { usePromise } from "@/lib/utils";
 
 // Slash menu item to insert an Alert block
 const insertRun = (editor: typeof schema.BlockNoteEditor) => ({

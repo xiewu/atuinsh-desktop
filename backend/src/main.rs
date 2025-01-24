@@ -13,6 +13,7 @@ mod blocks;
 mod db;
 mod dotfiles;
 mod file;
+mod font;
 mod install;
 mod menu;
 mod pty;
@@ -388,6 +389,7 @@ fn main() {
             runbooks::runbook::export_atmd,
             runbooks::runbook::export_atrb,
             file::find_files,
+            font::list_fonts,
         ])
         .plugin(
             tauri_plugin_sql::Builder::default()

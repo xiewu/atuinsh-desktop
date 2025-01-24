@@ -118,7 +118,7 @@ export const createPtyState: StateCreator<AtuinPtyState> = (set, get, _store): A
     let terminal = new Terminal({
       fontFamily: `${font}, monospace`,
       fontSize: fontSize,
-      customGlyphs: false,
+      rescaleOverlappingGlyphs: true,
     });
 
     // TODO: fallback to canvas, also some sort of setting to allow disabling webgl usage

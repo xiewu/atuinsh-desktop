@@ -225,3 +225,9 @@ export function None(): None {
     map: <U>(_fn: (value: never) => U) => None(),
   };
 }
+
+export function normalizeInput(input: string) {
+  return input
+    .replace(/\u201c|\u201d/g, '"') // Replace opening/closing double quotes
+    .replace(/\u2018|\u2019/g, "'"); // Replace opening/closing single quotes
+}

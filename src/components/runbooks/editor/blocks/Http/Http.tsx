@@ -6,13 +6,14 @@ import CodeMirror from "@uiw/react-codemirror";
 import { langs } from "@uiw/codemirror-extensions-langs";
 
 // @ts-ignore
-import { createReactBlockSpec } from "@blocknote/react";
+import { createReactBlockSpec, useBlockNoteEditor } from "@blocknote/react";
 import { insertOrUpdateBlock } from "@blocknote/core";
 import PlayButton from "../common/PlayButton";
 import HttpResponse from "./HttpResponse";
 import HttpVerbDropdown from "./VerbDropdown";
 import RequestHeaders from "./RequestHeaders";
 import Block from "../common/Block";
+import { templateString } from "@/state/templates";
 import { useStore } from "@/state/store";
 
 enum HttpVerb {
@@ -27,6 +28,7 @@ enum HttpVerb {
 type HttpHeaders = { [key: string]: string };
 
 interface HttpProps {
+  id: string;
   name: string;
   url: string;
   verb: HttpVerb;
@@ -48,6 +50,8 @@ async function makeHttpRequest(
   body: string,
   headers: HttpHeaders,
 ): Promise<any> {
+  // template all the strings
+
   try {
     const options: any = {
       method: verb,
@@ -78,6 +82,7 @@ async function makeHttpRequest(
 }
 
 const Http = ({
+  id,
   name,
   setName,
   url,
@@ -90,6 +95,7 @@ const Http = ({
   setBody,
   setHeaders,
 }: HttpProps) => {
+  let editor = useBlockNoteEditor();
   const colorMode = useStore((state) => state.colorMode);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [response, setResponse] = useState<any | null>(null);
@@ -107,8 +113,20 @@ const Http = ({
 
   const onPlay = async () => {
     setIsRunning(true);
+    let template = async (input: string) => await templateString(id, input, editor.document);
+
+    let tUrl = await template(url);
+    let tBody = await template(body);
+    let tHeaders: { [key: string]: string } = {};
+
+    for (const [key, value] of Object.entries(headers)) {
+      const templatedKey = await template(key);
+      const templatedValue = await template(value);
+      tHeaders[templatedKey] = templatedValue;
+    }
+
     try {
-      let res = await makeHttpRequest(url, verb, body, headers);
+      let res = await makeHttpRequest(tUrl, verb, tBody, tHeaders);
 
       setResponse(res);
       setError(null);
@@ -246,6 +264,7 @@ export default createReactBlockSpec(
 
       return (
         <Http
+          id={block.id}
           name={block.props.name}
           setName={setName}
           url={block.props.url}

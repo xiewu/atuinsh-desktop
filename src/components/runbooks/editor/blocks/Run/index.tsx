@@ -171,7 +171,7 @@ const RunBlock = ({
     let val = !code.endsWith("\n") ? code + cmdEnd : code;
 
     terminalData.terminal.clear();
-    terminalData.write(val, editor.document);
+    terminalData.write(id, val, editor.document);
   };
 
   const handleCmdEnter = () => {
@@ -253,6 +253,7 @@ const RunBlock = ({
           }`}
         >
           <Terminal
+            block_id={id}
             pty={pty.pid}
             script={code}
             runScript={firstOpen}

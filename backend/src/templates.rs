@@ -16,7 +16,6 @@ pub struct RunbookTemplateState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AtuinTemplateState {
-    pub pty: PtyTemplateState,
     pub runbook: RunbookTemplateState,
 }
 
@@ -45,8 +44,6 @@ pub struct DocumentTemplateState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateState {
-    pub atuin: AtuinTemplateState,
-
     // In the case where a document is empty, we have no document state.
     pub doc: Option<DocumentTemplateState>,
 }
@@ -126,72 +123,44 @@ fn serialized_block_to_state(block: serde_json::Value) -> BlockState {
 #[tauri::command]
 pub async fn template_str(
     source: String,
-    runbook: Option<String>,
-    pid: Option<uuid::Uuid>,
-    state: tauri::State<'_, AtuinState>,
+    block_id: String,
+    _state: tauri::State<'_, AtuinState>,
     doc: Vec<serde_json::Value>,
 ) -> Result<String, String> {
     let mut env = Environment::new();
     env.set_trim_blocks(true);
 
-    if runbook.is_none() && pid.is_none() {
-        return Err(String::from("template_str must have one of runbook or pid"));
-    }
-
-    let runbook = match runbook {
-        Some(rb) => rb,
-
-        None => {
-            // At this point we know that PID is not None
-            let pid = pid.unwrap();
-            let sessions = state.pty_sessions.read().await;
-            let pty = sessions.get(&pid).ok_or("Pty not found")?;
-
-            pty.metadata.runbook.clone()
-        }
-    };
-
-    let previous = if let Some(pid) = pid {
-        let pty_store = state.pty_sessions.read().await;
-        let pty = pty_store.get(&pid).unwrap();
-        let block_id = pty.metadata.block.clone();
-
-        // Iterate through the doc, and find the block previous to the current one
-        // If the previous block is an empty paragraph, skip it. Its content array will have 0
-        // length
-        let previous = doc.iter().enumerate().find_map(|(i, block)| {
-            let block = block.as_object().unwrap();
-            if block.get("id").unwrap().as_str().unwrap() == block_id {
-                if i == 0 {
-                    None
-                } else {
-                    // Continue iterating backwards until we find a block that isn't an empty
-                    // paragraph
-                    let mut i = i - 1;
-                    loop {
-                        let block = doc.get(i).unwrap().as_object().unwrap();
-                        if block.get("type").unwrap().as_str().unwrap() == "paragraph"
-                            && block.get("content").unwrap().as_array().unwrap().is_empty()
-                        {
-                            if i == 0 {
-                                return None;
-                            } else {
-                                i -= 1;
-                            }
+    // Iterate through the doc, and find the block previous to the current one
+    // If the previous block is an empty paragraph, skip it. Its content array will have 0
+    // length
+    let previous = doc.iter().enumerate().find_map(|(i, block)| {
+        let block = block.as_object().unwrap();
+        if block.get("id").unwrap().as_str().unwrap() == block_id {
+            if i == 0 {
+                None
+            } else {
+                // Continue iterating backwards until we find a block that isn't an empty
+                // paragraph
+                let mut i = i - 1;
+                loop {
+                    let block = doc.get(i).unwrap().as_object().unwrap();
+                    if block.get("type").unwrap().as_str().unwrap() == "paragraph"
+                        && block.get("content").unwrap().as_array().unwrap().is_empty()
+                    {
+                        if i == 0 {
+                            return None;
                         } else {
-                            return Some(doc.get(i).unwrap().clone());
+                            i -= 1;
                         }
+                    } else {
+                        return Some(doc.get(i).unwrap().clone());
                     }
                 }
-            } else {
-                None
             }
-        });
-
-        previous
-    } else {
-        None
-    };
+        } else {
+            None
+        }
+    });
 
     let named = doc
         .iter()
@@ -232,12 +201,6 @@ pub async fn template_str(
         .render_str(
             source.as_str(),
             TemplateState {
-                atuin: AtuinTemplateState {
-                    pty: PtyTemplateState {
-                        id: pid.map(|id| id.to_string()).unwrap_or_default(),
-                    },
-                    runbook: RunbookTemplateState { id: runbook },
-                },
                 doc: doc_state.clone(),
             },
         )

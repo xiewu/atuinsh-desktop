@@ -6,6 +6,7 @@ import { Settings } from "../settings";
 import { WebglAddon } from "@xterm/addon-webgl";
 import Logger from "@/lib/logger";
 import { StateCreator } from "zustand";
+import { templateString } from "../templates";
 const logger = new Logger("PtyStore", "purple", "pink");
 
 export class TerminalData {
@@ -38,14 +39,10 @@ export class TerminalData {
     });
   }
 
-  async write(data: string, doc: any) {
+  async write(block_id: string, data: string, doc: any) {
     // Template the string before we execute it
     logger.debug("templating with doc", doc);
-    let templated: string = await invoke("template_str", {
-      source: data,
-      pid: this.pty,
-      doc,
-    });
+    let templated = await templateString(block_id, data, doc);
 
     let isWindows = platform() == "windows";
     let cmdEnd = isWindows ? "\r\n" : "\n";

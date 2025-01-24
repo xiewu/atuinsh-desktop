@@ -26,9 +26,12 @@ import { QueryResult } from "./database";
 import SQLResults from "./SQLResults";
 import MaskedInput from "@/components/MaskedInput/MaskedInput";
 import Block from "./Block";
+import { templateString } from "@/state/templates";
+import { useBlockNoteEditor } from "@blocknote/react";
 import { useStore } from "@/state/store";
 
 interface SQLProps {
+  id: string;
   name: string;
   placeholder?: string;
   extensions?: Extension[];
@@ -60,6 +63,7 @@ const autoRefreshChoices = [
 ];
 
 const SQL = ({
+  id,
   name,
   setName,
   placeholder,
@@ -74,6 +78,7 @@ const SQL = ({
   eventName,
   extensions = [],
 }: SQLProps) => {
+  let editor = useBlockNoteEditor();
   const colorMode = useStore((state) => state.colorMode);
   const [isRunning, setIsRunning] = useState<boolean>(false);
 
@@ -86,7 +91,10 @@ const SQL = ({
     setIsRunning(true);
 
     try {
-      let res = await runQuery(uri, query);
+      let tUri = await templateString(id, uri, editor.document);
+      let tQuery= await templateString(id, query, editor.document);
+
+      let res = await runQuery(tUri, tQuery);
 
       setIsRunning(false);
 

@@ -62,7 +62,9 @@ const RequestHeaders = ({ pairs, setPairs, disabled }: any) => {
       <div className="flex flex-row items-center gap-2">
         <Input
           value={newKey}
-          onChange={(e) => setNewKey(e.target.value)}
+          onValueChange={(val) => {
+            setNewKey(val);
+          }}
           onKeyDown={(e) => e.key === "Enter" && handleAddPair()}
           placeholder="Header name"
           className="flex-grow"
@@ -72,7 +74,9 @@ const RequestHeaders = ({ pairs, setPairs, disabled }: any) => {
         />
         <Input
           value={newValue}
-          onChange={(e) => setNewValue(e.target.value)}
+          onValueChange={(val) => {
+            setNewValue(val);
+          }}
           onKeyDown={(e) => e.key === "Enter" && handleAddPair()}
           placeholder="Header value"
           className="flex-grow"

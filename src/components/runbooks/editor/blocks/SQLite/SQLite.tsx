@@ -10,6 +10,7 @@ import { runQuery } from "./query";
 import SQL from "../common/SQL";
 
 interface SQLiteProps {
+  id: string;
   uri: string;
   query: string;
   autoRefresh: number;
@@ -23,6 +24,7 @@ interface SQLiteProps {
 }
 
 const SQLite = ({
+  id,
   query,
   setQuery,
   uri,
@@ -33,8 +35,10 @@ const SQLite = ({
   name,
   setName,
 }: SQLiteProps) => {
+
   return (
     <SQL
+      id={id}
       eventName="runbooks.sqlite"
       name={name}
       setName={setName}
@@ -93,6 +97,7 @@ export default createReactBlockSpec(
 
       return (
         <SQLite
+          id={block.id}
           name={block.props.name}
           setName={setName}
           query={block.props.query}

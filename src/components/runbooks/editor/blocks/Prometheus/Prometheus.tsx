@@ -24,7 +24,7 @@ import { PrometheusDriver } from "prometheus-query";
 import { useInterval } from "usehooks-ts";
 
 // @ts-ignore
-import { createReactBlockSpec } from "@blocknote/react";
+import { createReactBlockSpec, useBlockNoteEditor } from "@blocknote/react";
 
 // @ts-ignore
 import { insertOrUpdateBlock } from "@blocknote/core";
@@ -35,9 +35,11 @@ import { Settings } from "@/state/settings";
 import ErrorCard from "../common/ErrorCard";
 import PlayButton from "../common/PlayButton";
 import EditableHeading from "@/components/EditableHeading";
+import { templateString } from "@/state/templates";
 import { useStore } from "@/state/store";
 
 interface PromProps {
+  id: string;
   name: string;
   setName: (name: string) => void;
 
@@ -96,6 +98,7 @@ const calculateStepSize = (ago: any, maxDataPoints = 11000) => {
 };
 
 const Prometheus = (props: PromProps) => {
+  let editor = useBlockNoteEditor();
   const colorMode = useStore((state) => state.colorMode);
   const [value, setValue] = useState<string>(props.query);
   const [data, setData] = useState<any[]>([]);
@@ -118,7 +121,8 @@ const Prometheus = (props: PromProps) => {
     const end = new Date();
     const step = calculateStepSize(timeFrame.seconds);
 
-    const res = await promClient.rangeQuery(val, start, end, step);
+    let templated = await templateString(props.id, val, editor.document);
+    const res = await promClient.rangeQuery(templated, start, end, step);
 
     const series = res.result;
 
@@ -335,6 +339,7 @@ export default createReactBlockSpec(
 
       return (
         <Prometheus
+          id={block.id}
           name={block.props.name}
           setName={setName}
           query={block.props.query}

@@ -10,6 +10,7 @@ import { runQuery } from "./query";
 import SQL from "../common/SQL";
 
 interface SQLProps {
+  id: string;
   name: string;
   uri: string;
   query: string;
@@ -23,6 +24,7 @@ interface SQLProps {
 }
 
 const Postgres = ({
+  id,
   name,
   setName,
   query,
@@ -35,6 +37,7 @@ const Postgres = ({
 }: SQLProps) => {
   return (
     <SQL
+      id={id}
       eventName="runbooks.postgresql"
       name={name}
       setName={setName}
@@ -94,6 +97,7 @@ export default createReactBlockSpec(
 
       return (
         <Postgres
+          id={block.id}
           name={block.props.name}
           setName={setName}
           query={block.props.query}

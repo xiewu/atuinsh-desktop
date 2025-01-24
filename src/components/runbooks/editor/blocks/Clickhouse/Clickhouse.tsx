@@ -9,6 +9,7 @@ import { runQuery } from "./query";
 import SQL from "../common/SQL";
 
 interface SQLProps {
+  id: string;
   name: string;
   uri: string;
   query: string;
@@ -22,6 +23,7 @@ interface SQLProps {
 }
 
 const Clickhouse = ({
+  id,
   name,
   setName,
   query,
@@ -34,6 +36,7 @@ const Clickhouse = ({
 }: SQLProps) => {
   return (
     <SQL
+      id={id}
       name={name}
       setName={setName}
       eventName="runbooks.clickhouse"
@@ -93,6 +96,7 @@ export default createReactBlockSpec(
 
       return (
         <Clickhouse
+          id={block.id}
           name={block.props.name}
           setName={setName}
           query={block.props.query}

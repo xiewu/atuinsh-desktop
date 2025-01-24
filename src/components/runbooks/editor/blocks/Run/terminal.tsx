@@ -31,6 +31,7 @@ const usePersistentTerminal = (pty: string) => {
 };
 
 const TerminalComponent = ({
+  block_id,
   pty,
   script,
   runScript,
@@ -81,7 +82,7 @@ const TerminalComponent = ({
         let cmdEnd = isWindows ? "\r\n" : "\n";
         let val = !script.endsWith("\n") ? script + cmdEnd : script;
 
-        terminalData.write(val, editor.document);
+        terminalData.write(block_id, val, editor.document);
       }
     }
 

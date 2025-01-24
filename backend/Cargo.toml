@@ -59,7 +59,7 @@ minijinja = { version = "2.3.1", features = [
 ] }
 tauri-plugin-deep-link = "2.0.1"
 walkdir = "2.5.0"
-thiserror = "2.0.0"
+thiserror = "2.0.11"
 pretty_assertions = "1.4.1"
 typed-builder = "0.20.0"
 

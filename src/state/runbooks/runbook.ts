@@ -367,7 +367,7 @@ export default class Runbook {
       );
 
       await Runbook.saveYDocForRunbook(this.id, this.ydoc);
-      Runbook.invalidateCache(this.id);
+      Runbook.invalidateCache(this.id, this.workspaceId);
     });
   }
 
@@ -415,14 +415,14 @@ export default class Runbook {
         this.id,
       ]);
     });
-    Runbook.invalidateCache(this.id);
+    Runbook.invalidateCache(this.id, this.workspaceId);
   }
 
   public async updateRemoteInfo(remoteInfo: string | null) {
     const db = await AtuinDB.load("runbooks");
 
     await db.execute(`UPDATE runbooks SET remote_info = $1 where id = $2`, [remoteInfo, this.id]);
-    Runbook.invalidateCache(this.id);
+    Runbook.invalidateCache(this.id, this.workspaceId);
   }
 
   public async markViewed() {
@@ -432,7 +432,7 @@ export default class Runbook {
       new Date().getTime() * 1000000,
       this.id,
     ]);
-    Runbook.invalidateCache(this.id);
+    Runbook.invalidateCache(this.id, this.workspaceId);
   }
 
   public clone() {
@@ -454,15 +454,20 @@ export default class Runbook {
 
   public static async delete(id: string) {
     const db = await AtuinDB.load("runbooks");
+    const rb = await Runbook.load(id);
 
     const p1 = db.execute("delete from runbooks where id=$1", [id]);
     const p2 = Snapshot.deleteForRunbook(id);
     await Promise.all([p1, p2]);
-    Runbook.invalidateCache(id);
+
+    if (rb?.workspaceId) {
+      Runbook.invalidateCache(id, rb?.workspaceId);
+    }
   }
 
-  public static invalidateCache(id: string) {
+  public static invalidateCache(id: string, workspaceId: string) {
     // Don't love this, but unsure the best way to invalidate the cache on save otherwise
     (window as any).queryClient.invalidateQueries({ queryKey: ["runbook", id] });
+    (window as any).queryClient.invalidateQueries({ queryKey: ["runbooks", "workspace", workspaceId] });
   }
 }

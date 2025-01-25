@@ -12,7 +12,6 @@
 import { init_tracking } from "./tracking";
 
 import { event } from "@tauri-apps/api";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { createHashRouter, RouterProvider } from "react-router-dom";
@@ -35,6 +34,8 @@ import Runbook from "./state/runbooks/runbook";
 import welcome from "@/state/runbooks/welcome.json";
 import Logger from "./lib/logger";
 import AtuinEnv from "./atuin_env";
+import { setupColorModes } from "./lib/color_modes";
+import { setupServerEvents } from "./lib/server_events";
 const logger = new Logger("Main");
 
 (async () => {
@@ -72,87 +73,8 @@ event.listen("tauri://focus", () => {
   useStore.getState().setFocused(true);
 });
 
-notificationManager.on("runbook_updated", (runbookId: string) => {
-  syncManager.runbookUpdated(runbookId);
-  queryClient.invalidateQueries({ queryKey: ["remote_runbook", runbookId] });
-});
-
-notificationManager.on("runbook_deleted", (runbookId: string) => {
-  syncManager.runbookUpdated(runbookId);
-  queryClient.invalidateQueries({ queryKey: ["remote_runbook", runbookId] });
-});
-
-notificationManager.on("collab_invited", async (collabId: string) => {
-  try {
-    const collab = await api.getCollaborationById(collabId);
-    useStore.getState().addCollaboration(collab);
-  } catch (err) { }
-});
-
-notificationManager.on("collab_accepted", async (collabId: string) => {
-  useStore.getState().markCollaborationAccepted(collabId);
-  try {
-    const collab = await api.getCollaborationById(collabId);
-    queryClient.invalidateQueries({ queryKey: ["remote_runbook", collab.runbook.id] });
-  } catch (err) { }
-});
-
-notificationManager.on("collab_deleted", async (collabId: string) => {
-  const { collaborations, removeCollaboration } = useStore.getState();
-  const collaboration = collaborations.find((c) => c.id === collabId);
-  if (collaboration) {
-    const existingIds = await Runbook.allIdsInAllWorkspaces();
-    // Only schedule the runbook for a sync update if it already exists locally
-    if (collaboration.runbook.id in existingIds) {
-      syncManager.runbookUpdated(collaboration.runbook.id);
-    }
-    queryClient.invalidateQueries({ queryKey: ["remote_runbook", collaboration.runbook.id] });
-  }
-  removeCollaboration(collabId);
-});
-
-function setFunctionalColorMode(mode: "light" | "dark") {
-  useStore.getState().setFunctionalColorMode(mode);
-}
-
-useStore.subscribe(
-  (state) => state.colorMode,
-  async (colorMode) => {
-    if (colorMode === "dark") {
-      setFunctionalColorMode("dark");
-    } else if (colorMode === "light") {
-      setFunctionalColorMode("light");
-    } else if (colorMode === "system") {
-      const systemTheme = await getCurrentWindow().theme();
-      if (systemTheme === "light") {
-        setFunctionalColorMode("light");
-      } else {
-        setFunctionalColorMode("dark");
-      }
-    }
-  },
-  {
-    fireImmediately: true,
-  },
-);
-
-useStore.subscribe(
-  (state) => state.functionalColorMode,
-  (functionalColorMode) => {
-    document.documentElement.classList.remove("light", "dark");
-    document.documentElement.classList.add(functionalColorMode);
-  },
-  {
-    fireImmediately: true,
-  },
-);
-
-event.listen("tauri://theme-changed", ({ payload }) => {
-  const { colorMode } = useStore.getState();
-  if (colorMode === "system") {
-    setFunctionalColorMode(payload as "light" | "dark");
-  }
-});
+setupServerEvents(useStore, notificationManager, syncManager, queryClient);
+setupColorModes(useStore);
 
 trackOnlineStatus();
 // When the socket connects or disconnects, re-check online status immediately

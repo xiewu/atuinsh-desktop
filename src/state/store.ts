@@ -119,4 +119,6 @@ export const useStore = create<AtuinState>()(
   })),
 );
 
+export type AtuinStore = typeof useStore;
+
 (window as any).store = useStore;

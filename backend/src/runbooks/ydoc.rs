@@ -9,7 +9,7 @@ pub async fn save_ydoc_for_runbook(app: AppHandle, request: Request<'_>) -> Resu
         let db_path = request.headers().get("db").unwrap().to_str().unwrap();
         let runbook_id = request.headers().get("id").unwrap().to_str().unwrap();
 
-        let data_path = app.path().app_local_data_dir().unwrap();
+        let data_path = app.path().app_config_dir().unwrap();
         let db = SqlitePool::connect(data_path.join(db_path).to_str().unwrap())
             .await
             .unwrap();
@@ -33,7 +33,7 @@ pub async fn load_ydoc_for_runbook(
     db_path: &str,
     runbook_id: &str,
 ) -> Result<Response, String> {
-    let data_path = app.path().app_local_data_dir().unwrap();
+    let data_path = app.path().app_config_dir().unwrap();
     let db = SqlitePool::connect(data_path.join(db_path).to_str().unwrap())
         .await
         .unwrap();

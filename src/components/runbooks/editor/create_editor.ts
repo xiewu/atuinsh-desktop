@@ -77,7 +77,7 @@ export function createConversionEditor(fragment: Y.XmlFragment) {
   return BlockNoteEditor.create({
     schema,
     collaboration: {
-      provider: null,
+      provider: new NullProvider(),
       fragment: fragment,
       user: {
         name: "Conversion",
@@ -85,4 +85,12 @@ export function createConversionEditor(fragment: Y.XmlFragment) {
       },
     },
   });
+}
+
+class NullProvider {
+  get awareness() {
+    return {
+      on: () => () => {}
+    }
+  }
 }

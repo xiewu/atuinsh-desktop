@@ -276,8 +276,8 @@ importers:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.17)
       ts-tiny-activerecord:
-        specifier: atuinsh/ts-tiny-activerecord.git#v0.0.4
-        version: git+https://git@github.com:atuinsh/ts-tiny-activerecord.git#dc42625185087dfd75eb4fc70044e8444efe7734
+        specifier: atuinsh/ts-tiny-activerecord.git#v0.0.6
+        version: git+https://git@github.com:atuinsh/ts-tiny-activerecord.git#9199016411c42d8b83f47f93f962eb00211ea6e9
       usehooks-ts:
         specifier: ^3.1.0
         version: 3.1.0(react@18.3.1)
@@ -4585,9 +4585,9 @@ packages:
     resolution: {integrity: sha512-uivwYcQaxAucv1CzRp2n/QdYPo4ILf9VXgH19zEIjFx2EJufV16P0JtJVpYHy89DItG6Kwj2oIUjrcK5au+4tQ==}
     engines: {node: '>=8'}
 
-  ts-tiny-activerecord@git+https://git@github.com:atuinsh/ts-tiny-activerecord.git#dc42625185087dfd75eb4fc70044e8444efe7734:
-    resolution: {commit: dc42625185087dfd75eb4fc70044e8444efe7734, repo: git@github.com:atuinsh/ts-tiny-activerecord.git, type: git}
-    version: 0.0.4
+  ts-tiny-activerecord@git+https://git@github.com:atuinsh/ts-tiny-activerecord.git#9199016411c42d8b83f47f93f962eb00211ea6e9:
+    resolution: {commit: 9199016411c42d8b83f47f93f962eb00211ea6e9, repo: git@github.com:atuinsh/ts-tiny-activerecord.git, type: git}
+    version: 0.0.6
 
   tsconfck@3.1.4:
     resolution: {integrity: sha512-kdqWFGVJqe+KGYvlSO9NIaWn9jT1Ny4oKVzAJsKii5eoE9snzTJzL4+MMVOMn+fikWGFmKEylcXL710V/kIPJQ==}
@@ -10725,7 +10725,7 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  ts-tiny-activerecord@git+https://git@github.com:atuinsh/ts-tiny-activerecord.git#dc42625185087dfd75eb4fc70044e8444efe7734:
+  ts-tiny-activerecord@git+https://git@github.com:atuinsh/ts-tiny-activerecord.git#9199016411c42d8b83f47f93f962eb00211ea6e9:
     dependencies:
       typescript: 5.7.3
 

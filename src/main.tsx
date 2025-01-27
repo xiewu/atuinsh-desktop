@@ -16,7 +16,7 @@ import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { createHashRouter, RouterProvider } from "react-router-dom";
 import { HeroUIProvider } from "@heroui/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import "./styles.css";
 
 import Root from "@/routes/root/Root";
@@ -50,20 +50,10 @@ const logger = new Logger("Main");
 // If the user has opted in, we will setup sentry/posthog
 init_tracking();
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
-      staleTime: 1000 * 60 * 5,
-    },
-  },
-});
-(window as any).queryClient = queryClient;
-
 const socketManager = SocketManager.get();
 const notificationManager = ServerNotificationManager.get();
 const syncManager = SyncManager.get(useStore);
+const queryClient = useStore.getState().queryClient;
 
 event.listen("tauri://blur", () => {
   useStore.getState().setFocused(false);
@@ -73,7 +63,7 @@ event.listen("tauri://focus", () => {
   useStore.getState().setFocused(true);
 });
 
-setupServerEvents(useStore, notificationManager, syncManager, queryClient);
+setupServerEvents(useStore, notificationManager, syncManager);
 setupColorModes(useStore);
 
 trackOnlineStatus();

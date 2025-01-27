@@ -41,7 +41,7 @@ export function allRunbooks() {
   });
 }
 
-export function allRunbooksIds() {
+export function allRunbookIds() {
   return queryOptions({
     ...localQuery,
     queryKey: ["runbooks", "all-ids"],

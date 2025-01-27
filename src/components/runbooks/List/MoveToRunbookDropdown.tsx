@@ -1,9 +1,8 @@
-import { runbooksByWorkspaceId } from "@/lib/queries/runbooks";
 import { allWorkspaces } from "@/lib/queries/workspaces";
 import Runbook from "@/state/runbooks/runbook";
 import { AtuinState, useStore } from "@/state/store";
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Chip } from "@heroui/react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 interface MoveRunbookDropdownProps {
   runbook: Runbook;
@@ -22,7 +21,6 @@ export default function MoveRunbookDropdown({
   const setCurrentRunbookId = useStore((store: AtuinState) => store.setCurrentRunbookId);
   const refreshRunbooks = useStore((store: AtuinState) => store.refreshRunbooks);
 
-  const queryClient = useQueryClient();
   const { data: workspaces } = useQuery(allWorkspaces());
 
   return (
@@ -48,9 +46,6 @@ export default function MoveRunbookDropdown({
                   setCurrentWorkspaceId(workspace.id);
                   setCurrentRunbookId(runbook.id);
                 }
-                queryClient.invalidateQueries(runbooksByWorkspaceId(currentWorkspaceId));
-                queryClient.invalidateQueries(runbooksByWorkspaceId(workspace.id));
-                queryClient.invalidateQueries(allWorkspaces());
                 await refreshRunbooks();
 
                 onClose();

@@ -1,5 +1,6 @@
 import { uuidv7 } from "uuidv7";
 import AtuinDB from "../atuin_db";
+import { dbHook } from "@/lib/db_hooks";
 
 export interface SnapshotAttrs {
   id?: string;
@@ -41,6 +42,8 @@ export default class Snapshot {
       "insert into snapshots (id, tag, runbook_id, content, created) VALUES (?, ?, ?, ?, ?)",
       [snapshot.id, snapshot.tag, snapshot.runbook_id, snapshot.content, snapshot.created],
     );
+
+    dbHook("snapshot", "create", snapshot);
 
     return snapshot;
   }
@@ -88,12 +91,16 @@ export default class Snapshot {
   }
 
   static async deleteForRunbook(runbook_id: string) {
-    const db = await AtuinDB.load("runbooks");
-    await db.execute("delete from snapshots where runbook_id = ?", [runbook_id]);
+    const snapshots = await Snapshot.findByRunbookId(runbook_id);
+    for (const snapshot of snapshots) {
+      await snapshot.delete();
+    }
   }
 
   async delete() {
     const db = await AtuinDB.load("runbooks");
     await db.execute("delete from snapshots where id = ?", [this.id]);
+
+    dbHook("snapshot", "delete", this);
   }
 }

@@ -1,6 +1,5 @@
 import { AtuinStore } from "@/state/store";
 import SyncManager from "./sync/sync_manager";
-import { QueryClient } from "@tanstack/react-query";
 import ServerNotificationManager from "@/server_notification_manager";
 import * as api from "@/api/api";
 import Runbook from "@/state/runbooks/runbook";
@@ -9,8 +8,9 @@ export function setupServerEvents(
   store: AtuinStore,
   notificationManager: ServerNotificationManager,
   syncManager: SyncManager,
-  queryClient: QueryClient,
 ) {
+  const queryClient = store.getState().queryClient;
+
   notificationManager.on("runbook_updated", (runbookId: string) => {
     syncManager.runbookUpdated(runbookId);
     queryClient.invalidateQueries({ queryKey: ["remote_runbook", runbookId] });

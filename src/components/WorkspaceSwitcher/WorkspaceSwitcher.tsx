@@ -14,7 +14,7 @@ import Workspace from "@/state/runbooks/workspace";
 import WorkspaceSettings from "./WorkspaceSettings";
 import track_event from "@/tracking";
 import { allWorkspaces } from "@/lib/queries/workspaces";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 const CompactWorkspaceSwitcher = () => {
   const currentWorkspaceId = useStore((store: AtuinState) => store.currentWorkspaceId);
@@ -25,12 +25,10 @@ const CompactWorkspaceSwitcher = () => {
   // DropDownItem, as the dropdown closes as soon as it gains focus. Boooo.
   const settingsModalWorkspaceRef = useRef<Workspace | null>(null);
 
-  const queryClient = useQueryClient();
   const { data: workspaces } = useQuery(allWorkspaces());
 
   const onNewWorkspace = async () => {
     await Workspace.create("New Workspace");
-    queryClient.invalidateQueries(allWorkspaces());
 
     track_event("workspace.create", {
       total: await Workspace.count(),

@@ -11,9 +11,6 @@ import {
 import Workspace from "@/state/runbooks/workspace";
 import { AtuinState, useStore } from "@/state/store";
 import { ask, message } from "@tauri-apps/plugin-dialog";
-import { useQueryClient } from "@tanstack/react-query";
-import { allWorkspaces } from "@/lib/queries/workspaces";
-import { allRunbooks, allRunbooksIds, runbooksByWorkspaceId } from "@/lib/queries/runbooks";
 
 interface WorkspaceSettingsProps {
   isOpen: boolean;
@@ -30,7 +27,6 @@ const WorkspaceSettings = ({
 }: WorkspaceSettingsProps) => {
   const [workspaceName, setWorkspaceName] = useState(workspace?.name);
   const currentWorkspaceId = useStore((store: AtuinState) => store.currentWorkspaceId);
-  const queryClient = useQueryClient();
 
   useEffect(() => {
     setWorkspaceName(workspace?.name);
@@ -40,7 +36,6 @@ const WorkspaceSettings = ({
     if (!workspaceName) return;
 
     await workspace?.rename(workspaceName);
-    queryClient.invalidateQueries(allWorkspaces());
     onClose();
   };
 
@@ -69,12 +64,7 @@ const WorkspaceSettings = ({
     });
 
     if (yes) {
-      const { id } = workspace;
       await workspace.delete();
-      queryClient.invalidateQueries(allWorkspaces());
-      queryClient.invalidateQueries(allRunbooks());
-      queryClient.invalidateQueries(allRunbooksIds());
-      queryClient.invalidateQueries(runbooksByWorkspaceId(id));
     }
 
     onClose();

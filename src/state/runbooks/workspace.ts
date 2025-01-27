@@ -1,6 +1,7 @@
 import { uuidv7 } from "uuidv7";
 import Runbook from "./runbook";
 import AtuinDB from "../atuin_db";
+import { dbHook } from "@/lib/db_hooks";
 
 class WorkspaceMeta {
   totalRunbooks: number;
@@ -32,6 +33,8 @@ export default class Workspace {
 
   meta: WorkspaceMeta | null;
   watchDir: string | null;
+
+  persisted: boolean = false;
 
   constructor(
     id: string,
@@ -72,6 +75,14 @@ export default class Workspace {
             updated = $4`,
       [this.id, this.name, this.created, this.updated],
     );
+
+    if (!this.persisted) {
+      dbHook("workspace", "create", this);
+    } else {
+      dbHook("workspace", "update", this);
+    }
+
+    this.persisted = true;
   }
 
   async delete() {
@@ -81,10 +92,11 @@ export default class Workspace {
     let runbooks = await this.runbooks();
 
     for (let runbook of runbooks) {
-      await Runbook.delete(runbook.id);
+      await runbook.delete();
     }
 
     await db.execute("delete from workspaces where id = ?", [this.id]);
+    dbHook("workspace", "delete", this);
   }
 
   static async findById(id: string): Promise<Workspace | null> {
@@ -95,7 +107,9 @@ export default class Workspace {
       return null;
     }
 
-    return new Workspace(row[0].id, row[0].name, row[0].created, row[0].updated);
+    const ws = new Workspace(row[0].id, row[0].name, row[0].created, row[0].updated);
+    ws.persisted = true;
+    return ws;
   }
 
   static async all(): Promise<Workspace[]> {
@@ -104,6 +118,7 @@ export default class Workspace {
 
     return rows.map((row) => {
       let ws = new Workspace(row.id, row.name, row.created, row.updated);
+      ws.persisted = true;
 
       return ws;
     });
@@ -130,6 +145,8 @@ export default class Workspace {
       new Date(),
       this.id,
     ]);
+
+    dbHook("workspace", "update", this);
   }
 
   async runbooks(): Promise<Runbook[]> {

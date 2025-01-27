@@ -14,10 +14,6 @@ import {
 import { useEffect, useMemo, useReducer } from "react";
 import { None, Option, Some, usernameFromNwo } from "@/lib/utils";
 import Operation from "@/state/runbooks/operation";
-import { runbooksByWorkspaceId } from "@/lib/queries/runbooks";
-import { useRunbook } from "@/lib/useRunbook";
-import { useQueryClient } from "@tanstack/react-query";
-import { allWorkspaces } from "@/lib/queries/workspaces";
 
 interface DeleteRunbookModalProps {
   runbookId: string;
@@ -71,9 +67,6 @@ export default function DeleteRunbookModal(props: DeleteRunbookModalProps) {
   const currentRunbookId = useStore((store) => store.currentRunbookId);
   const setCurrentRunbookId = useStore((store) => store.setCurrentRunbookId);
   const refreshRunbooks = useStore((store) => store.refreshRunbooks);
-  const runbook = useRunbook(runbookId);
-
-  const queryClient = useQueryClient();
 
   const [deleteState, dispatch] = useReducer(reducer, INITIAL_STATE);
 
@@ -138,10 +131,6 @@ export default function DeleteRunbookModal(props: DeleteRunbookModalProps) {
     dispatch({ type: "set_deleting", isDeleting: true });
     try {
       await doDeleteRunbook();
-      if (runbook) {
-        queryClient.invalidateQueries(runbooksByWorkspaceId(runbook.workspaceId));
-        queryClient.invalidateQueries(allWorkspaces());
-      }
       onClose();
     } catch (err) {
       dispatch({ type: "set_deleting", isDeleting: false });
@@ -169,7 +158,7 @@ export default function DeleteRunbookModal(props: DeleteRunbookModalProps) {
     }
 
     if (runbook.id === currentRunbookId) setCurrentRunbookId(null);
-    await Runbook.delete(runbook.id);
+    await runbook.delete();
     refreshRunbooks();
 
     onClose();

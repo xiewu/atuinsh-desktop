@@ -14,8 +14,8 @@ import ActivityCalendar from "react-activity-calendar";
 import HistoryRow from "@/components/history/HistoryRow";
 import { ShellHistory } from "@/state/models";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { allRunbooks, allRunbooksIds, runbooksByWorkspaceId } from "@/lib/queries/runbooks";
+import { useQuery } from "@tanstack/react-query";
+import { allRunbooks } from "@/lib/queries/runbooks";
 import Runbook from "@/state/runbooks/runbook";
 
 function StatCard({ name, stat }: any) {
@@ -104,7 +104,6 @@ export default function Home() {
 
   const [version, setVersion] = useState<string | null>(null);
 
-  const queryClient = useQueryClient();
   const { data: runbooks } = useQuery(allRunbooks());
 
   useEffect(() => {
@@ -170,9 +169,6 @@ export default function Home() {
                 onPress={async () => {
                   const rb = await Runbook.createUntitled(currentWorkspaceId);
                   setCurrentRunbookId(rb.id);
-                  queryClient.invalidateQueries(runbooksByWorkspaceId(currentWorkspaceId));
-                  queryClient.invalidateQueries(allRunbooks());
-                  queryClient.invalidateQueries(allRunbooksIds());
                   navigate("/runbooks");
                 }}
               >

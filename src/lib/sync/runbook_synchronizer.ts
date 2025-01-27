@@ -84,7 +84,7 @@ export default class RunbookSynchronizer {
 
             const shouldDelete = isHubRunbook && createdBySomeoneElse;
             if (shouldDelete) {
-              await Runbook.delete(runbook.id);
+              await runbook.delete();
               this.resolve({ runbookId: this.runbookId, action: "deleted" });
               return;
             } else {

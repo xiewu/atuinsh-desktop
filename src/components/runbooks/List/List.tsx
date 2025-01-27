@@ -30,9 +30,8 @@ import { useCurrentRunbook } from "@/lib/useRunbook";
 import SyncManager from "@/lib/sync/sync_manager";
 import { PendingInvitations } from "./PendingInvitations";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { allRunbooks, allRunbooksIds, runbooksByWorkspaceId } from "@/lib/queries/runbooks";
-import { allWorkspaces } from "@/lib/queries/workspaces";
+import { useQuery } from "@tanstack/react-query";
+import { runbooksByWorkspaceId } from "@/lib/queries/runbooks";
 
 interface NotesSidebarProps {
   onDeleteRunbook: (runbookId: string) => void;
@@ -56,17 +55,12 @@ const NoteSidebar = (props: NotesSidebarProps) => {
 
   const location = useLocation();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   const handleNewRunbook = async () => {
     window.getSelection()?.removeAllRanges();
 
     const rb = await Runbook.createUntitled(currentWorkspaceId);
     setCurrentRunbookId(rb.id);
-    queryClient.invalidateQueries(runbooksByWorkspaceId(currentWorkspaceId));
-    queryClient.invalidateQueries(allRunbooks());
-    queryClient.invalidateQueries(allRunbooksIds());
-    await queryClient.invalidateQueries(allWorkspaces());
 
     track_event("runbooks.create", {
       total: await Runbook.count(),

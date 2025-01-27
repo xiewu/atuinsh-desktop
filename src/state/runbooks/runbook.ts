@@ -8,6 +8,8 @@ import { dbPath } from "@/lib/utils";
 import AtuinDB from "../atuin_db";
 import untitledRunbook from "../runbooks/untitled.json";
 const logger = new Logger("Runbook", "green", "green");
+import { dbHook } from "@/lib/db_hooks";
+import Workspace from "./workspace";
 
 // Definition of an atrb file
 // This is JSON encoded for ease of access, and may change in the future
@@ -58,6 +60,8 @@ export default class Runbook {
   private _name: string;
   private _content: string;
 
+  private persisted: boolean = false;
+
   set name(value: string) {
     if (value !== this._name) {
       this.updated = new Date();
@@ -80,7 +84,7 @@ export default class Runbook {
     return this._name;
   }
 
-  constructor(attrs: RunbookAttrs) {
+  constructor(attrs: RunbookAttrs, persisted: boolean = false) {
     this.id = attrs.id;
     this._name = attrs.name;
     this.source = attrs.source || "local";
@@ -93,6 +97,7 @@ export default class Runbook {
     this.workspaceId = attrs.workspaceId;
     this.remoteInfo = attrs.remoteInfo;
     this.viewed_at = attrs.viewed_at || null;
+    this.persisted = persisted;
   }
 
   /// Create a new Runbook, and automatically generate an ID.
@@ -251,20 +256,23 @@ export default class Runbook {
       }
     }
 
-    return new Runbook({
-      id: row.id,
-      name: row.name,
-      source: row.source || "local",
-      sourceInfo: row.sourceInfo,
-      content: row.content || "[]",
-      ydoc: update,
-      created: new Date(row.created / 1000000),
-      updated: new Date(row.updated / 1000000),
-      workspaceId: row.workspace_id,
-      forkedFrom: row.forked_from,
-      remoteInfo: row.remote_info,
-      viewed_at: row.viewed_at ? new Date(row.viewed_at / 1000000) : null,
-    });
+    return new Runbook(
+      {
+        id: row.id,
+        name: row.name,
+        source: row.source || "local",
+        sourceInfo: row.sourceInfo,
+        content: row.content || "[]",
+        ydoc: update,
+        created: new Date(row.created / 1000000),
+        updated: new Date(row.updated / 1000000),
+        workspaceId: row.workspace_id,
+        forkedFrom: row.forked_from,
+        remoteInfo: row.remote_info,
+        viewed_at: row.viewed_at ? new Date(row.viewed_at / 1000000) : null,
+      },
+      true,
+    );
   }
 
   static async allInAllWorkspaces(): Promise<Runbook[]> {
@@ -367,8 +375,14 @@ export default class Runbook {
       );
 
       await Runbook.saveYDocForRunbook(this.id, this.ydoc);
-      Runbook.invalidateCache(this.id, this.workspaceId);
     });
+
+    if (!this.persisted) {
+      dbHook("runbook", "create", this);
+    } else {
+      dbHook("runbook", "update", this);
+    }
+    this.persisted = true;
   }
 
   public async clearRemoteInfo() {
@@ -407,7 +421,6 @@ export default class Runbook {
 
   public async moveTo(workspaceId: string) {
     const db = await AtuinDB.load("runbooks");
-    this.workspaceId = workspaceId;
 
     logger.time(`Moving runbook to workspace ${workspaceId}`, async () => {
       await db.execute(`UPDATE runbooks SET workspace_id = $1 where id = $2`, [
@@ -415,14 +428,23 @@ export default class Runbook {
         this.id,
       ]);
     });
-    Runbook.invalidateCache(this.id, this.workspaceId);
+
+    const oldWorkspaceId = this.workspaceId;
+    this.workspaceId = workspaceId;
+
+    const oldWorkspace = await Workspace.findById(oldWorkspaceId);
+    const newWorkspace = await Workspace.findById(workspaceId);
+
+    dbHook("runbook", "update", this);
+    dbHook("workspace", "update", oldWorkspace);
+    dbHook("workspace", "update", newWorkspace);
   }
 
   public async updateRemoteInfo(remoteInfo: string | null) {
     const db = await AtuinDB.load("runbooks");
 
     await db.execute(`UPDATE runbooks SET remote_info = $1 where id = $2`, [remoteInfo, this.id]);
-    Runbook.invalidateCache(this.id, this.workspaceId);
+    dbHook("runbook", "update", this);
   }
 
   public async markViewed() {
@@ -432,42 +454,36 @@ export default class Runbook {
       new Date().getTime() * 1000000,
       this.id,
     ]);
-    Runbook.invalidateCache(this.id, this.workspaceId);
+    dbHook("runbook", "update", this);
   }
 
   public clone() {
-    return new Runbook({
-      id: this.id,
-      name: this.name,
-      source: this.source,
-      sourceInfo: this.sourceInfo,
-      content: this.content,
-      ydoc: this.ydoc,
-      created: this.created,
-      updated: this.updated,
-      workspaceId: this.workspaceId,
-      forkedFrom: this.forkedFrom,
-      remoteInfo: this.remoteInfo,
-      viewed_at: this.viewed_at,
-    });
+    return new Runbook(
+      {
+        id: this.id,
+        name: this.name,
+        source: this.source,
+        sourceInfo: this.sourceInfo,
+        content: this.content,
+        ydoc: this.ydoc,
+        created: this.created,
+        updated: this.updated,
+        workspaceId: this.workspaceId,
+        forkedFrom: this.forkedFrom,
+        remoteInfo: this.remoteInfo,
+        viewed_at: this.viewed_at,
+      },
+      this.persisted,
+    );
   }
 
-  public static async delete(id: string) {
+  public async delete() {
     const db = await AtuinDB.load("runbooks");
-    const rb = await Runbook.load(id);
 
-    const p1 = db.execute("delete from runbooks where id=$1", [id]);
-    const p2 = Snapshot.deleteForRunbook(id);
+    const p1 = db.execute("delete from runbooks where id=$1", [this.id]);
+    const p2 = Snapshot.deleteForRunbook(this.id);
     await Promise.all([p1, p2]);
 
-    if (rb?.workspaceId) {
-      Runbook.invalidateCache(id, rb?.workspaceId);
-    }
-  }
-
-  public static invalidateCache(id: string, workspaceId: string) {
-    // Don't love this, but unsure the best way to invalidate the cache on save otherwise
-    (window as any).queryClient.invalidateQueries({ queryKey: ["runbook", id] });
-    (window as any).queryClient.invalidateQueries({ queryKey: ["runbooks", "workspace", workspaceId] });
+    dbHook("runbook", "delete", this);
   }
 }

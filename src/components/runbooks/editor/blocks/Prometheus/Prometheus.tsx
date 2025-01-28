@@ -200,13 +200,13 @@ const Prometheus = (props: PromProps) => {
     autoRefresh ? 5000 : null,
   );
 
-  if (!prometheusUrl || !promClient || !promExtension) {
-    return (
-      <Card className="w-full resize-y justify-center align-middle h-52">
-        <Spinner />
-      </Card>
-    );
-  }
+  let renderBody = () => {
+    if (!prometheusUrl) return <ErrorCard error="No Prometheus endpoint set" />;
+    if (!promClient) return <Spinner />;
+    if (error) return <ErrorCard error={error} />;
+
+    if (!error) return <PromLineChart data={data} config={config} />;
+  };
 
   return (
     <Card className="w-full !max-w-full !outline-none overflow-none" shadow="sm">
@@ -238,7 +238,7 @@ const Prometheus = (props: PromProps) => {
               setValue(val);
               props.onPropsChange({ query: val });
             }}
-            extensions={[promExtension.asExtension()]}
+            extensions={promExtension ? [promExtension.asExtension()] : []}
             basicSetup={true}
             editable={props.isEditable}
             theme={colorMode === "dark" ? "dark" : "light"}
@@ -246,8 +246,7 @@ const Prometheus = (props: PromProps) => {
         </div>
       </CardHeader>
       <CardBody className="min-h-64 overflow-x-scroll">
-        {error && <ErrorCard error={error} />}
-        {!error && <PromLineChart data={data} config={config} />}
+        {renderBody()}
       </CardBody>
       <CardFooter className="justify-between">
         <div className="flex-row content-center items-center justify-center">

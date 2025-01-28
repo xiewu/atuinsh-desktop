@@ -92,12 +92,14 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
     );
   }
 
+
   // Renders the editor instance.
   return (
     <div
       className="overflow-y-scroll editor flex-grow pt-3"
       onClick={(e) => {
-        if ((e.target as Element).matches(".editor *")) return;
+        // Only return if clicking inside editor content, not modals/inputs
+        if ((e.target as Element).matches(".editor .bn-container *") || (e.target as HTMLElement).tagName === "INPUT") return;
         // If the user clicks below the document, focus on the last block
         // But if the last block is not an empty paragraph, create it :D
         let blocks = editor.document;

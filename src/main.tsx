@@ -36,6 +36,7 @@ import Logger from "./lib/logger";
 import AtuinEnv from "./atuin_env";
 import { setupColorModes } from "./lib/color_modes";
 import { setupServerEvents } from "./lib/server_events";
+import SettingsPanel from "./components/Settings/Settings";
 const logger = new Logger("Main");
 
 (async () => {
@@ -89,6 +90,11 @@ const router = createHashRouter([
       {
         path: "history",
         element: <History />,
+      },
+
+      {
+        path: "settings",
+        element: <SettingsPanel />,
       },
     ],
   },

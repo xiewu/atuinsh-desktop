@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { open } from "@tauri-apps/plugin-shell";
 import {
   Autocomplete,
   AutocompleteItem,
@@ -8,13 +9,17 @@ import {
   CardBody,
   Spinner,
   cn,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalHeader,
   Select,
   SelectItem,
   SharedSelection,
+  Button,
+  User,
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalContent,
+  Link,
 } from "@heroui/react";
 import { Settings } from "@/state/settings";
 import { KVStore } from "@/state/kv";
@@ -23,6 +28,10 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { useStore } from "@/state/store";
 import { invoke } from "@tauri-apps/api/core";
 import { usePromise } from "@/lib/utils";
+import SocketManager from "@/socket";
+import handleDeepLink from "@/routes/root/deep";
+import * as api from "@/api/api";
+import { useNavigate } from "react-router-dom";
 
 async function loadFonts(): Promise<string[]> {
   const fonts = await invoke<string[]>("list_fonts");
@@ -145,7 +154,7 @@ const GeneralSettings = () => {
   if (isLoading) return <Spinner />;
 
   return (
-    <Card shadow="sm">
+    <Card shadow="sm" className="w-full">
       <CardBody>
         <h2 className="text-xl font-semibold">General</h2>
 
@@ -259,39 +268,144 @@ const RunbookSettings = () => {
   );
 };
 
-interface SettingsModalProps {
-  isOpen: boolean;
-  onOpenChange: (isOpen: boolean) => void;
-}
+type AuthTokenModalProps = {
+  onSubmit: (token: string) => void;
+};
 
-// Main Settings component
-const SettingsModal = ({ isOpen, onOpenChange }: SettingsModalProps) => {
+const AuthTokenModal = (props: AuthTokenModalProps) => {
+  const [token, setToken] = useState("");
+  const [validToken, setValidToken] = useState(false);
+
+  useEffect(() => {
+    const valid = token.length == 54 && token.startsWith("atapi_");
+    setValidToken(valid);
+  }, [token]);
+
   return (
-    <Modal
-      isOpen={isOpen}
-      onOpenChange={onOpenChange}
-      size="2xl"
-      scrollBehavior="normal"
-      disableAnimation
-    >
-      <ModalContent className="pb-4 max-h-[60vh]">
-        {(_onClose) => (
-          <>
-            <ModalHeader className="flex flex-col gap-1">
-              <h1 className="text-2xl font-bold">Settings</h1>
-              <p className="text-small text-default-500">Customize your experience</p>
-            </ModalHeader>
-            <ModalBody className="overflow-scroll">
-              <div className="flex flex-col gap-4">
-                <GeneralSettings />
-                <RunbookSettings />
-              </div>
-            </ModalBody>
-          </>
-        )}
+    <Modal isOpen={true} size="lg">
+      <ModalContent>
+        <ModalHeader>Log in via auth token</ModalHeader>
+        <ModalBody>
+          <Input
+            type="password"
+            label="Paste your token here"
+            value={token}
+            onValueChange={setToken}
+          />
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            isDisabled={!validToken}
+            color="success"
+            variant="flat"
+            onPress={() => props.onSubmit(token)}
+          >
+            Submit
+          </Button>
+        </ModalFooter>
       </ModalContent>
     </Modal>
   );
 };
 
-export default SettingsModal;
+const UserSettings = () => {
+  const navigate = useNavigate();
+  const user = useStore((state) => state.user);
+  const refreshUser = useStore((state) => state.refreshUser);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  async function logOut() {
+    await api.clearHubApiToken();
+    SocketManager.setApiToken(null);
+    refreshUser();
+  }
+
+  function handleTokenSubmit(token: string) {
+    setModalOpen(false);
+    const deepLink = `atuin://register-token/${token}`;
+    handleDeepLink(navigate, deepLink);
+  }
+
+  let content;
+  if (!user || !user.isLoggedIn()) {
+    content = (
+      <>
+        <p>You are not logged in.</p>
+        <div className="flex flex-row gap-2 items-center">
+          <Button
+            onPress={() => open(`${api.endpoint()}/settings/desktop-connect`)}
+            color="success"
+            variant="flat"
+            className="grow"
+          >
+            Log in via Atuin Hub
+          </Button>
+          or
+          <Button
+            onPress={() => setModalOpen(true)}
+            color="primary"
+            variant="flat"
+            className="grow"
+          >
+            Log in via auth token
+          </Button>
+        </div>
+      </>
+    );
+  } else {
+    content = (
+      <>
+        <User
+          name={""}
+          avatarProps={{ src: user.avatar_url || undefined }}
+          description={
+            <Link
+              isExternal
+              href={`${api.endpoint()}/${user.username}`}
+              onPress={() => {
+                open(`${api.endpoint()}/${user.username}`);
+              }}
+            >
+              {user.username}
+            </Link>
+          }
+          classNames={{ base: "mt-2 justify-start" }}
+        />
+        <Button onPress={logOut} color="danger" variant="flat">
+          Sign out
+        </Button>
+      </>
+    );
+  }
+
+  return (
+    <Card shadow="sm">
+      <CardBody>
+        <h2 className="text-xl font-semibold">User</h2>
+        <div className="flex flex-col gap-4">{content}</div>
+        {modalOpen && <AuthTokenModal onSubmit={handleTokenSubmit} />}
+      </CardBody>
+    </Card>
+  );
+};
+
+// Main Settings component
+const SettingsPanel = () => {
+  return (
+    <div className="flex flex-col gap-4 p-4 pt-2 w-full overflow-y-auto">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-bold">Settings</h1>
+        <p className="text-small text-default-400 uppercase font-semibold">
+          Customize your experience
+        </p>
+      </div>
+      <div className="flex flex-col gap-4">
+        <GeneralSettings />
+        <RunbookSettings />
+        <UserSettings />
+      </div>
+    </div>
+  );
+};
+
+export default SettingsPanel;

@@ -6,8 +6,6 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { Toaster } from "@/components/ui/toaster";
 
-import Settings from "@/components/Settings/Settings.tsx";
-
 import icon from "@/assets/icon.svg";
 import CommandMenu from "@/components/CommandMenu/CommandMenu";
 import Sidebar, { SidebarItem } from "@/components/Sidebar";
@@ -23,7 +21,6 @@ import {
   Kbd,
   ScrollShadow,
   Spacer,
-  useDisclosure,
   User,
 } from "@heroui/react";
 import { UnlistenFn } from "@tauri-apps/api/event";
@@ -81,6 +78,10 @@ function App() {
     setRunbookIdToDelete(runbookId);
   }
 
+  function onSettingsOpen() {
+    navigate("/settings");
+  }
+
   useEffect(() => {
     (async () => {
       const onboardingComplete = await isOnboardingComplete();
@@ -89,12 +90,6 @@ function App() {
 
     refreshRunbooks();
   }, []);
-
-  const {
-    isOpen: isSettingsOpen,
-    onOpen: onSettingsOpen,
-    onOpenChange: onSettingsOpenChange,
-  } = useDisclosure();
 
   useEffect(() => {
     (async () => {
@@ -123,7 +118,7 @@ function App() {
 
       if (e?.key?.toLowerCase() === "," && e[hotkey]) {
         e.preventDefault();
-        onSettingsOpenChange();
+        onSettingsOpen();
       }
     };
 
@@ -132,7 +127,7 @@ function App() {
     return () => {
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [onSettingsOpenChange]);
+  }, []);
 
   useTauriEvent("update-check", async () => {
     let updateAvailable = await checkForAppUpdates();
@@ -374,12 +369,10 @@ function App() {
         <Outlet />
 
         <Toaster />
-        <Settings onOpenChange={onSettingsOpenChange} isOpen={isSettingsOpen} />
 
         {showDesktopConnect && <DesktopConnect />}
         {showOnboarding && <Onboarding />}
 
-        <Settings onOpenChange={onSettingsOpenChange} isOpen={isSettingsOpen} />
         <DirectoryExportModal />
         {runbookIdToDelete && (
           <DeleteRunbookModal

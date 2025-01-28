@@ -12,6 +12,7 @@ import { randomColor } from "@/lib/colors";
 import PhoenixProvider from "@/lib/phoenix_provider";
 import { User } from "@/state/models";
 import * as Y from "yjs";
+import * as awarenessProtocol from "y-protocols/awareness";
 
 // Our schema with block specs, which contain the configs and implementations for blocks
 // that we want our editor to use.
@@ -73,11 +74,11 @@ export function createCollaborativeEditor(
   });
 }
 
-export function createConversionEditor(fragment: Y.XmlFragment) {
+export function createConversionEditor(doc: Y.Doc, fragment: Y.XmlFragment) {
   return BlockNoteEditor.create({
     schema,
     collaboration: {
-      provider: new NullProvider(),
+      provider: new NullProvider(doc),
       fragment: fragment,
       user: {
         name: "Conversion",
@@ -88,9 +89,9 @@ export function createConversionEditor(fragment: Y.XmlFragment) {
 }
 
 class NullProvider {
-  get awareness() {
-    return {
-      on: () => () => {}
-    }
+  public readonly awareness: awarenessProtocol.Awareness;
+
+  constructor(doc: Y.Doc) {
+    this.awareness = new awarenessProtocol.Awareness(doc);
   }
 }

@@ -8,7 +8,7 @@ import { Block } from "@blocknote/core";
 export function ydocToBlocknote(doc: Y.Doc): Promise<Block<any>[]> {
   return new Promise((resolve) => {
     const fragment = doc.getXmlFragment("document-store");
-    const editor = createConversionEditor(fragment);
+    const editor = createConversionEditor(doc, fragment);
 
     const el = document.createElement("div");
     const root = ReactDOM.createRoot(el);

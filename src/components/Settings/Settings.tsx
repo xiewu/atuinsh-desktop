@@ -35,6 +35,9 @@ import { useNavigate } from "react-router-dom";
 
 async function loadFonts(): Promise<string[]> {
   const fonts = await invoke<string[]>("list_fonts");
+  fonts.push("Inter");
+  fonts.push("FiraCode");
+  fonts.sort();
   return fonts;
 }
 
@@ -122,6 +125,8 @@ const SettingSwitch = ({
 
 // Settings sections
 const GeneralSettings = () => {
+  const fonts = usePromise(loadFonts());
+
   const [trackingOptIn, setTrackingOptIn, isLoading] = useSettingsState(
     "usage_tracking",
     false,
@@ -146,9 +151,19 @@ const GeneralSettings = () => {
   );
 
   const colorMode = useStore((state) => state.colorMode);
+  const fontSize = useStore((state) => state.fontSize);
+  const fontFamily = useStore((state) => state.fontFamily);
 
   function setColorMode(keys: SharedSelection) {
     useStore.getState().setColorMode(keys.currentKey as "light" | "dark" | "system");
+  }
+
+  function setFontSize(fontSize: number) {
+    useStore.getState().setFontSize(fontSize);
+  }
+
+  function setFontFamily(fontFamily: any) {
+    useStore.getState().setFontFamily(fontFamily);
   }
 
   if (isLoading) return <Spinner />;
@@ -183,6 +198,27 @@ const GeneralSettings = () => {
             Follow System
           </SelectItem>
         </Select>
+        <div className="flex flex-row gap-4 mt-4">
+          <Autocomplete
+            label="Font"
+            value={fontFamily}
+            selectedKey={fontFamily}
+            onSelectionChange={setFontFamily}
+            description="Font to use for the Runbook editor"
+            defaultItems={fonts?.map((font) => ({ label: font, key: font })) || []}
+          >
+            {(item) => <AutocompleteItem key={item.key}>{item.label}</AutocompleteItem>}
+          </Autocomplete>
+
+          <div>
+            <Input
+              label="Font Size"
+              type="number"
+              value={fontSize.toString()}
+              onChange={(e) => setFontSize(parseInt(e.target.value))}
+            />
+          </div>
+        </div>
       </CardBody>
     </Card>
   );
@@ -238,7 +274,7 @@ const RunbookSettings = () => {
                 type="number"
                 value={terminalFontSize || Settings.DEFAULT_FONT_SIZE}
                 onChange={(e) => setTerminalFontSize(parseInt(e.target.value))}
-                className="input"
+                label="Font Size"
               />
             </div>
           </div>

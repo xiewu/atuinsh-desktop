@@ -19,3 +19,13 @@
 .bn-container[data-color-scheme="dark"] {
     --bn-colors-editor-background: #18181b !important;
 }
+
+.bn-default-styles {
+    font-family: unset !important;
+    font-size: unset !important;
+}
+
+.bn-container {
+    font-family: unset !important;
+    font-size: unset !important;
+}

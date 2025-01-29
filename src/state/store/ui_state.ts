@@ -10,6 +10,8 @@ export interface AtuinUiState {
   isSyncing: boolean;
   colorMode: ColorMode;
   functionalColorMode: FunctionalColorMode;
+  fontSize: number;
+  fontFamily: string;
 
   setOnline: (online: boolean) => void;
   setFocused: (focused: boolean) => void;
@@ -19,9 +21,11 @@ export interface AtuinUiState {
   setIsSyncing: (isSyncing: boolean) => void;
   setColorMode: (colorMode: ColorMode) => void;
   setFunctionalColorMode: (colorMode: FunctionalColorMode) => void;
+  setFontSize: (fontSize: number) => void;
+  setFontFamily: (fontFamily: string) => void;
 }
 
-export const persistUiKeys: (keyof AtuinUiState)[] = ["colorMode"];
+export const persistUiKeys: (keyof AtuinUiState)[] = ["colorMode", "fontSize", "fontFamily"];
 
 export const createUiState: StateCreator<AtuinUiState> = (set, _get, _store): AtuinUiState => ({
   online: false,
@@ -32,6 +36,8 @@ export const createUiState: StateCreator<AtuinUiState> = (set, _get, _store): At
   isSyncing: false,
   colorMode: "system",
   functionalColorMode: "light",
+  fontSize: 16,
+  fontFamily: "Inter",
 
   setOnline: (online: boolean) => set(() => ({ online })),
   setFocused: (focused: boolean) => set(() => ({ focused })),
@@ -43,4 +49,6 @@ export const createUiState: StateCreator<AtuinUiState> = (set, _get, _store): At
   setColorMode: (colorMode: ColorMode) => set(() => ({ colorMode })),
   setFunctionalColorMode: (colorMode: FunctionalColorMode) =>
     set(() => ({ functionalColorMode: colorMode })),
+  setFontSize: (fontSize: number) => set(() => ({ fontSize })),
+  setFontFamily: (fontFamily: string) => set(() => ({ fontFamily })),
 });

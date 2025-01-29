@@ -83,6 +83,8 @@ type EditorProps = {
 export default function Editor({ runbook, editable, runbookEditor }: EditorProps) {
   const editor = usePromise(runbookEditor.getEditor());
   const colorMode = useStore((state) => state.functionalColorMode);
+  const fontSize = useStore((state) => state.fontSize);
+  const fontFamily = useStore((state) => state.fontFamily);
 
   if (!editor || !runbook) {
     return (
@@ -97,6 +99,10 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
   return (
     <div
       className="overflow-y-scroll editor flex-grow pt-3"
+      style={{
+        fontSize: `${fontSize}px`,
+        fontFamily: fontFamily,
+      }}
       onClick={(e) => {
         // Only return if clicking inside editor content, not modals/inputs
         if ((e.target as Element).matches(".editor .bn-container *") || (e.target as HTMLElement).tagName === "INPUT") return;

@@ -1,6 +1,6 @@
 use eyre::{eyre, Result};
 use serde_json::Value as JsonValue;
-use sqlx::postgres::types::PgInterval;
+use sqlx::postgres::types::{Oid, PgInterval};
 use sqlx::{postgres::PgValueRef, TypeInfo, Value, ValueRef};
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 
@@ -10,7 +10,8 @@ pub(crate) fn to_json(v: PgValueRef) -> Result<JsonValue> {
     }
 
     let res = match v.type_info().name() {
-        "CHAR" | "VARCHAR" | "TEXT" | "NAME" | "citext" => {
+        // Weirdly we get "CHAR" as the type, quoted, sometimes.
+        "CHAR" | "VARCHAR" | "TEXT" | "NAME" | "citext" | "\"CHAR\"" => {
             if let Ok(v) = ValueRef::to_owned(&v).try_decode() {
                 JsonValue::String(v)
             } else {
@@ -127,6 +128,13 @@ pub(crate) fn to_json(v: PgValueRef) -> Result<JsonValue> {
                 let duration = std::time::Duration::new(total_secs as u64, remaining_nanos);
 
                 JsonValue::String(humantime::format_duration(duration).to_string())
+            } else {
+                JsonValue::Null
+            }
+        }
+        "OID" => {
+            if let Ok(v) = ValueRef::to_owned(&v).try_decode::<Oid>() {
+                JsonValue::Number(v.0.into())
             } else {
                 JsonValue::Null
             }

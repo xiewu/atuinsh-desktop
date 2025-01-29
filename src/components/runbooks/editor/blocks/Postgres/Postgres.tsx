@@ -16,7 +16,9 @@ interface SQLProps {
   query: string;
   autoRefresh: number;
   isEditable: boolean;
+  collapseQuery: boolean;
 
+  setCollapseQuery: (collapseQuery: boolean) => void;
   setQuery: (query: string) => void;
   setUri: (uri: string) => void;
   setAutoRefresh: (autoRefresh: number) => void;
@@ -34,6 +36,8 @@ const Postgres = ({
   autoRefresh,
   setAutoRefresh,
   isEditable,
+  collapseQuery,
+  setCollapseQuery,
 }: SQLProps) => {
   return (
     <SQL
@@ -50,6 +54,8 @@ const Postgres = ({
       runQuery={runQuery}
       extensions={[langs.pgsql()]}
       isEditable={isEditable}
+      collapseQuery={collapseQuery}
+      setCollapseQuery={setCollapseQuery}
     />
   );
 };
@@ -62,6 +68,7 @@ export default createReactBlockSpec(
       query: { default: "" },
       uri: { default: "" },
       autoRefresh: { default: 0 },
+      collapseQuery: { default: false },
     },
     content: "none",
   },
@@ -95,12 +102,20 @@ export default createReactBlockSpec(
         });
       };
 
+      const setCollapseQuery = (collapseQuery: boolean) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, collapseQuery: collapseQuery },
+        });
+      };
+
       return (
         <Postgres
           id={block.id}
           name={block.props.name}
           setName={setName}
           query={block.props.query}
+          collapseQuery={block.props.collapseQuery}
+          setCollapseQuery={setCollapseQuery}
           uri={block.props.uri}
           setUri={setUri}
           setQuery={setQuery}

@@ -10,8 +10,9 @@ import {
   Button,
   DropdownItem,
   ButtonGroup,
+  Tooltip,
 } from "@heroui/react";
-import { ChevronDown, DatabaseIcon, RefreshCwIcon } from "lucide-react";
+import { ArrowDownToLineIcon, ArrowUpToLineIcon, ChevronDown, DatabaseIcon, RefreshCwIcon } from "lucide-react";
 import CodeMirror, { Extension } from "@uiw/react-codemirror";
 import { GridColumn } from "@glideapps/glide-data-grid";
 
@@ -29,11 +30,13 @@ import Block from "./Block";
 import { templateString } from "@/state/templates";
 import { useBlockNoteEditor } from "@blocknote/react";
 import { useStore } from "@/state/store";
+import { cn } from "@/lib/utils";
 
 interface SQLProps {
   id: string;
   name: string;
   placeholder?: string;
+  collapseQuery: boolean;
   extensions?: Extension[];
   eventName?: string;
   isEditable: boolean;
@@ -43,6 +46,7 @@ interface SQLProps {
   autoRefresh: number;
   runQuery: (uri: string, query: string) => Promise<QueryResult>;
 
+  setCollapseQuery: (collapseQuery: boolean) => void;
   setQuery: (query: string) => void;
   setUri: (uri: string) => void;
   setAutoRefresh: (autoRefresh: number) => void;
@@ -73,6 +77,8 @@ const SQL = ({
   setUri,
   autoRefresh,
   setAutoRefresh,
+  collapseQuery,
+  setCollapseQuery,
   isEditable,
   runQuery,
   eventName,
@@ -151,13 +157,14 @@ const SQL = ({
             />
             <CodeMirror
               placeholder={"Write your query here..."}
-              className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
+              className={cn("!pt-0 max-w-full border border-gray-300 rounded flex-grow", { "h-8 overflow-hidden": collapseQuery })}
               basicSetup={true}
               extensions={[...extensions]}
               value={query}
               onChange={setQuery}
               editable={isEditable}
               theme={colorMode === "dark" ? "dark" : "light"}
+              maxHeight="100vh"
             />
           </div>
         </>
@@ -168,7 +175,7 @@ const SQL = ({
             <DropdownTrigger>
               <Button
                 size="sm"
-                variant="bordered"
+                variant="flat"
                 startContent={<RefreshCwIcon size={16} />}
                 endContent={<ChevronDown size={16} />}
               >
@@ -197,6 +204,16 @@ const SQL = ({
               })}
             </DropdownMenu>
           </Dropdown>
+          <Button
+            size="sm"
+            isIconOnly
+            variant="flat"
+            onPress={() => setCollapseQuery(!collapseQuery)}
+          >
+            <Tooltip content={collapseQuery ? "Expand query" : "Collapse query"}>
+              {collapseQuery ? <ArrowDownToLineIcon size={16} /> : <ArrowUpToLineIcon size={16} />}
+            </Tooltip>
+          </Button>
         </ButtonGroup>
       }
     >

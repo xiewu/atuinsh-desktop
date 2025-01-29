@@ -15,11 +15,13 @@ interface SQLProps {
   query: string;
   autoRefresh: number;
   isEditable: boolean;
+  collapseQuery: boolean;
 
   setQuery: (query: string) => void;
   setUri: (uri: string) => void;
   setAutoRefresh: (autoRefresh: number) => void;
   setName: (name: string) => void;
+  setCollapseQuery: (collapseQuery: boolean) => void;
 }
 
 const Clickhouse = ({
@@ -33,6 +35,8 @@ const Clickhouse = ({
   autoRefresh,
   setAutoRefresh,
   isEditable,
+  collapseQuery,
+  setCollapseQuery,
 }: SQLProps) => {
   return (
     <SQL
@@ -49,6 +53,8 @@ const Clickhouse = ({
       setAutoRefresh={setAutoRefresh}
       runQuery={runQuery}
       isEditable={isEditable}
+      collapseQuery={collapseQuery}
+      setCollapseQuery={setCollapseQuery}
     />
   );
 };
@@ -61,6 +67,7 @@ export default createReactBlockSpec(
       query: { default: "" },
       uri: { default: "" },
       autoRefresh: { default: 0 },
+      collapseQuery: { default: false },
     },
     content: "none",
   },
@@ -94,6 +101,12 @@ export default createReactBlockSpec(
         });
       };
 
+      const setCollapseQuery = (collapseQuery: boolean) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, collapseQuery: collapseQuery },
+        });
+      };
+
       return (
         <Clickhouse
           id={block.id}
@@ -106,6 +119,8 @@ export default createReactBlockSpec(
           autoRefresh={block.props.autoRefresh}
           setAutoRefresh={setAutoRefresh}
           isEditable={editor.isEditable}
+          collapseQuery={block.props.collapseQuery}
+          setCollapseQuery={setCollapseQuery}
         />
       );
     },

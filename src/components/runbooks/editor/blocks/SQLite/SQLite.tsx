@@ -16,11 +16,13 @@ interface SQLiteProps {
   autoRefresh: number;
   isEditable: boolean;
   name: string;
+  collapseQuery: boolean;
 
   setQuery: (query: string) => void;
   setUri: (uri: string) => void;
   setAutoRefresh: (autoRefresh: number) => void;
   setName: (name: string) => void;
+  setCollapseQuery: (collapseQuery: boolean) => void;
 }
 
 const SQLite = ({
@@ -34,6 +36,8 @@ const SQLite = ({
   isEditable,
   name,
   setName,
+  collapseQuery,
+  setCollapseQuery,
 }: SQLiteProps) => {
 
   return (
@@ -50,6 +54,8 @@ const SQLite = ({
       setAutoRefresh={setAutoRefresh}
       runQuery={runQuery}
       isEditable={isEditable}
+      collapseQuery={collapseQuery}
+      setCollapseQuery={setCollapseQuery}
     />
   );
 };
@@ -62,6 +68,7 @@ export default createReactBlockSpec(
       query: { default: "" },
       uri: { default: "" },
       autoRefresh: { default: 0 },
+      collapseQuery: { default: false },
     },
     content: "none",
   },
@@ -95,6 +102,12 @@ export default createReactBlockSpec(
         });
       };
 
+      const setCollapseQuery = (collapseQuery: boolean) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, collapseQuery: collapseQuery },
+        });
+      };
+
       return (
         <SQLite
           id={block.id}
@@ -107,6 +120,8 @@ export default createReactBlockSpec(
           autoRefresh={block.props.autoRefresh}
           setAutoRefresh={setAutoRefresh}
           isEditable={editor.isEditable}
+          collapseQuery={block.props.collapseQuery}
+          setCollapseQuery={setCollapseQuery}
         />
       );
     },

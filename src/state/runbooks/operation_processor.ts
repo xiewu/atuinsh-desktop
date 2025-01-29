@@ -1,6 +1,6 @@
 import { usernameFromNwo } from "@/lib/utils";
 import { RemoteRunbook } from "../models";
-import Operation from "./operation";
+import Operation, { OperationData } from "./operation";
 import * as api from "@/api/api";
 import { useStore } from "../store";
 import Logger from "@/lib/logger";
@@ -37,16 +37,18 @@ export async function processUnprocessedOperations(): Promise<void> {
 }
 
 export function processOperation(op: Operation): Promise<boolean> {
-  const type = op.get("operation").type;
+  const details = op.get("operation") as OperationData;
 
-  switch (type) {
+  switch (details.type) {
     case "runbook_deleted": {
-      return processRunbookDeleted(op.get("operation").runbookId);
+      return processRunbookDeleted(details.runbookId);
+    }
+    case "snapshot_deleted": {
+      return processSnapshotDeleted(details.snapshotId);
     }
   }
-
   // Ensure all possible operation types are checked
-  return assertUnreachable(type);
+  return assertUnreachable(details);
 }
 
 async function processRunbookDeleted(runbookId: string): Promise<boolean> {
@@ -78,4 +80,9 @@ async function processRunbookDeleted(runbookId: string): Promise<boolean> {
   } else {
     return true;
   }
+}
+
+async function processSnapshotDeleted(snapshotId: string): Promise<boolean> {
+  await api.deleteSnapshot(snapshotId);
+  return true;
 }

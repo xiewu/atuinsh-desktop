@@ -14,6 +14,7 @@ import { snapshotByRunbookAndTag, snapshotsByRunbook } from "@/lib/queries/snaps
 import Runbook from "@/state/runbooks/runbook";
 import { PresenceUserInfo } from "@/lib/phoenix_provider";
 import RunbookEditor from "@/lib/runbook_editor";
+import Operation from "@/state/runbooks/operation";
 
 function useMarkRunbookRead(runbook: Runbook | null, refreshRunbooks: () => void) {
   useEffect(() => {
@@ -27,6 +28,7 @@ function useMarkRunbookRead(runbook: Runbook | null, refreshRunbooks: () => void
 
 export default function Runbooks() {
   const user = useStore((store) => store.user);
+  const online = useStore((store) => store.online);
   const refreshRunbooks = useStore((store) => store.refreshRunbooks);
   const getLastTagForRunbook = useStore((store) => store.getLastTagForRunbook);
   const setLastTagForRunbook = useStore((store) => store.selectTag);
@@ -55,7 +57,9 @@ export default function Runbooks() {
   const { data: currentSnapshot } = useQuery(
     snapshotByRunbookAndTag(currentRunbook?.id, selectedTag),
   );
-  const { data: snapshots } = useQuery(snapshotsByRunbook(currentRunbook?.id));
+  const { data: snapshots, isFetching: snapshotsFetching } = useQuery(
+    snapshotsByRunbook(currentRunbook?.id),
+  );
 
   const tags = useMemo(() => {
     let tags = (snapshots || []).map((snap) => ({ text: snap.tag, value: snap.tag })) || [];
@@ -122,7 +126,7 @@ export default function Runbooks() {
   }, [currentRunbook?.id]);
 
   useEffect(() => {
-    if (!snapshots || !currentRunbook) return;
+    if (!snapshots || !currentRunbook || snapshotsFetching) return;
 
     const tagExists = tags.some((tag) => tag.value == selectedTag);
     if (tagExists) return;
@@ -132,7 +136,7 @@ export default function Runbooks() {
     } else if (!tagExists) {
       setSelectedTag(tags[0]?.value || null);
     }
-  }, [selectedTag, snapshots, tags]);
+  }, [selectedTag, snapshots, tags, snapshotsFetching]);
 
   useMarkRunbookRead(currentRunbook, refreshRunbooks);
 
@@ -175,6 +179,35 @@ export default function Runbooks() {
     if (currentRunbook == lastRunbookRef.current) {
       setSelectedTag(snapshot.tag);
       setShowTagMenu(false);
+    }
+  }
+
+  async function handleDeleteTag(tag: string) {
+    if (!currentRunbook) {
+      throw new Error("Tried to delete a tag with no runbook selected");
+    }
+
+    let snaps = snapshots || [];
+
+    const currentIndex = snaps.findIndex((snap) => snap.tag == tag);
+    if (currentIndex == -1) return;
+
+    const current = snaps[currentIndex];
+    const before = snaps[currentIndex - 1];
+    const after = snaps[currentIndex + 1];
+    let newTag = after ? after.tag : before ? before.tag : "latest";
+
+    setSelectedTag(newTag);
+    const id = current.id;
+    await current.delete();
+
+    if (!online) {
+      const op = new Operation({
+        operation: { type: "snapshot_deleted", snapshotId: id },
+      });
+      await op.save();
+    } else {
+      await api.deleteSnapshot(current.id);
     }
   }
 
@@ -255,6 +288,7 @@ export default function Runbooks() {
             canEditTags={canEditTags}
             canInviteCollaborators={!!canInviteCollabs}
             onCreateTag={handleCreateTag}
+            onDeleteTag={handleDeleteTag}
             onShareToHub={handleSharedToHub}
             onDeleteFromHub={handleDeletedFromHub}
           />

@@ -4,9 +4,9 @@ import SharePopover from "./SharePopover";
 import TagSelector from "./TagSelector";
 import ColorAvatar from "@/components/ColorAvatar";
 import { DateTime } from "luxon";
-import { Avatar, AvatarGroup, Tooltip } from "@heroui/react";
+import { Avatar, AvatarGroup, Button, Tooltip } from "@heroui/react";
 import { RemoteRunbook } from "@/state/models";
-import { BookTextIcon, PencilOffIcon } from "lucide-react";
+import { BookTextIcon, PencilOffIcon, TrashIcon } from "lucide-react";
 import { PresenceUserInfo } from "@/lib/phoenix_provider";
 
 type TopbarProps = {
@@ -21,6 +21,7 @@ type TopbarProps = {
   canInviteCollaborators: boolean;
   onSelectTag: (tag: string | null) => void;
   onCreateTag: (tag: string) => Promise<void>;
+  onDeleteTag: (tag: string) => Promise<void>;
   onOpenTagMenu: () => void;
   onCloseTagMenu: () => void;
   onShareToHub: () => void;
@@ -40,6 +41,14 @@ export default function Topbar(props: TopbarProps) {
 
   function onSelectTag(tag: string) {
     props.onSelectTag(tag);
+  }
+
+  function handleDeleteTag() {
+    if (!props.currentTag) {
+      return;
+    }
+
+    props.onDeleteTag(props.currentTag);
   }
 
   const renderBarContents = () => {
@@ -78,15 +87,24 @@ export default function Topbar(props: TopbarProps) {
             )}
           </div>
           {props.currentTag && props.currentTag !== "latest" && (
-            <div className="mt-[7px] basis-4 inline-block">
-              <Tooltip
-                content="This runbook is in read-only mode because you are viewing a tag"
-                placement="bottom"
-                showArrow
-              >
-                <PencilOffIcon className="h-4 w-4 text-red-400 ml-4 mr-4 inline" />
-              </Tooltip>
-            </div>
+            <>
+              <div className="mx-2">
+                <Tooltip content="Delete this tag" placement="bottom" showArrow>
+                  <Button isIconOnly variant="faded" color="danger" onPress={handleDeleteTag}>
+                    <TrashIcon className="h-4 w-4 text-red-600" />
+                  </Button>
+                </Tooltip>
+              </div>
+              <div className="mt-[7px] basis-4 inline-block">
+                <Tooltip
+                  content="This runbook is in read-only mode because you are viewing a tag"
+                  placement="bottom"
+                  showArrow
+                >
+                  <PencilOffIcon className="h-4 w-4 text-yellow-600 ml-4 mr-4 inline" />
+                </Tooltip>
+              </div>
+            </>
           )}
         </div>
         <div className="basis-[100px] shrink-0 flex">

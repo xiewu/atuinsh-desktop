@@ -2,10 +2,15 @@ import { Model, Persistence } from "ts-tiny-activerecord";
 import createTauriAdapter, { setTimestamps } from "@/lib/db/tauri-ar-adapter";
 import { DateEncoder, JSONEncoder } from "@/lib/db/encoders";
 
-export type OperationData = {
-  type: "runbook_deleted";
-  runbookId: string;
-};
+export type OperationData =
+  | {
+      type: "runbook_deleted";
+      runbookId: string;
+    }
+  | {
+      type: "snapshot_deleted";
+      snapshotId: string;
+    };
 
 export type OperationAttrs = {
   id?: string;

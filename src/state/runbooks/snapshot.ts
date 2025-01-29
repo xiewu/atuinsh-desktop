@@ -40,7 +40,13 @@ export default class Snapshot {
     const db = await AtuinDB.load("runbooks");
     await db.execute(
       "insert into snapshots (id, tag, runbook_id, content, created) VALUES (?, ?, ?, ?, ?)",
-      [snapshot.id, snapshot.tag, snapshot.runbook_id, snapshot.content, snapshot.created],
+      [
+        snapshot.id,
+        snapshot.tag,
+        snapshot.runbook_id,
+        snapshot.content,
+        snapshot.created.getTime() * 1000000,
+      ],
     );
 
     dbHook("snapshot", "create", snapshot);

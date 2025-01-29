@@ -290,6 +290,10 @@ export function createSnapshot(snapshot: Snapshot) {
   return post(`/runbooks/${snapshot.runbook_id}/snapshots`, args);
 }
 
+export function deleteSnapshot(id: string) {
+  return del(`/snapshots/${id}`);
+}
+
 export interface RemoteCollaboration {
   id: string;
   accepted: boolean;

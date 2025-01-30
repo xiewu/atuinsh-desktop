@@ -40,6 +40,7 @@ import SettingsPanel from "./components/Settings/Settings";
 import { invoke } from "@tauri-apps/api/core";
 import debounce from "lodash.debounce";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getGlobalOptions } from "./lib/global_options";
 const logger = new Logger("Main");
 
 (async () => {
@@ -121,6 +122,7 @@ event.listen("tauri://resize", debouncedSetWindowInfo);
 
 function Application() {
   const { refreshUser, refreshCollaborations, online, user } = useStore();
+  const globalOptions = getGlobalOptions();
 
   useEffect(() => {
     if (online) {
@@ -139,10 +141,10 @@ function Application() {
       <HeroUIProvider>
         <QueryClientProvider client={queryClient}>
           <main className="text-foreground bg-background">
-            {AtuinEnv.isProd && (
+            {AtuinEnv.isProd && globalOptions.customTitleBar && (
               <div data-tauri-drag-region className="w-full min-h-8 z-10 border-b-1" />
             )}
-            {AtuinEnv.isDev && (
+            {AtuinEnv.isDev && globalOptions.customTitleBar && (
               <div
                 data-tauri-drag-region
                 className="w-full min-h-8 z-10 border-b-1 bg-striped dark:bg-dark-striped bg-[length:7px_7px]"

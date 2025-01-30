@@ -15,6 +15,8 @@ mod dotfiles;
 mod file;
 mod font;
 mod install;
+mod kv;
+mod main_window;
 mod menu;
 mod pty;
 mod run;
@@ -390,6 +392,8 @@ fn main() {
             runbooks::runbook::export_atrb,
             file::find_files,
             font::list_fonts,
+            main_window::set_window_info,
+            main_window::show_window,
         ])
         .plugin(
             tauri_plugin_sql::Builder::default()
@@ -400,11 +404,16 @@ fn main() {
         .manage(state::AtuinState::default())
         .setup(|app| {
             backup_databases(app)?;
-
             let handle = app.handle();
+            let handle_clone = handle.clone();
+
+            tauri::async_runtime::spawn(async move {
+                main_window::create_main_window(&handle_clone)
+                    .await
+                    .unwrap();
+            });
 
             handle.set_menu(menu::menu(handle).expect("Failed to build menu"))?;
-
             Ok(())
         })
         .run(tauri::generate_context!())

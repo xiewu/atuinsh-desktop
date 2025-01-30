@@ -37,10 +37,6 @@ import AtuinEnv from "./atuin_env";
 import { setupColorModes } from "./lib/color_modes";
 import { setupServerEvents } from "./lib/server_events";
 import SettingsPanel from "./components/Settings/Settings";
-import { invoke } from "@tauri-apps/api/core";
-import debounce from "lodash.debounce";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { getGlobalOptions } from "./lib/global_options";
 const logger = new Logger("Main");
 
 (async () => {
@@ -104,25 +100,8 @@ const router = createHashRouter([
   },
 ]);
 
-const debouncedSetWindowInfo = debounce(async () => {
-  const window = getCurrentWindow();
-  const position = await window.outerPosition();
-  const size = await window.outerSize();
-
-  invoke("set_window_info", {
-    x: position.x,
-    y: position.y,
-    width: size.width,
-    height: size.height,
-  });
-}, 500);
-
-event.listen("tauri://move", debouncedSetWindowInfo);
-event.listen("tauri://resize", debouncedSetWindowInfo);
-
 function Application() {
   const { refreshUser, refreshCollaborations, online, user } = useStore();
-  const globalOptions = getGlobalOptions();
 
   useEffect(() => {
     if (online) {
@@ -141,10 +120,10 @@ function Application() {
       <HeroUIProvider>
         <QueryClientProvider client={queryClient}>
           <main className="text-foreground bg-background">
-            {AtuinEnv.isProd && globalOptions.customTitleBar && (
+            {AtuinEnv.isProd && (
               <div data-tauri-drag-region className="w-full min-h-8 z-10 border-b-1" />
             )}
-            {AtuinEnv.isDev && globalOptions.customTitleBar && (
+            {AtuinEnv.isDev && (
               <div
                 data-tauri-drag-region
                 className="w-full min-h-8 z-10 border-b-1 bg-striped dark:bg-dark-striped bg-[length:7px_7px]"
@@ -217,5 +196,4 @@ async function setup() {
 (async () => {
   await logger.time("Running setup...", setup);
   ReactDOM.createRoot(document.getElementById("root")!).render(<Application />);
-  invoke("show_window");
 })();

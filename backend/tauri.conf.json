@@ -7,7 +7,19 @@
       "iconAsTemplate": false,
       "iconPath": "icons/icon.png"
     },
-    "windows": []
+    "windows": [
+      {
+        "fullscreen": false,
+        "resizable": true,
+        "title": "Atuin",
+        "width": 1200,
+        "height": 1000,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "dragDropEnabled": false,
+        "minWidth": 500
+      }
+    ]
   },
   "build": {
     "beforeBuildCommand": "pnpm build",

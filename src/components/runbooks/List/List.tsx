@@ -61,6 +61,7 @@ const NoteSidebar = (props: NotesSidebarProps) => {
 
     const rb = await Runbook.createUntitled(currentWorkspaceId);
     setCurrentRunbookId(rb.id);
+    navigate(`/runbooks`);
 
     track_event("runbooks.create", {
       total: await Runbook.count(),

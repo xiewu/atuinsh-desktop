@@ -18,4 +18,7 @@ pub(crate) struct AtuinState {
     // Map of user -> password
     // Service is hardcoded
     pub runbooks_api_token: RwLock<HashMap<String, String>>,
+
+    // The prefix to use for SQLite and local storage in development mode
+    pub dev_prefix: Option<String>,
 }

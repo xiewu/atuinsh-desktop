@@ -26,3 +26,6 @@ dist-ssr
 .vite
 
 gen
+
+# Generated tauri configs
+/backend/tauri-port-*.conf.json

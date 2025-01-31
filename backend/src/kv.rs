@@ -3,6 +3,8 @@ use sqlx::sqlite::SqlitePool;
 use sqlx::Row;
 use tauri::{AppHandle, Manager};
 
+use crate::state;
+
 pub(crate) async fn get<T: DeserializeOwned>(
     app: &AppHandle,
     key: &str,
@@ -38,8 +40,10 @@ pub(crate) async fn set<T: Serialize>(app: &AppHandle, key: &str, value: &T) -> 
 }
 
 async fn open_db(app: &AppHandle) -> SqlitePool {
+    let dev_prefix = app.state::<state::AtuinState>().dev_prefix.clone();
     let data_path = app.path().app_config_dir().unwrap();
-    SqlitePool::connect(data_path.join("kv.db").to_str().unwrap())
+    let db_file = dev_prefix.map_or("kv.db".to_string(), |prefix| format!("{}_kv.db", prefix));
+    SqlitePool::connect(data_path.join(db_file).to_str().unwrap())
         .await
         .expect("Failed to open kv.db")
 }

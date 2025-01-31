@@ -1,0 +1,56 @@
+#!/bin/bash
+
+# Parse command line arguments
+PROFILE=""
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --profile)
+            PROFILE="$2"
+            shift 2
+            ;;
+        *)
+            echo "Unknown argument: $1"
+            exit 1
+            ;;
+    esac
+done
+
+# Function to check if a port is available
+check_port() {
+    nc -z localhost $1 >/dev/null 2>&1
+    return $?
+}
+
+# Start with default port
+PORT=1420
+
+# If default port is in use, find next available port
+if check_port $PORT; then
+    while check_port $PORT; do
+        PORT=$((PORT + 1))
+    done
+
+    # Create config file with new port
+    CONFIG_FILE="backend/tauri-port-${PORT}.conf.json"
+    cat > "$CONFIG_FILE" << EOF
+{
+  "build": {
+    "devUrl": "http://localhost:${PORT}"
+  }
+}
+EOF
+
+    # Run Tauri with custom config and optional profile
+    if [ -n "$PROFILE" ]; then
+        DEV_PREFIX="$PROFILE" pnpm run tauri dev --config "$CONFIG_FILE"
+    else
+        pnpm run tauri dev --config "$CONFIG_FILE"
+    fi
+else
+    # Run Tauri with default config and optional profile
+    if [ -n "$PROFILE" ]; then
+        DEV_PREFIX="$PROFILE" pnpm run tauri dev
+    else
+        pnpm run tauri dev
+    fi
+fi

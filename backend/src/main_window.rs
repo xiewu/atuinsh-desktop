@@ -1,4 +1,4 @@
-use crate::kv;
+use crate::{kv, state};
 use tauri::webview::WebviewWindowBuilder;
 use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewUrl};
 
@@ -45,7 +45,13 @@ fn get_os() -> String {
 }
 
 pub(crate) async fn create_main_window(app: &AppHandle) -> Result<(), String> {
-    let query_string = format!("os={}", get_os());
+    let dev_prefix = app.state::<state::AtuinState>().dev_prefix.clone();
+
+    let query_string = format!(
+        "os={}&devPrefix={}",
+        get_os(),
+        dev_prefix.unwrap_or("dev".to_string())
+    );
     let app_url = WebviewUrl::App(format!("index.html?{}", query_string).into());
 
     let mut builder = WebviewWindowBuilder::new(app, "main", app_url)

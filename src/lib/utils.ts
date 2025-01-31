@@ -175,7 +175,7 @@ export function timeoutPromise<T>(ms: number, resolveValue: T) {
 }
 
 export function dbPath(filename: string) {
-  return `${AtuinEnv.sqliteDirPrefix}${filename}`;
+  return `${AtuinEnv.sqliteFilePrefix}${filename}`;
 }
 
 export function usernameFromNwo(nwo: string = "") {

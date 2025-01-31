@@ -1,4 +1,7 @@
 import { RunbookSource } from "./state/runbooks/runbook";
+import { getGlobalOptions } from "./lib/global_options";
+
+const globalOptions = getGlobalOptions();
 
 interface AtuinEnv {
   hubDomain: string;
@@ -7,7 +10,7 @@ interface AtuinEnv {
   isDev: boolean;
   isProd: boolean;
   hubRunbookSource: RunbookSource;
-  sqliteDirPrefix: string;
+  sqliteFilePrefix: string;
   stateStorageName: string;
 }
 
@@ -17,9 +20,9 @@ const dev: AtuinEnv = {
   websocketProtocol: "ws",
   isDev: true,
   isProd: false,
-  hubRunbookSource: "hub-dev",
-  sqliteDirPrefix: "dev_",
-  stateStorageName: "atuin-storage-dev",
+  hubRunbookSource: `hub-${globalOptions.devPrefix}` as RunbookSource,
+  sqliteFilePrefix: `${globalOptions.devPrefix}_`,
+  stateStorageName: `atuin-storage-${globalOptions.devPrefix}`,
 };
 
 const prod: AtuinEnv = {
@@ -29,7 +32,7 @@ const prod: AtuinEnv = {
   isDev: false,
   isProd: true,
   hubRunbookSource: "hub",
-  sqliteDirPrefix: "",
+  sqliteFilePrefix: "",
   stateStorageName: "atuin-storage",
 };
 

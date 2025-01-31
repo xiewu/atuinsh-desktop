@@ -3,8 +3,8 @@
 // Issue to track: https://github.com/tauri-apps/tauri/issues/12382
 #![allow(deprecated)]
 
-use std::fs;
 use std::path::PathBuf;
+use std::{env, fs};
 
 use tauri::{App, AppHandle, Manager};
 use time::format_description::well_known::Rfc3339;
@@ -327,11 +327,17 @@ fn show_window(app: &AppHandle) {
 }
 
 fn main() {
-    let migration_path = if tauri::is_dev() {
-        "sqlite:dev_runbooks.db"
+    let dev_prefix = if tauri::is_dev() {
+        Some(env::var("DEV_PREFIX").unwrap_or("dev".to_string()))
     } else {
-        "sqlite:runbooks.db"
+        None
     };
+
+    let migration_path = dev_prefix
+        .as_ref()
+        .map_or("sqlite:runbooks.db".to_string(), |prefix| {
+            format!("sqlite:{}_runbooks.db", prefix)
+        });
 
     let builder = tauri::Builder::default();
     let builder = if cfg!(debug_assertions) {
@@ -397,11 +403,14 @@ fn main() {
         ])
         .plugin(
             tauri_plugin_sql::Builder::default()
-                .add_migrations(migration_path, run::migrations::migrations())
+                .add_migrations(&migration_path, run::migrations::migrations())
                 .build(),
         )
         .plugin(tauri_plugin_http::init())
-        .manage(state::AtuinState::default())
+        .manage(state::AtuinState {
+            dev_prefix,
+            ..Default::default()
+        })
         .setup(|app| {
             backup_databases(app)?;
             let handle = app.handle();

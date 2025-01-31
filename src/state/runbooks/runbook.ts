@@ -4,7 +4,6 @@ import { uuidv7 } from "uuidv7";
 import Logger from "@/lib/logger";
 import Snapshot from "./snapshot";
 import { atuinToBlocknote, blocknoteToAtuin } from "./convert";
-import { dbPath } from "@/lib/utils";
 import AtuinDB from "../atuin_db";
 import untitledRunbook from "../runbooks/untitled.json";
 const logger = new Logger("Runbook", "green", "green");
@@ -396,7 +395,6 @@ export default class Runbook {
       async () => {
         return await invoke("load_ydoc_for_runbook", {
           runbookId: id,
-          dbPath: dbPath("runbooks.db"),
         });
       },
     );
@@ -410,7 +408,6 @@ export default class Runbook {
         await invoke("save_ydoc_for_runbook", update, {
           headers: {
             id: id,
-            db: dbPath("runbooks.db"),
           },
         });
       });

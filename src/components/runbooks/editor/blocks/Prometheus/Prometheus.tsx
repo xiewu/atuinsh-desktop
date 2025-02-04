@@ -100,6 +100,8 @@ const calculateStepSize = (ago: any, maxDataPoints = 11000) => {
 const Prometheus = (props: PromProps) => {
   let editor = useBlockNoteEditor();
   const colorMode = useStore((state) => state.functionalColorMode);
+  const currentRunbookId = useStore((state) => state.currentRunbookId);
+
   const [value, setValue] = useState<string>(props.query);
   const [data, setData] = useState<any[]>([]);
   const [config, _setConfig] = useState<{}>({});
@@ -121,7 +123,7 @@ const Prometheus = (props: PromProps) => {
     const end = new Date();
     const step = calculateStepSize(timeFrame.seconds);
 
-    let templated = await templateString(props.id, val, editor.document);
+    let templated = await templateString(props.id, val, editor.document, currentRunbookId);
     const res = await promClient.rangeQuery(templated, start, end, step);
 
     const series = res.result;

@@ -23,7 +23,7 @@ import { CodeIcon, FolderOpenIcon, VariableIcon } from "lucide-react";
 import { insertSQLite } from "@/components/runbooks/editor/blocks/SQLite/SQLite";
 import { insertPostgres } from "@/components/runbooks/editor/blocks/Postgres/Postgres";
 import { insertClickhouse } from "@/components/runbooks/editor/blocks/Clickhouse/Clickhouse";
-
+import { insertScript } from "@/components/runbooks/editor/blocks/Script/Script";
 import { insertPrometheus } from "@/components/runbooks/editor/blocks/Prometheus/Prometheus";
 import { insertEditor } from "@/components/runbooks/editor/blocks/Editor/Editor";
 
@@ -38,8 +38,9 @@ import { useStore } from "@/state/store";
 import { usePromise } from "@/lib/utils";
 
 // Slash menu item to insert an Alert block
-const insertRun = (editor: typeof schema.BlockNoteEditor) => ({
-  title: "Script",
+const insertTerminal= (editor: typeof schema.BlockNoteEditor) => ({
+  title: "Terminal",
+  subtext: "Interactive terminal",
   onItemClick: () => {
     insertOrUpdateBlock(editor, {
       type: "run",
@@ -52,6 +53,7 @@ const insertRun = (editor: typeof schema.BlockNoteEditor) => ({
 
 const insertDirectory = (editor: typeof schema.BlockNoteEditor) => ({
   title: "Directory",
+  subtext: "Set runbook directory",
   onItemClick: () => {
     insertOrUpdateBlock(editor, {
       type: "directory",
@@ -64,6 +66,7 @@ const insertDirectory = (editor: typeof schema.BlockNoteEditor) => ({
 
 const insertEnv = (editor: typeof schema.BlockNoteEditor) => ({
   title: "Env",
+  subtext: "Set environment variables",
   onItemClick: () => {
     insertOrUpdateBlock(editor, {
       type: "env",
@@ -145,9 +148,10 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
             filterSuggestionItems(
               [
                 ...getDefaultReactSlashMenuItems(editor),
-                insertRun(editor as any),
-                insertDirectory(editor as any),
+                insertTerminal(editor as any),
                 insertEnv(editor as any),
+                insertScript(schema)(editor),
+                insertDirectory(editor as any),
                 insertPrometheus(schema)(editor),
                 insertSQLite(schema)(editor),
                 insertPostgres(schema)(editor),

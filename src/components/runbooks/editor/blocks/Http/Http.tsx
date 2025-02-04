@@ -97,6 +97,7 @@ const Http = ({
 }: HttpProps) => {
   let editor = useBlockNoteEditor();
   const colorMode = useStore((state) => state.functionalColorMode);
+  const currentRunbookId = useStore((state) => state.currentRunbookId);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [response, setResponse] = useState<any | null>(null);
   const [error, setError] = useState<any | null>(null);
@@ -113,7 +114,7 @@ const Http = ({
 
   const onPlay = async () => {
     setIsRunning(true);
-    let template = async (input: string) => await templateString(id, input, editor.document);
+    let template = async (input: string) => await templateString(id, input, editor.document, currentRunbookId);
 
     let tUrl = await template(url);
     let tBody = await template(body);

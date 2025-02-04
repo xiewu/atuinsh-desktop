@@ -1,5 +1,5 @@
 import EditableHeading from "@/components/EditableHeading";
-import { Card, CardHeader, CardBody, CardFooter } from "@heroui/react";
+import { Card, CardHeader, CardBody, CardFooter, cn } from "@heroui/react";
 
 interface BlockProps {
   name: string;
@@ -9,6 +9,7 @@ interface BlockProps {
   footer?: any;
   children: any;
   inlineHeader?: boolean;
+  hideChild?: boolean;
 }
 
 export default function Block({
@@ -18,6 +19,7 @@ export default function Block({
   children,
   footer,
   inlineHeader,
+  hideChild,
 }: BlockProps) {
   return (
     <Card className="w-full !max-w-full !outline-none" shadow="sm">
@@ -31,7 +33,7 @@ export default function Block({
         {header && header}
       </CardHeader>
 
-      {children && <CardBody>{children}</CardBody>}
+      {children && <CardBody className={cn({"hidden": hideChild})}>{children}</CardBody>}
 
       {footer && <CardFooter>{footer}</CardFooter>}
     </Card>

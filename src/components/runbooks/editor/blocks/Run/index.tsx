@@ -16,12 +16,12 @@ import Terminal from "./terminal.tsx";
 
 import "@xterm/xterm/css/xterm.css";
 import { AtuinState, useStore } from "@/state/store.ts";
-import { Chip, Spinner } from "@heroui/react";
-import { formatDuration } from "@/lib/utils.ts";
+import { Chip, Spinner, Tooltip } from "@heroui/react";
+import { cn, formatDuration } from "@/lib/utils.ts";
 import { usePtyStore } from "@/state/ptyStore.ts";
 import track_event from "@/tracking.ts";
 import PlayButton from "../common/PlayButton.tsx";
-import { Clock } from "lucide-react";
+import { Clock, Eye, EyeOff } from "lucide-react";
 import Block from "../common/Block.tsx";
 import EditableHeading from "@/components/EditableHeading/index.tsx";
 
@@ -37,6 +37,8 @@ interface RunBlockProps {
   pty: string;
   isEditable: boolean;
   editor: any;
+  outputVisible: boolean;
+  setOutputVisible: (visible: boolean) => void;
 }
 
 const findFirstParentOfType = (editor: any, id: string, type: string): any => {
@@ -79,6 +81,8 @@ const RunBlock = ({
   onRun,
   onStop,
   editor,
+  outputVisible,
+  setOutputVisible,
 }: RunBlockProps) => {
   const colorMode = useStore((state) => state.functionalColorMode);
   const cleanupPtyTerm = useStore((store: AtuinState) => store.cleanupPtyTerm);
@@ -171,7 +175,7 @@ const RunBlock = ({
     let val = !code.endsWith("\n") ? code + cmdEnd : code;
 
     terminalData.terminal.clear();
-    terminalData.write(id, val, editor.document);
+    terminalData.write(id, val, editor.document, currentRunbookId);
   };
 
   const handleCmdEnter = () => {
@@ -207,18 +211,28 @@ const RunBlock = ({
                 />
               }
             </h1>
-            {isRunning && commandRunning && <Spinner size="sm" />}
-            {isRunning && commandDuration && (
-              <Chip
-                variant="flat"
-                size="sm"
-                className="pl-3 py-2"
-                startContent={<Clock size={14} />}
-                color={exitCode == 0 ? "success" : "danger"}
-              >
-                {formatDuration(commandDuration)}
-              </Chip>
-            )}
+            <div className="flex flex-row items-center gap-2">
+              {isRunning && commandRunning && <Spinner size="sm" />}
+              {isRunning && commandDuration && (
+                <Chip
+                  variant="flat"
+                  size="sm"
+                  className="pl-3 py-2"
+                  startContent={<Clock size={14} />}
+                  color={exitCode == 0 ? "success" : "danger"}
+                >
+                  {formatDuration(commandDuration)}
+                </Chip>
+              )}
+              <Tooltip content={outputVisible ? "Hide output terminal" : "Show output terminal"}>
+                <button
+                  onClick={() => setOutputVisible(!outputVisible)}
+                  className="p-2 hover:bg-default-100 rounded-md"
+                >
+                  {outputVisible ? <Eye size={20} /> : <EyeOff size={20} />}
+                </button>
+              </Tooltip>
+            </div>
           </div>
 
           <div className="flex flex-row gap-2 flex-grow w-full">
@@ -248,9 +262,9 @@ const RunBlock = ({
     >
       {pty && (
         <div
-          className={`overflow-hidden transition-all duration-300 ease-in-out min-w-0 ${
-            isRunning ? "block" : "hidden"
-          }`}
+          className={cn(`overflow-hidden transition-all duration-300 ease-in-out min-w-0 hidden`, {
+            "block": outputVisible && isRunning,
+          })}
         >
           <Terminal
             block_id={id}
@@ -279,6 +293,9 @@ export default createReactBlockSpec(
       code: { default: "" },
       pty: { default: "" },
       global: { default: false },
+      outputVisible: {
+        default: true,
+      },
     },
     content: "none",
   },
@@ -311,6 +328,12 @@ export default createReactBlockSpec(
         });
       };
 
+      const setOutputVisible = (visible: boolean) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, outputVisible: visible },
+        });
+      };
+
       return (
         <RunBlock
           name={block.props.name}
@@ -324,6 +347,8 @@ export default createReactBlockSpec(
           onRun={onRun}
           onStop={onStop}
           editor={editor}
+          outputVisible={block.props.outputVisible}
+          setOutputVisible={setOutputVisible}
         />
       );
     },

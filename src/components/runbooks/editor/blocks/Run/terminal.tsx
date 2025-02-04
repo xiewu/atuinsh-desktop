@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import "@xterm/xterm/css/xterm.css";
-import { useStore } from "@/state/store";
+import { AtuinState, useStore } from "@/state/store";
 import { platform } from "@tauri-apps/plugin-os";
 
 const endMarkerRegex = /\x1b\]633;ATUIN_COMMAND_END;(\d+)\x1b\\/;
@@ -44,6 +44,7 @@ const TerminalComponent = ({
   const { terminalData, isReady } = usePersistentTerminal(pty);
   const [isAttached, setIsAttached] = useState(false);
   const startTime = useRef<number | null>(null);
+  const [currentRunbookId] = useStore((store: AtuinState) => [store.currentRunbookId]);
 
   const cleanupListenerRef = useRef<(() => void) | null>(null);
 
@@ -82,7 +83,7 @@ const TerminalComponent = ({
         let cmdEnd = isWindows ? "\r\n" : "\n";
         let val = !script.endsWith("\n") ? script + cmdEnd : script;
 
-        terminalData.write(block_id, val, editor.document);
+        terminalData.write(block_id, val, editor.document, currentRunbookId);
       }
     }
 

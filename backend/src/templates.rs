@@ -1,6 +1,9 @@
-use minijinja::Environment;
+use minijinja::{
+    value::{Enumerator, Object},
+    Environment, Value,
+};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::state::AtuinState;
 
@@ -46,6 +49,30 @@ pub struct DocumentTemplateState {
 pub struct TemplateState {
     // In the case where a document is empty, we have no document state.
     pub doc: Option<DocumentTemplateState>,
+    pub var: HashMap<String, Value>,
+}
+
+impl Object for TemplateState {
+    fn get_value(self: &Arc<Self>, key: &Value) -> Option<Value> {
+        match key.as_str()? {
+            "var" => Some(Value::make_object_map(
+                self.clone(),
+                |this| Box::new(this.var.keys().map(Value::from)),
+                |this, key| this.var.get(key.as_str()?).cloned(),
+            )),
+
+            "doc" => self
+                .doc
+                .as_ref()
+                .map(|doc| Value::from_serialize(doc.clone())),
+
+            _ => None,
+        }
+    }
+
+    fn enumerate(self: &Arc<Self>) -> Enumerator {
+        Enumerator::Str(&["var", "doc"])
+    }
 }
 
 fn serialized_block_to_state(block: serde_json::Value) -> BlockState {
@@ -124,9 +151,13 @@ fn serialized_block_to_state(block: serde_json::Value) -> BlockState {
 pub async fn template_str(
     source: String,
     block_id: String,
-    _state: tauri::State<'_, AtuinState>,
+    runbook: String,
+    state: tauri::State<'_, AtuinState>,
     doc: Vec<serde_json::Value>,
 ) -> Result<String, String> {
+    // Fetch the variables from the state
+    let output_vars = state.runbook_output_variables.read().await.clone();
+
     let mut env = Environment::new();
     env.set_trim_blocks(true);
 
@@ -184,6 +215,14 @@ pub async fn template_str(
         .collect();
 
     let previous = previous.unwrap_or_default();
+    let var = output_vars
+        .get(&runbook)
+        .map_or(HashMap::new(), |v| v.clone());
+    // convert into map of string -> value
+    let var = var
+        .iter()
+        .map(|(k, v)| (k.to_string(), Value::from(v.to_string())))
+        .collect::<HashMap<String, Value>>();
 
     let doc_state = if !doc.is_empty() {
         Some(DocumentTemplateState {
@@ -197,16 +236,14 @@ pub async fn template_str(
         None
     };
 
-    let source = env
-        .render_str(
-            source.as_str(),
-            TemplateState {
-                doc: doc_state.clone(),
-            },
-        )
-        .map_err(|e| e.to_string())?;
+    let template_state = TemplateState {
+        doc: doc_state,
+        var,
+    };
 
-    println!("{doc_state:?}");
+    let source = env
+        .render_str(source.as_str(), template_state)
+        .map_err(|e| e.to_string())?;
 
     Ok(source)
 }

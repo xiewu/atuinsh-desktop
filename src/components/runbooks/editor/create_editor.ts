@@ -8,6 +8,8 @@ import SQLite from "./blocks/SQLite/SQLite";
 import Postgres from "./blocks/Postgres/Postgres";
 import Clickhouse from "./blocks/Clickhouse/Clickhouse";
 import Http from "./blocks/Http/Http";
+import Script from "./blocks/Script/Script";
+
 import { randomColor } from "@/lib/colors";
 import PhoenixProvider from "@/lib/phoenix_provider";
 import { User } from "@/state/models";
@@ -23,6 +25,7 @@ export const schema = BlockNoteSchema.create({
 
     // Execution
     run: Run,
+    script: Script,
     directory: Directory,
     env: Env,
 

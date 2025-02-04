@@ -5,13 +5,14 @@ import { normalizeInput } from "@/lib/utils";
 import { invoke } from "@tauri-apps/api/core";
 
 /// Expects the string to template, and the current Blocknote document
-export async function templateString(id: string, input: string, doc: any[]): Promise<string> {
+export async function templateString(id: string, input: string, doc: any[], runbook: string | null): Promise<string> {
   let normalized = normalizeInput(input);
 
   let templated: string = await invoke("template_str", {
     source: normalized,
     blockId: id,
     doc,
+    runbook,
   });
 
   return templated;

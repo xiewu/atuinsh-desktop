@@ -6,7 +6,7 @@ const TERMINAL_FONT_SIZE = "settings.runbooks.terminal.font_size";
 const TERMINAL_GL = "settings.runbooks.terminal.gl";
 
 export class Settings {
-  public static DEFAULT_FONT = "Fira Code";
+  public static DEFAULT_FONT = "FiraCode";
   public static DEFAULT_FONT_SIZE = 14;
 
   public static async runbookPrometheusUrl(val: string | null = null): Promise<string> {

@@ -39,10 +39,10 @@ export class TerminalData {
     });
   }
 
-  async write(block_id: string, data: string, doc: any) {
+  async write(block_id: string, data: string, doc: any, runbook: string | null) {
     // Template the string before we execute it
-    logger.debug("templating with doc", doc);
-    let templated = await templateString(block_id, data, doc);
+    logger.debug(`templating ${runbook} with doc`, doc);
+    let templated = await templateString(block_id, data, doc, runbook);
 
     let isWindows = platform() == "windows";
     let cmdEnd = isWindows ? "\r\n" : "\n";

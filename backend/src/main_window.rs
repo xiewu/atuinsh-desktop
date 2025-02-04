@@ -59,6 +59,7 @@ pub(crate) async fn create_main_window(app: &AppHandle) -> Result<(), String> {
         .resizable(true)
         .fullscreen(false)
         .min_inner_size(500.0, 500.0)
+        .inner_size(1200.0, 1000.0)
         .visible(false);
 
     builder = {

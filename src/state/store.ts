@@ -19,6 +19,8 @@ import Logger from "@/lib/logger";
 import { User } from "./models";
 import AtuinEnv from "@/atuin_env";
 import { AtuinQueryState, createQueryState, persistQueryKeys } from "./store/query_state";
+import { createChildState, persistChildKeys } from "./store/child_state";
+import { AtuinChildState } from "./store/child_state";
 const logger = new Logger("AtuinStore", "purple", "pink");
 
 // To add a new state slice to the store:
@@ -53,6 +55,7 @@ const persistKeys = [
   persistShellInfoKeys,
   persistCollaborationKeys,
   persistQueryKeys,
+  persistChildKeys,
 ].flat();
 
 export type AtuinState = AtuinPtyState &
@@ -61,6 +64,7 @@ export type AtuinState = AtuinPtyState &
   AtuinUserState &
   AtuinShellInfoState &
   AtuinCollaborationState &
+  AtuinChildState &
   AtuinQueryState;
 
 const middleware = (f: StateCreator<AtuinState>) =>
@@ -120,6 +124,7 @@ export const useStore = create<AtuinState>()(
     ...createShellInfoState(...a),
     ...createCollaborationState(...a),
     ...createQueryState(...a),
+    ...createChildState(...a),
   })),
 );
 

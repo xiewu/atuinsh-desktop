@@ -29,7 +29,7 @@ import MaskedInput from "@/components/MaskedInput/MaskedInput";
 import Block from "./Block";
 import { templateString } from "@/state/templates";
 import { useBlockNoteEditor } from "@blocknote/react";
-import { useStore } from "@/state/store";
+import { AtuinState, useStore } from "@/state/store";
 import { cn } from "@/lib/utils";
 
 interface SQLProps {
@@ -92,13 +92,14 @@ const SQL = ({
   const [columns, setColumns] = useState<GridColumn[]>([]);
 
   const [error, setError] = useState<string | null>(null);
+  const [currentRunbookId] = useStore((store: AtuinState) => [store.currentRunbookId]);
 
   const handlePlay = async () => {
     setIsRunning(true);
 
     try {
-      let tUri = await templateString(id, uri, editor.document);
-      let tQuery= await templateString(id, query, editor.document);
+      let tUri = await templateString(id, uri, editor.document, currentRunbookId);
+      let tQuery = await templateString(id, query, editor.document, currentRunbookId);
 
       let res = await runQuery(tUri, tQuery);
 

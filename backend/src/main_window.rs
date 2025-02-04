@@ -58,6 +58,7 @@ pub(crate) async fn create_main_window(app: &AppHandle) -> Result<(), String> {
         .title("Atuin")
         .resizable(true)
         .fullscreen(false)
+        .disable_drag_drop_handler()
         .min_inner_size(500.0, 500.0)
         .inner_size(1200.0, 1000.0)
         .visible(false);

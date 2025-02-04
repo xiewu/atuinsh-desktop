@@ -109,6 +109,7 @@ const RunBlock = ({
     setIsRunning(pty != null);
   }, [pty]);
 
+
   const handleStop = async () => {
     if (pty === null) return;
 
@@ -122,6 +123,7 @@ const RunBlock = ({
     setCommandRunning(false);
     setExitCode(null);
     setCommandDuration(null);
+
   };
 
   const openPty = async (): Promise<string> => {

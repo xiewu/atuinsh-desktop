@@ -7,26 +7,63 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import Logger from "@/lib/logger";
 import { StateCreator } from "zustand";
 import { templateString } from "../templates";
-const logger = new Logger("PtyStore", "purple", "pink");
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import Emittery from "emittery";
 
-export class TerminalData {
+const logger = new Logger("PtyStore", "purple", "pink");
+const endMarkerRegex = /\x1b\]633;ATUIN_COMMAND_END;(\d+)\x1b\\/;
+
+export class TerminalData extends Emittery {
   terminal: Terminal;
   fitAddon: FitAddon;
   pty: string;
 
   disposeResize: IDisposable;
   disposeOnData: IDisposable;
+  unlisten: UnlistenFn | null;
+
+  startTime: number | null;
 
   constructor(pty: string, terminal: Terminal, fit: FitAddon) {
+    super();
+
     this.terminal = terminal;
     this.fitAddon = fit;
     this.pty = pty;
+    this.startTime = null;
+    this.unlisten = null;
 
     this.disposeResize = this.terminal.onResize((e) => this.onResize(e));
     this.disposeOnData = this.terminal.onData((e) => this.onData(e));
   }
 
+  async listen() {
+    this.unlisten = await listen(`pty-${this.pty}`, (event: any) => {
+      logger.debug("pty-event", event);
+
+      if (event.payload.indexOf("ATUIN_COMMAND_START") >= 0) {
+        this.emit("command_start");
+        this.startTime = performance.now();
+      }
+
+      const endMatch = endMarkerRegex.exec(event.payload);
+
+      let duration = null;
+      if (endMatch) {
+        if (this.startTime) {
+          duration = performance.now() - this.startTime;
+          this.startTime = null;
+        }
+
+        this.emit("command_end", { exitCode: parseInt(endMatch[1], 10), duration: duration || 0 });
+      }
+
+      this.terminal.write(event.payload);
+    });
+  }
+
   async onData(event: any) {
+    logger.debug("onData", event);
     await invoke("pty_write", { pid: this.pty, data: event });
   }
 
@@ -55,6 +92,11 @@ export class TerminalData {
     this.disposeResize.dispose();
     this.disposeOnData.dispose();
     this.terminal.dispose();
+
+    if (this.unlisten) {
+      this.unlisten();
+      this.unlisten = null;
+    }
   }
 
   relisten(pty: string) {
@@ -119,6 +161,8 @@ export const createPtyState: StateCreator<AtuinPtyState> = (set, get, _store): A
       fontFamily: `${font}, monospace`,
       fontSize: fontSize,
       rescaleOverlappingGlyphs: true,
+      letterSpacing: 0,
+      lineHeight: 1,
     });
 
     // TODO: fallback to canvas, also some sort of setting to allow disabling webgl usage
@@ -136,6 +180,8 @@ export const createPtyState: StateCreator<AtuinPtyState> = (set, get, _store): A
     set({
       terminals: { ...get().terminals, [pty]: td },
     });
+
+    await td.listen();
 
     return td;
   },

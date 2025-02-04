@@ -1,10 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { listen } from "@tauri-apps/api/event";
 import "@xterm/xterm/css/xterm.css";
 import { AtuinState, useStore } from "@/state/store";
 import { platform } from "@tauri-apps/plugin-os";
-
-const endMarkerRegex = /\x1b\]633;ATUIN_COMMAND_END;(\d+)\x1b\\/;
 
 const usePersistentTerminal = (pty: string) => {
   const newPtyTerm = useStore((store) => store.newPtyTerm);
@@ -43,10 +40,7 @@ const TerminalComponent = ({
   const terminalRef = useRef(null);
   const { terminalData, isReady } = usePersistentTerminal(pty);
   const [isAttached, setIsAttached] = useState(false);
-  const startTime = useRef<number | null>(null);
   const [currentRunbookId] = useStore((store: AtuinState) => [store.currentRunbookId]);
-
-  const cleanupListenerRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     // no pty? no terminal
@@ -54,6 +48,17 @@ const TerminalComponent = ({
 
     // the terminal may still be being created so hold off
     if (!isReady) return;
+
+    terminalData.on("command_start", () => {
+      setCommandRunning(true);
+      setCommandDuration(null);
+    });
+
+    terminalData.on("command_end", ({ exitCode, duration }) => {
+      setExitCode(exitCode);
+      setCommandDuration(duration);
+      setCommandRunning(false);
+    });
 
     const windowResize = () => {
       if (!terminalData || !terminalData.fitAddon) return;
@@ -87,32 +92,6 @@ const TerminalComponent = ({
       }
     }
 
-    listen(`pty-${pty}`, (event: any) => {
-      if (event.payload.indexOf("ATUIN_COMMAND_START") >= 0) {
-        setCommandRunning(true);
-        setCommandDuration(null);
-        startTime.current = performance.now();
-      }
-
-      const endMatch = endMarkerRegex.exec(event.payload);
-      if (endMatch) {
-        setCommandRunning(false);
-        let exitCode = parseInt(endMatch[1], 10);
-        setExitCode(exitCode);
-
-        if (startTime.current) {
-          setCommandDuration(performance.now() - startTime.current);
-          console.log(performance.now() - startTime.current);
-
-          startTime.current = null;
-        }
-      }
-
-      terminalData.terminal.write(event.payload);
-    }).then((ul) => {
-      cleanupListenerRef.current = ul;
-    });
-
     // Customize further as needed
     return () => {
       if (terminalData && terminalData.terminal && terminalData.terminal.element) {
@@ -121,10 +100,6 @@ const TerminalComponent = ({
           terminalData.terminal.element.parentElement.removeChild(terminalData.terminal.element);
         }
         setIsAttached(false);
-      }
-
-      if (cleanupListenerRef.current) {
-        cleanupListenerRef.current();
       }
 
       window.removeEventListener("resize", windowResize);

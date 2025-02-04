@@ -85,6 +85,16 @@ export default class Workspace {
     this.persisted = true;
   }
 
+  public async isEmpty(): Promise<boolean> {
+    // Used to emptiness checks from rust
+    return (await this.length()) === 0;
+  }
+
+  public async length(): Promise<number> {
+    let runbooks = await this.runbooks();
+    return runbooks.length;
+  }
+
   async delete() {
     const db = await AtuinDB.load("runbooks");
 

@@ -7,6 +7,7 @@ import {
   ModalFooter,
   Button,
   Input,
+  useDisclosure,
 } from "@heroui/react";
 import Workspace from "@/state/runbooks/workspace";
 import { AtuinState, useStore } from "@/state/store";
@@ -26,6 +27,13 @@ const WorkspaceSettings = ({
   workspaceCount,
 }: WorkspaceSettingsProps) => {
   const [workspaceName, setWorkspaceName] = useState(workspace?.name);
+
+  // Users have to type the name of the workspace to delete it
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+
+  // Modal for confirming workspace deletion
+  const {isOpen: isDeleteOpen, onOpen: onDeleteOpen, onOpenChange: onDeleteOpenChange} = useDisclosure();
+
   const currentWorkspaceId = useStore((store: AtuinState) => store.currentWorkspaceId);
 
   useEffect(() => {
@@ -57,6 +65,8 @@ const WorkspaceSettings = ({
       return;
     }
 
+
+
     const yes = await ask(`Are you sure you want to delete the workspace "${workspace.name}"?`, {
       title: "Confirmation",
       okLabel: "Delete",
@@ -66,6 +76,8 @@ const WorkspaceSettings = ({
     if (yes) {
       await workspace.delete();
     }
+
+    setDeleteConfirm("");
 
     onClose();
   };
@@ -87,9 +99,39 @@ const WorkspaceSettings = ({
               />
 
               <h2 className="text-xl font-semibold">Danger</h2>
-              <Button color="danger" variant="flat" onPress={handleDelete}>
+              <Button color="danger" variant="flat" onPress={onDeleteOpen}>
                 Delete workspace
               </Button>
+
+
+              <Modal isOpen={isDeleteOpen} onOpenChange={onDeleteOpenChange}>
+        <ModalContent>
+          {(_onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">Delete Workspace</ModalHeader>
+              <ModalBody>
+                <p>
+                  Are you sure you want to delete the workspace "{workspace.name}"? This will delete all runbooks in the workspace.
+                </p>
+                <Input
+                  label="Confirm Workspace Name"
+                  placeholder="Enter workspace name"
+                  value={deleteConfirm}
+                  onValueChange={(val) => setDeleteConfirm(val)}
+                  isInvalid={deleteConfirm.toLowerCase() != workspace.name.toLowerCase()}
+                  errorMessage={"Please enter the workspace name to confirm deletion"}
+                />
+
+                <strong>
+                  This action cannot be undone.
+                </strong>
+
+                <Button color="danger" variant="flat" onPress={handleDelete}  isDisabled={deleteConfirm.toLowerCase() != workspace.name.toLowerCase()}>Delete workspace</Button>
+              </ModalBody>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
             </ModalBody>
 
             <ModalFooter>

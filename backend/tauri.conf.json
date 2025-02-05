@@ -3,10 +3,6 @@
     "security": {
       "csp": null
     },
-    "trayIcon": {
-      "iconAsTemplate": false,
-      "iconPath": "icons/icon.png"
-    },
     "windows": []
   },
   "build": {

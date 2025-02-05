@@ -78,7 +78,7 @@ pub(crate) async fn create_main_window(app: &AppHandle) -> Result<(), String> {
 
     let window = builder.build().unwrap();
 
-    let window_state = load_window_state(app).await.unwrap().unwrap_or_default();
+    let window_state = load_window_state(app).await.unwrap_or(None).unwrap_or_default();
 
     // For some reason, setting the window positions directly results in different
     // results than passing the values into the builder options.

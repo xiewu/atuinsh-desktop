@@ -139,6 +139,17 @@ pub(crate) fn to_json(v: PgValueRef) -> Result<JsonValue> {
                 JsonValue::Null
             }
         }
+        "NUMERIC" => {
+            // Numeric is a bigdecimal, ie very high precision. It is likely used for things like financial data.
+            // If we cast it to an integer or a float, we lose precision.
+            // Seeing a we are using JSON (kinda), we do not have built-in bigdecimal support. So, for now at least,
+            // we just convert it to a string.
+            if let Ok(v) = ValueRef::to_owned(&v).try_decode::<bigdecimal::BigDecimal>() {
+                JsonValue::from(v.to_string())
+            } else {
+                JsonValue::Null
+            }
+        }
         _ => {
             return Err(eyre!(
                 "Unsupported data type: {}",

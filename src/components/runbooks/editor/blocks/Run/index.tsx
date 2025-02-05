@@ -163,7 +163,7 @@ const RunBlock = ({
 
     if (onRun) onRun(pty);
 
-    track_event("runbooks.script.run", {});
+    track_event("runbooks.terminal.run", {});
   };
 
   const handleRefresh = async () => {

@@ -24,6 +24,7 @@ import PlayButton from "../common/PlayButton.tsx";
 import { Clock, Eye, EyeOff } from "lucide-react";
 import Block from "../common/Block.tsx";
 import EditableHeading from "@/components/EditableHeading/index.tsx";
+import { findFirstParentOfType, findAllParentsOfType } from "../exec.ts";
 
 interface RunBlockProps {
   onChange: (val: string) => void;
@@ -41,35 +42,6 @@ interface RunBlockProps {
   setOutputVisible: (visible: boolean) => void;
 }
 
-const findFirstParentOfType = (editor: any, id: string, type: string): any => {
-  // TODO: the types for blocknote aren't working. Now I'm doing this sort of shit,
-  // really need to fix that.
-  const document = editor.document;
-  var lastOfType = null;
-
-  // Iterate through ALL of the blocks.
-  for (let i = 0; i < document.length; i++) {
-    if (document[i].id == id) return lastOfType;
-
-    if (document[i].type == type) lastOfType = document[i];
-  }
-
-  return lastOfType;
-};
-
-const findAllParentsOfType = (editor: any, id: string, type: string): any[] => {
-  const document = editor.document;
-  let blocks: any[] = [];
-
-  // Iterate through ALL of the blocks.
-  for (let i = 0; i < document.length; i++) {
-    if (document[i].id == id) return blocks;
-
-    if (document[i].type == type) blocks.push(document[i]);
-  }
-
-  return blocks;
-};
 
 const RunBlock = ({
   onChange,

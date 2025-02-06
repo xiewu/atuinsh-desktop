@@ -1,7 +1,9 @@
 use std::collections::HashMap;
+use std::path::Path;
 use std::{process::Stdio, sync::Arc};
 
 use atuin_common::utils::uuid_v7;
+use serde::{Deserialize, Serialize};
 use tauri::{Emitter, State};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
@@ -11,23 +13,37 @@ use crate::state::AtuinState;
 
 /// Execute a shell command and stream the output over a channel
 /// Unlike a pty, this is not interactive
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ShellProps {
+    pub env: Option<HashMap<String, String>>,
+    pub cwd: Option<String>,
+    pub runbook: Option<String>,
+    pub output_variable: Option<String>,
+}
+
 #[tauri::command]
 pub async fn shell_exec(
     app: tauri::AppHandle,
+    state: State<'_, AtuinState>,
     interpreter: String,
     channel: String,
     command: String,
-    state: State<'_, AtuinState>,
-    runbook: Option<String>,
-    output_variable: Option<String>,
+    props: ShellProps,
 ) -> Result<(), String> {
     // Split interpreter string into command and args
     let parts: Vec<&str> = interpreter.split_whitespace().collect();
     let (cmd_name, cmd_args) = parts.split_first().unwrap();
 
+    let env = props.env.unwrap_or_default();
+    let cwd = props.cwd.unwrap_or(String::from("~"));
+    let cwd = shellexpand::tilde(&cwd).to_string();
+    let path = Path::new(&cwd);
+
     let cmd = Command::new(cmd_name)
         .args(cmd_args)
         .arg(command)
+        .current_dir(path)
+        .envs(env)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -54,8 +70,8 @@ pub async fn shell_exec(
 
         // the above loop stops when the channel is closed
         // so we can set the output variable in the state
-        if let Some(runbook) = runbook {
-            if let Some(output_variable) = output_variable {
+        if let Some(runbook) = props.runbook {
+            if let Some(output_variable) = props.output_variable {
                 output_vars
                     .write()
                     .await

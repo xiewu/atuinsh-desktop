@@ -22,6 +22,7 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import "@xterm/xterm/css/xterm.css";
+import { findAllParentsOfType, findFirstParentOfType } from "../exec.ts";
 
 interface ScriptBlockProps {
   onChange: (val: string) => void;
@@ -53,6 +54,7 @@ const ScriptBlock = ({
   setOutputVariable,
   outputVisible,
   setOutputVisible,
+  editor,
 }: ScriptBlockProps) => {
   const colorMode = useStore((state) => state.functionalColorMode);
   const [isRunning, setIsRunning] = useState<boolean>(false);
@@ -168,12 +170,31 @@ const ScriptBlock = ({
       terminal.write(event.payload + "\r\n");
     });
 
+    let cwd = findFirstParentOfType(editor, id, "directory");
+
+    if (cwd) {
+      cwd = cwd.props.path;
+    } else {
+      cwd = "~";
+    }
+
+    let vars = findAllParentsOfType(editor, id, "env");
+    let env: { [key: string]: string } = {};
+
+    for (var i = 0; i < vars.length; i++) {
+      env[vars[i].props.name] = vars[i].props.value;
+    }
+
     await invoke("shell_exec", {
       channel: channel,
       command: code,
       interpreter: interpreterCommand,
-      runbook: currentRunbookId,
-      outputVariable: outputVariable,
+      props: {
+        runbook: currentRunbookId,
+        outputVariable: outputVariable,
+        env: env,
+        cwd: cwd,
+      },
     });
 
     unlisten();

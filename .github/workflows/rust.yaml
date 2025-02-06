@@ -22,7 +22,7 @@ env:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
@@ -49,7 +49,7 @@ jobs:
         run: cargo check --no-default-features
 
   clippy:
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
@@ -78,7 +78,7 @@ jobs:
         run: cargo clippy -- -D warnings
 
   format:
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4

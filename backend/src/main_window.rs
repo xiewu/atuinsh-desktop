@@ -1,17 +1,19 @@
 use crate::{kv, state};
 use tauri::webview::WebviewWindowBuilder;
-use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewUrl};
+use tauri::{
+    AppHandle, LogicalSize, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow,
+};
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub(crate) struct WindowState {
-    x: f64,
-    y: f64,
-    width: f64,
-    height: f64,
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
 }
 
 impl WindowState {
-    pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
+    pub fn new(x: i32, y: i32, width: u32, height: u32) -> Self {
         Self {
             x,
             y,
@@ -19,15 +21,13 @@ impl WindowState {
             height,
         }
     }
-}
 
-impl Default for WindowState {
-    fn default() -> Self {
+    pub fn default(size: PhysicalSize<u32>) -> Self {
         Self {
-            x: 0.0,
-            y: 0.0,
-            width: 1200.0,
-            height: 1000.0,
+            x: 0,
+            y: 0,
+            width: size.width,
+            height: size.height,
         }
     }
 }
@@ -47,6 +47,34 @@ fn get_os() -> String {
 pub(crate) async fn create_main_window(app: &AppHandle) -> Result<(), String> {
     let dev_prefix = app.state::<state::AtuinState>().dev_prefix.clone();
 
+    // To calculate the physical size of the window, we need to know the scale factor of the monitor.
+    // To determine which monitor the window is on, we need to know the position of the window.
+    let saved_window_state = load_window_state(app).await.unwrap_or(None);
+    let position = saved_window_state
+        .as_ref()
+        .map(|state| (state.x, state.y))
+        .unwrap_or((0, 0));
+    let monitor = app
+        .monitor_from_point(position.0 as f64, position.1 as f64)
+        .unwrap_or(None);
+    let scale_factor = monitor.as_ref().map(|m| m.scale_factor()).unwrap_or(1.0);
+    let monitor_size_phys = monitor
+        .as_ref()
+        .map(|m| *m.size())
+        .unwrap_or(PhysicalSize::new(1200, 1000));
+
+    let default_window_size_log = LogicalSize::new(1200, 1000);
+    let mut default_window_size_phys: PhysicalSize<u32> =
+        default_window_size_log.to_physical(scale_factor);
+    default_window_size_phys.width = default_window_size_phys
+        .width
+        .min(monitor_size_phys.width as u32);
+    default_window_size_phys.height = default_window_size_phys
+        .height
+        .min(monitor_size_phys.height as u32);
+
+    let window_state = saved_window_state.unwrap_or(WindowState::default(default_window_size_phys));
+
     let query_string = format!(
         "os={}&devPrefix={}",
         get_os(),
@@ -60,7 +88,6 @@ pub(crate) async fn create_main_window(app: &AppHandle) -> Result<(), String> {
         .fullscreen(false)
         .disable_drag_drop_handler()
         .min_inner_size(500.0, 500.0)
-        .inner_size(1200.0, 1000.0)
         .visible(false);
 
     builder = {
@@ -78,11 +105,6 @@ pub(crate) async fn create_main_window(app: &AppHandle) -> Result<(), String> {
 
     let window = builder.build().unwrap();
 
-    let window_state = load_window_state(app)
-        .await
-        .unwrap_or(None)
-        .unwrap_or_default();
-
     // For some reason, setting the window positions directly results in different
     // results than passing the values into the builder options.
     window
@@ -92,19 +114,55 @@ pub(crate) async fn create_main_window(app: &AppHandle) -> Result<(), String> {
         .set_position(PhysicalPosition::new(window_state.x, window_state.y))
         .map_err(|e| e.to_string())?;
 
+    // Most of the time, the above is all that's needed. Sometimes however, the window
+    // is positioned or sized incorrectly. This seems to happen most often with external
+    // displays that have a different scale factor. This is a hacky fix, but it seems
+    // to correct the issue within two attempts most of the time.
+    let mut attempts = 0;
+    while !is_correctly_sized_and_positioned(&window, &window_state) && attempts < 10 {
+        attempts += 1;
+        let target_size = PhysicalSize::new(window_state.width, window_state.height);
+        let target_pos = PhysicalPosition::new(window_state.x, window_state.y);
+        println!(
+            "target window state:  size: {:?}, pos: {:?}",
+            target_size, target_pos
+        );
+        println!(
+            "current window state: size: {:?}, pos: {:?}",
+            window.outer_size().unwrap(),
+            window.outer_position().unwrap()
+        );
+        println!("adjustment attempt: {}", attempts);
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        window
+            .set_size(PhysicalSize::new(window_state.width, window_state.height))
+            .map_err(|e| e.to_string())?;
+        window
+            .set_position(PhysicalPosition::new(window_state.x, window_state.y))
+            .map_err(|e| e.to_string())?;
+    }
+
     Ok(())
 }
 
+fn is_correctly_sized_and_positioned(window: &WebviewWindow, window_state: &WindowState) -> bool {
+    let position = window.outer_position().unwrap();
+    let size = window.outer_size().unwrap();
+    position.x == window_state.x
+        && position.y == window_state.y
+        && size.width == window_state.width
+        && size.height == window_state.height
+}
+
 #[tauri::command]
-pub(crate) async fn set_window_info(
-    app: AppHandle,
-    width: f64,
-    height: f64,
-    x: f64,
-    y: f64,
-) -> Result<(), String> {
-    let window_state = WindowState::new(x, y, width, height);
+pub(crate) async fn save_window_info(app: AppHandle) -> Result<(), String> {
+    let window = app.get_webview_window("main").unwrap();
+    let position = window.outer_position().unwrap();
+    let size = window.outer_size().unwrap();
+
+    let window_state = WindowState::new(position.x, position.y, size.width, size.height);
     save_window_state(&app, window_state).await?;
+
     Ok(())
 }
 
@@ -117,9 +175,9 @@ pub(crate) async fn show_window(app: AppHandle) -> Result<(), String> {
 }
 
 async fn save_window_state(app: &AppHandle, state: WindowState) -> Result<(), String> {
-    kv::set(app, "window_state", &state).await
+    kv::set(app, "window_state_u32", &state).await
 }
 
 async fn load_window_state(app: &AppHandle) -> Result<Option<WindowState>, String> {
-    kv::get(app, "window_state").await
+    kv::get(app, "window_state_u32").await
 }

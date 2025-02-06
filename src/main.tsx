@@ -39,7 +39,6 @@ import { setupServerEvents } from "./lib/server_events";
 import SettingsPanel from "./components/Settings/Settings";
 import { invoke } from "@tauri-apps/api/core";
 import debounce from "lodash.debounce";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getGlobalOptions } from "./lib/global_options";
 const logger = new Logger("Main");
 
@@ -104,21 +103,12 @@ const router = createHashRouter([
   },
 ]);
 
-const debouncedSetWindowInfo = debounce(async () => {
-  const window = getCurrentWindow();
-  const position = await window.outerPosition();
-  const size = await window.outerSize();
-
-  invoke("set_window_info", {
-    x: position.x,
-    y: position.y,
-    width: size.width,
-    height: size.height,
-  });
+const debouncedSaveWindowInfo = debounce(async () => {
+  invoke("save_window_info");
 }, 500);
 
-event.listen("tauri://move", debouncedSetWindowInfo);
-event.listen("tauri://resize", debouncedSetWindowInfo);
+event.listen("tauri://move", debouncedSaveWindowInfo);
+event.listen("tauri://resize", debouncedSaveWindowInfo);
 
 function Application() {
   const { refreshUser, refreshCollaborations, online, user } = useStore();

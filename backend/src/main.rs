@@ -22,6 +22,7 @@ mod pty;
 mod run;
 mod runbooks;
 mod secret;
+mod sqlite;
 mod state;
 mod store;
 mod templates;
@@ -398,7 +399,7 @@ fn main() {
             runbooks::runbook::export_atrb,
             file::find_files,
             font::list_fonts,
-            main_window::set_window_info,
+            main_window::save_window_info,
             main_window::show_window,
         ])
         .plugin(

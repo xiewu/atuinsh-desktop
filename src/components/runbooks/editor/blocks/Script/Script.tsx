@@ -67,7 +67,7 @@ const ScriptBlock = ({
     // Handle common interpreters without a path
 
     if (interpreter == "bash") {
-      return "/bin/bash -ic";
+      return "/bin/bash -lic";
     }
 
     if (interpreter == "sh") {
@@ -75,7 +75,7 @@ const ScriptBlock = ({
     }
 
     if (interpreter == "zsh") {
-      return "/bin/zsh -ic";
+      return "/bin/zsh -lic";
     }
 
     // Otherwise, assume the interpreter is a path

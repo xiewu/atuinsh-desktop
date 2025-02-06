@@ -18,6 +18,8 @@ pub struct ShellProps {
     pub env: Option<HashMap<String, String>>,
     pub cwd: Option<String>,
     pub runbook: Option<String>,
+
+    #[serde(default, alias = "outputVariable")]
     pub output_variable: Option<String>,
 }
 
@@ -34,8 +36,8 @@ pub async fn shell_exec(
     let parts: Vec<&str> = interpreter.split_whitespace().collect();
     let (cmd_name, cmd_args) = parts.split_first().unwrap();
 
-    let env = props.env.unwrap_or_default();
-    let cwd = props.cwd.unwrap_or(String::from("~"));
+    let env = props.env.clone().unwrap_or_default();
+    let cwd = props.clone().cwd.unwrap_or(String::from("~"));
     let cwd = shellexpand::tilde(&cwd).to_string();
     let path = Path::new(&cwd);
 
@@ -60,6 +62,7 @@ pub async fn shell_exec(
     let output_vars = state.runbook_output_variables.clone();
 
     // Spawn a task to listen to the output channel and write to the buffer
+    let props_clone = props.clone();
     let _output_handle = tokio::spawn(async move {
         // Create a string buffer to store the output
         let mut output = String::new();
@@ -70,14 +73,20 @@ pub async fn shell_exec(
 
         // the above loop stops when the channel is closed
         // so we can set the output variable in the state
-        if let Some(runbook) = props.runbook {
-            if let Some(output_variable) = props.output_variable {
+        println!("props: {:?}", props_clone);
+        if let Some(runbook) = props_clone.runbook {
+            if let Some(output_variable) = props_clone.output_variable {
+                if output_variable.is_empty() {
+                    return;
+                }
+
                 output_vars
                     .write()
                     .await
                     .entry(runbook)
                     .or_insert(HashMap::new())
                     .insert(output_variable, output);
+
                 println!("output_vars: {:?}", output_vars.read().await);
             }
         }

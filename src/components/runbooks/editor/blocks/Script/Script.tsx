@@ -23,6 +23,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import "@xterm/xterm/css/xterm.css";
 import { findAllParentsOfType, findFirstParentOfType } from "../exec.ts";
+import { templateString } from "@/state/templates.ts";
 
 interface ScriptBlockProps {
   onChange: (val: string) => void;
@@ -184,10 +185,12 @@ const ScriptBlock = ({
     for (var i = 0; i < vars.length; i++) {
       env[vars[i].props.name] = vars[i].props.value;
     }
+    
+    let command = await templateString(id, code, editor.document, currentRunbookId);
 
     await invoke("shell_exec", {
       channel: channel,
-      command: code,
+      command: command,
       interpreter: interpreterCommand,
       props: {
         runbook: currentRunbookId,

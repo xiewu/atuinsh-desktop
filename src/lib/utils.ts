@@ -178,7 +178,10 @@ export function dbPath(filename: string) {
   return `${AtuinEnv.sqliteFilePrefix}${filename}`;
 }
 
-export function usernameFromNwo(nwo: string = "") {
+export function usernameFromNwo(nwo?: string): string | undefined {
+  if (!nwo) {
+    return undefined;
+  }
   return nwo.split("/")[0];
 }
 

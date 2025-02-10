@@ -260,7 +260,7 @@ export default class Runbook {
         id: row.id,
         name: row.name,
         source: row.source || "local",
-        sourceInfo: row.sourceInfo,
+        sourceInfo: row.source_info,
         content: row.content || "[]",
         ydoc: update,
         created: new Date(row.created / 1000000),

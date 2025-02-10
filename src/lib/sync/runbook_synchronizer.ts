@@ -80,7 +80,7 @@ export default class RunbookSynchronizer {
           if (runbook) {
             const isHubRunbook = runbook.source === AtuinEnv.hubRunbookSource;
             const creatingUser = usernameFromNwo(runbook.sourceInfo || undefined);
-            const createdBySomeoneElse = creatingUser !== this.currentUser.username;
+            const createdBySomeoneElse = creatingUser && creatingUser !== this.currentUser.username;
 
             const shouldDelete = isHubRunbook && createdBySomeoneElse;
             if (shouldDelete) {

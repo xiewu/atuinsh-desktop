@@ -13,7 +13,6 @@ import {
 } from "@heroui/react";
 import { useEffect, useMemo, useReducer } from "react";
 import { None, Option, Some, usernameFromNwo } from "@/lib/utils";
-import Operation from "@/state/runbooks/operation";
 
 interface DeleteRunbookModalProps {
   runbookId: string;
@@ -141,21 +140,6 @@ export default function DeleteRunbookModal(props: DeleteRunbookModalProps) {
   async function doDeleteRunbook() {
     const { runbook, remoteRunbook } = deleteState;
     if (!runbook || !remoteRunbook) return;
-    const runbookId = runbook.id;
-
-    if (!online) {
-      const op = new Operation({ operation: { type: "runbook_deleted", runbookId: runbookId } });
-      await op.save();
-    } else if (ownership === "none") {
-      // Nothing more to do
-    } else if (ownership === "owner") {
-      await api.deleteRunbook(runbookId);
-    } else if (ownership === "collaborator") {
-      const collab = await api.getCollaborationForRunbook(runbookId);
-      if (collab) {
-        await api.deleteCollaboration(collab.id);
-      }
-    }
 
     if (runbook.id === currentRunbookId) setCurrentRunbookId(null);
     await runbook.delete();

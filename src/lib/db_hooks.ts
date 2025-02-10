@@ -6,11 +6,24 @@ import { InvalidateQueryFilters } from "@tanstack/react-query";
 import { allWorkspaces, workspaceById } from "./queries/workspaces";
 import Snapshot from "@/state/runbooks/snapshot";
 import { snapshotByRunbookAndTag, snapshotsByRunbook } from "./queries/snapshots";
+import Operation from "@/state/runbooks/operation";
+import SyncManager from "./sync/sync_manager";
 
 export type Model = "runbook" | "workspace" | "snapshot";
 export type Action = "create" | "update" | "delete";
 
 export function dbHook(kind: Model, action: Action, model: any) {
+  invalidateQueryKeys(kind, action, model);
+
+  if (kind === "runbook" && action === "delete") {
+    const op = new Operation({ operation: { type: "runbook_deleted", runbookId: model.id } });
+    op.save().then(() => {
+      SyncManager.get(useStore).runbookUpdated(model.id);
+    });
+  }
+}
+
+export function invalidateQueryKeys(kind: Model, action: Action, model: any) {
   const queryKeys = getQueryKeys(kind, action, model);
 
   queryKeys.forEach((queryKey) => {

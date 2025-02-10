@@ -7,6 +7,7 @@
 /// The idea here is to be a super-simple store for longer-term state.
 import Database from "@tauri-apps/plugin-sql";
 import AtuinDB from "./atuin_db";
+import { uuidv7 } from "uuidv7";
 
 export class KVStore {
   private db: Database;
@@ -45,5 +46,16 @@ export class KVStore {
   // Delete a key from the store
   async delete(key: string): Promise<void> {
     await this.db.execute("delete from kv where key = $1", [key]);
+  }
+
+  async systemId(): Promise<string> {
+    let id = await this.get<string>("system_id");
+
+    if (!id) {
+      id = uuidv7();
+      await this.set("system_id", id);
+    }
+
+    return id;
   }
 }

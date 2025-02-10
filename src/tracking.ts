@@ -10,8 +10,11 @@ export const init_tracking = async () => {
   // don't need to spam sentry with my dumbass mistakes
   if (AtuinEnv.isDev) return;
 
+
   let db = await KVStore.open_default();
   let track = await db.get<boolean>("usage_tracking");
+  let system_id = await db.systemId();
+
 
   // Default to true, opt-out
   if (track === null) {
@@ -45,6 +48,8 @@ export const init_tracking = async () => {
         Sentry.setUser(null);
       }
     })
+
+    posthog.identify(system_id);
   } else {
     console.log("User opted out of tracking");
   }

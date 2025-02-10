@@ -130,7 +130,7 @@ function Application() {
     <React.StrictMode>
       <HeroUIProvider>
         <QueryClientProvider client={queryClient}>
-          <main className="text-foreground bg-background">
+          <main className="text-foreground bg-background overflow-hidden">
             {AtuinEnv.isProd && globalOptions.customTitleBar && (
               <div data-tauri-drag-region className="w-full min-h-8 z-10 border-b-1" />
             )}

@@ -1,5 +1,7 @@
 import { StateCreator } from "zustand";
+import Logger from "@/lib/logger";
 import * as api from "@/api/api";
+let logger = new Logger("collaboration_state", "DarkTurquoise", "PaleTurquoise");
 
 export interface Collaboration {
   id: string;
@@ -53,6 +55,16 @@ export const createCollaborationState: StateCreator<AtuinCollaborationState> = (
   },
 
   setCollaborations: (collaborations: Collaboration[]) => {
+    const collabsById = new Map<string, Collaboration>();
+    for (const collab of collaborations) {
+      collabsById.set(collab.id, collab);
+    }
+
+    if (collabsById.size !== collaborations.length) {
+      logger.warn("duplicate collaborations detected; deduping");
+      collaborations = Array.from(collabsById.values());
+    }
+
     const pendingCount = collaborations.filter((c) => !c.accepted).length;
     set({ collaborations: collaborations, pendingInvitations: pendingCount });
   },

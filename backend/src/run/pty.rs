@@ -138,7 +138,7 @@ pub(crate) async fn pty_resize(
     Ok(())
 }
 
-async fn remove_pty(
+pub(crate) async fn remove_pty(
     app: tauri::AppHandle,
     pid: uuid::Uuid,
     pty_sessions: Arc<RwLock<HashMap<Uuid, Pty>>>,

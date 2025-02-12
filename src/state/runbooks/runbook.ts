@@ -479,7 +479,10 @@ export default class Runbook {
 
     const p1 = db.execute("delete from runbooks where id=$1", [this.id]);
     const p2 = Snapshot.deleteForRunbook(this.id);
-    await Promise.all([p1, p2]);
+    const p3 = invoke<null>("delete_runbook_cleanup", {
+      runbook: this.id,
+    });
+    await Promise.all([p1, p2, p3]);
 
     dbHook("runbook", "delete", this);
   }

@@ -397,6 +397,7 @@ fn main() {
             runbooks::ydoc::load_ydoc_for_runbook,
             runbooks::runbook::export_atmd,
             runbooks::runbook::export_atrb,
+            runbooks::runbook::delete_runbook_cleanup,
             file::find_files,
             font::list_fonts,
             main_window::save_window_info,

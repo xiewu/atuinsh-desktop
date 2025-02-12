@@ -2,7 +2,10 @@
 
 use eyre::Result;
 use serde::{Deserialize, Serialize};
+use tauri::State;
 use uuid::Uuid;
+
+use crate::{run::pty::remove_pty, state::AtuinState};
 
 use super::{
     content::RunbookContent,
@@ -43,6 +46,31 @@ pub fn export_atrb(json: String, file_path: String) -> Result<(), String> {
     let json = serde_json::to_string(&runbook).map_err(|e| e.to_string())?;
 
     std::fs::write(file_path, json.as_bytes()).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn delete_runbook_cleanup(
+    app: tauri::AppHandle,
+    state: State<'_, AtuinState>,
+    runbook: String,
+) -> Result<(), String> {
+    // Cleanup all PTYs first
+    // Seeing as we do not (yet) store runbook data grouped by runbook, we have to
+    // iterate all of them and check the metadata. Boo.
+
+    let ptys_to_remove: Vec<_> = {
+        let ptys = state.pty_sessions.read().await;
+        ptys.iter()
+            .filter(|(_, pty)| pty.metadata.runbook == runbook)
+            .map(|(pty_id, _)| *pty_id)
+            .collect()
+    };
+
+    for pty_id in ptys_to_remove {
+        remove_pty(app.clone(), pty_id, state.pty_sessions.clone()).await?;
+    }
 
     Ok(())
 }

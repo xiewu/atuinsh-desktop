@@ -10,6 +10,7 @@
 
 // import sentry before anything else
 import { init_tracking } from "./tracking";
+import { attachConsole } from '@tauri-apps/plugin-log';
 
 import { event } from "@tauri-apps/api";
 import React, { useEffect } from "react";
@@ -153,6 +154,7 @@ function Application() {
 }
 
 async function setup() {
+  await attachConsole();
   const { currentWorkspaceId, setCurrentWorkspaceId, setCurrentRunbookId } = useStore.getState();
 
   // Ensure at least one workspace exists

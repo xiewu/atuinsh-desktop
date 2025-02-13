@@ -1,7 +1,7 @@
 import { StateCreator } from "zustand";
 import Logger from "@/lib/logger";
 import * as api from "@/api/api";
-let logger = new Logger("collaboration_state", "DarkTurquoise", "PaleTurquoise");
+let logger = new Logger("collaboration_state");
 
 export interface Collaboration {
   id: string;

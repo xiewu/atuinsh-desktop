@@ -33,7 +33,7 @@ export default class SyncManager {
     return SyncManager.instance;
   }
 
-  private readonly logger: Logger = new Logger("SyncManager", "#ff33cc", "#ff6677");
+  private readonly logger: Logger = new Logger("SyncManager");
   private store: Store;
   private handlers: Function[] = [];
   private currentRunbookId: string | null = null;

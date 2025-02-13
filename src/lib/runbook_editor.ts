@@ -49,7 +49,7 @@ export default class RunbookEditor {
     onPresenceLeave: (user: PresenceUserInfo) => void,
     onClearPresences: () => void,
   ) {
-    this.logger = new Logger(`RunbookEditor (${runbook.id})`, "black", "white");
+    this.logger = new Logger(`RunbookEditor (${runbook.id})`);
     this.runbook = runbook;
     this.user = user;
     this.selectedTag = selectedTag || "latest";
@@ -156,8 +156,8 @@ export default class RunbookEditor {
             if (isContentBlank(currentContent) && !this.isShutdown) {
               this.logger.info(
                 "BlockNote editor has empty content after sync; inserting existing content.",
-                currentContent,
-                content,
+                JSON.stringify(currentContent),
+                JSON.stringify(content),
               );
 
               editor.replaceBlocks(currentContent, content);

@@ -10,7 +10,7 @@ import { templateString } from "../templates";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import Emittery from "emittery";
 
-const logger = new Logger("PtyStore", "purple", "pink");
+const logger = new Logger("PtyStore");
 const endMarkerRegex = /\x1b\]633;ATUIN_COMMAND_END;(\d+)\x1b\\/;
 
 export class TerminalData extends Emittery {

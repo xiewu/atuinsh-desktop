@@ -146,7 +146,7 @@ async function makeRequest<T>(
   } else {
     loggerInfo += " (no token)";
   }
-  const logger = new Logger(loggerInfo, "darkblue", "cornflowerblue");
+  const logger = new Logger(loggerInfo);
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",

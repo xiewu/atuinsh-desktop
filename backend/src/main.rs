@@ -409,6 +409,26 @@ fn main() {
                 .build(),
         )
         .plugin(tauri_plugin_http::init())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .target(tauri_plugin_log::Target::new(
+                    tauri_plugin_log::TargetKind::Webview,
+                ))
+                .filter(|metadata| {
+                    metadata.target().contains("webview") || metadata.target().contains("atuin")
+                })
+                .format(|out, message, record| {
+                    let target = if record.target().contains("webview") {
+                        // Normally this also contains the line in the JS that is logging the message.
+                        // Because of the wrapper we want to use, it'll always be the same line. So just rewrite the target to be webview.
+                        "webview"
+                    } else {
+                        record.target()
+                    };
+                    out.finish(format_args!("[{} {}] {}", record.level(), target, message))
+                })
+                .build(),
+        )
         .manage(state::AtuinState {
             dev_prefix,
             ..Default::default()

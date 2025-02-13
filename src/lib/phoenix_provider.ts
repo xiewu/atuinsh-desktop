@@ -44,15 +44,11 @@ export class PhoenixSynchronizer extends Emittery {
     if (isProvider) {
       this.logger = new Logger(
         `PhoenixProvider (${runbookId}) - #${PhoenixSynchronizer.instances}`,
-        "blue",
-        "cyan",
       );
       this.logger.debug("Creating new provider instance");
     } else {
       this.logger = new Logger(
         `PhoenixSynchronizer (${runbookId}) - #${PhoenixSynchronizer.instances}`,
-        "blue",
-        "cyan",
       );
       this.logger.debug("Creating new synchronizer instance");
     }
@@ -111,8 +107,8 @@ export class PhoenixSynchronizer extends Emittery {
         // Either this is the first connection, or we're reconnecting. Either way,
         // we need to resync with the remote document.
         this.resync();
-      } catch (err) {
-        this.logger.error("Failed to join doc channel", err);
+      } catch (err: any) {
+        this.logger.error("Failed to join doc channel", JSON.stringify(err));
         this.logger.debug("Starting in offline mode");
         this.startOffline();
       }
@@ -158,8 +154,8 @@ export class PhoenixSynchronizer extends Emittery {
       } else {
         this.emit("synced", "online");
       }
-    } catch (err) {
-      this.logger.error("Failed to resync", err);
+    } catch (err: any) {
+      this.logger.error("Failed to resync", JSON.stringify(err));
       this.emit("synced", "error");
     } finally {
       this.isSyncing = false;

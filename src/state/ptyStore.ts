@@ -33,7 +33,6 @@ export const usePtyStore = create<PtyStore>(
     listenBackend: async () => {
       let unlistenOpen = await listen(PTY_OPEN_CHANNEL, (event) => {
         let data = event.payload as PtyMetadata;
-        logger.debug(data);
 
         set((state: PtyStore) => ({
           ptys: {

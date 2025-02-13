@@ -15,7 +15,7 @@ import { slugify, useDebounce } from "@/lib/utils";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import Snapshot from "@/state/runbooks/snapshot";
 import Logger from "@/lib/logger";
-const logger = new Logger("SharePopover", "purple", "purple");
+const logger = new Logger("SharePopover");
 
 type ShareProps = {
   runbook: Runbook;

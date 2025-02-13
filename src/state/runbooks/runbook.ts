@@ -6,7 +6,7 @@ import Snapshot from "./snapshot";
 import { atuinToBlocknote, blocknoteToAtuin } from "./convert";
 import AtuinDB from "../atuin_db";
 import untitledRunbook from "../runbooks/untitled.json";
-const logger = new Logger("Runbook", "green", "green");
+const logger = new Logger("Runbook");
 import { dbHook } from "@/lib/db_hooks";
 import Workspace from "./workspace";
 

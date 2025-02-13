@@ -61,7 +61,8 @@
     "process:allow-restart",
     "fs:default",
     "fs:allow-app-write",
-    "deep-link:default"
+    "deep-link:default",
+    "log:default"
   ],
   "platforms": [
     "linux",

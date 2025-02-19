@@ -3,7 +3,6 @@ import { readTextFile } from "@tauri-apps/plugin-fs";
 import { uuidv7 } from "uuidv7";
 import Logger from "@/lib/logger";
 import Snapshot from "./snapshot";
-import { atuinToBlocknote, blocknoteToAtuin } from "./convert";
 import AtuinDB from "../atuin_db";
 import untitledRunbook from "../runbooks/untitled.json";
 const logger = new Logger("Runbook");
@@ -152,26 +151,16 @@ export default class Runbook {
     let rb = await Runbook.load(this.id);
     if (!rb) return;
 
-    let content = blocknoteToAtuin(JSON.parse(rb.content));
     let runbook = {
-      version: 0,
       id: this.id,
       name: this.name,
       created: this.created.getTime() * 1000000,
-      content: content,
+      content: rb.content,
     };
 
     await invoke<string>("export_atrb", {
       json: JSON.stringify(runbook),
       filePath: filePath,
-    });
-  }
-
-  public async exportMarkdown(filePath: string) {
-    let blocks = blocknoteToAtuin(JSON.parse(this.content));
-    await invoke<string>("export_atmd", {
-      json: JSON.stringify(blocks),
-      path: filePath,
     });
   }
 
@@ -183,14 +172,13 @@ export default class Runbook {
     workspaceId: string,
   ): Promise<Runbook> {
     let content = typeof obj.content === "object" ? obj.content : JSON.parse(obj.content);
-    let mappedContent = atuinToBlocknote(content);
 
     let runbook = new Runbook({
       id: obj.id,
       name: obj.name,
       source: source,
       sourceInfo: sourceInfo,
-      content: JSON.stringify(mappedContent),
+      content: JSON.stringify(content),
       ydoc: null,
       created: new Date(obj.created),
       updated: new Date(),
@@ -209,9 +197,9 @@ export default class Runbook {
     // For some reason, we're getting an ArrayBuffer here? Supposedly it should be passing a string.
     // But it's not.
     let file = await readTextFile(filePath);
-    var enc = new TextDecoder("utf-8");
+    let parsed = JSON.parse(file);
 
-    return Runbook.importJSON(JSON.parse(enc.decode(file as any)), "file", null, null, workspaceId);
+    return Runbook.importJSON(parsed, "file", null, null, workspaceId);
   }
 
   public static async load(id: String): Promise<Runbook | null> {

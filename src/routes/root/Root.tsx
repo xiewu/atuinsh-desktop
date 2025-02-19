@@ -33,7 +33,6 @@ import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 
 import handleDeepLink from "./deep";
 import DesktopConnect from "@/components/DesktopConnect/DesktopConnect";
-import DirectoryExportModal from "@/components/ExportWorkspace/ExportWorkspace";
 import * as api from "@/api/api";
 import SocketManager from "@/socket";
 import AtuinEnv from "@/atuin_env";
@@ -373,7 +372,6 @@ function App() {
         {showDesktopConnect && <DesktopConnect />}
         {showOnboarding && <Onboarding />}
 
-        <DirectoryExportModal />
         {runbookIdToDelete && (
           <DeleteRunbookModal
             runbookId={runbookIdToDelete}

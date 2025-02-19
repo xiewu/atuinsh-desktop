@@ -68,7 +68,7 @@ const ScriptBlock = ({
     // Handle common interpreters without a path
 
     if (interpreter == "bash") {
-      return "/bin/bash -lic";
+      return "/bin/bash -lc";
     }
 
     if (interpreter == "sh") {
@@ -76,7 +76,7 @@ const ScriptBlock = ({
     }
 
     if (interpreter == "zsh") {
-      return "/bin/zsh -lic";
+      return "/bin/zsh -lc";
     }
 
     // Otherwise, assume the interpreter is a path
@@ -183,7 +183,9 @@ const ScriptBlock = ({
     let env: { [key: string]: string } = {};
 
     for (var i = 0; i < vars.length; i++) {
-      env[vars[i].props.name] = vars[i].props.value;
+      let name = await templateString(id, vars[i].props.name, editor.document, currentRunbookId);
+      let value = await templateString(id, vars[i].props.value, editor.document, currentRunbookId);
+      env[name] = value;
     }
     
     let command = await templateString(id, code, editor.document, currentRunbookId);

@@ -25,6 +25,7 @@ import { Clock, Eye, EyeOff } from "lucide-react";
 import Block from "../common/Block.tsx";
 import EditableHeading from "@/components/EditableHeading/index.tsx";
 import { findFirstParentOfType, findAllParentsOfType } from "../exec.ts";
+import { templateString } from "@/state/templates.ts";
 
 interface RunBlockProps {
   onChange: (val: string) => void;
@@ -111,7 +112,9 @@ const RunBlock = ({
     let env: { [key: string]: string } = {};
 
     for (var i = 0; i < vars.length; i++) {
-      env[vars[i].props.name] = vars[i].props.value;
+      let name = await templateString(id, vars[i].props.name, editor.document, currentRunbookId);
+      let value = await templateString(id, vars[i].props.value, editor.document, currentRunbookId);
+      env[name] = value;
     }
 
     // TODO: make the terminal _also_ handle opening the pty?

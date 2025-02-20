@@ -5,6 +5,7 @@ import PacmanLoader from "react-spinners/PacmanLoader";
 import CodeBlock from "@/components/CodeBlock";
 import HistoryRow from "@/components/history/HistoryRow";
 import { ShellHistory, inspectCommandHistory } from "@/state/models";
+import track_event from "@/tracking";
 
 function renderLoading() {
   return (
@@ -22,6 +23,8 @@ export default function HistoryInspect({ history, theme }: any) {
       let inspect = await inspectCommandHistory(history);
       setOther(inspect.other);
     })();
+
+    track_event("history.inspect", {});
   }, []);
 
   if (other.length == 0) return renderLoading();

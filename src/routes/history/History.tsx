@@ -8,6 +8,7 @@ import { AtuinState, useStore } from "@/state/store";
 import { invoke } from "@tauri-apps/api/core";
 import InstallCLI from "@/components/history/InstallCLI";
 import clsx from "clsx";
+import track_event from "@/tracking";
 export default function Search() {
   const history = useStore((state: AtuinState) => state.shellHistory);
   const refreshHistory = useStore((state: AtuinState) => state.refreshShellHistory);
@@ -20,6 +21,8 @@ export default function Search() {
     (async () => {
       // nothing rn
     })();
+
+    track_event("history.open", {});
 
     refreshHistory();
   }, []);

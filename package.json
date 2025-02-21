@@ -11,9 +11,9 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@blocknote/core": "^0.23.0",
-    "@blocknote/mantine": "^0.23.0",
-    "@blocknote/react": "^0.23.0",
+    "@blocknote/core": "^0.24.1",
+    "@blocknote/mantine": "^0.24.1",
+    "@blocknote/react": "^0.24.1",
     "@clickhouse/client-web": "^1.10.1",
     "@codemirror/autocomplete": "^6.18.4",
     "@codemirror/commands": "^6.8.0",

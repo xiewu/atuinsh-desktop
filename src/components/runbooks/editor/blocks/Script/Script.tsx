@@ -1,12 +1,8 @@
 // @ts-ignore
 import { createReactBlockSpec } from "@blocknote/react";
 
-import CodeMirror from "@uiw/react-codemirror";
-import { langs } from "@uiw/codemirror-extensions-langs";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 
-import { useMemo, useState, useEffect, useRef } from "react";
-
-import { extensions } from "../Run/extensions";
 import { AtuinState, useStore } from "@/state/store.ts";
 import { Button, Input, Select, SelectItem, Tooltip } from "@heroui/react";
 import PlayButton from "../common/PlayButton.tsx";
@@ -24,6 +20,8 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import "@xterm/xterm/css/xterm.css";
 import { findAllParentsOfType, findFirstParentOfType } from "../exec.ts";
 import { templateString } from "@/state/templates.ts";
+import CodeEditor, { TabAutoComplete } from "../common/CodeEditor/CodeEditor.tsx";
+import { Command } from "@codemirror/view";
 
 interface ScriptBlockProps {
   onChange: (val: string) => void;
@@ -81,41 +79,6 @@ const ScriptBlock = ({
 
     // Otherwise, assume the interpreter is a path
     return interpreter;
-  }, [interpreter]);
-
-  let editorLanguage = useMemo(() => {
-    // Do the best we can with the interpreter name - get the language
-    // TODO: consider dropdown to override this
-    if (
-      interpreter.indexOf("bash") != -1 ||
-      interpreter.indexOf("sh") != -1 ||
-      interpreter.indexOf("zsh") != -1
-    ) {
-      return langs.shell();
-    }
-
-    if (interpreter.indexOf("python") != -1) {
-      return langs.python();
-    }
-
-    if (
-      interpreter.indexOf("node") != -1 ||
-      interpreter.indexOf("js") != -1 ||
-      interpreter.indexOf("bun") != -1 ||
-      interpreter.indexOf("deno") != -1
-    ) {
-      return langs.python();
-    }
-
-    if (interpreter.indexOf("lua") != -1) {
-      return langs.lua();
-    }
-
-    if (interpreter.indexOf("ruby") != -1) {
-      return langs.ruby();
-    }
-
-    return null;
   }, [interpreter]);
 
   // Initialize terminal
@@ -212,6 +175,16 @@ const ScriptBlock = ({
     setIsRunning(false);
   };
 
+  const handleCmdEnter: Command = useCallback(() => {
+    if (!isRunning) {
+      handlePlay();
+    } else {
+      handleStop();
+    }
+
+    return true;
+  }, [handlePlay, handleStop, isRunning]);
+
   return (
     <Block
       name={name}
@@ -282,18 +255,21 @@ const ScriptBlock = ({
               isRunning={isRunning}
               cancellable={true}
             />
-            <CodeMirror
+
+            <CodeEditor
               id={id}
-              placeholder={"Write your script here..."}
-              className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
-              value={code}
-              editable={isEditable}
-              onChange={(val) => {
-                onChange(val);
-              }}
-              extensions={editorLanguage ? [...extensions(), editorLanguage] : [...extensions()]}
-              basicSetup={false}
-              theme={colorMode === "dark" ? "dark" : "light"}
+              code={code}
+              isEditable={isEditable}
+              language={interpreter}
+              colorMode={colorMode}
+              onChange={onChange}
+              keyMap={[
+                TabAutoComplete,
+                {
+                  key: "Mod-Enter",
+                  run: handleCmdEnter,
+                },
+              ]}
             />
           </div>
         </>

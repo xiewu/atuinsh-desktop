@@ -3,13 +3,8 @@ import { createReactBlockSpec } from "@blocknote/react";
 
 import "./index.css";
 
-import CodeMirror from "@uiw/react-codemirror";
-import { keymap } from "@codemirror/view";
-import { langs } from "@uiw/codemirror-extensions-langs";
+import { useCallback, useEffect, useState } from "react";
 
-import { useEffect, useState } from "react";
-
-import { extensions } from "./extensions";
 import { invoke } from "@tauri-apps/api/core";
 import { platform } from "@tauri-apps/plugin-os";
 import Terminal from "./terminal.tsx";
@@ -26,6 +21,8 @@ import Block from "../common/Block.tsx";
 import EditableHeading from "@/components/EditableHeading/index.tsx";
 import { findFirstParentOfType, findAllParentsOfType } from "../exec.ts";
 import { templateString } from "@/state/templates.ts";
+import CodeEditor, { TabAutoComplete } from "../common/CodeEditor/CodeEditor.tsx";
+import { Command } from "@codemirror/view";
 
 interface RunBlockProps {
   onChange: (val: string) => void;
@@ -155,22 +152,15 @@ const RunBlock = ({
     terminalData.write(id, val, editor.document, currentRunbookId);
   };
 
-  const handleCmdEnter = () => {
-    if (isRunning) {
+  const handleCmdEnter: Command = useCallback(() => {
+    if (!isRunning) {
       handlePlay();
     } else {
       handleStop();
     }
 
     return true;
-  };
-
-  const customKeymap = keymap.of([
-    {
-      key: "Mod-Enter",
-      run: handleCmdEnter,
-    },
-  ]);
+  }, [isRunning]);
 
   return (
     <Block
@@ -220,18 +210,20 @@ const RunBlock = ({
               onStop={handleStop}
               onRefresh={handleRefresh}
             />
-            <CodeMirror
+            <CodeEditor
               id={id}
-              placeholder={"Write your script here..."}
-              className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
-              value={code}
-              editable={isEditable}
-              onChange={(val) => {
-                onChange(val);
-              }}
-              extensions={[customKeymap, ...extensions(), langs.shell()]}
-              basicSetup={false}
-              theme={colorMode === "dark" ? "dark" : "light"}
+              code={code}
+              onChange={onChange}
+              isEditable={isEditable}
+              language="bash"
+              colorMode={colorMode}
+              keyMap={[
+                TabAutoComplete,
+                {
+                  key: "Mod-Enter",
+                  run: handleCmdEnter,
+                },
+              ]}
             />
           </div>
         </>

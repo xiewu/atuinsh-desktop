@@ -35,22 +35,23 @@ pub fn export_atrb(json: String, file_path: String) -> Result<(), String> {
 pub async fn delete_runbook_cleanup(
     app: tauri::AppHandle,
     state: State<'_, AtuinState>,
-    runbook: String,
+    runbook: Uuid,
 ) -> Result<(), String> {
     // Cleanup all PTYs first
     // Seeing as we do not (yet) store runbook data grouped by runbook, we have to
     // iterate all of them and check the metadata. Boo.
 
     let ptys_to_remove: Vec<_> = {
-        let ptys = state.pty_sessions.read().await;
-        ptys.iter()
-            .filter(|(_, pty)| pty.metadata.runbook == runbook)
-            .map(|(pty_id, _)| *pty_id)
-            .collect()
+        let ptys = state
+            .pty_store
+            .list_pty_for_runbook(runbook)
+            .await
+            .map_err(|e| e.to_string())?;
+        ptys.iter().map(|pty| pty.pid).collect()
     };
 
     for pty_id in ptys_to_remove {
-        remove_pty(app.clone(), pty_id, state.pty_sessions.clone()).await?;
+        remove_pty(app.clone(), pty_id, state.pty_store.clone()).await?;
     }
 
     Ok(())

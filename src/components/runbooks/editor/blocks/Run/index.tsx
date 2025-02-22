@@ -83,7 +83,7 @@ const RunBlock = ({
   const handleStop = async () => {
     if (pty === null) return;
 
-    await invoke("pty_kill", { pid: pty.pid });
+    await invoke("pty_kill", { pid: pty.pid, runbook: currentRunbookId });
 
     terminals[pty.pid].dispose();
     cleanupPtyTerm(pty.pid);

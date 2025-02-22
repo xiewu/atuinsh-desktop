@@ -39,8 +39,6 @@ export class TerminalData extends Emittery {
 
   async listen() {
     this.unlisten = await listen(`pty-${this.pty}`, (event: any) => {
-      logger.debug("pty-event", event);
-
       if (event.payload.indexOf("ATUIN_COMMAND_START") >= 0) {
         this.emit("command_start");
         this.startTime = performance.now();

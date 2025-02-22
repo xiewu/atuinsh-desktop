@@ -21,6 +21,7 @@ mod menu;
 mod pty;
 mod run;
 mod runbooks;
+mod runtime;
 mod secret;
 mod sqlite;
 mod state;
@@ -428,10 +429,6 @@ fn main() {
                 })
                 .build(),
         )
-        .manage(state::AtuinState {
-            dev_prefix,
-            ..Default::default()
-        })
         .setup(|app| {
             backup_databases(app)?;
             let handle = app.handle();
@@ -441,6 +438,11 @@ fn main() {
                 main_window::create_main_window(&handle_clone)
                     .await
                     .unwrap();
+            });
+
+            app.manage(state::AtuinState {
+                dev_prefix,
+                ..Default::default()
             });
 
             handle.set_menu(menu::menu(handle).expect("Failed to build menu"))?;

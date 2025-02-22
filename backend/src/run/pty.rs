@@ -4,23 +4,14 @@ use uuid::Uuid;
 use eyre::Result;
 use minijinja::Environment;
 
-use crate::{
-    pty::{Pty, PtyMetadata},
-    state::AtuinState,
-};
-use tauri::{
-    async_runtime::{block_on, RwLock},
-    Emitter, Manager, State,
-};
+use crate::{pty::PtyMetadata, runtime::pty_store::PtyStoreHandle, state::AtuinState};
+use tauri::{async_runtime::block_on, Emitter, Manager, State};
 
 const PTY_OPEN_CHANNEL: &str = "pty_open";
 const PTY_KILL_CHANNEL: &str = "pty_kill";
 
-async fn update_badge_count(
-    app: &tauri::AppHandle,
-    sessions: Arc<RwLock<HashMap<Uuid, Pty>>>,
-) -> Result<()> {
-    let len = sessions.read().await.len();
+async fn update_badge_count(app: &tauri::AppHandle, store: PtyStoreHandle) -> Result<()> {
+    let len = store.len().await?;
     let len = if len == 0 { None } else { Some(len as i64) };
 
     app.webview_windows()
@@ -38,14 +29,14 @@ pub async fn pty_open(
     state: State<'_, AtuinState>,
     cwd: Option<String>,
     env: Option<HashMap<String, String>>,
-    runbook: String,
+    runbook: Uuid,
     block: String,
 ) -> Result<uuid::Uuid, String> {
     let id = uuid::Uuid::new_v4();
 
     let metadata = PtyMetadata {
         pid: id,
-        runbook: runbook.clone(),
+        runbook,
         block,
     };
     let cwd = cwd.map(|c| shellexpand::tilde(c.as_str()).to_string());
@@ -58,7 +49,8 @@ pub async fn pty_open(
 
     let app_inner = app.clone();
 
-    let pty_sessions = state.pty_sessions.clone();
+    let pty_store = state.pty_store.clone();
+
     tauri::async_runtime::spawn_blocking(move || loop {
         let mut buf = [0u8; 512];
 
@@ -66,14 +58,12 @@ pub async fn pty_open(
             // EOF
             Ok(0) => {
                 println!("reader loop hit eof");
-                block_on(remove_pty(app_inner.clone(), id, pty_sessions))
+                block_on(remove_pty(app_inner.clone(), id, pty_store))
                     .expect("failed to remove pty");
                 break;
             }
 
-            Ok(n) => {
-                println!("read {n} bytes");
-
+            Ok(_n) => {
                 // TODO: sort inevitable encoding issues
                 let out = String::from_utf8_lossy(&buf).to_string();
                 let out = out.trim_matches(char::from(0));
@@ -96,8 +86,12 @@ pub async fn pty_open(
         .await
         .insert(runbook, Arc::new(env));
 
-    state.pty_sessions.write().await.insert(id, pty);
-    update_badge_count(&app, state.pty_sessions.clone())
+    state
+        .pty_store
+        .add_pty(pty)
+        .await
+        .map_err(|e| e.to_string())?;
+    update_badge_count(&app, state.pty_store.clone())
         .await
         .map_err(|e| e.to_string())?;
 
@@ -113,13 +107,13 @@ pub(crate) async fn pty_write(
     data: String,
     state: tauri::State<'_, AtuinState>,
 ) -> Result<(), String> {
-    let sessions = state.pty_sessions.read().await;
-    let pty = sessions.get(&pid).ok_or("Pty not found")?;
-
     let bytes = data.as_bytes().to_vec();
-    pty.send_bytes(bytes.into())
+    state
+        .pty_store
+        .write_pty(pid, bytes.into())
         .await
         .map_err(|e| e.to_string())?;
+
     Ok(())
 }
 
@@ -130,10 +124,11 @@ pub(crate) async fn pty_resize(
     cols: u16,
     state: tauri::State<'_, AtuinState>,
 ) -> Result<(), String> {
-    let sessions = state.pty_sessions.read().await;
-    let pty = sessions.get(&pid).ok_or("Pty not found")?;
-
-    pty.resize(rows, cols).await.map_err(|e| e.to_string())?;
+    state
+        .pty_store
+        .resize_pty(pid, rows, cols)
+        .await
+        .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -141,19 +136,17 @@ pub(crate) async fn pty_resize(
 pub(crate) async fn remove_pty(
     app: tauri::AppHandle,
     pid: uuid::Uuid,
-    pty_sessions: Arc<RwLock<HashMap<Uuid, Pty>>>,
+    store: PtyStoreHandle,
 ) -> Result<(), String> {
-    let pty = pty_sessions.write().await.remove(&pid);
+    let pty_meta = store.get_pty_meta(pid).await.map_err(|e| e.to_string())?;
+    store.remove_pty(pid).await.map_err(|e| e.to_string())?;
 
-    if let Some(pty) = pty {
-        pty.kill_child().await.map_err(|e| e.to_string())?;
-        println!("RIP {pid:?}");
-
-        app.emit(PTY_KILL_CHANNEL, pty.metadata)
+    if let Some(pty_meta) = pty_meta {
+        app.emit(PTY_KILL_CHANNEL, pty_meta)
             .map_err(|e| e.to_string())?;
     }
 
-    update_badge_count(&app, pty_sessions.clone())
+    update_badge_count(&app, store.clone())
         .await
         .map_err(|e| e.to_string())?;
 
@@ -166,15 +159,18 @@ pub(crate) async fn pty_kill(
     pid: uuid::Uuid,
     state: tauri::State<'_, AtuinState>,
 ) -> Result<(), String> {
-    remove_pty(app, pid, state.pty_sessions.clone()).await
+    remove_pty(app, pid, state.pty_store.clone()).await
 }
 
 #[tauri::command]
 pub(crate) async fn pty_list(
     state: tauri::State<'_, AtuinState>,
 ) -> Result<Vec<PtyMetadata>, String> {
-    let ptys = state.pty_sessions.read().await;
-    let ptys = ptys.values().map(|p| p.metadata.clone()).collect();
+    let ptys = state
+        .pty_store
+        .list_pty_meta()
+        .await
+        .map_err(|e| e.to_string())?;
 
     Ok(ptys)
 }

@@ -2,12 +2,13 @@ use minijinja::Environment;
 use std::{collections::HashMap, sync::Arc};
 use tauri::async_runtime::RwLock;
 use tokio::process::Child;
+use uuid::Uuid;
 
-use crate::pty::Pty;
+use crate::runtime::pty_store::PtyStoreHandle;
 
 #[derive(Default)]
 pub(crate) struct AtuinState {
-    pub pty_sessions: Arc<RwLock<HashMap<uuid::Uuid, Pty>>>,
+    pub pty_store: PtyStoreHandle,
 
     // the second rwlock could probs be a mutex
     // i cba it works fine
@@ -16,7 +17,7 @@ pub(crate) struct AtuinState {
     /// Map a runbook id, to a Jinja environment
     /// In the future it may make sense to map to our own abstracted
     /// environment state, but atm this is fine.
-    pub template_state: RwLock<HashMap<String, Arc<Environment<'static>>>>,
+    pub template_state: RwLock<HashMap<Uuid, Arc<Environment<'static>>>>,
 
     // Persisted to the keychain, but cached here so that
     // we don't keep asking the user for keychain access.

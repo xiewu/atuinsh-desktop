@@ -13,7 +13,7 @@ use uuid::Uuid;
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct PtyMetadata {
     pub pid: Uuid,
-    pub runbook: String,
+    pub runbook: Uuid,
     pub block: String,
 }
 

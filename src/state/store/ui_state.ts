@@ -1,4 +1,5 @@
 import { ColorMode, FunctionalColorMode } from "@/lib/color_modes";
+import { Update } from "@tauri-apps/plugin-updater";
 import { StateCreator } from "zustand";
 
 export interface AtuinUiState {
@@ -12,6 +13,10 @@ export interface AtuinUiState {
   functionalColorMode: FunctionalColorMode;
   fontSize: number;
   fontFamily: string;
+  minimumVersion: string | undefined;
+  availableUpdate: Update | undefined;
+  updating: boolean;
+  showedUpdatePrompt: boolean;
 
   setOnline: (online: boolean) => void;
   setFocused: (focused: boolean) => void;
@@ -23,6 +28,10 @@ export interface AtuinUiState {
   setFunctionalColorMode: (colorMode: FunctionalColorMode) => void;
   setFontSize: (fontSize: number) => void;
   setFontFamily: (fontFamily: string) => void;
+  setMinimumVersion: (version: string) => void;
+  setAvailableUpdate: (update: Update | undefined) => void;
+  setUpdating: (updating: boolean) => void;
+  setShowedUpdatePrompt: (showed: boolean) => void;
 }
 
 export const persistUiKeys: (keyof AtuinUiState)[] = ["colorMode", "fontSize", "fontFamily"];
@@ -38,6 +47,10 @@ export const createUiState: StateCreator<AtuinUiState> = (set, _get, _store): At
   functionalColorMode: "light",
   fontSize: 16,
   fontFamily: "Inter",
+  minimumVersion: undefined,
+  availableUpdate: undefined,
+  updating: false,
+  showedUpdatePrompt: false,
 
   setOnline: (online: boolean) => set(() => ({ online })),
   setFocused: (focused: boolean) => set(() => ({ focused })),
@@ -51,4 +64,8 @@ export const createUiState: StateCreator<AtuinUiState> = (set, _get, _store): At
     set(() => ({ functionalColorMode: colorMode })),
   setFontSize: (fontSize: number) => set(() => ({ fontSize })),
   setFontFamily: (fontFamily: string) => set(() => ({ fontFamily })),
+  setMinimumVersion: (version: string) => set(() => ({ minimumVersion: version })),
+  setAvailableUpdate: (update: Update | undefined) => set(() => ({ availableUpdate: update })),
+  setUpdating: (updating: boolean) => set(() => ({ updating })),
+  setShowedUpdatePrompt: (showed: boolean) => set(() => ({ showedUpdatePrompt: showed })),
 });

@@ -76,13 +76,13 @@ export default function Publish(props: PublishProps) {
             selectedKeys={new Set([props.visibility as string])}
             disallowEmptySelection
           >
-            <SelectItem key="public" value="public">
+            <SelectItem key="public" textValue="public">
               Public
             </SelectItem>
-            <SelectItem key="unlisted" value="unlisted">
+            <SelectItem key="unlisted" textValue="unlisted">
               Unlisted
             </SelectItem>
-            <SelectItem key="private" value="private">
+            <SelectItem key="private" textValue="private">
               Private
             </SelectItem>
           </Select>

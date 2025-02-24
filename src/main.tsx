@@ -10,13 +10,13 @@
 
 // import sentry before anything else
 import { init_tracking } from "./tracking";
-import { attachConsole } from '@tauri-apps/plugin-log';
+import { attachConsole } from "@tauri-apps/plugin-log";
 
 import { event } from "@tauri-apps/api";
 import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { createHashRouter, RouterProvider } from "react-router-dom";
-import { HeroUIProvider } from "@heroui/react";
+import { HeroUIProvider, ToastProvider } from "@heroui/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import "./styles.css";
 
@@ -130,6 +130,7 @@ function Application() {
   return (
     <React.StrictMode>
       <HeroUIProvider>
+        <ToastProvider placement="bottom-center" toastOffset={40} />
         <QueryClientProvider client={queryClient}>
           <main className="text-foreground bg-background overflow-hidden">
             {AtuinEnv.isProd && globalOptions.customTitleBar && (

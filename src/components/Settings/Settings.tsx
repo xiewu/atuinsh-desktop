@@ -188,13 +188,13 @@ const GeneralSettings = () => {
           placeholder="Select color mode"
           selectedKeys={[colorMode]}
         >
-          <SelectItem key="light" value="light">
+          <SelectItem key="light" textValue="light">
             Light
           </SelectItem>
-          <SelectItem key="dark" value="dark">
+          <SelectItem key="dark" textValue="dark">
             Dark
           </SelectItem>
-          <SelectItem key="system" value="system">
+          <SelectItem key="system" textValue="system">
             Follow System
           </SelectItem>
         </Select>

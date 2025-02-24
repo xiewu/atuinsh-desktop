@@ -1,8 +1,7 @@
 import { check } from "@tauri-apps/plugin-updater";
-import { ask } from "@tauri-apps/plugin-dialog";
-import { relaunch } from "@tauri-apps/plugin-process";
 import Logger from "@/lib/logger";
 import AtuinEnv from "./atuin_env";
+import { useStore } from "./state/store";
 const logger = new Logger("Updater");
 
 export async function checkForAppUpdates(): Promise<boolean> {
@@ -12,25 +11,15 @@ export async function checkForAppUpdates(): Promise<boolean> {
   if (update?.available && AtuinEnv.isProd) {
     logger.info("Update available!");
 
-    const yes = await ask(
-      `
-${update.version} is available!
-        `,
-      {
-        title: "Update Now!",
-        kind: "info",
-        okLabel: "Update",
-        cancelLabel: "Cancel",
-      },
-    );
-
-    if (yes) {
-      await update.downloadAndInstall();
-      await relaunch();
-    }
+    useStore.getState().setShowedUpdatePrompt(false);
+    useStore.getState().setAvailableUpdate(update);
   } else if (update?.available) {
-    logger.info("Update available; suppressing prompt in development mode")
+    logger.info("Update available; suppressing prompt in development mode");
   }
 
-  return update?.available ?? false;
+  if (AtuinEnv.isProd) {
+    return update?.available ?? false;
+  } else {
+    return false;
+  }
 }

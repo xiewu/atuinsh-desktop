@@ -11,6 +11,7 @@ import CommandMenu from "@/components/CommandMenu/CommandMenu";
 import Sidebar, { SidebarItem } from "@/components/Sidebar";
 import { checkForAppUpdates } from "@/updater";
 import {
+  addToast,
   Avatar,
   Button,
   Dropdown,
@@ -24,7 +25,6 @@ import {
   User,
 } from "@heroui/react";
 import { UnlistenFn } from "@tauri-apps/api/event";
-import { message } from "@tauri-apps/plugin-dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { isAppleDevice } from "@react-aria/utils";
 import CompactWorkspaceSwitcher from "@/components/WorkspaceSwitcher/WorkspaceSwitcher";
@@ -44,6 +44,7 @@ import Runbook from "@/state/runbooks/runbook";
 import RunbookSearchIndex from "@/components/CommandMenu/RunbookSearchIndex";
 import RunbookIndexService from "@/state/runbooks/search";
 import DeleteRunbookModal from "./DeleteRunbookModal";
+import UpdateNotifier from "./UpdateNotifier";
 
 const runbookIndex = new RunbookIndexService();
 
@@ -129,12 +130,17 @@ function App() {
   }, []);
 
   useTauriEvent("update-check", async () => {
+    // An available update will trigger a toast
     let updateAvailable = await checkForAppUpdates();
 
     if (!updateAvailable) {
-      await message("No updates available", {
-        title: "Atuin",
-        kind: "info",
+      addToast({
+        title: "No updates available",
+        description: "You are running the latest version of Atuin Desktop",
+        color: "primary",
+        radius: "sm",
+        timeout: 5000,
+        shouldShowTimeoutProgess: true,
       });
     }
   });
@@ -251,6 +257,7 @@ function App() {
     >
       <CommandMenu index={runbookIndex} />
       <RunbookSearchIndex index={runbookIndex} />
+      <UpdateNotifier />
 
       <div className="flex w-full">
         <div className="relative flex flex-col !border-r-small border-divider transition-width pb-6 pt-4 items-center select-none">

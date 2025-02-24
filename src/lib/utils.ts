@@ -72,7 +72,9 @@ export function formatDuration(ms: number) {
   // We floor the milliseconds first to avoid floating point imprecision
   // causing extra decimal places
   if (seconds < 120) {
-    return `${seconds}${milliseconds ? `.${Math.floor(milliseconds).toString().padStart(3, "0")}` : ""}s`;
+    return `${seconds}${
+      milliseconds ? `.${Math.floor(milliseconds).toString().padStart(3, "0")}` : ""
+    }s`;
   }
 
   const minutes = Math.floor(seconds / 60);
@@ -189,7 +191,7 @@ interface OptionMethods<T> {
   isSome: () => boolean;
   isNone: () => boolean;
   unwrap: () => T;
-  unwrapOr: (defaultValue: T) => T;
+  unwrapOr: <U>(defaultValue: U) => T | U;
   map: <U>(fn: (value: T) => U) => Option<U>;
 }
 
@@ -211,7 +213,7 @@ export function Some<T>(value: T): Some<T> {
     isSome: () => true,
     isNone: () => false,
     unwrap: () => value,
-    unwrapOr: (_defaultValue: T) => value,
+    unwrapOr: <U>(_defaultValue: U) => value,
     map: (fn) => Some(fn(value)),
   };
 }
@@ -224,7 +226,7 @@ export function None(): None {
     unwrap: () => {
       throw new Error("Tried to unwrap None");
     },
-    unwrapOr: (defaultValue) => defaultValue,
+    unwrapOr: <U>(defaultValue: U) => defaultValue,
     map: <U>(_fn: (value: never) => U) => None(),
   };
 }

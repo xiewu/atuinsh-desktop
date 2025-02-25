@@ -9,6 +9,7 @@ import SyncSet from "./sync_set";
 import * as api from "@/api/api";
 import { clearTimeout, setTimeout } from "worker-timers";
 import { processUnprocessedOperations } from "@/state/runbooks/operation_processor";
+import { ConnectionState } from "@/state/store/user_state";
 
 type Store = typeof useStore;
 
@@ -44,7 +45,7 @@ export default class SyncManager {
   private lastSync: DateTime | null = null;
   private startNextSyncEarly: boolean = false;
   private priorityRunbookIds = new Set<string>();
-  private online: boolean | null = null;
+  private connectionState: ConnectionState;
   private focused: boolean | null = null;
   private periodicSyncTimeout: number | null = null;
 
@@ -53,14 +54,13 @@ export default class SyncManager {
 
     this.currentUser = store.getState().user;
     this.workspaceId = store.getState().currentWorkspaceId;
+    this.connectionState = store.getState().connectionState;
+    this.handlers.push(
+      this.store.subscribe((state) => state.connectionState, this.handleConnectionStateChange),
+    );
     this.handlers.push(this.store.subscribe((state) => state.user, this.handleUserChange));
     this.handlers.push(
       this.store.subscribe((state) => state.currentRunbookId, this.handleCurrentRunbookIdChange, {
-        fireImmediately: true,
-      }),
-    );
-    this.handlers.push(
-      this.store.subscribe((state) => state.online, this.handleOnlineChange, {
         fireImmediately: true,
       }),
     );
@@ -140,7 +140,7 @@ export default class SyncManager {
       throw new Error("Sync already in progress");
     }
 
-    if (!this.online) return;
+    if (this.connectionState !== ConnectionState.Online) return;
 
     this.syncing = true;
     this.startNextSyncEarly = false;
@@ -179,7 +179,7 @@ export default class SyncManager {
       ? EARLY_SYNC_INTERVAL_SECS
       : NORMAL_SYNC_INTERVAL_SECS;
     return (
-      !!this.online &&
+      this.connectionState === ConnectionState.Online &&
       !!this.focused &&
       !this.syncing &&
       this.secondsSinceLastSync() >= syncInterval
@@ -215,11 +215,11 @@ export default class SyncManager {
   }
 
   @autobind
-  private handleOnlineChange(online: boolean) {
-    if (online === this.online) return;
-    this.online = online;
+  private handleConnectionStateChange(connectionState: ConnectionState) {
+    if (connectionState === this.connectionState) return;
+    this.connectionState = connectionState;
 
-    if (online) {
+    if (connectionState === ConnectionState.Online) {
       this.logger.debug("Connection to server established");
       this.startNextSyncEarly = true;
       if (this.focused) {

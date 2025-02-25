@@ -1,11 +1,55 @@
 import { me } from "@/api/api";
 import { DefaultUser, User } from "../models";
 import { StateCreator } from "zustand";
+import semver from "semver";
+import { None, Option } from "@/lib/utils";
+
+export enum ConnectionState {
+  LoggedOut,
+  Online,
+  Offline,
+  OutOfDate,
+}
+
+function isOutOfDate(currentVersion: string, minimumVersion: string) {
+  if (!semver.valid(currentVersion)) return false;
+  if (!semver.valid(minimumVersion)) return false;
+  return semver.lt(currentVersion, minimumVersion);
+}
+
+function calculateConnectionState(
+  user: User,
+  online: boolean,
+  minimumVersion: Option<string>,
+  currentVersion: string,
+) {
+  const outOfDate = minimumVersion
+    .map((min) => {
+      return isOutOfDate(currentVersion, min);
+    })
+    .unwrapOr(false);
+
+  if (!online) return ConnectionState.Offline;
+  if (outOfDate) return ConnectionState.OutOfDate;
+  if (!user.isLoggedIn()) return ConnectionState.LoggedOut;
+
+  return ConnectionState.Online;
+}
 
 export interface AtuinUserState {
   user: User;
+  online: boolean;
+  currentVersion: string;
+  minimumVersion: Option<string>;
+  connectionState: ConnectionState;
+
   isLoggedIn: () => boolean;
   refreshUser: () => Promise<void>;
+
+  setOnline: (online: boolean) => void;
+  setCurrentVersion: (version: string) => void;
+  setMinimumVersion: (version: Option<string>) => void;
+  updateConnectionState: () => void;
 }
 
 export const persistUserKeys: (keyof AtuinUserState)[] = ["user"];
@@ -16,6 +60,10 @@ export const createUserState: StateCreator<AtuinUserState> = (
   _store,
 ): AtuinUserState => ({
   user: DefaultUser,
+  online: false,
+  currentVersion: "",
+  minimumVersion: None(),
+  connectionState: ConnectionState.Offline,
 
   isLoggedIn: () => {
     if (!get().user) return false;
@@ -44,5 +92,28 @@ export const createUserState: StateCreator<AtuinUserState> = (
         set({ user: DefaultUser });
       }
     }
+  },
+
+  setOnline: (online: boolean) => {
+    set(() => ({ online }));
+    get().updateConnectionState();
+  },
+  setCurrentVersion: (version: string) => {
+    set(() => ({ currentVersion: version }));
+    get().updateConnectionState();
+  },
+  setMinimumVersion: (version: Option<string>) => {
+    set(() => ({ minimumVersion: version }));
+    get().updateConnectionState();
+  },
+  updateConnectionState: () => {
+    const user = get().user;
+    const online = get().online;
+    const currentVersion = get().currentVersion;
+    const minimumVersion = get().minimumVersion;
+
+    set(() => ({
+      connectionState: calculateConnectionState(user, online, minimumVersion, currentVersion),
+    }));
   },
 });

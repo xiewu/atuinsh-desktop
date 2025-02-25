@@ -15,6 +15,7 @@ import Runbook from "@/state/runbooks/runbook";
 import { PresenceUserInfo } from "@/lib/phoenix_provider";
 import RunbookEditor from "@/lib/runbook_editor";
 import Operation from "@/state/runbooks/operation";
+import { ConnectionState } from "@/state/store/user_state";
 
 function useMarkRunbookRead(runbook: Runbook | null, refreshRunbooks: () => void) {
   useEffect(() => {
@@ -28,7 +29,7 @@ function useMarkRunbookRead(runbook: Runbook | null, refreshRunbooks: () => void
 
 export default function Runbooks() {
   const user = useStore((store) => store.user);
-  const online = useStore((store) => store.online);
+  const connectionState = useStore((store) => store.connectionState);
   const refreshRunbooks = useStore((store) => store.refreshRunbooks);
   const getLastTagForRunbook = useStore((store) => store.getLastTagForRunbook);
   const setLastTagForRunbook = useStore((store) => store.selectTag);
@@ -201,7 +202,7 @@ export default function Runbooks() {
     const id = current.id;
     await current.delete();
 
-    if (!online) {
+    if (connectionState !== ConnectionState.Offline) {
       const op = new Operation({
         operation: { type: "snapshot_deleted", snapshotId: id },
       });

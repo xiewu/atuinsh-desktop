@@ -129,7 +129,7 @@ function App() {
     };
   }, []);
 
-  useTauriEvent("update-check", async () => {
+  async function doUpdateCheck() {
     // An available update will trigger a toast
     let updateAvailable = await checkForAppUpdates();
 
@@ -143,7 +143,16 @@ function App() {
         shouldShowTimeoutProgess: true,
       });
     }
-  });
+  }
+
+  useTauriEvent("update-check", doUpdateCheck);
+  useEffect(() => {
+    window.addEventListener("update-check", doUpdateCheck);
+
+    return () => {
+      window.removeEventListener("update-check", doUpdateCheck);
+    };
+  }, []);
 
   useTauriEvent("import-runbook", async () => {
     await importRunbook();

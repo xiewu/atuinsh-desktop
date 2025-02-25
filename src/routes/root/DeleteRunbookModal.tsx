@@ -13,6 +13,7 @@ import {
 } from "@heroui/react";
 import { useEffect, useMemo, useReducer } from "react";
 import { None, Option, Some, usernameFromNwo } from "@/lib/utils";
+import { ConnectionState } from "@/state/store/user_state";
 
 interface DeleteRunbookModalProps {
   runbookId: string;
@@ -61,8 +62,8 @@ const INITIAL_STATE: DeleteState = {
 export default function DeleteRunbookModal(props: DeleteRunbookModalProps) {
   const { runbookId, onClose } = props;
 
-  const online = useStore((store) => store.online);
   const user = useStore((store) => store.user);
+  const connectionState = useStore((store) => store.connectionState);
   const currentRunbookId = useStore((store) => store.currentRunbookId);
   const setCurrentRunbookId = useStore((store) => store.setCurrentRunbookId);
   const refreshRunbooks = useStore((store) => store.refreshRunbooks);
@@ -178,7 +179,7 @@ export default function DeleteRunbookModal(props: DeleteRunbookModalProps) {
                 <li>Permanently delete this runbook from your machine</li>
                 <li>Permanently delete this runbook from Atuin Hub ({nwo.unwrap()})</li>
               </ul>
-              {!online && (
+              {connectionState !== ConnectionState.Offline && (
                 <p>
                   Since you are offline, this operation will be performed the next time you are
                   online.
@@ -196,7 +197,7 @@ export default function DeleteRunbookModal(props: DeleteRunbookModalProps) {
                   {nwo.unwrap()})
                 </li>
               </ul>
-              {!online && (
+              {connectionState !== ConnectionState.Offline && (
                 <p>
                   Since you are offline, this operation will be performed the next time you are
                   online.

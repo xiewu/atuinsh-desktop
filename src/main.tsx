@@ -156,6 +156,10 @@ function Application() {
 
 async function setup() {
   await attachConsole();
+
+  const currentVersion = await invoke<string>("get_app_version");
+  useStore.getState().setCurrentVersion(currentVersion);
+
   const { currentWorkspaceId, setCurrentWorkspaceId, setCurrentRunbookId } = useStore.getState();
 
   // Ensure at least one workspace exists

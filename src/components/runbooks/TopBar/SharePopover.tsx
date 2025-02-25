@@ -3,7 +3,7 @@ import { Button, Popover, PopoverContent, PopoverTrigger } from "@heroui/react";
 import { useEffect, useState } from "react";
 import { useStore } from "@/state/store";
 import * as api from "@/api/api";
-import { CloudOffIcon, ShareIcon, WifiOffIcon } from "lucide-react";
+import { CloudOffIcon, ShareIcon, TriangleAlertIcon, WifiOffIcon } from "lucide-react";
 import Publish from "./sharing/Publish";
 import LoggedOut from "./sharing/LoggedOut";
 import Offline from "./sharing/Offline";
@@ -15,6 +15,8 @@ import { slugify, useDebounce } from "@/lib/utils";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import Snapshot from "@/state/runbooks/snapshot";
 import Logger from "@/lib/logger";
+import OutOfDate from "./sharing/OutOfDate";
+import { ConnectionState } from "@/state/store/user_state";
 const logger = new Logger("SharePopover");
 
 type ShareProps = {
@@ -42,8 +44,9 @@ export default function Share({
   const [changedSinceValidate, setChangedSinceValidate] = useState(false);
   const [userChangedSlug, setUserChangedSlug] = useState(false);
 
-  const online = useStore((state) => state.online);
-  const user = useStore((state) => state.user);
+  const connectionState = useStore((state) => state.connectionState);
+  const currentVersion = useStore((state) => state.currentVersion);
+  const minimumVersion = useStore((state) => state.minimumVersion);
   const canUpdate = remoteRunbook?.permissions.includes("update");
 
   const queryClient = useQueryClient();
@@ -176,9 +179,10 @@ export default function Share({
   }
 
   const buttonColor = (() => {
-    if (!online || !user.isLoggedIn()) return "danger";
-    else if (online && (canUpdate || !remoteRunbook)) return "success";
-    else if (online && !canUpdate) return "warning";
+    if (connectionState !== ConnectionState.Online) return "danger";
+    else if (connectionState === ConnectionState.Online && (canUpdate || !remoteRunbook))
+      return "success";
+    else if (connectionState === ConnectionState.Online && !canUpdate) return "warning";
   })();
 
   const enabled = !shareRunbook.isPending && slugDebounced && (!error || changedSinceValidate);
@@ -204,14 +208,15 @@ export default function Share({
           color={buttonColor}
           className="basis-[100px] min-w-[100px] mt-1 w-full shrink-0"
         >
-          {!online && <WifiOffIcon size={16} />}
-          {online && !user.isLoggedIn() && <CloudOffIcon size={16} />}
-          {online && user.isLoggedIn() && canUpdate && <ShareIcon size={16} />}
-          {online && user.isLoggedIn() && !canUpdate && <ShareIcon size={16} />}
+          {connectionState === ConnectionState.Offline && <WifiOffIcon size={16} />}
+          {connectionState === ConnectionState.OutOfDate && <TriangleAlertIcon size={16} />}
+          {connectionState === ConnectionState.LoggedOut && <CloudOffIcon size={16} />}
+          {connectionState === ConnectionState.Online && canUpdate && <ShareIcon size={16} />}
+          {connectionState === ConnectionState.Online && !canUpdate && <ShareIcon size={16} />}
         </Button>
       </PopoverTrigger>
       <PopoverContent>
-        {online && user.isLoggedIn() && remoteRunbook && canUpdate && (
+        {connectionState === ConnectionState.Online && remoteRunbook && canUpdate && (
           <Publish
             mode="edit"
             runbook={runbook}
@@ -227,7 +232,7 @@ export default function Share({
             isEnabled={enabled}
           />
         )}
-        {online && user.isLoggedIn() && !remoteRunbook && (
+        {connectionState === ConnectionState.Online && !remoteRunbook && (
           <Publish
             mode="publish"
             runbook={runbook}
@@ -243,11 +248,14 @@ export default function Share({
             isEnabled={enabled}
           />
         )}
-        {online && !user.isLoggedIn() && <LoggedOut />}
-        {online && user.isLoggedIn() && remoteRunbook && !canUpdate && (
+        {connectionState === ConnectionState.LoggedOut && <LoggedOut />}
+        {connectionState === ConnectionState.Online && remoteRunbook && !canUpdate && (
           <NoPermission remoteRunbook={remoteRunbook} />
         )}
-        {!online && <Offline />}
+        {connectionState === ConnectionState.Offline && <Offline />}
+        {connectionState === ConnectionState.OutOfDate && (
+          <OutOfDate currentVersion={currentVersion} minimumVersion={minimumVersion.unwrap()} />
+        )}
       </PopoverContent>
     </Popover>
   );

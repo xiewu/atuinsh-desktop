@@ -193,6 +193,7 @@ interface OptionMethods<T> {
   unwrap: () => T;
   unwrapOr: <U>(defaultValue: U) => T | U;
   map: <U>(fn: (value: T) => U) => Option<U>;
+  toString: () => string;
 }
 
 export type None = {
@@ -215,6 +216,7 @@ export function Some<T>(value: T): Some<T> {
     unwrap: () => value,
     unwrapOr: <U>(_defaultValue: U) => value,
     map: (fn) => Some(fn(value)),
+    toString: () => String(value),
   };
 }
 
@@ -228,6 +230,7 @@ export function None(): None {
     },
     unwrapOr: <U>(defaultValue: U) => defaultValue,
     map: <U>(_fn: (value: never) => U) => None(),
+    toString: () => "None",
   };
 }
 

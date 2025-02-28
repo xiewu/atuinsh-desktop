@@ -8,6 +8,10 @@ import Snapshot from "@/state/runbooks/snapshot";
 import Mutex from "@/lib/mutex";
 import { KVStore } from "@/state/kv";
 import AtuinEnv from "@/atuin_env";
+import { getGlobalOptions } from "@/lib/global_options";
+import { useStore } from "@/state/store";
+
+const globalOptions = getGlobalOptions();
 
 type PasswordStore = {
   get: (service: string, user: string) => Promise<string | null>;
@@ -129,6 +133,8 @@ async function makeRequest<T>(
   body?: object | string,
   options: RequestOpts = {},
 ): Promise<T> {
+  const version = useStore.getState().currentVersion;
+
   let apiToken: string | undefined | null = options.token;
   if (!apiToken) {
     try {
@@ -149,6 +155,7 @@ async function makeRequest<T>(
   const logger = new Logger(loggerInfo);
 
   const headers: Record<string, string> = {
+    "Atuin-Desktop-Version": `${version}-${globalOptions.os}-${AtuinEnv.isDev ? "dev" : "prod"}`,
     "Content-Type": "application/json",
   };
 

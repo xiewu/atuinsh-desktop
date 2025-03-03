@@ -4,15 +4,34 @@
 import FlexSearch from "flexsearch";
 import Runbook from "./runbook";
 
+interface RunbookDocument {
+  id: string;
+  title: string;
+  content: string;
+}
+
+// Define field ranking weights
+const FIELD_RANKS = {
+  title: 2.0,  // Title matches are 2x more important
+  content: 1.0 // Base rank for content matches
+};
+
 class RunbookIndexService {
   private stored = new Map<string, Runbook>();
-  private index: FlexSearch.Index;
+  private document: FlexSearch.Document<RunbookDocument>;
   private lastIds: Set<string> = new Set();
 
   constructor() {
-    this.index = new FlexSearch.Index({
+    this.document = new FlexSearch.Document({
+      document: {
+        id: "id",
+        index: [
+          // Create separate indices for title and content
+          { field: "title", tokenize: "full" },
+          { field: "content", tokenize: "full" }
+        ]
+      },
       preset: "performance",
-      tokenize: "full",
       cache: true,
     });
   }
@@ -21,6 +40,9 @@ class RunbookIndexService {
     const ids = new Set(runbooks.map((rb) => rb.id));
     const added = new Set([...ids].filter((id) => !this.lastIds.has(id)));
     const removed = new Set([...this.lastIds].filter((id) => !ids.has(id)));
+
+    // Update lastIds for the next bulk update
+    this.lastIds = ids;
 
     runbooks.forEach((runbook) => {
       if (added.has(runbook.id)) {
@@ -34,34 +56,68 @@ class RunbookIndexService {
   }
 
   public indexRunbook(runbook: Runbook) {
-    // Since runbooks are immutable, we can skip reindexing if the runbook hasn't changed
-    if (this.stored.has(runbook.id) && this.stored.get(runbook.id) === runbook) {
-      return;
-    }
-
     this.stored.set(runbook.id, runbook);
     this.updateRunbook(runbook);
   }
 
+  private createDocumentObject(runbook: Runbook) {
+    return {
+      id: runbook.id,
+      title: runbook.name,
+      content: runbook.content
+    };
+  }
+
   public addRunbook(runbook: Runbook) {
     this.stored.set(runbook.id, runbook);
-    return this.index.addAsync(runbook.id, runbook.content);
+    const doc = this.createDocumentObject(runbook);
+    return this.document.addAsync(doc.id, doc);
   }
 
   public removeRunbook(id: string) {
     this.stored.delete(id);
-    return this.index.removeAsync(id);
+    return this.document.removeAsync(id);
   }
 
   public async updateRunbook(runbook: Runbook) {
     await this.removeRunbook(runbook.id);
-    return this.addRunbook(runbook);
+    await this.addRunbook(runbook);
+    return runbook;
   }
 
   public async searchRunbooks(query: string): Promise<string[]> {
-    let res = await this.index.searchAsync(query);
+    if (!query || query.trim() === '') {
+      return [];
+    }
 
-    return res as string[];
+    // Search in all fields
+    const results = await this.document.searchAsync(query, {
+      enrich: true,
+      limit: 50
+    });
+    
+    // Track document ranks with a map of id -> rank
+    const documentRanks = new Map<string, number>();
+    
+    // Process results to calculate ranks based on field matches
+    results.forEach((result: any) => {
+      const fieldName = result.field;
+      const fieldRank = FIELD_RANKS[fieldName as keyof typeof FIELD_RANKS] || 1.0;
+      
+      result.result.forEach((id: string) => {
+        // If document already has a rank, add to it (matching multiple fields)
+        // Otherwise initialize with the field's rank
+        const currentRank = documentRanks.get(id) || 0;
+        documentRanks.set(id, currentRank + fieldRank);
+      });
+    });
+    
+    // Convert to array of [id, rank] pairs and sort by rank (descending)
+    const sortedResults = Array.from(documentRanks.entries())
+      .sort((a, b) => b[1] - a[1]) // Sort by rank (descending)
+      .map(([id]) => id); // Extract just the IDs
+    
+    return sortedResults;
   }
 }
 

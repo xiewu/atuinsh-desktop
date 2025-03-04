@@ -11,7 +11,7 @@ import Terminal from "./terminal.tsx";
 
 import "@xterm/xterm/css/xterm.css";
 import { AtuinState, useStore } from "@/state/store.ts";
-import { Chip, Spinner, Tooltip } from "@heroui/react";
+import { Chip, code, Spinner, Tooltip } from "@heroui/react";
 import { cn, formatDuration } from "@/lib/utils.ts";
 import { usePtyStore } from "@/state/ptyStore.ts";
 import track_event from "@/tracking.ts";
@@ -23,36 +23,33 @@ import { findFirstParentOfType, findAllParentsOfType } from "../exec.ts";
 import { templateString } from "@/state/templates.ts";
 import CodeEditor, { TabAutoComplete } from "../common/CodeEditor/CodeEditor.tsx";
 import { Command } from "@codemirror/view";
+import { TerminalBlock } from "@/lib/blocks/terminal.ts";
+import { logExecution } from "@/lib/exec_log.ts";
 
 interface RunBlockProps {
   onChange: (val: string) => void;
   onRun?: (pty: string) => void;
   onStop?: (pty: string) => void;
   setName: (name: string) => void;
-  id: string;
-  name: string;
-  code: string;
   type: string;
   pty: string;
   isEditable: boolean;
   editor: any;
-  outputVisible: boolean;
   setOutputVisible: (visible: boolean) => void;
+
+  terminal: TerminalBlock;
 }
 
 
 const RunBlock = ({
   onChange,
-  id,
-  name,
   setName,
-  code,
   isEditable,
   onRun,
   onStop,
   editor,
-  outputVisible,
   setOutputVisible,
+  terminal,
 }: RunBlockProps) => {
   const colorMode = useStore((state) => state.functionalColorMode);
   const cleanupPtyTerm = useStore((store: AtuinState) => store.cleanupPtyTerm);
@@ -64,6 +61,7 @@ const RunBlock = ({
   const [commandRunning, setCommandRunning] = useState<boolean>(false);
   const [exitCode, setExitCode] = useState<number | null>(null);
   const [commandDuration, setCommandDuration] = useState<number | null>(null);
+  const [commandStart, setCommandStart] = useState<number | null>(null);
 
   // This ensures that the first time we run a block, it executes the code. But subsequent mounts of an already-existing pty
   // don't run the code again.
@@ -73,10 +71,19 @@ const RunBlock = ({
 
   const [currentRunbookId] = useStore((store: AtuinState) => [store.currentRunbookId]);
 
-  const pty = usePtyStore((store) => store.ptyForBlock(id));
+  const pty = usePtyStore((store) => store.ptyForBlock(terminal.id));
 
   useEffect(() => {
     setIsRunning(pty != null);
+
+    if (pty) {
+      setCommandStart(Date.now() * 1000000);
+    } 
+
+    if (!pty && commandStart) {
+      logExecution(terminal, terminal.typeName, commandStart, Date.now() * 1000000, "");
+      setCommandStart(null);
+    }
   }, [pty]);
 
 
@@ -97,7 +104,7 @@ const RunBlock = ({
   };
 
   const openPty = async (): Promise<string> => {
-    let cwd = findFirstParentOfType(editor, id, "directory");
+    let cwd = findFirstParentOfType(editor, terminal.id, "directory");
 
     if (cwd) {
       cwd = cwd.props.path;
@@ -105,12 +112,12 @@ const RunBlock = ({
       cwd = "~";
     }
 
-    let vars = findAllParentsOfType(editor, id, "env");
+    let vars = findAllParentsOfType(editor, terminal.id, "env");
     let env: { [key: string]: string } = {};
 
     for (var i = 0; i < vars.length; i++) {
-      let name = await templateString(id, vars[i].props.name, editor.document, currentRunbookId);
-      let value = await templateString(id, vars[i].props.value, editor.document, currentRunbookId);
+      let name = await templateString(terminal.id, vars[i].props.name, editor.document, currentRunbookId);
+      let value = await templateString(terminal.id, vars[i].props.value, editor.document, currentRunbookId);
       env[name] = value;
     }
 
@@ -120,7 +127,7 @@ const RunBlock = ({
       cwd,
       env,
       runbook: currentRunbookId,
-      block: id,
+      block: terminal.id,
     });
 
     return pty;
@@ -146,10 +153,10 @@ const RunBlock = ({
 
     let isWindows = platform() == "windows";
     let cmdEnd = isWindows ? "\r\n" : "\n";
-    let val = !code.endsWith("\n") ? code + cmdEnd : code;
+    let val = !terminal.code.endsWith("\n") ? terminal.code + cmdEnd : terminal.code;
 
     terminalData.terminal.clear();
-    terminalData.write(id, val, editor.document, currentRunbookId);
+    terminalData.write(terminal.id, val, editor.document, currentRunbookId);
   };
 
   const handleCmdEnter: Command = useCallback(() => {
@@ -164,7 +171,7 @@ const RunBlock = ({
 
   return (
     <Block
-      name={name}
+      name={terminal.name}
       setName={setName}
       inlineHeader
       header={
@@ -173,7 +180,7 @@ const RunBlock = ({
             <h1 className="text-default-700 font-semibold">
               {
                 <EditableHeading
-                  initialText={name || "Terminal"}
+                  initialText={terminal.name || "Terminal"}
                   onTextChange={(text) => setName(text)}
                 />
               }
@@ -191,12 +198,12 @@ const RunBlock = ({
                   {formatDuration(commandDuration)}
                 </Chip>
               )}
-              <Tooltip content={outputVisible ? "Hide output terminal" : "Show output terminal"}>
+              <Tooltip content={terminal.outputVisible ? "Hide output terminal" : "Show output terminal"}>
                 <button
-                  onClick={() => setOutputVisible(!outputVisible)}
+                  onClick={() => setOutputVisible(!terminal.outputVisible)}
                   className="p-2 hover:bg-default-100 rounded-md"
                 >
-                  {outputVisible ? <Eye size={20} /> : <EyeOff size={20} />}
+                  {terminal.outputVisible ? <Eye size={20} /> : <EyeOff size={20} />}
                 </button>
               </Tooltip>
             </div>
@@ -211,8 +218,8 @@ const RunBlock = ({
               onRefresh={handleRefresh}
             />
             <CodeEditor
-              id={id}
-              code={code}
+              id={terminal.id}
+              code={terminal.code}
               onChange={onChange}
               isEditable={isEditable}
               language="bash"
@@ -232,13 +239,13 @@ const RunBlock = ({
       {pty && (
         <div
           className={cn(`overflow-hidden transition-all duration-300 ease-in-out min-w-0 hidden`, {
-            "block": outputVisible && isRunning,
+            "block": terminal.outputVisible && isRunning,
           })}
         >
           <Terminal
-            block_id={id}
+            block_id={terminal.id}
             pty={pty.pid}
-            script={code}
+            script={terminal.code}
             runScript={firstOpen}
             setCommandRunning={setCommandRunning}
             setExitCode={setExitCode}
@@ -303,21 +310,20 @@ export default createReactBlockSpec(
         });
       };
 
+      let terminal = new TerminalBlock(block.id, block.props.name, block.props.code, block.props.outputVisible);
+
       return (
         <RunBlock
-          name={block.props.name}
           setName={setName}
           onChange={onInputChange}
-          id={block?.id}
-          code={block.props.code}
           type={block.props.type}
           pty={block.props.pty}
           isEditable={editor.isEditable}
           onRun={onRun}
           onStop={onStop}
           editor={editor}
-          outputVisible={block.props.outputVisible}
           setOutputVisible={setOutputVisible}
+          terminal={terminal}
         />
       );
     },

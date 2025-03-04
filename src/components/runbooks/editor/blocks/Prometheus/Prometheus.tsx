@@ -37,19 +37,18 @@ import PlayButton from "../common/PlayButton";
 import EditableHeading from "@/components/EditableHeading";
 import { templateString } from "@/state/templates";
 import { useStore } from "@/state/store";
+import { logExecution } from "@/lib/exec_log";
+import { PrometheusBlock as PrometheusBlockType } from "@/lib/blocks/prometheus";
 
 interface PromProps {
-  id: string;
-  name: string;
   setName: (name: string) => void;
+  setQuery: (query: string) => void;
+  setEndpoint: (endpoint: string) => void;
+  setPeriod: (period: string) => void;
+  setAutoRefresh: (autoRefresh: boolean) => void;
 
-  query: string;
-  endpoint: string;
-  autoRefresh: boolean;
-  period: string;
   isEditable: boolean;
-
-  onPropsChange: (val: any) => void;
+  prometheus: PrometheusBlockType;
 }
 
 interface TimeFrame {
@@ -97,18 +96,25 @@ const calculateStepSize = (ago: any, maxDataPoints = 11000) => {
   return stepSize;
 };
 
-const Prometheus = (props: PromProps) => {
+const Prometheus = ({
+  prometheus,
+  isEditable,
+  setName,
+  setQuery,
+  setEndpoint,
+  setPeriod,
+  setAutoRefresh
+}: PromProps) => {
   let editor = useBlockNoteEditor();
   const colorMode = useStore((state) => state.functionalColorMode);
   const currentRunbookId = useStore((state) => state.currentRunbookId);
 
-  const [value, setValue] = useState<string>(props.query);
+  const [value, setValue] = useState<string>(prometheus.query);
   const [data, setData] = useState<any[]>([]);
   const [config, _setConfig] = useState<{}>({});
   const [timeFrame, setTimeFrame] = useState<TimeFrame>(
-    timeOptions.find((t) => t.short === props.period) || timeOptions[3],
+    timeOptions.find((t) => t.short === prometheus.period) || timeOptions[3],
   );
-  const [autoRefresh, setAutoRefresh] = useState<boolean>(props.autoRefresh);
   const [isRunning, setIsRunning] = useState<boolean>(false);
 
   const [prometheusUrl, setPrometheusUrl] = useState<string | null>(null);
@@ -123,34 +129,39 @@ const Prometheus = (props: PromProps) => {
     const end = new Date();
     const step = calculateStepSize(timeFrame.seconds);
 
-    let templated = await templateString(props.id, val, editor.document, currentRunbookId);
-    const res = await promClient.rangeQuery(templated, start, end, step);
+    let templated = await templateString(prometheus.id, val, editor.document, currentRunbookId);
+      let begin = new Date().getTime() * 1000000;
+      const res = await promClient.rangeQuery(templated, start, end, step);
+      let finish = new Date().getTime() * 1000000;
 
-    const series = res.result;
+      let logResponse = {};
+      await logExecution(prometheus, "prometheus", begin, finish, JSON.stringify(logResponse));
 
-    // convert promql response to echarts
-    let data = series.map((s) => {
-      const metric = s.metric;
-      const values = s.values;
+      const series = res.result;
 
-      return {
-        type: "line",
-        showSymbol: false,
-        name: metric.toString(),
-        data: values.map((v: any) => {
-          return [v.time, v.value];
-        }),
-      };
-    });
+      // convert promql response to echarts
+      let data = series.map((s) => {
+        const metric = s.metric;
+        const values = s.values;
 
-    setData(data);
+        return {
+          type: "line",
+          showSymbol: false,
+          name: metric.toString(),
+          data: values.map((v: any) => {
+            return [v.time, v.value];
+          }),
+        };
+      });
+
+      setData(data);
   };
 
   useEffect(() => {
     (async () => {
       // if have passed in an endpoint via props directly, use it
-      if (props.endpoint) {
-        setPrometheusUrl(props.endpoint);
+      if (prometheus.endpoint) {
+        setPrometheusUrl(prometheus.endpoint);
         return;
       }
 
@@ -178,12 +189,14 @@ const Prometheus = (props: PromProps) => {
   }, [prometheusUrl]);
 
   useEffect(() => {
-    if (!props.query) return;
+    if (!prometheus.query) return;
 
     (async () => {
       try {
         setIsRunning(true);
-        await runQuery(props.query);
+
+        await runQuery(prometheus.query);
+
         setIsRunning(false);
         setError(null);
       } catch (e: any) {
@@ -199,7 +212,7 @@ const Prometheus = (props: PromProps) => {
         await runQuery(value);
       })();
     },
-    autoRefresh ? 5000 : null,
+    prometheus.autoRefresh ? 5000 : null,
   );
 
   let renderBody = () => {
@@ -213,7 +226,7 @@ const Prometheus = (props: PromProps) => {
   return (
     <Card className="w-full !max-w-full !outline-none overflow-none" shadow="sm">
       <CardHeader className="flex flex-col items-start gap-2 bg-default-50">
-        <EditableHeading initialText={props.name} onTextChange={props.setName} />
+        <EditableHeading initialText={prometheus.name} onTextChange={setName} />
 
         <div className="w-full !max-w-full !outline-none overflow-none flex flex-row gap-2">
           <PlayButton
@@ -221,7 +234,7 @@ const Prometheus = (props: PromProps) => {
             onPlay={async () => {
               try {
                 setIsRunning(true);
-                await runQuery(props.query);
+                await runQuery(prometheus.query);
                 setIsRunning(false);
                 setError(null);
               } catch (e: any) {
@@ -238,11 +251,11 @@ const Prometheus = (props: PromProps) => {
             value={value}
             onChange={(val) => {
               setValue(val);
-              props.onPropsChange({ query: val });
+              setQuery(val);
             }}
             extensions={promExtension ? [promExtension.asExtension()] : []}
             basicSetup={true}
-            editable={props.isEditable}
+            editable={isEditable}
             theme={colorMode === "dark" ? "dark" : "light"}
           />
         </div>
@@ -254,16 +267,16 @@ const Prometheus = (props: PromProps) => {
         <div className="flex-row content-center items-center justify-center">
           <ButtonGroup className="mr-2">
             <Dropdown showArrow>
-              <DropdownTrigger>
-                <Button
-                  variant="flat"
-                  size="sm"
+            <DropdownTrigger>
+              <Button
+                variant="flat"
+                size="sm"
                   startContent={<ClockIcon />}
                   endContent={<ChevronDownIcon />}
-                >
+              >
                   {timeFrame.short}
-                </Button>
-              </DropdownTrigger>
+              </Button>
+            </DropdownTrigger>
               <DropdownMenu variant="faded" aria-label="Select time frame for chart">
                 {timeOptions.map((timeOption) => {
                   return (
@@ -271,15 +284,15 @@ const Prometheus = (props: PromProps) => {
                       key={timeOption.name}
                       onPress={() => {
                         setTimeFrame(timeOption);
-                        props.onPropsChange({ period: timeOption.short });
-                      }}
-                    >
+                        setPeriod(timeOption.short);
+              }}
+            >
                       {timeOption.name}
                     </DropdownItem>
                   );
                 })}
-              </DropdownMenu>
-            </Dropdown>
+            </DropdownMenu>
+          </Dropdown>
 
             <PromSettings
               config={{
@@ -288,8 +301,8 @@ const Prometheus = (props: PromProps) => {
               onSave={(config: PrometheusConfig) => {
                 if (config.endpoint) setPrometheusUrl(config.endpoint);
 
-                if (config.endpoint != props.endpoint) {
-                  props.onPropsChange({ endpoint: config.endpoint });
+                if (config.endpoint != prometheus.endpoint) {
+                  setEndpoint(config.endpoint);
                 }
               }}
             />
@@ -297,13 +310,12 @@ const Prometheus = (props: PromProps) => {
         </div>
 
         <Switch
-          isSelected={autoRefresh}
+          isSelected={prometheus.autoRefresh}
           size="sm"
           onValueChange={(value) => {
             setAutoRefresh(value);
-            props.onPropsChange({ autoRefresh: value });
-          }}
-        >
+            }}
+          >
           <h3 className="text-sm">Auto refresh</h3>
         </Switch>
       </CardFooter>
@@ -326,28 +338,54 @@ export default createReactBlockSpec(
   {
     // @ts-ignore
     render: ({ block, editor }) => {
-      const onPropsChange = (props: any) => {
-        editor.updateBlock(block, {
-          // @ts-ignore
-          props: { ...block.props, ...props },
-        });
-      };
       const setName = (name: string) => {
         editor.updateBlock(block, {
           props: { ...block.props, name: name },
         });
       };
 
+      const setQuery = (query: string) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, query: query },
+        });
+      };
+
+      const setEndpoint = (endpoint: string) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, endpoint: endpoint },
+        });
+      };
+
+      const setPeriod = (period: string) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, period: period },
+        });
+      };
+
+      const setAutoRefresh = (autoRefresh: boolean) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, autoRefresh: autoRefresh },
+        });
+      };
+      
+
+      let prometheus = new PrometheusBlockType(
+        block.id,
+        block.props.name,
+        block.props.query,
+        block.props.endpoint,
+        block.props.period,
+        block.props.autoRefresh
+      );
+
       return (
         <Prometheus
-          id={block.id}
-          name={block.props.name}
+          prometheus={prometheus}
           setName={setName}
-          query={block.props.query}
-          endpoint={block.props.endpoint}
-          period={block.props.period}
-          autoRefresh={block.props.autoRefresh}
-          onPropsChange={onPropsChange}
+          setQuery={setQuery}
+          setEndpoint={setEndpoint}
+          setPeriod={setPeriod}
+          setAutoRefresh={setAutoRefresh}
           isEditable={editor.isEditable}
         />
       );

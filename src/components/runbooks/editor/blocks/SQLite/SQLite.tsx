@@ -8,15 +8,12 @@ import { insertOrUpdateBlock } from "@blocknote/core";
 
 import { runQuery } from "./query";
 import SQL from "../common/SQL";
+import { SQLiteBlock } from "@/lib/blocks/sqlite";
 
 interface SQLiteProps {
-  id: string;
-  uri: string;
-  query: string;
-  autoRefresh: number;
   isEditable: boolean;
-  name: string;
   collapseQuery: boolean;
+  sqlite: SQLiteBlock;
 
   setQuery: (query: string) => void;
   setUri: (uri: string) => void;
@@ -26,15 +23,11 @@ interface SQLiteProps {
 }
 
 const SQLite = ({
-  id,
-  query,
+  sqlite,
   setQuery,
-  uri,
   setUri,
-  autoRefresh,
   setAutoRefresh,
   isEditable,
-  name,
   setName,
   collapseQuery,
   setCollapseQuery,
@@ -42,15 +35,16 @@ const SQLite = ({
 
   return (
     <SQL
-      id={id}
+      block={sqlite}
+      id={sqlite.id}
       eventName="runbooks.sqlite"
-      name={name}
+      name={sqlite.name}
       setName={setName}
-      query={query}
+      query={sqlite.query}
       setQuery={setQuery}
-      uri={uri}
+      uri={sqlite.uri}
       setUri={setUri}
-      autoRefresh={autoRefresh}
+      autoRefresh={sqlite.autoRefresh}
       setAutoRefresh={setAutoRefresh}
       runQuery={runQuery}
       isEditable={isEditable}
@@ -108,16 +102,14 @@ export default createReactBlockSpec(
         });
       };
 
+      let sqlite = new SQLiteBlock(block.id, block.props.name, block.props.query, block.props.uri, block.props.autoRefresh);
+
       return (
         <SQLite
-          id={block.id}
-          name={block.props.name}
+          sqlite={sqlite}
           setName={setName}
-          query={block.props.query}
-          uri={block.props.uri}
           setUri={setUri}
           setQuery={setQuery}
-          autoRefresh={block.props.autoRefresh}
           setAutoRefresh={setAutoRefresh}
           isEditable={editor.isEditable}
           collapseQuery={block.props.collapseQuery}

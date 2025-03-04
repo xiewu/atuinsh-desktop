@@ -15,6 +15,7 @@ pub struct PtyMetadata {
     pub pid: Uuid,
     pub runbook: Uuid,
     pub block: String,
+    pub created_at: u64,
 }
 
 pub struct Pty {

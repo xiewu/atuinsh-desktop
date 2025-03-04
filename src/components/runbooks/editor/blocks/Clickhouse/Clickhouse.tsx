@@ -5,17 +5,13 @@ import { createReactBlockSpec } from "@blocknote/react";
 import { insertOrUpdateBlock } from "@blocknote/core";
 
 import { runQuery } from "./query";
-
 import SQL from "../common/SQL";
+import { ClickhouseBlock } from "@/lib/blocks/clickhouse";
 
 interface SQLProps {
-  id: string;
-  name: string;
-  uri: string;
-  query: string;
-  autoRefresh: number;
   isEditable: boolean;
   collapseQuery: boolean;
+  clickhouse: ClickhouseBlock;
 
   setQuery: (query: string) => void;
   setUri: (uri: string) => void;
@@ -25,31 +21,27 @@ interface SQLProps {
 }
 
 const Clickhouse = ({
-  id,
-  name,
-  setName,
-  query,
+  clickhouse,
   setQuery,
-  uri,
   setUri,
-  autoRefresh,
   setAutoRefresh,
   isEditable,
+  setName,
   collapseQuery,
   setCollapseQuery,
 }: SQLProps) => {
   return (
     <SQL
-      id={id}
-      name={name}
-      setName={setName}
+      block={clickhouse}
+      id={clickhouse.id}
       eventName="runbooks.clickhouse"
-      placeholder="http://username:password@localhost:8123/?database=default"
-      query={query}
+      name={clickhouse.name}
+      setName={setName}
+      query={clickhouse.query}
       setQuery={setQuery}
-      uri={uri}
+      uri={clickhouse.uri}
       setUri={setUri}
-      autoRefresh={autoRefresh}
+      autoRefresh={clickhouse.autoRefresh}
       setAutoRefresh={setAutoRefresh}
       runQuery={runQuery}
       isEditable={isEditable}
@@ -107,16 +99,20 @@ export default createReactBlockSpec(
         });
       };
 
+      let clickhouse = new ClickhouseBlock(
+        block.id, 
+        block.props.name, 
+        block.props.query, 
+        block.props.uri, 
+        block.props.autoRefresh
+      );
+
       return (
         <Clickhouse
-          id={block.id}
-          name={block.props.name}
+          clickhouse={clickhouse}
           setName={setName}
-          query={block.props.query}
-          uri={block.props.uri}
           setUri={setUri}
           setQuery={setQuery}
-          autoRefresh={block.props.autoRefresh}
           setAutoRefresh={setAutoRefresh}
           isEditable={editor.isEditable}
           collapseQuery={block.props.collapseQuery}

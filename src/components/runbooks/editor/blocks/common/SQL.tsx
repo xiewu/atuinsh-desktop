@@ -31,6 +31,7 @@ import { templateString } from "@/state/templates";
 import { useBlockNoteEditor } from "@blocknote/react";
 import { AtuinState, useStore } from "@/state/store";
 import { cn } from "@/lib/utils";
+import { logExecution } from "@/lib/exec_log";
 
 interface SQLProps {
   id: string;
@@ -40,6 +41,7 @@ interface SQLProps {
   extensions?: Extension[];
   eventName?: string;
   isEditable: boolean;
+  block: any;
 
   uri: string;
   query: string;
@@ -69,6 +71,7 @@ const autoRefreshChoices = [
 const SQL = ({
   id,
   name,
+  block,
   setName,
   placeholder,
   query,
@@ -101,7 +104,16 @@ const SQL = ({
       let tUri = await templateString(id, uri, editor.document, currentRunbookId);
       let tQuery = await templateString(id, query, editor.document, currentRunbookId);
 
+      let startTime = new Date().getTime() * 1000000;
       let res = await runQuery(tUri, tQuery);
+      let endTime = new Date().getTime() * 1000000;
+
+      // Don't log the actual data, but log the query and metadata
+      let output = {
+        query,
+        rowCount: res.rows?.length,
+      };
+      await logExecution(block, block.typeName, startTime, endTime, JSON.stringify(output));
 
       setIsRunning(false);
 

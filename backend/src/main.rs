@@ -28,6 +28,10 @@ mod state;
 mod store;
 mod templates;
 
+// If this works out ergonomically, we should move all the commands into a single module
+// Separate the implementation from the command as much as we can
+mod commands;
+
 use atuin_client::settings::Settings;
 use atuin_client::{history::HISTORY_TAG, record::sqlite_store::SqliteStore, record::store::Store};
 use atuin_history::stats;
@@ -329,6 +333,9 @@ fn show_window(app: &AppHandle) {
 }
 
 fn main() {
+    #[cfg(debug_assertions)] // only enable instrumentation in development builds
+    let devtools = tauri_plugin_devtools::init();
+
     let dev_prefix = if tauri::is_dev() {
         Some(env::var("DEV_PREFIX").unwrap_or("dev".to_string()))
     } else {
@@ -358,6 +365,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(devtools)
         .invoke_handler(tauri::generate_handler![
             list,
             search,
@@ -402,6 +410,7 @@ fn main() {
             font::list_fonts,
             main_window::save_window_info,
             main_window::show_window,
+            commands::exec_log::log_execution,
         ])
         .plugin(
             tauri_plugin_sql::Builder::default()
@@ -409,26 +418,6 @@ fn main() {
                 .build(),
         )
         .plugin(tauri_plugin_http::init())
-        .plugin(
-            tauri_plugin_log::Builder::new()
-                .target(tauri_plugin_log::Target::new(
-                    tauri_plugin_log::TargetKind::Webview,
-                ))
-                .filter(|metadata| {
-                    metadata.target().contains("webview") || metadata.target().contains("atuin")
-                })
-                .format(|out, message, record| {
-                    let target = if record.target().contains("webview") {
-                        // Normally this also contains the line in the JS that is logging the message.
-                        // Because of the wrapper we want to use, it'll always be the same line. So just rewrite the target to be webview.
-                        "webview"
-                    } else {
-                        record.target()
-                    };
-                    out.finish(format_args!("[{} {}] {}", record.level(), target, message))
-                })
-                .build(),
-        )
         .setup(|app| {
             backup_databases(app)?;
             let handle = app.handle();
@@ -440,10 +429,13 @@ fn main() {
                     .unwrap();
             });
 
-            app.manage(state::AtuinState {
-                dev_prefix,
-                ..Default::default()
-            });
+            let app_path = app
+                .path()
+                .app_config_dir()
+                .expect("Failed to get app config dir");
+
+            app.manage(state::AtuinState::new(dev_prefix, app_path));
+            app.state::<state::AtuinState>().init();
 
             handle.set_menu(menu::menu(handle).expect("Failed to build menu"))?;
             Ok(())

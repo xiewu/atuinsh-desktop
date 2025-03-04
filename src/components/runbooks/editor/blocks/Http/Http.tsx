@@ -15,15 +15,8 @@ import RequestHeaders from "./RequestHeaders";
 import Block from "../common/Block";
 import { templateString } from "@/state/templates";
 import { useStore } from "@/state/store";
-
-enum HttpVerb {
-  GET = "GET",
-  POST = "POST",
-  PUT = "PUT",
-  DELETE = "DELETE",
-  PATCH = "PATCH",
-  HEAD = "HEAD",
-}
+import { logExecution } from "@/lib/exec_log";
+import { HttpBlock as HttpBlockType, HttpVerb } from "@/lib/blocks/http";
 
 type HttpHeaders = { [key: string]: string };
 
@@ -34,9 +27,7 @@ interface HttpProps {
   verb: HttpVerb;
   body: string;
   isEditable: boolean;
-
   headers: HttpHeaders;
-
   setName: (name: string) => void;
   setUrl: (url: string) => void;
   setVerb: (verb: HttpVerb) => void;
@@ -50,15 +41,13 @@ async function makeHttpRequest(
   body: string,
   headers: HttpHeaders,
 ): Promise<any> {
-  // template all the strings
-
   try {
     const options: any = {
       method: verb,
       headers: headers,
     };
 
-    if (verb !== "GET" && verb !== "HEAD" && body) {
+    if (verb !== HttpVerb.GET && verb !== HttpVerb.HEAD && body) {
       options.body = body;
     }
 
@@ -101,19 +90,24 @@ const Http = ({
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [response, setResponse] = useState<any | null>(null);
   const [error, setError] = useState<any | null>(null);
-
   const [activeTab, setActiveTab] = useState("headers");
 
   const formatJSON = () => {
-    if (verb == "GET" || verb == "HEAD") return;
+    if (verb === HttpVerb.GET || verb === HttpVerb.HEAD) return;
 
-    let parsed = JSON.parse(body);
-    let pretty = JSON.stringify(parsed, null, 2);
-    setBody(pretty);
+    try {
+      let parsed = JSON.parse(body);
+      let pretty = JSON.stringify(parsed, null, 2);
+      setBody(pretty);
+    } catch (e) {
+      // If it's not valid JSON, don't try to format it
+    }
   };
 
   const onPlay = async () => {
     setIsRunning(true);
+    const startTime = Date.now() * 1000000; // Convert to nanoseconds
+    
     let template = async (input: string) => await templateString(id, input, editor.document, currentRunbookId);
 
     let tUrl = await template(url);
@@ -128,14 +122,61 @@ const Http = ({
 
     try {
       let res = await makeHttpRequest(tUrl, verb, tBody, tHeaders);
-
+      
       setResponse(res);
       setError(null);
-    } catch (error) {
-      console.error("Request failed:", error);
+      
+      // Log the execution without including the response body
+      const endTime = Date.now() * 1000000; // Convert to nanoseconds
+      const httpBlock = new HttpBlockType(
+        id,
+        name,
+        url,
+        verb,
+        headers
+      );
+      
+      // Create a sanitized response object without the body data
+      const logResponse = {
+        status: res.status,
+        statusText: res.statusText,
+        headers: res.headers,
+        duration: res.duration,
+        time: res.time
+      };
+      
+      await logExecution(
+        httpBlock,
+        httpBlock.typeName,
+        startTime,
+        endTime,
+        JSON.stringify(logResponse)
+      );
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error("Request failed:", errorMessage);
       setResponse(null);
-      setError(error);
+      setError(err);
+      
+      // Log the error without including request/response bodies
+      const endTime = Date.now() * 1000000; // Convert to nanoseconds
+      const httpBlock = new HttpBlockType(
+        id,
+        name,
+        url,
+        verb,
+        headers
+      );
+      
+      await logExecution(
+        httpBlock,
+        httpBlock.typeName,
+        startTime,
+        endTime,
+        JSON.stringify({ error: errorMessage })
+      );
     }
+    
     setIsRunning(false);
     formatJSON();
   };
@@ -195,7 +236,7 @@ const Http = ({
         <Tab key="headers" title="Headers">
           <RequestHeaders pairs={headers} setPairs={setHeaders} disabled={!isEditable} />
         </Tab>
-        <Tab key="body" title="Body" isDisabled={verb === "GET"} className="overflow-scroll">
+        <Tab key="body" title="Body" isDisabled={verb === HttpVerb.GET} className="overflow-scroll">
           <CodeMirror
             placeholder={"Request Body (JSON)"}
             className="!pt-0 max-w-full border border-gray-300 rounded flex-grow text-sm max-h-96"
@@ -236,7 +277,7 @@ export default createReactBlockSpec(
         });
       };
 
-      const setVerb = (verb: string) => {
+      const setVerb = (verb: HttpVerb) => {
         editor.updateBlock(block, {
           // @ts-ignore
           props: { ...block.props, verb: verb },
@@ -250,6 +291,13 @@ export default createReactBlockSpec(
         });
       };
 
+      const setName = (name: string) => {
+        editor.updateBlock(block, {
+          // @ts-ignore
+          props: { ...block.props, name },
+        });
+      };
+
       const setHeaders = (headers: HttpHeaders) => {
         editor.updateBlock(block, {
           // @ts-ignore
@@ -257,30 +305,24 @@ export default createReactBlockSpec(
         });
       };
 
-      const setName = (name: string) => {
-        editor.updateBlock(block, {
-          props: { ...block.props, name: name },
-        });
-      };
-
       return (
         <Http
           id={block.id}
-          name={block.props.name}
-          setName={setName}
-          url={block.props.url}
+          name={block.props.name || "HTTP"}
+          url={block.props.url || ""}
           verb={block.props.verb as HttpVerb}
-          body={block.props.body}
-          headers={JSON.parse(block.props.headers || "{}")}
+          body={block.props.body || ""}
+          headers={typeof block.props.headers === 'string' ? JSON.parse(block.props.headers || "{}") : (block.props.headers || {})}
+          isEditable={editor.isEditable}
           setUrl={setUrl}
           setVerb={setVerb}
           setBody={setBody}
+          setName={setName}
           setHeaders={setHeaders}
-          isEditable={editor.isEditable}
         />
       );
     },
-  },
+  }
 );
 
 export const insertHttp = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({

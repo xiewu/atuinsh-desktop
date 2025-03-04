@@ -43,7 +43,7 @@ pub async fn delete_runbook_cleanup(
 
     let ptys_to_remove: Vec<_> = {
         let ptys = state
-            .pty_store
+            .pty_store()
             .list_pty_for_runbook(runbook)
             .await
             .map_err(|e| e.to_string())?;
@@ -51,7 +51,7 @@ pub async fn delete_runbook_cleanup(
     };
 
     for pty_id in ptys_to_remove {
-        remove_pty(app.clone(), pty_id, state.pty_store.clone()).await?;
+        remove_pty(app.clone(), pty_id, state.pty_store()).await?;
     }
 
     Ok(())

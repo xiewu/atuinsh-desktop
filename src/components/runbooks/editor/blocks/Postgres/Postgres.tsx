@@ -8,15 +8,12 @@ import { langs } from "@uiw/codemirror-extensions-langs";
 import { runQuery } from "./query";
 
 import SQL from "../common/SQL";
+import { PostgresBlock } from "@/lib/blocks/postgres";
 
 interface SQLProps {
-  id: string;
-  name: string;
-  uri: string;
-  query: string;
-  autoRefresh: number;
   isEditable: boolean;
   collapseQuery: boolean;
+  postgres: PostgresBlock;
 
   setCollapseQuery: (collapseQuery: boolean) => void;
   setQuery: (query: string) => void;
@@ -26,14 +23,10 @@ interface SQLProps {
 }
 
 const Postgres = ({
-  id,
-  name,
+  postgres,
   setName,
-  query,
   setQuery,
-  uri,
   setUri,
-  autoRefresh,
   setAutoRefresh,
   isEditable,
   collapseQuery,
@@ -41,15 +34,16 @@ const Postgres = ({
 }: SQLProps) => {
   return (
     <SQL
-      id={id}
+      block={postgres}
+      id={postgres.id}
       eventName="runbooks.postgresql"
-      name={name}
+      name={postgres.name}
       setName={setName}
-      query={query}
+      query={postgres.query}
       setQuery={setQuery}
-      uri={uri}
+      uri={postgres.uri}
       setUri={setUri}
-      autoRefresh={autoRefresh}
+      autoRefresh={postgres.autoRefresh}
       setAutoRefresh={setAutoRefresh}
       runQuery={runQuery}
       extensions={[langs.pgsql()]}
@@ -108,20 +102,18 @@ export default createReactBlockSpec(
         });
       };
 
+      let postgres = new PostgresBlock(block.id, block.props.name, block.props.query, block.props.uri, block.props.autoRefresh);
+
       return (
         <Postgres
-          id={block.id}
-          name={block.props.name}
+          postgres={postgres}
           setName={setName}
-          query={block.props.query}
-          collapseQuery={block.props.collapseQuery}
-          setCollapseQuery={setCollapseQuery}
-          uri={block.props.uri}
-          setUri={setUri}
           setQuery={setQuery}
-          autoRefresh={block.props.autoRefresh}
+          setUri={setUri}
           setAutoRefresh={setAutoRefresh}
           isEditable={editor.isEditable}
+          collapseQuery={block.props.collapseQuery}
+          setCollapseQuery={setCollapseQuery}
         />
       );
     },

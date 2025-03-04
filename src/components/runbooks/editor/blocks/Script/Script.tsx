@@ -22,38 +22,30 @@ import { findAllParentsOfType, findFirstParentOfType } from "../exec.ts";
 import { templateString } from "@/state/templates.ts";
 import CodeEditor, { TabAutoComplete } from "../common/CodeEditor/CodeEditor.tsx";
 import { Command } from "@codemirror/view";
+import { ScriptBlock as ScriptBlockType } from "@/lib/blocks/script.ts";
 
 interface ScriptBlockProps {
   onChange: (val: string) => void;
   setName: (name: string) => void;
-  id: string;
-  name: string;
-  code: string;
-  interpreter: string;
   isEditable: boolean;
   editor: any;
   setInterpreter: (interpreter: string) => void;
 
-  outputVariable: string;
   setOutputVariable: (outputVariable: string) => void;
-  outputVisible: boolean;
   setOutputVisible: (visible: boolean) => void;
+
+  script: ScriptBlockType;
 }
 
 const ScriptBlock = ({
   onChange,
   setInterpreter,
-  id,
-  name,
   setName,
-  code,
   isEditable,
-  interpreter,
-  outputVariable,
   setOutputVariable,
-  outputVisible,
   setOutputVisible,
   editor,
+  script,
 }: ScriptBlockProps) => {
   const colorMode = useStore((state) => state.functionalColorMode);
   const [isRunning, setIsRunning] = useState<boolean>(false);
@@ -65,21 +57,21 @@ const ScriptBlock = ({
   let interpreterCommand = useMemo(() => {
     // Handle common interpreters without a path
 
-    if (interpreter == "bash") {
+    if (script.interpreter == "bash") {
       return "/bin/bash -lc";
     }
 
-    if (interpreter == "sh") {
+    if (script.interpreter == "sh") {
       return "/bin/sh -ic";
     }
 
-    if (interpreter == "zsh") {
+    if (script.interpreter == "zsh") {
       return "/bin/zsh -lc";
     }
 
     // Otherwise, assume the interpreter is a path
-    return interpreter;
-  }, [interpreter]);
+    return script.interpreter;
+  }, [script.interpreter]);
 
   // Initialize terminal
   useEffect(() => {
@@ -134,7 +126,7 @@ const ScriptBlock = ({
       terminal.write(event.payload + "\r\n");
     });
 
-    let cwd = findFirstParentOfType(editor, id, "directory");
+    let cwd = findFirstParentOfType(editor, script.id, "directory");
 
     if (cwd) {
       cwd = cwd.props.path;
@@ -142,16 +134,16 @@ const ScriptBlock = ({
       cwd = "~";
     }
 
-    let vars = findAllParentsOfType(editor, id, "env");
+    let vars = findAllParentsOfType(editor, script.id, "env");
     let env: { [key: string]: string } = {};
 
     for (var i = 0; i < vars.length; i++) {
-      let name = await templateString(id, vars[i].props.name, editor.document, currentRunbookId);
-      let value = await templateString(id, vars[i].props.value, editor.document, currentRunbookId);
+      let name = await templateString(script.id, vars[i].props.name, editor.document, currentRunbookId);
+      let value = await templateString(script.id, vars[i].props.value, editor.document, currentRunbookId);
       env[name] = value;
     }
     
-    let command = await templateString(id, code, editor.document, currentRunbookId);
+    let command = await templateString(script.id, script.code, editor.document, currentRunbookId);
 
     await invoke("shell_exec", {
       channel: channel,
@@ -159,15 +151,17 @@ const ScriptBlock = ({
       interpreter: interpreterCommand,
       props: {
         runbook: currentRunbookId,
-        outputVariable: outputVariable,
         env: env,
         cwd: cwd,
+        block: {
+          type: "script",
+          ...script,
+        },
       },
     });
 
     unlisten();
     setIsRunning(false);
-    console.log("script done");
   };
 
   const handleStop = () => {
@@ -187,17 +181,17 @@ const ScriptBlock = ({
 
   return (
     <Block
-      name={name}
+      name={script.name}
       setName={setName}
       inlineHeader
-      hideChild={!outputVisible}
+      hideChild={!script.outputVisible}
       header={
         <>
           <div className="flex flex-row justify-between w-full">
             <h1 className="text-default-700 font-semibold">
               {
                 <EditableHeading
-                  initialText={name || "Script"}
+                  initialText={script.name || "Script"}
                   onTextChange={(text) => setName(text)}
                 />
               }
@@ -213,7 +207,7 @@ const ScriptBlock = ({
                 autoCapitalize="off"
                 autoCorrect="off"
                 spellCheck="false"
-                value={outputVariable}
+                value={script.outputVariable}
                 onValueChange={(val) => setOutputVariable(val)}
               />
 
@@ -222,7 +216,7 @@ const ScriptBlock = ({
                 variant="flat"
                 selectionMode="single"
                 className="max-w-[250px]"
-                selectedKeys={[interpreter]}
+                selectedKeys={[script.interpreter]}
                 onSelectionChange={(e) => {
                   if (!e.currentKey) return;
                   setInterpreter(e.currentKey);
@@ -234,14 +228,14 @@ const ScriptBlock = ({
                 <SelectItem key="python3 -c">python3</SelectItem>
               </Select>
 
-              <Tooltip content={outputVisible ? "Hide output terminal" : "Show output terminal"}>
+              <Tooltip content={script.outputVisible ? "Hide output terminal" : "Show output terminal"}>
                 <Button
-                  onPress={() => setOutputVisible(!outputVisible)}
+                  onPress={() => setOutputVisible(!script.outputVisible)}
                   size="sm"
                   variant="flat"
                   isIconOnly
                 >
-                  {outputVisible ? <Eye size={20} /> : <EyeOff size={20} />}
+                  {script.outputVisible ? <Eye size={20} /> : <EyeOff size={20} />}
                 </Button>
               </Tooltip>
             </div>
@@ -257,10 +251,10 @@ const ScriptBlock = ({
             />
 
             <CodeEditor
-              id={id}
-              code={code}
+              id={script.id}
+              code={script.code}
               isEditable={isEditable}
-              language={interpreter}
+              language={script.interpreter}
               colorMode={colorMode}
               onChange={onChange}
               keyMap={[
@@ -337,20 +331,17 @@ export default createReactBlockSpec(
         });
       };
 
+      let script = new ScriptBlockType(block.id, block.props.name, block.props.code, block.props.interpreter, block.props.outputVariable, block.props.outputVisible);
+
       return (
         <ScriptBlock
-          name={block.props.name}
+          script={script}
           setName={setName}
           onChange={onCodeChange}
-          id={block?.id}
-          code={block.props.code}
-          interpreter={block.props.interpreter}
           setInterpreter={setInterpreter}
           isEditable={editor.isEditable}
           editor={editor}
-          outputVariable={block.props.outputVariable}
           setOutputVariable={setOutputVariable}
-          outputVisible={block.props.outputVisible}
           setOutputVisible={setOutputVisible}
         />
       );

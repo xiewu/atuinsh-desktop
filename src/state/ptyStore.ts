@@ -8,6 +8,7 @@ export interface PtyMetadata {
   pid: string;
   runbook: string;
   block: string;
+  created_at: number;
 }
 
 const PTY_OPEN_CHANNEL = "pty_open";

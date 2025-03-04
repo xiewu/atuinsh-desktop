@@ -9,8 +9,9 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::RwLock;
 
+use crate::runtime::blocks::script::ScriptOutput;
+use crate::runtime::blocks::Block;
 use crate::state::AtuinState;
-
 /// Execute a shell command and stream the output over a channel
 /// Unlike a pty, this is not interactive
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -18,9 +19,7 @@ pub struct ShellProps {
     pub env: Option<HashMap<String, String>>,
     pub cwd: Option<String>,
     pub runbook: Option<String>,
-
-    #[serde(default, alias = "outputVariable")]
-    pub output_variable: Option<String>,
+    pub block: Block,
 }
 
 #[tauri::command]
@@ -32,6 +31,12 @@ pub async fn shell_exec(
     command: String,
     props: ShellProps,
 ) -> Result<(), String> {
+    let block = if let Block::Script(ref script) = props.block {
+        script.clone()
+    } else {
+        return Err("Block is not a script".to_string());
+    };
+
     // Split interpreter string into command and args
     let parts: Vec<&str> = interpreter.split_whitespace().collect();
     let (cmd_name, cmd_args) = parts.split_first().unwrap();
@@ -52,6 +57,7 @@ pub async fn shell_exec(
         .unwrap();
 
     let cmd = Arc::new(RwLock::new(cmd));
+    let nanoseconds_start = time::OffsetDateTime::now_utc().unix_timestamp_nanos();
 
     let id = uuid_v7();
     state.child_processes.write().await.insert(id, cmd.clone());
@@ -63,6 +69,7 @@ pub async fn shell_exec(
 
     // Spawn a task to listen to the output channel and write to the buffer
     let props_clone = props.clone();
+    let block_clone = block.clone();
     let _output_handle = tokio::spawn(async move {
         // Create a string buffer to store the output
         let mut output = String::new();
@@ -73,9 +80,8 @@ pub async fn shell_exec(
 
         // the above loop stops when the channel is closed
         // so we can set the output variable in the state
-        println!("props: {:?}", props_clone);
         if let Some(runbook) = props_clone.runbook {
-            if let Some(output_variable) = props_clone.output_variable {
+            if let Some(output_variable) = block_clone.output_variable {
                 if output_variable.is_empty() {
                     return;
                 }
@@ -86,8 +92,6 @@ pub async fn shell_exec(
                     .entry(runbook)
                     .or_insert(HashMap::new())
                     .insert(output_variable, output);
-
-                println!("output_vars: {:?}", output_vars.read().await);
             }
         }
     });
@@ -123,12 +127,28 @@ pub async fn shell_exec(
     });
 
     // Wait for the command to complete
-    cmd.write().await.wait().await.unwrap();
+    let output = cmd.write().await.wait().await.unwrap();
     out_handle.abort();
     err_handle.abort();
     drop(output_tx);
 
     state.child_processes.write().await.remove(&id);
+
+    let nanoseconds_end = time::OffsetDateTime::now_utc().unix_timestamp_nanos();
+    let exit = output.code().unwrap_or(1);
+    let output = ScriptOutput::builder().exit_code(exit).build();
+    let output = serde_json::to_string(&output).unwrap();
+
+    state
+        .exec_log()
+        .log_execution(
+            Block::Script(block),
+            nanoseconds_start as u64,
+            nanoseconds_end as u64,
+            output,
+        )
+        .await
+        .unwrap();
 
     Ok(())
 }

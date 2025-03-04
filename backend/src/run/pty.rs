@@ -34,10 +34,12 @@ pub async fn pty_open(
 ) -> Result<uuid::Uuid, String> {
     let id = uuid::Uuid::new_v4();
 
+    let nanoseconds_now = time::OffsetDateTime::now_utc().unix_timestamp_nanos();
     let metadata = PtyMetadata {
         pid: id,
         runbook,
         block,
+        created_at: nanoseconds_now as u64,
     };
     let cwd = cwd.map(|c| shellexpand::tilde(c.as_str()).to_string());
 
@@ -49,7 +51,7 @@ pub async fn pty_open(
 
     let app_inner = app.clone();
 
-    let pty_store = state.pty_store.clone();
+    let pty_store = state.pty_store();
 
     tauri::async_runtime::spawn_blocking(move || loop {
         let mut buf = [0u8; 512];
@@ -87,11 +89,11 @@ pub async fn pty_open(
         .insert(runbook, Arc::new(env));
 
     state
-        .pty_store
+        .pty_store()
         .add_pty(pty)
         .await
         .map_err(|e| e.to_string())?;
-    update_badge_count(&app, state.pty_store.clone())
+    update_badge_count(&app, state.pty_store())
         .await
         .map_err(|e| e.to_string())?;
 
@@ -109,7 +111,7 @@ pub(crate) async fn pty_write(
 ) -> Result<(), String> {
     let bytes = data.as_bytes().to_vec();
     state
-        .pty_store
+        .pty_store()
         .write_pty(pid, bytes.into())
         .await
         .map_err(|e| e.to_string())?;
@@ -125,7 +127,7 @@ pub(crate) async fn pty_resize(
     state: tauri::State<'_, AtuinState>,
 ) -> Result<(), String> {
     state
-        .pty_store
+        .pty_store()
         .resize_pty(pid, rows, cols)
         .await
         .map_err(|e| e.to_string())?;
@@ -159,7 +161,7 @@ pub(crate) async fn pty_kill(
     pid: uuid::Uuid,
     state: tauri::State<'_, AtuinState>,
 ) -> Result<(), String> {
-    remove_pty(app, pid, state.pty_store.clone()).await
+    remove_pty(app, pid, state.pty_store()).await
 }
 
 #[tauri::command]
@@ -167,7 +169,7 @@ pub(crate) async fn pty_list(
     state: tauri::State<'_, AtuinState>,
 ) -> Result<Vec<PtyMetadata>, String> {
     let ptys = state
-        .pty_store
+        .pty_store()
         .list_pty_meta()
         .await
         .map_err(|e| e.to_string())?;

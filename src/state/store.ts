@@ -21,7 +21,7 @@ import AtuinEnv from "@/atuin_env";
 import { AtuinQueryState, createQueryState, persistQueryKeys } from "./store/query_state";
 import { createChildState, persistChildKeys } from "./store/child_state";
 import { AtuinChildState } from "./store/child_state";
-const logger = new Logger("AtuinStore");
+const logger = new Logger("AtuinStore", "purple", "pink");
 
 // To add a new state slice to the store:
 // 1. Create a new file in `./store` exporting the following:

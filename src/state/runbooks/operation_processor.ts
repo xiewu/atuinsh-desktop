@@ -4,7 +4,7 @@ import Operation, { OperationData } from "./operation";
 import * as api from "@/api/api";
 import { useStore } from "../store";
 import Logger from "@/lib/logger";
-const logger = new Logger("OperationProcessor");
+const logger = new Logger("OperationProcessor", "DarkOliveGreen", "GreenYellow");
 
 function assertUnreachable(_x: never): never {
   throw new Error("Unreachable clause");

@@ -2,7 +2,7 @@ import Runbook from "../runbooks/runbook";
 import { open } from "@tauri-apps/plugin-dialog";
 import track_event from "@/tracking";
 import Logger from "@/lib/logger";
-const logger = new Logger("RunbookStore");
+const logger = new Logger("RunbookStore", "purple", "pink");
 
 import { StateCreator } from "zustand";
 

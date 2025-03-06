@@ -38,7 +38,7 @@ export default class RunbookSynchronizer {
     this.runbookId = runbookId;
     this.workspaceId = workspaceId;
     this.currentUser = currentUser;
-    this.logger = new Logger(`RunbookSynchronizer ${runbookId}`);
+    this.logger = new Logger(`RunbookSynchronizer ${runbookId}`, "#ff33cc", "#ff6677");
   }
 
   public sync(attemptYjsSync: boolean = false): Promise<SyncResult> {

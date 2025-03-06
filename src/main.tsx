@@ -10,7 +10,6 @@
 
 // import sentry before anything else
 import { init_tracking } from "./tracking";
-import { attachConsole } from "@tauri-apps/plugin-log";
 
 import { event } from "@tauri-apps/api";
 import React, { useEffect } from "react";
@@ -155,8 +154,6 @@ function Application() {
 }
 
 async function setup() {
-  await attachConsole();
-
   const currentVersion = await invoke<string>("get_app_version");
   useStore.getState().setCurrentVersion(currentVersion);
 

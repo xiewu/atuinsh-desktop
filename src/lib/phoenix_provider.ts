@@ -44,11 +44,15 @@ export class PhoenixSynchronizer extends Emittery {
     if (isProvider) {
       this.logger = new Logger(
         `PhoenixProvider (${runbookId}) - #${PhoenixSynchronizer.instances}`,
+        "blue",
+        "cyan",
       );
       this.logger.debug("Creating new provider instance");
     } else {
       this.logger = new Logger(
         `PhoenixSynchronizer (${runbookId}) - #${PhoenixSynchronizer.instances}`,
+        "blue",
+        "cyan",
       );
       this.logger.debug("Creating new synchronizer instance");
     }
@@ -242,11 +246,11 @@ export default class PhoenixProvider extends PhoenixSynchronizer {
     this.once("synced").then(() => {
       if (this.pendingUpdate) {
         Y.applyUpdate(this.doc, this.pendingUpdate, this);
-        this.emit("remote_update")
+        this.emit("remote_update");
       }
       this.pendingUpdate = null;
       this.scheduledEmitAfterSync = false;
-    })
+    });
   }
 
   @autobind

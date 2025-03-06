@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { create } from "zustand";
 import Logger from "@/lib/logger";
-const logger = new Logger("PtyStore");
+const logger = new Logger("PtyStore", "purple", "pink");
 
 export interface PtyMetadata {
   pid: string;
@@ -60,9 +60,7 @@ export const usePtyStore = create<PtyStore>(
       // we also need the intial state :D
       let ptys: PtyMetadata[] = await invoke("pty_list", {});
 
-      logger.debug(
-        "ptyState fetched initial pty state and listening for changes",
-      );
+      logger.debug("ptyState fetched initial pty state and listening for changes");
 
       set((_state: PtyStore) => ({
         unlistenOpen,
@@ -89,12 +87,7 @@ export const usePtyStore = create<PtyStore>(
       });
     },
 
-    createPty: async (
-      cwd: string,
-      env: any,
-      runbook: string,
-      block: string,
-    ) => {
+    createPty: async (cwd: string, env: any, runbook: string, block: string) => {
       let pid = await invoke("pty_open", { cwd, env, runbook, block });
 
       return pid as string;

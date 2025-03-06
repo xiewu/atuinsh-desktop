@@ -2,9 +2,7 @@
   "identifier": "migrated",
   "description": "permissions that were migrated from v1",
   "context": "local",
-  "windows": [
-    "main"
-  ],
+  "windows": ["main"],
   "permissions": [
     "core:path:default",
     "core:event:default",
@@ -61,12 +59,7 @@
     "process:allow-restart",
     "fs:default",
     "fs:allow-app-write",
-    "deep-link:default",
-    "log:default"
+    "deep-link:default"
   ],
-  "platforms": [
-    "linux",
-    "macOS",
-    "windows"
-  ]
+  "platforms": ["linux", "macOS", "windows"]
 }

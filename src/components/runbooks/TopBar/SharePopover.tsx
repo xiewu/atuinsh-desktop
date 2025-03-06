@@ -17,7 +17,7 @@ import Snapshot from "@/state/runbooks/snapshot";
 import Logger from "@/lib/logger";
 import OutOfDate from "./sharing/OutOfDate";
 import { ConnectionState } from "@/state/store/user_state";
-const logger = new Logger("SharePopover");
+const logger = new Logger("SharePopover", "purple", "purple");
 
 type ShareProps = {
   runbook: Runbook;

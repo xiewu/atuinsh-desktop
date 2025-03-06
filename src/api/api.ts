@@ -152,7 +152,7 @@ async function makeRequest<T>(
   } else {
     loggerInfo += " (no token)";
   }
-  const logger = new Logger(loggerInfo);
+  const logger = new Logger(loggerInfo, "darkblue", "cornflowerblue");
 
   const headers: Record<string, string> = {
     "Atuin-Desktop-Version": `${version}-${globalOptions.os}-${AtuinEnv.isDev ? "dev" : "prod"}`,

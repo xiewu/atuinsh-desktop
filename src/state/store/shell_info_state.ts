@@ -4,7 +4,7 @@ import { getWeekInfo } from "@/lib/utils";
 import { invoke } from "@tauri-apps/api/core";
 import Logger from "@/lib/logger";
 import { StateCreator } from "zustand";
-const logger = new Logger("ShellInfoStore");
+const logger = new Logger("ShellInfoStore", "purple", "pink");
 
 export interface AtuinShellInfoState {
   homeInfo: HomeInfo;

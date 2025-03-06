@@ -49,7 +49,7 @@ export default class RunbookEditor {
     onPresenceLeave: (user: PresenceUserInfo) => void,
     onClearPresences: () => void,
   ) {
-    this.logger = new Logger(`RunbookEditor (${runbook.id})`);
+    this.logger = new Logger(`RunbookEditor (${runbook.id})`, "black", "white");
     this.runbook = runbook;
     this.user = user;
     this.selectedTag = selectedTag || "latest";

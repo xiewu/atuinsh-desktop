@@ -5,9 +5,9 @@ import Logger from "@/lib/logger";
 import Snapshot from "./snapshot";
 import AtuinDB from "../atuin_db";
 import untitledRunbook from "../runbooks/untitled.json";
-const logger = new Logger("Runbook");
 import { dbHook } from "@/lib/db_hooks";
 import Workspace from "./workspace";
+const logger = new Logger("Runbook", "green", "green");
 
 // Definition of an atrb file
 // This is JSON encoded for ease of access, and may change in the future

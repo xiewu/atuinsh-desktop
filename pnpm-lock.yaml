@@ -122,9 +122,6 @@ importers:
       '@tauri-apps/plugin-http':
         specifier: 2.2.0
         version: 2.2.0
-      '@tauri-apps/plugin-log':
-        specifier: ^2.2.3
-        version: 2.2.3
       '@tauri-apps/plugin-os':
         specifier: 2.2.0
         version: 2.2.0
@@ -227,9 +224,6 @@ importers:
       phoenix:
         specifier: ^1.7.20
         version: 1.7.20
-      plugin-log@~2:
-        specifier: link:tauri-apps/plugin-log@~2
-        version: link:tauri-apps/plugin-log@~2
       posthog-js:
         specifier: ^1.229.1
         version: 1.229.1
@@ -2611,9 +2605,6 @@ packages:
 
   '@tauri-apps/plugin-http@2.2.0':
     resolution: {integrity: sha512-ZY6sIHhgu8hcu6BkkegoiOEbvOsQFSVcK8J7l+g9RNHrkhl5uzpNIytR4R/H50fj7gyG80DJvrXDx/LBo7Easw==}
-
-  '@tauri-apps/plugin-log@2.2.3':
-    resolution: {integrity: sha512-noDkZXU0kPG1bP3qoF6om+q5TgQ65LWpsV/TnfrHyg2lEn0vE+WJWTItiIh7OUA1/xxC+hdb9ODy2bM2e+jHEw==}
 
   '@tauri-apps/plugin-os@2.2.0':
     resolution: {integrity: sha512-HszbCdbisMlu5QhCNAN8YIWyz2v33abAWha6+uvV2CKX8P5VSct/y+kEe22JeyqrxCnWlQ3DRx7s49Byg7/0EA==}
@@ -8328,10 +8319,6 @@ snapshots:
       '@tauri-apps/api': 2.2.0
 
   '@tauri-apps/plugin-http@2.2.0':
-    dependencies:
-      '@tauri-apps/api': 2.2.0
-
-  '@tauri-apps/plugin-log@2.2.3':
     dependencies:
       '@tauri-apps/api': 2.2.0
 

@@ -7,7 +7,7 @@ import Emittery from "emittery";
  * Handles one synchronization pass for a set of runbook IDs.
  */
 export default class SyncSet extends Emittery {
-  private readonly logger: Logger = new Logger("Synchronizer");
+  private readonly logger: Logger = new Logger("Synchronizer", "#ff33cc", "#ff6677");
   private runbookIds: Set<string>;
   private currentRunbookId: string | null = null;
   private currentUser: User;

@@ -7,7 +7,7 @@ import React from "react";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 
 const useTauriEvent = (eventName: string, func: () => Promise<void>) => {
-  let ref = React.useRef<UnlistenFn>();
+  let ref = React.useRef<UnlistenFn>(undefined);
 
   React.useEffect(() => {
     (async () => {

@@ -126,7 +126,7 @@ export default function CommandMenu(props: CommandMenuProps) {
   const [activeItem, setActiveItem] = useState(0);
   const [menuNodes] = useState(() => new MultiRef<number, HTMLElement>());
   const slots = useMemo(() => cmdk(), []);
-  const eventRef = useRef<"mouse" | "keyboard">();
+  const eventRef = useRef<"mouse" | "keyboard">(undefined);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { data: runbooks } = useQuery(allRunbooks());

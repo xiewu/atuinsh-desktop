@@ -137,7 +137,7 @@ export class WrappedChannel {
     this.manager.onSocketChange(this.handleNewSocket.bind(this));
   }
 
-  public join(timeout?: number) {
+  public join<T = unknown>(timeout?: number): Promise<T> {
     return new Promise((resolve, reject) => {
       this.channel
         .join(timeout)
@@ -183,7 +183,7 @@ export class WrappedChannel {
     };
   }
 
-  public push(event: string, payload: object, timeout?: number): WrappedPush {
+  public push<T = any>(event: string, payload: T, timeout?: number): WrappedPush {
     let data: any = payload;
     if (data instanceof Uint8Array) {
       data = data.buffer;

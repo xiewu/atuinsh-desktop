@@ -1,16 +1,16 @@
 import * as jsondiffpatch from "jsondiffpatch";
 import Emittery, { UnsubscribeFunction } from "emittery";
 import { SharedStateAdapter } from "./adapter";
-import { ChangeRef, ServerUpdate, Version, Event, SharableState } from "./types";
+import { ChangeRef, ServerUpdate, Version, Event, SharableState, OptimisticUpdate } from "./types";
 import { uuidv7 } from "uuidv7";
 import { autobind } from "../decorators";
 import Logger from "../logger";
-
-type OptimisticUpdate = {
-  source_version: Version;
-  delta: jsondiffpatch.Delta;
-  change_ref: ChangeRef;
-};
+import {
+  getSharedStateDocument,
+  pushOptimisticUpdate,
+  removeOptimisticUpdate,
+  updateSharedStateDocument,
+} from "./commands";
 
 function applyOptimisticUpdates<T>(data: T, updates: Array<OptimisticUpdate>) {
   for (const update of updates) {
@@ -70,25 +70,27 @@ export class SharedStateManager<T extends SharableState> {
    * delta from the server is different from the one stored in the optimistic update.
    *
    * @param callback - A function that **synchronously** applies an optimistic update to the data.
-   * @returns A change reference for the update.
+   * @returns A promise to the change reference for the update.
    */
   @autobind
-  public updateOptimistic(callback: (data: T) => void): ChangeRef {
+  public async updateOptimistic(callback: (data: T) => void): Promise<ChangeRef> {
     const orig = jsondiffpatch.clone(this.data) as T;
     const clone = jsondiffpatch.clone(this.data) as T;
 
     callback(clone);
 
     const update = {
-      source_version: this.version,
+      sourceVersion: this.version,
       delta: jsondiffpatch.diff(orig, clone),
-      change_ref: uuidv7(),
+      changeRef: uuidv7(),
     };
+
+    await pushOptimisticUpdate(this.stateId, update);
 
     this.optimisticUpdates.push(update);
     this.setOptmisticData();
     this.emitter.emit(Event.UPDATE, this.data);
-    return update.change_ref;
+    return update.changeRef;
   }
 
   public destroy() {
@@ -106,9 +108,11 @@ export class SharedStateManager<T extends SharableState> {
     return this._optimisticData || this._data;
   }
 
-  private setData(data: T, version: Version) {
+  private async setData(data: T, version: Version) {
     this._data = data;
     this.version = version;
+
+    await updateSharedStateDocument(this.stateId, data, version);
 
     this.setOptmisticData();
     this.emitter.emit(Event.UPDATE, this.data);
@@ -124,9 +128,15 @@ export class SharedStateManager<T extends SharableState> {
   }
 
   private async setup() {
+    const document = await getSharedStateDocument<T>(this.stateId);
+    if (document) {
+      this.setData(document.value, document.version);
+      this.optimisticUpdates = document.optimisticUpdates;
+    }
+
     await this.adapter.init();
     this.unsub = this.adapter.subscribe(this.handleUpdate);
-    // TODO: get cached data from database
+
     this.resync();
   }
 
@@ -205,9 +215,10 @@ export class SharedStateManager<T extends SharableState> {
       this.logger.debug(`Applying update; final version: ${payload.version}`);
 
       // If this update was sent as a response to an optimistic update,
-      // remove the optimistic update from the list.
+      // remove the optimistic update from the list on both the frontend and backend.
+      await removeOptimisticUpdate(this.stateId, payload.change_ref);
       this.optimisticUpdates = this.optimisticUpdates.filter(
-        (update) => update.change_ref !== payload.change_ref,
+        (update) => update.changeRef !== payload.change_ref,
       );
 
       // JsonDiffEx can send an empty delta when the data hasn't change;

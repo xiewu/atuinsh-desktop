@@ -3,7 +3,7 @@ import { SharedStateManager } from "./manager";
 import { AtuinSharedStateAdapter } from "./adapter";
 import { SharableState } from "./types";
 
-function defaultUpdateOptimistic<T>(_data: T): string {
+async function defaultUpdateOptimistic<T>(_data: T): Promise<string> {
   throw new Error("Shared state is not ready");
 }
 
@@ -12,12 +12,12 @@ function defaultUpdateOptimistic<T>(_data: T): string {
  *
  * To apply optimistic updates, pass a function to `updateOptimistic` that synchronously
  * applies an update to the data. The function will be called with the current state.
- * The call to `updateOptimistic` will return a change reference for the update.
+ * The call to `updateOptimistic` will return a promise to the change reference for the update.
  *
  * ```
  * const [data, updateOptimistic] = useSharedState("state-id");
  *
- * const changeRef = updateOptimistic((data) => {
+ * const changeRef = await updateOptimistic((data) => {
  *   data.foo = "bar";
  * });
  * ```
@@ -30,7 +30,7 @@ function defaultUpdateOptimistic<T>(_data: T): string {
  */
 export default function useSharedState<T extends SharableState>(
   stateId: string,
-): [T, (callback: (data: T) => void) => string] {
+): [T, (callback: (data: T) => void) => Promise<string>] {
   const [data, setData] = useState<T>({} as T);
   const [manager, setManager] = useState<SharedStateManager<T> | null>(null);
 

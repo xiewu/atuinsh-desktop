@@ -1,14 +1,18 @@
+use eyre::Result;
 use minijinja::Environment;
 use std::{
     collections::HashMap,
     path::PathBuf,
     sync::{Arc, Mutex},
 };
-use tauri::async_runtime::RwLock;
+use tauri::{async_runtime::RwLock, AppHandle};
 use tokio::process::Child;
 use uuid::Uuid;
 
-use crate::runtime::{exec_log::ExecLogHandle, pty_store::PtyStoreHandle};
+use crate::{
+    runtime::{exec_log::ExecLogHandle, pty_store::PtyStoreHandle},
+    shared_state::SharedStateHandle,
+};
 
 pub(crate) struct AtuinState {
     // Mutex for that interior mutability
@@ -21,6 +25,9 @@ pub(crate) struct AtuinState {
     // Annoying that it needs to be done in two steps, but ok.
     pty_store: Mutex<Option<PtyStoreHandle>>,
     exec_log: Mutex<Option<ExecLogHandle>>,
+
+    // Shared state
+    shared_state: Mutex<Option<SharedStateHandle>>,
 
     // the second rwlock could probs be a mutex
     // i cba it works fine
@@ -54,6 +61,7 @@ impl AtuinState {
         Self {
             pty_store: Mutex::new(None),
             exec_log: Mutex::new(None),
+            shared_state: Mutex::new(None),
             child_processes: Default::default(),
             template_state: Default::default(),
             runbooks_api_token: Default::default(),
@@ -62,7 +70,7 @@ impl AtuinState {
             app_path,
         }
     }
-    pub fn init(&self) {
+    pub async fn init(&self, app: &AppHandle) {
         let path = if let Some(ref prefix) = self.dev_prefix {
             self.app_path.join(format!("{}_exec_log.db", prefix))
         } else {
@@ -75,6 +83,19 @@ impl AtuinState {
 
         let pty_store = PtyStoreHandle::new();
         self.pty_store.lock().unwrap().replace(pty_store);
+
+        let shared_state = SharedStateHandle::new(app.clone()).await;
+        self.shared_state.lock().unwrap().replace(shared_state);
+    }
+
+    pub async fn shutdown(&self) -> Result<()> {
+        let shared_state = self.shared_state.lock().unwrap().take();
+
+        if let Some(shared_state) = shared_state {
+            shared_state.shutdown().await?;
+        }
+
+        Ok(())
     }
 
     pub fn exec_log(&self) -> ExecLogHandle {
@@ -90,6 +111,14 @@ impl AtuinState {
             (*pty_store).clone()
         } else {
             panic!("Pty store not initialized");
+        }
+    }
+
+    pub fn shared_state(&self) -> SharedStateHandle {
+        if let Some(shared_state) = self.shared_state.lock().unwrap().as_ref() {
+            shared_state.clone()
+        } else {
+            panic!("Shared state not initialized");
         }
     }
 }

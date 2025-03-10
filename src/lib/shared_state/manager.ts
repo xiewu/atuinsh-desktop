@@ -221,7 +221,7 @@ export class SharedStateManager<T extends SharableState> {
         (update) => update.changeRef !== payload.change_ref,
       );
 
-      // JsonDiffEx can send an empty delta when the data hasn't change;
+      // JsonDiffEx can send an empty delta when the data hasn't changed;
       // `jsondiffpatch.patch()` will throw an error in this case, so we need to check for an empty delta.
       if (Object.keys(payload.delta as object).length > 0) {
         const clone = jsondiffpatch.clone(this._data) as T;
@@ -232,6 +232,7 @@ export class SharedStateManager<T extends SharableState> {
         }
       } else {
         this.version = payload.version;
+        await updateSharedStateDocument(this.stateId, this._data, this.version);
       }
     }
   }

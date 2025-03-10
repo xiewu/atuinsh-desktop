@@ -6,7 +6,7 @@
 use std::path::PathBuf;
 use std::{env, fs};
 
-use tauri::{App, AppHandle, Manager};
+use tauri::{App, AppHandle, Manager, RunEvent};
 use time::format_description::well_known::Rfc3339;
 
 mod blocks;
@@ -23,6 +23,7 @@ mod run;
 mod runbooks;
 mod runtime;
 mod secret;
+mod shared_state;
 mod sqlite;
 mod state;
 mod store;
@@ -357,7 +358,8 @@ fn main() {
             println!("app opened with {argv:?}");
         }))
     };
-    builder
+
+    let app = builder
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
@@ -411,6 +413,10 @@ fn main() {
             main_window::save_window_info,
             main_window::show_window,
             commands::exec_log::log_execution,
+            shared_state::get_shared_state_document,
+            shared_state::push_optimistic_update,
+            shared_state::update_shared_state_document,
+            shared_state::remove_optimistic_update,
         ])
         .plugin(
             tauri_plugin_sql::Builder::default()
@@ -421,25 +427,50 @@ fn main() {
         .setup(|app| {
             backup_databases(app)?;
             let handle = app.handle();
-            let handle_clone = handle.clone();
-
-            tauri::async_runtime::spawn(async move {
-                main_window::create_main_window(&handle_clone)
-                    .await
-                    .unwrap();
-            });
 
             let app_path = app
                 .path()
                 .app_config_dir()
                 .expect("Failed to get app config dir");
 
-            app.manage(state::AtuinState::new(dev_prefix, app_path));
-            app.state::<state::AtuinState>().init();
+            let handle_clone = handle.clone();
+            run_async_command(async move {
+                handle.manage(state::AtuinState::new(dev_prefix, app_path));
+                handle
+                    .state::<state::AtuinState>()
+                    .init(&handle_clone)
+                    .await;
+            });
 
             handle.set_menu(menu::menu(handle).expect("Failed to build menu"))?;
+
+            let handle_clone = handle.clone();
+            tauri::async_runtime::spawn(async move {
+                main_window::create_main_window(&handle_clone)
+                    .await
+                    .unwrap();
+            });
+
             Ok(())
         })
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())
         .expect("error while running tauri application");
+
+    app.run(move |handle, event| {
+        if let RunEvent::Exit = event {
+            run_async_command(async move {
+                let state = handle.state::<state::AtuinState>();
+                state.shutdown().await.unwrap();
+            });
+        }
+    })
+}
+
+/// Allows blocking on async code without creating a nested runtime.
+fn run_async_command<F: std::future::Future>(cmd: F) -> F::Output {
+    if tokio::runtime::Handle::try_current().is_ok() {
+        tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(cmd))
+    } else {
+        tauri::async_runtime::block_on(cmd)
+    }
 }

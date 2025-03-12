@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { createReactBlockSpec } from "@blocknote/react";
 import { insertOrUpdateBlock } from "@blocknote/core";
 import * as LanguageData from "@codemirror/language-data";
+import EditorBlockType from "@/lib/workflow/blocks/editor.ts";
 
 import CodeMirror, { Extension } from "@uiw/react-codemirror";
 
@@ -25,6 +26,7 @@ import EditableHeading from "@/components/EditableHeading/index.tsx";
 // as by importing it we have already loaded it. Not really a big deal for our use case.
 import { hcl } from "codemirror-lang-hcl";
 import { useStore } from "@/state/store.ts";
+import { DependencySpec } from "@/lib/workflow/dependency.ts";
 
 interface LanguageLoader {
   name: string;
@@ -58,6 +60,7 @@ function languageLoaders(): LanguageLoader[] {
 interface CodeBlockProps {
   name: string;
   setName: (name: string) => void;
+  editor: EditorBlockType;
 
   onChange: (val: string) => void;
   onLanguageChange: (val: string) => void;
@@ -74,6 +77,7 @@ const EditorBlock = ({
   isEditable,
   name,
   setName,
+  editor,
 }: CodeBlockProps) => {
   const colorMode = useStore((state) => state.functionalColorMode);
   const languages: LanguageLoader[] = useMemo(() => languageLoaders(), []);
@@ -112,6 +116,9 @@ const EditorBlock = ({
   return (
     <Block
       name={name}
+      block={editor}
+      type={editor.typeName} 
+      setDependency={()=>{}}
       setName={setName}
       inlineHeader
       header={
@@ -219,9 +226,14 @@ export default createReactBlockSpec(
         });
       };
 
+      // The editor block cannot have a dependency, because it is not runnable.
+      // TODO(ellie): a more elegant way of expressing this
+      let editorBlock = new EditorBlockType(block.id, block.props.name, DependencySpec.empty(), block.props.code, block.props.language);
+
       return (
         <EditorBlock
           name={block.props.name}
+          editor={editorBlock}
           setName={setName}
           onChange={onCodeChange}
           onLanguageChange={onLanguageChange}
@@ -244,8 +256,15 @@ export default createReactBlockSpec(
 export const insertEditor = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
   title: "Editor",
   onItemClick: () => {
+    let editorBlocks = editor.document.filter((block: any) => block.type === "editor"); 
+    let name = `Editor ${editorBlocks.length + 1}`;
+
     insertOrUpdateBlock(editor, {
       type: "editor",
+      // @ts-ignore
+      props: {
+        name: name,
+      },
     });
   },
   icon: <CodeIcon size={18} />,

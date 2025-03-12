@@ -36,14 +36,24 @@ import { schema } from "./create_editor";
 import RunbookEditor from "@/lib/runbook_editor";
 import { useStore } from "@/state/store";
 import { usePromise } from "@/lib/utils";
+import { useCallback, useEffect, useRef } from "react";
+import BlockBus from "@/lib/workflow/block_bus";
+import { serialExecute } from "@/lib/workflow/serial";
 
 // Slash menu item to insert an Alert block
 const insertTerminal= (editor: typeof schema.BlockNoteEditor) => ({
   title: "Terminal",
   subtext: "Interactive terminal",
   onItemClick: () => {
+    // Count the number of terminal blocks
+    let terminalBlocks = editor.document.filter((block) => block.type === "run");
+    let name = `Terminal ${terminalBlocks.length + 1}`;
+
     insertOrUpdateBlock(editor, {
       type: "run",
+      props: {
+        name
+      }
     });
   },
   icon: <CodeIcon size={18} />,
@@ -88,6 +98,29 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
   const colorMode = useStore((state) => state.functionalColorMode);
   const fontSize = useStore((state) => state.fontSize);
   const fontFamily = useStore((state) => state.fontFamily);
+  const serialExecuteRef = useRef<(() => void) | null>(null);
+
+  const serialExecuteCallback = useCallback(() => {
+    if (!editor || !runbook) {
+      return;
+    }
+    serialExecute(editor.document);
+
+  }, [editor, runbook]);
+
+  useEffect(() => {
+    if (!editor || !runbook || serialExecuteRef.current) {
+      return;
+    }
+
+    serialExecuteRef.current = BlockBus.get().subscribeSerialExecute(runbook.id, serialExecuteCallback);
+
+    return () => {
+      if (serialExecuteRef.current) {
+        BlockBus.get().unsubscribeSerialExecute(runbook.id, serialExecuteRef.current);
+      }
+    };
+  }, [editor, runbook]);
 
   if (!editor || !runbook) {
     return (

@@ -49,6 +49,10 @@ pub enum ExecLogMessage {
         output: String,
         reply_to: oneshot::Sender<Result<()>>,
     },
+    GetLastExecutionTime {
+        block_id: Uuid,
+        reply_to: oneshot::Sender<Result<Option<u64>>>,
+    },
 }
 
 #[derive(Clone)]
@@ -111,6 +115,13 @@ impl ExecLogHandle {
             reply_to,
         };
 
+        self.sender.send(msg).await?;
+        receiver.await?
+    }
+
+    pub async fn get_last_execution_time(&self, block_id: Uuid) -> Result<Option<u64>> {
+        let (reply_to, receiver) = oneshot::channel();
+        let msg = ExecLogMessage::GetLastExecutionTime { block_id, reply_to };
         self.sender.send(msg).await?;
         receiver.await?
     }
@@ -179,6 +190,10 @@ impl ExecLog {
                     let result = self
                         .log_execution(block, start_time, end_time, output)
                         .await;
+                    let _ = reply_to.send(result);
+                }
+                ExecLogMessage::GetLastExecutionTime { block_id, reply_to } => {
+                    let result = self.get_last_execution_time(block_id).await;
                     let _ = reply_to.send(result);
                 }
             }
@@ -255,5 +270,15 @@ impl ExecLog {
         .await?;
 
         Ok(())
+    }
+
+    async fn get_last_execution_time(&self, block_id: Uuid) -> Result<Option<u64>> {
+        let row = sqlx::query("SELECT MAX(exec_log.end_time) as end_time FROM exec_log join blocks on exec_log.block_id = blocks.id WHERE blocks.uuid = ?")
+            .bind(block_id.to_string())
+            .fetch_one(&self.pool)
+            .await?;
+
+        let end_time: Option<i64> = row.get("end_time");
+        Ok(end_time.map(|t| t as u64))
     }
 }

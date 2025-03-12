@@ -8,7 +8,8 @@ import { langs } from "@uiw/codemirror-extensions-langs";
 import { runQuery } from "./query";
 
 import SQL from "../common/SQL";
-import { PostgresBlock } from "@/lib/blocks/postgres";
+import { PostgresBlock } from "@/lib/workflow/blocks/postgres";
+import { DependencySpec } from "@/lib/workflow/dependency";
 
 interface SQLProps {
   isEditable: boolean;
@@ -20,6 +21,7 @@ interface SQLProps {
   setUri: (uri: string) => void;
   setAutoRefresh: (autoRefresh: number) => void;
   setName: (name: string) => void;
+  setDependency: (dependency: DependencySpec) => void;
 }
 
 const Postgres = ({
@@ -31,6 +33,7 @@ const Postgres = ({
   isEditable,
   collapseQuery,
   setCollapseQuery,
+  setDependency,
 }: SQLProps) => {
   return (
     <SQL
@@ -50,6 +53,7 @@ const Postgres = ({
       isEditable={isEditable}
       collapseQuery={collapseQuery}
       setCollapseQuery={setCollapseQuery}
+      setDependency={setDependency}
     />
   );
 };
@@ -63,6 +67,7 @@ export default createReactBlockSpec(
       uri: { default: "" },
       autoRefresh: { default: 0 },
       collapseQuery: { default: false },
+      dependency: { default: "{}" },
     },
     content: "none",
   },
@@ -102,7 +107,14 @@ export default createReactBlockSpec(
         });
       };
 
-      let postgres = new PostgresBlock(block.id, block.props.name, block.props.query, block.props.uri, block.props.autoRefresh);
+      const setDependency = (dependency: DependencySpec) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, dependency: dependency.serialize() },
+        });
+      };
+
+      let dependency = DependencySpec.deserialize(block.props.dependency);
+      let postgres = new PostgresBlock(block.id, block.props.name, dependency, block.props.query, block.props.uri, block.props.autoRefresh);
 
       return (
         <Postgres
@@ -114,6 +126,7 @@ export default createReactBlockSpec(
           isEditable={editor.isEditable}
           collapseQuery={block.props.collapseQuery}
           setCollapseQuery={setCollapseQuery}
+          setDependency={setDependency}
         />
       );
     },
@@ -123,8 +136,15 @@ export default createReactBlockSpec(
 export const insertPostgres = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
   title: "PostgreSQL",
   onItemClick: () => {
+    let postgresBlocks = editor.document.filter((block: any) => block.type === "postgres");
+    let name = `PostgreSQL ${postgresBlocks.length + 1}`;
+
     insertOrUpdateBlock(editor, {
       type: "postgres",
+      // @ts-ignore
+      props: {
+        name: name,
+      },
     });
   },
   icon: <DatabaseIcon size={18} />,

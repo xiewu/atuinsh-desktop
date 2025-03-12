@@ -139,16 +139,16 @@ pub async fn shell_exec(
     let output = ScriptOutput::builder().exit_code(exit).build();
     let output = serde_json::to_string(&output).unwrap();
 
-    state
-        .exec_log()
-        .log_execution(
-            Block::Script(block),
-            nanoseconds_start as u64,
-            nanoseconds_end as u64,
-            output,
-        )
-        .await
-        .unwrap();
+    crate::commands::exec_log::log_execution(
+        app,
+        state,
+        Block::Script(block),
+        nanoseconds_start as u64,
+        nanoseconds_end as u64,
+        output,
+    )
+    .await
+    .unwrap();
 
     Ok(())
 }

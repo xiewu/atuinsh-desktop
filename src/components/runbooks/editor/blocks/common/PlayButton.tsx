@@ -16,6 +16,11 @@ interface PlayButtonProps {
 
   /// If specified, this will be the event name that is tracked when the button is clicked.
   eventName?: string;
+  disabled?: boolean;
+
+  // If specified, the button will not be disabled when in running state.
+  alwaysStop?: boolean;
+  className?: string;
 }
 
 const PlayButton = ({
@@ -25,6 +30,9 @@ const PlayButton = ({
   eventName,
   onStop,
   onRefresh,
+  disabled,
+  alwaysStop,
+  className,
 }: PlayButtonProps) => {
 
   const [isShiftPressed, setIsShiftPressed] = useState(false);
@@ -56,6 +64,7 @@ const PlayButton = ({
         variant="flat"
         size="sm"
         aria-label={isRunning ? "Stop code" : "Run code"}
+        isDisabled={disabled && (!alwaysStop || !isRunning)}
         onPress={async () => {
           // If we're not running, call onPlay.
           // If we are running, but have not specified onStop, call onPlay again.
@@ -73,7 +82,7 @@ const PlayButton = ({
             onPlay();
           }
         }}
-        className="w-8 h-8 min-w-unit-8 min-h-unit-8"
+        className={`w-8 h-8 min-w-unit-8 min-h-unit-8 ${className}`}
         isLoading={isRunning && !cancellable}
       >
         <span

@@ -334,9 +334,6 @@ fn show_window(app: &AppHandle) {
 }
 
 fn main() {
-    #[cfg(debug_assertions)] // only enable instrumentation in development builds
-    let devtools = tauri_plugin_devtools::init();
-
     let dev_prefix = if tauri::is_dev() {
         Some(env::var("DEV_PREFIX").unwrap_or("dev".to_string()))
     } else {
@@ -351,7 +348,8 @@ fn main() {
 
     let builder = tauri::Builder::default();
     let builder = if cfg!(debug_assertions) {
-        builder
+        let devtools = tauri_plugin_devtools::init();
+        builder.plugin(devtools)
     } else {
         builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             show_window(app);
@@ -367,7 +365,6 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_shell::init())
-        .plugin(devtools)
         .invoke_handler(tauri::generate_handler![
             list,
             search,
@@ -413,6 +410,7 @@ fn main() {
             main_window::save_window_info,
             main_window::show_window,
             commands::exec_log::log_execution,
+            commands::dependency::can_run,
             shared_state::get_shared_state_document,
             shared_state::push_optimistic_update,
             shared_state::update_shared_state_document,

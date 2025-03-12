@@ -1,7 +1,19 @@
+use serde::{Deserialize, Serialize};
+use tauri::Emitter;
+
 use crate::runtime::blocks::Block;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct ExecLogCompletedEvent {
+    pub block_id: String,
+    pub start_time: u64,
+    pub end_time: u64,
+    pub output: String,
+}
 
 #[tauri::command]
 pub async fn log_execution(
+    app: tauri::AppHandle,
     state: tauri::State<'_, crate::state::AtuinState>,
     block: Block,
     start_time: u64,
@@ -11,7 +23,18 @@ pub async fn log_execution(
     log::debug!("Logging execution for block: {:?}", block);
     state
         .exec_log()
-        .log_execution(block, start_time, end_time, output)
+        .log_execution(block.clone(), start_time, end_time, output.clone())
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    app.emit(
+        format!("exec_log_completed:{}", block.id()).as_str(),
+        ExecLogCompletedEvent {
+            block_id: block.id().to_string(),
+            start_time,
+            end_time,
+            output,
+        },
+    )
+    .map_err(|e| e.to_string())
 }

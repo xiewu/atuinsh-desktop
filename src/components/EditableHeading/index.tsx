@@ -48,6 +48,9 @@ const EditableHeading: React.FC<EditableHeadingProps> = ({
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           variant="bordered"
+          autoCapitalize="none"
+          autoComplete="off"
+          autoCorrect="off"
         />
       ) : (
         <>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Input, Tabs, Tab } from "@heroui/react";
 import { GlobeIcon } from "lucide-react";
 import { fetch } from "@tauri-apps/plugin-http";
@@ -16,23 +16,22 @@ import Block from "../common/Block";
 import { templateString } from "@/state/templates";
 import { useStore } from "@/state/store";
 import { logExecution } from "@/lib/exec_log";
-import { HttpBlock as HttpBlockType, HttpVerb } from "@/lib/blocks/http";
+import { HttpBlock as HttpBlockType, HttpVerb } from "@/lib/workflow/blocks/http";
+import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency";
+import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus";
 
 type HttpHeaders = { [key: string]: string };
 
 interface HttpProps {
-  id: string;
-  name: string;
-  url: string;
-  verb: HttpVerb;
+  http: HttpBlockType;
   body: string;
   isEditable: boolean;
-  headers: HttpHeaders;
   setName: (name: string) => void;
   setUrl: (url: string) => void;
   setVerb: (verb: HttpVerb) => void;
   setBody: (body: string) => void;
   setHeaders: (headers: HttpHeaders) => void;
+  setDependency: (dependency: DependencySpec) => void;
 }
 
 async function makeHttpRequest(
@@ -71,18 +70,15 @@ async function makeHttpRequest(
 }
 
 const Http = ({
-  id,
-  name,
+  http,
   setName,
-  url,
-  verb,
   body,
-  headers,
   isEditable,
   setUrl,
   setVerb,
   setBody,
   setHeaders,
+  setDependency,
 }: HttpProps) => {
   let editor = useBlockNoteEditor();
   const colorMode = useStore((state) => state.functionalColorMode);
@@ -91,9 +87,11 @@ const Http = ({
   const [response, setResponse] = useState<any | null>(null);
   const [error, setError] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState("headers");
+  const { canRun } = useDependencyState(http, isRunning);
+  const elementRef = useRef<HTMLDivElement>(null);
 
   const formatJSON = () => {
-    if (verb === HttpVerb.GET || verb === HttpVerb.HEAD) return;
+    if (http.verb === HttpVerb.GET || http.verb === HttpVerb.HEAD) return;
 
     try {
       let parsed = JSON.parse(body);
@@ -104,37 +102,34 @@ const Http = ({
     }
   };
 
-  const onPlay = async () => {
+  const onPlay = useCallback(async () => {
     setIsRunning(true);
     const startTime = Date.now() * 1000000; // Convert to nanoseconds
     
-    let template = async (input: string) => await templateString(id, input, editor.document, currentRunbookId);
+    let template = async (input: string) => await templateString(http.id, input, editor.document, currentRunbookId);
 
-    let tUrl = await template(url);
+    let tUrl = await template(http.url);
     let tBody = await template(body);
     let tHeaders: { [key: string]: string } = {};
 
-    for (const [key, value] of Object.entries(headers)) {
+    for (const [key, value] of Object.entries(http.headers)) {
       const templatedKey = await template(key);
       const templatedValue = await template(value);
       tHeaders[templatedKey] = templatedValue;
     }
 
     try {
-      let res = await makeHttpRequest(tUrl, verb, tBody, tHeaders);
+      if (elementRef.current) {
+        elementRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+
+      let res = await makeHttpRequest(tUrl, http.verb, tBody, tHeaders);
       
       setResponse(res);
       setError(null);
       
       // Log the execution without including the response body
       const endTime = Date.now() * 1000000; // Convert to nanoseconds
-      const httpBlock = new HttpBlockType(
-        id,
-        name,
-        url,
-        verb,
-        headers
-      );
       
       // Create a sanitized response object without the body data
       const logResponse = {
@@ -146,8 +141,8 @@ const Http = ({
       };
       
       await logExecution(
-        httpBlock,
-        httpBlock.typeName,
+        http,
+        http.typeName,
         startTime,
         endTime,
         JSON.stringify(logResponse)
@@ -160,17 +155,10 @@ const Http = ({
       
       // Log the error without including request/response bodies
       const endTime = Date.now() * 1000000; // Convert to nanoseconds
-      const httpBlock = new HttpBlockType(
-        id,
-        name,
-        url,
-        verb,
-        headers
-      );
       
       await logExecution(
-        httpBlock,
-        httpBlock.typeName,
+        http,
+        http.typeName,
         startTime,
         endTime,
         JSON.stringify({ error: errorMessage })
@@ -179,28 +167,35 @@ const Http = ({
     
     setIsRunning(false);
     formatJSON();
-  };
+  }, [http, editor.document, currentRunbookId, body, http.headers, http.url, http.verb]);
+
+  useBlockBusRunSubscription(http.id, onPlay);
 
   return (
     <Block
-      name={name}
+      hasDependency
+      block={http}
+      setDependency={setDependency}
+      name={http.name}
+      type={"HTTP"}
       setName={setName}
       header={
-        <div className="flex flex-row items-center gap-2 w-full">
+        <div className="flex flex-row items-center gap-2 w-full" ref={elementRef}>
           <PlayButton
             eventName="runbooks.http.run"
             isRunning={isRunning}
             onPlay={onPlay}
             cancellable={false}
+            disabled={!canRun}
           />
 
-          <HttpVerbDropdown selectedVerb={verb} onVerbChange={setVerb} disabled={!isEditable} />
+          <HttpVerbDropdown selectedVerb={http.verb} onVerbChange={setVerb} disabled={!isEditable} />
 
           <Input
             placeholder="http://localhost:8080/hello/world"
             isRequired
             startContent={<GlobeIcon size={18} />}
-            value={url}
+            value={http.url}
             onValueChange={(val) => {
               setUrl(val);
             }}
@@ -234,9 +229,9 @@ const Http = ({
         variant="underlined"
       >
         <Tab key="headers" title="Headers">
-          <RequestHeaders pairs={headers} setPairs={setHeaders} disabled={!isEditable} />
+          <RequestHeaders pairs={http.headers} setPairs={setHeaders} disabled={!isEditable} />
         </Tab>
-        <Tab key="body" title="Body" isDisabled={verb === HttpVerb.GET} className="overflow-scroll">
+        <Tab key="body" title="Body" isDisabled={http.verb === HttpVerb.GET} className="overflow-scroll">
           <CodeMirror
             placeholder={"Request Body (JSON)"}
             className="!pt-0 max-w-full border border-gray-300 rounded flex-grow text-sm max-h-96"
@@ -264,6 +259,7 @@ export default createReactBlockSpec(
       verb: { default: "GET" },
       body: { default: "" },
       headers: { default: "" },
+      dependency: { default: "{}" },
     },
     content: "none",
   },
@@ -305,14 +301,26 @@ export default createReactBlockSpec(
         });
       };
 
+      const setDependency = (dependency: DependencySpec) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, dependency: dependency.serialize() },
+        });
+      };
+
+      let dependency = DependencySpec.deserialize(block.props.dependency);
+      let blockType = new HttpBlockType(
+        block.id,
+        block.props.name,
+        dependency,
+        block.props.url,
+        block.props.verb as HttpVerb,
+      );
+
       return (
         <Http
-          id={block.id}
-          name={block.props.name || "HTTP"}
-          url={block.props.url || ""}
-          verb={block.props.verb as HttpVerb}
+          http={blockType}
+          setDependency={setDependency}
           body={block.props.body || ""}
-          headers={typeof block.props.headers === 'string' ? JSON.parse(block.props.headers || "{}") : (block.props.headers || {})}
           isEditable={editor.isEditable}
           setUrl={setUrl}
           setVerb={setVerb}
@@ -328,8 +336,15 @@ export default createReactBlockSpec(
 export const insertHttp = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
   title: "HTTP",
   onItemClick: () => {
+    let httpBlocks = editor.document.filter((block: any) => block.type === "http");
+    let name = `HTTP ${httpBlocks.length + 1}`;
+
     insertOrUpdateBlock(editor, {
       type: "http",
+      // @ts-ignore
+      props: {
+        name: name,
+      },
     });
   },
   icon: <GlobeIcon size={18} />,

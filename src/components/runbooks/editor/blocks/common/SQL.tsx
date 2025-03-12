@@ -2,7 +2,7 @@
 // Intended for databases that have tables
 // postgres, sqlite, etc - not document stores.
 
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   Dropdown,
   DropdownTrigger,
@@ -32,6 +32,9 @@ import { useBlockNoteEditor } from "@blocknote/react";
 import { AtuinState, useStore } from "@/state/store";
 import { cn } from "@/lib/utils";
 import { logExecution } from "@/lib/exec_log";
+import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency";
+import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus";
+import BlockBus from "@/lib/workflow/block_bus";
 
 interface SQLProps {
   id: string;
@@ -53,6 +56,7 @@ interface SQLProps {
   setUri: (uri: string) => void;
   setAutoRefresh: (autoRefresh: number) => void;
   setName: (name: string) => void;
+  setDependency: (dependency: DependencySpec) => void;
 }
 
 const autoRefreshChoices = [
@@ -82,6 +86,7 @@ const SQL = ({
   setAutoRefresh,
   collapseQuery,
   setCollapseQuery,
+  setDependency,
   isEditable,
   runQuery,
   eventName,
@@ -96,8 +101,10 @@ const SQL = ({
 
   const [error, setError] = useState<string | null>(null);
   const [currentRunbookId] = useStore((store: AtuinState) => [store.currentRunbookId]);
+  const { canRun } = useDependencyState(block, isRunning);
+  const elementRef = useRef<HTMLDivElement>(null);
 
-  const handlePlay = async () => {
+  const handlePlay = useCallback(async () => {
     setIsRunning(true);
 
     try {
@@ -105,6 +112,11 @@ const SQL = ({
       let tQuery = await templateString(id, query, editor.document, currentRunbookId);
 
       let startTime = new Date().getTime() * 1000000;
+
+      if (elementRef.current) {
+        elementRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+
       let res = await runQuery(tUri, tQuery);
       let endTime = new Date().getTime() * 1000000;
 
@@ -114,6 +126,7 @@ const SQL = ({
         rowCount: res.rows?.length,
       };
       await logExecution(block, block.typeName, startTime, endTime, JSON.stringify(output));
+      BlockBus.get().blockFinished(block);
 
       setIsRunning(false);
 
@@ -128,7 +141,9 @@ const SQL = ({
       setError(e);
       setIsRunning(false);
     }
-  };
+  }, [block, editor.document, currentRunbookId, query, uri, runQuery]);
+
+  useBlockBusRunSubscription(block.id, handlePlay);
 
   useInterval(
     () => {
@@ -144,7 +159,11 @@ const SQL = ({
 
   return (
     <Block
+      hasDependency
       name={name}
+      block={block}
+      setDependency={setDependency}
+      type={block.typeName}
       setName={setName}
       header={
         <>
@@ -161,8 +180,9 @@ const SQL = ({
             disabled={!isEditable}
           />
 
-          <div className="flex flex-row gap-2 w-full">
+          <div className="flex flex-row gap-2 w-full" ref={elementRef}>
             <PlayButton
+              disabled={!canRun}
               eventName={`${eventName}.run`}
               isRunning={isRunning}
               onPlay={handlePlay}

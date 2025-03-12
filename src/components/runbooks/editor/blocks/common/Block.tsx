@@ -1,39 +1,94 @@
 import EditableHeading from "@/components/EditableHeading";
-import { Card, CardHeader, CardBody, CardFooter, cn } from "@heroui/react";
+import { Card, CardHeader, CardBody, CardFooter, cn, Tooltip, Chip } from "@heroui/react";
+import Dependency from "./Dependency/Dependency";
+import { default as BlockType } from "@/lib/workflow/blocks/block";
+import { DependencySpec } from "@/lib/workflow/dependency";
+import { useBlockNoteEditor } from "@blocknote/react";
+import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert";
+import { useMemo } from "react";
+import { WorkflowIcon } from "lucide-react";
 
 interface BlockProps {
   name: string;
+  type: string;
+  block: BlockType;
+
   setName: (name: string) => void;
+  setDependency: (dependency: DependencySpec) => void;
 
   header?: any;
   footer?: any;
   children: any;
   inlineHeader?: boolean;
   hideChild?: boolean;
+  hasDependency?: boolean;
+  ref?: React.RefObject<HTMLDivElement>;
 }
 
 export default function Block({
   name,
+  type,
+  block,
   setName,
   header,
   children,
   footer,
   inlineHeader,
   hideChild,
+  setDependency,
+  hasDependency,
+  ref,
 }: BlockProps) {
+  let editor = useBlockNoteEditor();
+
+  let parentBlock = useMemo(() => {
+    if (!block?.dependency?.parent) {
+      return null;
+    }
+
+    let bnb = editor.document.find((b: any) => b.id === block.dependency.parent);
+    if (bnb) {
+      let block = convertBlocknoteToAtuin(bnb);
+      return block;
+    }
+
+    return null;
+  }, [editor.document, block?.dependency?.parent]);
+
   return (
-    <Card className="w-full !max-w-full !outline-none" shadow="sm">
+    <Card className="w-full !max-w-full !outline-none" shadow="sm" ref={ref}>
       <CardHeader className="p-3 gap-2 bg-default-50 flex flex-col items-start justify-start z-auto">
+        <div className="flex flex-row justify-between w-full">
+          <span className="text-default-700 font-semibold text-xs">{type}</span>
+          {hasDependency && parentBlock && (
+            <Tooltip content={`This ${type} depends on ${parentBlock?.name}`}>
+              <Chip
+                variant="flat"
+                size="sm"
+                className="pl-3 py-2"
+                startContent={<WorkflowIcon size={14} />}
+              >
+                {parentBlock?.name}
+              </Chip>
+            </Tooltip>
+          )}
+        </div>
         {!inlineHeader && (
           <div className="flex flex-row justify-between w-full">
             <EditableHeading initialText={name} onTextChange={setName} />
+            {hasDependency && (
+              <Dependency
+                block={block}
+                setDependency={setDependency}
+              />
+            )}
           </div>
         )}
 
         {header && header}
       </CardHeader>
 
-      {children && <CardBody className={cn({"hidden": hideChild})}>{children}</CardBody>}
+      {children && <CardBody className={cn({ hidden: hideChild })}>{children}</CardBody>}
 
       {footer && <CardFooter>{footer}</CardFooter>}
     </Card>

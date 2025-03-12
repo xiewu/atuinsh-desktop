@@ -1,8 +1,7 @@
 import Block from "./block";
+import { DependencySpec } from "../dependency";
 
 export class PrometheusBlock extends Block {
-    id: string;
-    name: string;
     query: string;
     endpoint: string;
     period: string;
@@ -15,30 +14,33 @@ export class PrometheusBlock extends Block {
     constructor(
         id: string, 
         name: string = "Prometheus", 
+        dependency: DependencySpec,
         query: string = "", 
         endpoint: string = "", 
         period: string = "1h", 
         autoRefresh: boolean = false
     ) {
-        super();
+        super(id, name, dependency);
 
-        this.id = id;
-        this.name = name;
         this.query = query;
         this.endpoint = endpoint;
         this.period = period;
         this.autoRefresh = autoRefresh;
     }
 
-    serialize() {
-        return JSON.stringify({
+    object() {
+        return {
             id: this.id,
             name: this.name,
             query: this.query,
             endpoint: this.endpoint,
             period: this.period,
             autoRefresh: this.autoRefresh,
-        });
+        };
+    }
+
+    serialize() {
+        return JSON.stringify(this.object());
     }
     
     static deserialize(json: string) {
@@ -46,6 +48,7 @@ export class PrometheusBlock extends Block {
         return new PrometheusBlock(
             data.id, 
             data.name, 
+            data.dependency,
             data.query, 
             data.endpoint, 
             data.period, 

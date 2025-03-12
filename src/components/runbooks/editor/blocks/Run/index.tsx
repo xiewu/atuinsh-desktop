@@ -3,11 +3,13 @@ import { createReactBlockSpec } from "@blocknote/react";
 
 import "./index.css";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { invoke } from "@tauri-apps/api/core";
 import { platform } from "@tauri-apps/plugin-os";
 import Terminal from "./terminal.tsx";
+
+import { useBlockNoteEditor } from "@blocknote/react";
 
 import "@xterm/xterm/css/xterm.css";
 import { AtuinState, useStore } from "@/state/store.ts";
@@ -23,8 +25,14 @@ import { findFirstParentOfType, findAllParentsOfType } from "../exec.ts";
 import { templateString } from "@/state/templates.ts";
 import CodeEditor, { TabAutoComplete } from "../common/CodeEditor/CodeEditor.tsx";
 import { Command } from "@codemirror/view";
-import { TerminalBlock } from "@/lib/blocks/terminal.ts";
+import { TerminalBlock } from "@/lib/workflow/blocks/terminal.ts";
 import { logExecution } from "@/lib/exec_log.ts";
+import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency.ts";
+import Dependency from "../common/Dependency/Dependency.tsx";
+import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert.ts";
+import { default as BlockType } from "@/lib/workflow/blocks/block.ts";
+import BlockBus from "@/lib/workflow/block_bus.ts";
+import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus.ts";
 
 interface RunBlockProps {
   onChange: (val: string) => void;
@@ -34,12 +42,11 @@ interface RunBlockProps {
   type: string;
   pty: string;
   isEditable: boolean;
-  editor: any;
   setOutputVisible: (visible: boolean) => void;
+  setDependency: (dependency: DependencySpec) => void;
 
   terminal: TerminalBlock;
 }
-
 
 const RunBlock = ({
   onChange,
@@ -47,10 +54,11 @@ const RunBlock = ({
   isEditable,
   onRun,
   onStop,
-  editor,
   setOutputVisible,
   terminal,
+  setDependency,
 }: RunBlockProps) => {
+  let editor = useBlockNoteEditor();
   const colorMode = useStore((state) => state.functionalColorMode);
   const cleanupPtyTerm = useStore((store: AtuinState) => store.cleanupPtyTerm);
   const terminals = useStore((store: AtuinState) => store.terminals);
@@ -62,6 +70,13 @@ const RunBlock = ({
   const [exitCode, setExitCode] = useState<number | null>(null);
   const [commandDuration, setCommandDuration] = useState<number | null>(null);
   const [commandStart, setCommandStart] = useState<number | null>(null);
+  const [parentBlock, setParentBlock] = useState<BlockType | null>(null);
+  const elementRef = useRef<HTMLDivElement>(null);
+
+  const unsubscribeNameChanged = useRef<(() => void) | null>(null);
+  const unsubscribeDependencyChanged = useRef<(() => void) | null>(null);
+
+  const { canRun } = useDependencyState(terminal, isRunning);
 
   // This ensures that the first time we run a block, it executes the code. But subsequent mounts of an already-existing pty
   // don't run the code again.
@@ -78,14 +93,18 @@ const RunBlock = ({
 
     if (pty) {
       setCommandStart(Date.now() * 1000000);
-    } 
+
+      if (elementRef.current) {
+        elementRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
 
     if (!pty && commandStart) {
       logExecution(terminal, terminal.typeName, commandStart, Date.now() * 1000000, "");
+      BlockBus.get().blockFinished(terminal);
       setCommandStart(null);
     }
   }, [pty]);
-
 
   const handleStop = async () => {
     if (pty === null) return;
@@ -100,7 +119,6 @@ const RunBlock = ({
     setCommandRunning(false);
     setExitCode(null);
     setCommandDuration(null);
-
   };
 
   const openPty = async (): Promise<string> => {
@@ -116,8 +134,18 @@ const RunBlock = ({
     let env: { [key: string]: string } = {};
 
     for (var i = 0; i < vars.length; i++) {
-      let name = await templateString(terminal.id, vars[i].props.name, editor.document, currentRunbookId);
-      let value = await templateString(terminal.id, vars[i].props.value, editor.document, currentRunbookId);
+      let name = await templateString(
+        terminal.id,
+        vars[i].props.name,
+        editor.document,
+        currentRunbookId,
+      );
+      let value = await templateString(
+        terminal.id,
+        vars[i].props.value,
+        editor.document,
+        currentRunbookId,
+      );
       env[name] = value;
     }
 
@@ -133,7 +161,7 @@ const RunBlock = ({
     return pty;
   };
 
-  const handlePlay = async (force: boolean = false) => {
+  const handlePlay = useCallback(async (force: boolean = false) => {
     if (isRunning && !force) return;
     if (!code) return;
 
@@ -142,8 +170,12 @@ const RunBlock = ({
 
     if (onRun) onRun(pty);
 
-    track_event("runbooks.terminal.run", {});
-  };
+      track_event("runbooks.terminal.run", {});
+    },
+    [terminal, isRunning, onRun],
+  );
+
+  useBlockBusRunSubscription(terminal.id, handlePlay);
 
   const handleRefresh = async () => {
     if (!isRunning) return;
@@ -169,18 +201,78 @@ const RunBlock = ({
     return true;
   }, [isRunning]);
 
+  const refreshParentBlock = () => {
+    if (!terminal.dependency.parent) {
+      setParentBlock(null);
+      return;
+    }
+
+    if (parentBlock && parentBlock.id === terminal.dependency.parent) {
+      return;
+    }
+
+    let bnb = editor.document.find((b: any) => b.id === terminal.dependency.parent);
+    if (bnb) {
+      let block = convertBlocknoteToAtuin(bnb);
+      setParentBlock(block);
+    }
+  };
+
+  useEffect(() => {
+    if (!terminal.dependency.parent) {
+      setParentBlock(null);
+      return;
+    }
+
+    if (parentBlock && parentBlock.id === terminal.dependency.parent) {
+      return;
+    }
+
+    if (unsubscribeDependencyChanged.current) {
+      unsubscribeDependencyChanged.current();
+    }
+    if (unsubscribeNameChanged.current) {
+      unsubscribeNameChanged.current();
+    }
+
+    unsubscribeDependencyChanged.current = BlockBus.get().subscribeDependencyChanged(
+      terminal.dependency.parent,
+      refreshParentBlock,
+    );
+    unsubscribeNameChanged.current = BlockBus.get().subscribeNameChanged(
+      terminal.dependency.parent,
+      refreshParentBlock,
+    );
+
+    refreshParentBlock();
+
+    return () => {
+      if (unsubscribeDependencyChanged.current) {
+        unsubscribeDependencyChanged.current();
+      }
+      if (unsubscribeNameChanged.current) {
+        unsubscribeNameChanged.current();
+      }
+    };
+  }, [terminal.dependency.parent]);
+
   return (
     <Block
+      hasDependency
       name={terminal.name}
+      block={terminal}
+      type={"Terminal"}
       setName={setName}
       inlineHeader
+      setDependency={setDependency}
+      hideChild={!terminal.outputVisible}
       header={
         <>
           <div className="flex flex-row justify-between w-full">
             <h1 className="text-default-700 font-semibold">
               {
                 <EditableHeading
-                  initialText={terminal.name || "Terminal"}
+                  initialText={terminal.name}
                   onTextChange={(text) => setName(text)}
                 />
               }
@@ -198,7 +290,9 @@ const RunBlock = ({
                   {formatDuration(commandDuration)}
                 </Chip>
               )}
-              <Tooltip content={terminal.outputVisible ? "Hide output terminal" : "Show output terminal"}>
+              <Tooltip
+                content={terminal.outputVisible ? "Hide output terminal" : "Show output terminal"}
+              >
                 <button
                   onClick={() => setOutputVisible(!terminal.outputVisible)}
                   className="p-2 hover:bg-default-100 rounded-md"
@@ -206,16 +300,19 @@ const RunBlock = ({
                   {terminal.outputVisible ? <Eye size={20} /> : <EyeOff size={20} />}
                 </button>
               </Tooltip>
+              <Dependency block={terminal} setDependency={setDependency} />
             </div>
           </div>
 
-          <div className="flex flex-row gap-2 flex-grow w-full">
+          <div className="flex flex-row gap-2 flex-grow w-full" ref={elementRef}>
             <PlayButton
               isRunning={isRunning}
               cancellable={true}
               onPlay={handlePlay}
               onStop={handleStop}
               onRefresh={handleRefresh}
+              disabled={!canRun}
+              alwaysStop
             />
             <CodeEditor
               id={terminal.id}
@@ -239,7 +336,7 @@ const RunBlock = ({
       {pty && (
         <div
           className={cn(`overflow-hidden transition-all duration-300 ease-in-out min-w-0 hidden`, {
-            "block": terminal.outputVisible && isRunning,
+            block: terminal.outputVisible && isRunning,
           })}
         >
           <Terminal
@@ -272,6 +369,7 @@ export default createReactBlockSpec(
       outputVisible: {
         default: true,
       },
+      dependency: { default: "{}" },
     },
     content: "none",
   },
@@ -310,7 +408,20 @@ export default createReactBlockSpec(
         });
       };
 
-      let terminal = new TerminalBlock(block.id, block.props.name, block.props.code, block.props.outputVisible);
+      const setDependency = (dependency: DependencySpec) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, dependency: dependency.serialize() },
+        });
+      };
+
+      let dependency = DependencySpec.deserialize(block.props.dependency);
+      let terminal = new TerminalBlock(
+        block.id,
+        block.props.name,
+        dependency,
+        block.props.code,
+        block.props.outputVisible,
+      );
 
       return (
         <RunBlock
@@ -321,9 +432,9 @@ export default createReactBlockSpec(
           isEditable={editor.isEditable}
           onRun={onRun}
           onStop={onStop}
-          editor={editor}
           setOutputVisible={setOutputVisible}
           terminal={terminal}
+          setDependency={setDependency}
         />
       );
     },

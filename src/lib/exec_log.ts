@@ -8,7 +8,7 @@ export async function logExecution(
   output: string,
 ) {
   await invoke("log_execution", {
-    block: {type: block_type, ...block},
+    block: {type: block_type, ...block.object()},
     startTime,
     endTime,
     output,

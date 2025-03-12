@@ -6,7 +6,8 @@ import { insertOrUpdateBlock } from "@blocknote/core";
 
 import { runQuery } from "./query";
 import SQL from "../common/SQL";
-import { ClickhouseBlock } from "@/lib/blocks/clickhouse";
+import { ClickhouseBlock } from "@/lib/workflow/blocks/clickhouse";
+import { DependencySpec } from "@/lib/workflow/dependency";
 
 interface SQLProps {
   isEditable: boolean;
@@ -18,6 +19,7 @@ interface SQLProps {
   setAutoRefresh: (autoRefresh: number) => void;
   setName: (name: string) => void;
   setCollapseQuery: (collapseQuery: boolean) => void;
+  setDependency: (dependency: DependencySpec) => void;
 }
 
 const Clickhouse = ({
@@ -29,6 +31,7 @@ const Clickhouse = ({
   setName,
   collapseQuery,
   setCollapseQuery,
+  setDependency,
 }: SQLProps) => {
   return (
     <SQL
@@ -47,6 +50,7 @@ const Clickhouse = ({
       isEditable={isEditable}
       collapseQuery={collapseQuery}
       setCollapseQuery={setCollapseQuery}
+      setDependency={setDependency}
     />
   );
 };
@@ -60,6 +64,7 @@ export default createReactBlockSpec(
       uri: { default: "" },
       autoRefresh: { default: 0 },
       collapseQuery: { default: false },
+      dependency: { default: "{}"},
     },
     content: "none",
   },
@@ -99,9 +104,17 @@ export default createReactBlockSpec(
         });
       };
 
+      const setDependency = (dependency: DependencySpec) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, dependency: dependency.serialize() },
+        });
+      };
+
+      let dependency = DependencySpec.deserialize(block.props.dependency);
       let clickhouse = new ClickhouseBlock(
         block.id, 
         block.props.name, 
+        dependency,
         block.props.query, 
         block.props.uri, 
         block.props.autoRefresh
@@ -117,6 +130,7 @@ export default createReactBlockSpec(
           isEditable={editor.isEditable}
           collapseQuery={block.props.collapseQuery}
           setCollapseQuery={setCollapseQuery}
+          setDependency={setDependency}
         />
       );
     },
@@ -126,8 +140,15 @@ export default createReactBlockSpec(
 export const insertClickhouse = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
   title: "Clickhouse",
   onItemClick: () => {
+    let clickhouseBlocks = editor.document.filter((block: any) => block.type === "clickhouse");
+    let name = `Clickhouse ${clickhouseBlocks.length + 1}`;
+
     insertOrUpdateBlock(editor, {
       type: "clickhouse",
+      // @ts-ignore
+      props: {
+        name: name,
+      },
     });
   },
   icon: <DatabaseIcon size={18} />,

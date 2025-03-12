@@ -8,6 +8,8 @@ import { Avatar, AvatarGroup, Button, Tooltip } from "@heroui/react";
 import { RemoteRunbook } from "@/state/models";
 import { BookTextIcon, PencilOffIcon, TrashIcon } from "lucide-react";
 import { PresenceUserInfo } from "@/lib/phoenix_provider";
+import PlayButton from "../editor/blocks/common/PlayButton";
+import BlockBus from "@/lib/workflow/block_bus";
 
 type TopbarProps = {
   runbook: Runbook;
@@ -142,6 +144,16 @@ export default function Topbar(props: TopbarProps) {
             refreshRemoteRunbook={props.refreshRemoteRunbook}
           />
         </div>
+
+        <PlayButton
+          className="mt-1 ml-2"
+          isRunning={false}
+          cancellable={false}
+          onPlay={() => {
+            BlockBus.get().serialExecute(runbook.id);
+          }}
+          onStop={() => {}}
+        />
       </div>
     );
   };

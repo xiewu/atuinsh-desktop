@@ -1,8 +1,7 @@
+import { DependencySpec } from "../dependency";
 import Block from "./block";
 
 export class TerminalBlock extends Block {
-    id: string;
-    name: string;
     code: string;
     outputVisible: boolean;
 
@@ -10,11 +9,9 @@ export class TerminalBlock extends Block {
         return "terminal";
     }
 
-    constructor(id: string, name: string, code: string, outputVisible: boolean) {
-        super();
+    constructor(id: string, name: string, dependency: DependencySpec, code: string, outputVisible: boolean) {
+        super(id, name, dependency);
 
-        this.id = id;
-        this.name = name;
         this.code = code;
         this.outputVisible = outputVisible;
     }
@@ -30,7 +27,15 @@ export class TerminalBlock extends Block {
 
     static deserialize(json: string) {
         const data = JSON.parse(json);
-        return new TerminalBlock(data.id, data.name, data.code, data.outputVisible);
+        return new TerminalBlock(data.id, data.name, data.dependency, data.code, data.outputVisible);
+    }
+
+    object() {
+        return {
+            id: this.id,
+            name: this.name,
+            code: this.code,
+            outputVisible: this.outputVisible,
+        };
     }
 }
-

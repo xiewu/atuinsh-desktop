@@ -46,10 +46,18 @@ export const schema = BlockNoteSchema.create({
 });
 
 export function createBasicEditor(content: any) {
-  return BlockNoteEditor.create({
+  let editor = BlockNoteEditor.create({
     schema,
     initialContent: content,
   });
+
+  // save on the window if we're using dev mode
+  if (import.meta.env.DEV) {
+    // @ts-ignore
+    window.editor = editor;
+  }
+
+  return editor;
 }
 
 export function createCollaborativeEditor(
@@ -58,7 +66,7 @@ export function createCollaborativeEditor(
   presenceColor?: string,
 ) {
   presenceColor = presenceColor || randomColor();
-  return BlockNoteEditor.create({
+  let editor = BlockNoteEditor.create({
     schema,
     _tiptapOptions: {
       editorProps: {
@@ -75,6 +83,14 @@ export function createCollaborativeEditor(
       },
     },
   });
+
+  // save on the window if we're using dev mode
+  if (import.meta.env.DEV) {
+    // @ts-ignore
+    window.editor = editor;
+  }
+
+  return editor;
 }
 
 export function createConversionEditor(doc: Y.Doc, fragment: Y.XmlFragment) {

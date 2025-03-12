@@ -22,7 +22,13 @@ import { findAllParentsOfType, findFirstParentOfType } from "../exec.ts";
 import { templateString } from "@/state/templates.ts";
 import CodeEditor, { TabAutoComplete } from "../common/CodeEditor/CodeEditor.tsx";
 import { Command } from "@codemirror/view";
-import { ScriptBlock as ScriptBlockType } from "@/lib/blocks/script.ts";
+import { ScriptBlock as ScriptBlockType } from "@/lib/workflow/blocks/script.ts";
+import { default as BlockType } from "@/lib/workflow/blocks/block.ts";
+import Dependency from "../common/Dependency/Dependency.tsx";
+import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert.ts";
+import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency.ts";
+import BlockBus from "@/lib/workflow/block_bus.ts";
+import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus.ts";
 
 interface ScriptBlockProps {
   onChange: (val: string) => void;
@@ -33,6 +39,7 @@ interface ScriptBlockProps {
 
   setOutputVariable: (outputVariable: string) => void;
   setOutputVisible: (visible: boolean) => void;
+  setDependency: (dependency: DependencySpec) => void;
 
   script: ScriptBlockType;
 }
@@ -44,6 +51,7 @@ const ScriptBlock = ({
   isEditable,
   setOutputVariable,
   setOutputVisible,
+  setDependency,
   editor,
   script,
 }: ScriptBlockProps) => {
@@ -53,6 +61,9 @@ const ScriptBlock = ({
   const [fitAddon, setFitAddon] = useState<FitAddon | null>(null);
   const terminalRef = useRef<HTMLDivElement>(null);
   const [currentRunbookId] = useStore((store: AtuinState) => [store.currentRunbookId]);
+  const [parentBlock, setParentBlock] = useState<BlockType | null>(null);
+  const { canRun } = useDependencyState(script, isRunning);
+  const elementRef = useRef<HTMLDivElement>(null);
 
   let interpreterCommand = useMemo(() => {
     // Handle common interpreters without a path
@@ -114,7 +125,26 @@ const ScriptBlock = ({
     };
   }, [terminal, fitAddon]);
 
-  const handlePlay = async () => {
+  // handle dependency change
+  useEffect(() => {
+    if (!script.dependency.parent) {
+      setParentBlock(null);
+      return;
+    }
+
+    if (parentBlock && parentBlock.id === script.dependency.parent) {
+      return;
+    }
+
+    let bnb = editor.document.find((b: any) => b.id === script.dependency.parent);
+    if (bnb) {
+      let block = convertBlocknoteToAtuin(bnb);
+      setParentBlock(block);
+    }
+  }, [script.dependency]);
+
+  const handlePlay = useCallback(async () => {
+    console.log("handlePLay", terminal);
     if (!terminal) return;
 
     setIsRunning(true);
@@ -138,12 +168,26 @@ const ScriptBlock = ({
     let env: { [key: string]: string } = {};
 
     for (var i = 0; i < vars.length; i++) {
-      let name = await templateString(script.id, vars[i].props.name, editor.document, currentRunbookId);
-      let value = await templateString(script.id, vars[i].props.value, editor.document, currentRunbookId);
+      let name = await templateString(
+        script.id,
+        vars[i].props.name,
+        editor.document,
+        currentRunbookId,
+      );
+      let value = await templateString(
+        script.id,
+        vars[i].props.value,
+        editor.document,
+        currentRunbookId,
+      );
       env[name] = value;
     }
-    
+
     let command = await templateString(script.id, script.code, editor.document, currentRunbookId);
+
+    if (elementRef.current) {
+      elementRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
 
     await invoke("shell_exec", {
       channel: channel,
@@ -155,14 +199,18 @@ const ScriptBlock = ({
         cwd: cwd,
         block: {
           type: "script",
-          ...script,
+          ...script.object(),
         },
       },
     });
 
     unlisten();
     setIsRunning(false);
-  };
+
+    BlockBus.get().blockFinished(script);
+  }, [script, terminal, editor.document]);
+
+  useBlockBusRunSubscription(script.id, handlePlay);
 
   const handleStop = () => {
     // TODO: Implement stop functionality
@@ -181,7 +229,11 @@ const ScriptBlock = ({
 
   return (
     <Block
+      hasDependency
+      block={script}
+      setDependency={setDependency}
       name={script.name}
+      type={"Script"}
       setName={setName}
       inlineHeader
       hideChild={!script.outputVisible}
@@ -197,7 +249,7 @@ const ScriptBlock = ({
               }
             </h1>
 
-            <div className="flex flex-row gap-2">
+            <div className="flex flex-row gap-2" ref={elementRef}>
               <Input
                 size="sm"
                 variant="flat"
@@ -222,13 +274,23 @@ const ScriptBlock = ({
                   setInterpreter(e.currentKey);
                 }}
               >
-                <SelectItem key="bash -c">bash</SelectItem>
-                <SelectItem key="zsh -c">zsh</SelectItem>
-                <SelectItem key="node -e">node</SelectItem>
-                <SelectItem key="python3 -c">python3</SelectItem>
+                <SelectItem aria-label="bash" key="bash">
+                  bash
+                </SelectItem>
+                <SelectItem aria-label="zsh" key="zsh">
+                  zsh
+                </SelectItem>
+                <SelectItem aria-label="node" key="node">
+                  node
+                </SelectItem>
+                <SelectItem aria-label="python3" key="python3">
+                  python3
+                </SelectItem>
               </Select>
 
-              <Tooltip content={script.outputVisible ? "Hide output terminal" : "Show output terminal"}>
+              <Tooltip
+                content={script.outputVisible ? "Hide output terminal" : "Show output terminal"}
+              >
                 <Button
                   onPress={() => setOutputVisible(!script.outputVisible)}
                   size="sm"
@@ -238,11 +300,14 @@ const ScriptBlock = ({
                   {script.outputVisible ? <Eye size={20} /> : <EyeOff size={20} />}
                 </Button>
               </Tooltip>
+
+              <Dependency block={script} setDependency={setDependency} />
             </div>
           </div>
 
           <div className="flex flex-row gap-2 flex-grow w-full">
             <PlayButton
+              disabled={!canRun}
               eventName="runbooks.script.run"
               onPlay={handlePlay}
               onStop={handleStop}
@@ -269,10 +334,7 @@ const ScriptBlock = ({
         </>
       }
     >
-      <div 
-        ref={terminalRef} 
-        className="min-h-[200px] w-full" 
-      />
+      <div ref={terminalRef} className="min-h-[200px] w-full" />
     </Block>
   );
 };
@@ -294,6 +356,9 @@ export default createReactBlockSpec(
       outputVisible: {
         default: true,
       },
+      dependency: {
+        default: "{}",
+      },
     },
     content: "none",
   },
@@ -311,6 +376,18 @@ export default createReactBlockSpec(
         editor.updateBlock(block, {
           props: { ...block.props, name: name },
         });
+
+        BlockBus.get().nameChanged(
+          new ScriptBlockType(
+            block.id,
+            name,
+            DependencySpec.deserialize(block.props.dependency),
+            block.props.code,
+            block.props.interpreter,
+            block.props.outputVariable,
+            block.props.outputVisible,
+          ),
+        );
       };
 
       const setInterpreter = (interpreter: string) => {
@@ -331,7 +408,34 @@ export default createReactBlockSpec(
         });
       };
 
-      let script = new ScriptBlockType(block.id, block.props.name, block.props.code, block.props.interpreter, block.props.outputVariable, block.props.outputVisible);
+      const setDependency = (dependency: DependencySpec) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, dependency: dependency.serialize() },
+        });
+
+        BlockBus.get().dependencyChanged(
+          new ScriptBlockType(
+            block.id,
+            block.props.name,
+            dependency,
+            block.props.code,
+            block.props.interpreter,
+            block.props.outputVariable,
+            block.props.outputVisible,
+          ),
+        );
+      };
+
+      let dependency = DependencySpec.deserialize(block.props.dependency);
+      let script = new ScriptBlockType(
+        block.id,
+        block.props.name,
+        dependency,
+        block.props.code,
+        block.props.interpreter,
+        block.props.outputVariable,
+        block.props.outputVisible,
+      );
 
       return (
         <ScriptBlock
@@ -343,6 +447,7 @@ export default createReactBlockSpec(
           editor={editor}
           setOutputVariable={setOutputVariable}
           setOutputVisible={setOutputVisible}
+          setDependency={setDependency}
         />
       );
     },
@@ -360,8 +465,15 @@ export const insertScript = (schema: any) => (editor: typeof schema.BlockNoteEdi
   title: "Script",
   subtext: "Non-interactive script (bash)",
   onItemClick: () => {
+    let scriptBlocks = editor.document.filter((block: any) => block.type === "script");
+    let name = `Script ${scriptBlocks.length + 1}`;
+
     insertOrUpdateBlock(editor, {
       type: "script",
+      // @ts-ignore
+      props: {
+        name: name,
+      },
     });
   },
   icon: <FileTerminalIcon size={18} />,

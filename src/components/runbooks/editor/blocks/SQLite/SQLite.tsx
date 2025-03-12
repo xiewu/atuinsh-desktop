@@ -8,7 +8,8 @@ import { insertOrUpdateBlock } from "@blocknote/core";
 
 import { runQuery } from "./query";
 import SQL from "../common/SQL";
-import { SQLiteBlock } from "@/lib/blocks/sqlite";
+import { SQLiteBlock } from "@/lib/workflow/blocks/sqlite";
+import { DependencySpec } from "@/lib/workflow/dependency";
 
 interface SQLiteProps {
   isEditable: boolean;
@@ -20,6 +21,7 @@ interface SQLiteProps {
   setAutoRefresh: (autoRefresh: number) => void;
   setName: (name: string) => void;
   setCollapseQuery: (collapseQuery: boolean) => void;
+  setDependency: (dependency: DependencySpec) => void;
 }
 
 const SQLite = ({
@@ -31,6 +33,7 @@ const SQLite = ({
   setName,
   collapseQuery,
   setCollapseQuery,
+  setDependency,
 }: SQLiteProps) => {
 
   return (
@@ -50,6 +53,7 @@ const SQLite = ({
       isEditable={isEditable}
       collapseQuery={collapseQuery}
       setCollapseQuery={setCollapseQuery}
+      setDependency={setDependency}
     />
   );
 };
@@ -63,6 +67,7 @@ export default createReactBlockSpec(
       uri: { default: "" },
       autoRefresh: { default: 0 },
       collapseQuery: { default: false },
+      dependency: { default: "{}" },
     },
     content: "none",
   },
@@ -102,11 +107,19 @@ export default createReactBlockSpec(
         });
       };
 
-      let sqlite = new SQLiteBlock(block.id, block.props.name, block.props.query, block.props.uri, block.props.autoRefresh);
+      const setDependency = (dependency: DependencySpec) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, dependency: dependency.serialize() },
+        });
+      };
+
+      let dependency = DependencySpec.deserialize(block.props.dependency);
+      let sqlite = new SQLiteBlock(block.id, block.props.name, dependency, block.props.query, block.props.uri, block.props.autoRefresh);
 
       return (
         <SQLite
           sqlite={sqlite}
+          setDependency={setDependency}
           setName={setName}
           setUri={setUri}
           setQuery={setQuery}
@@ -123,8 +136,15 @@ export default createReactBlockSpec(
 export const insertSQLite = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
   title: "SQLite",
   onItemClick: () => {
+    let sqliteBlocks = editor.document.filter((block: any) => block.type === "sqlite"); 
+    let name = `SQLite ${sqliteBlocks.length + 1}`;
+
     insertOrUpdateBlock(editor, {
       type: "sqlite",
+      // @ts-ignore
+      props: {
+        name: name,
+      },
     });
   },
   icon: <DatabaseIcon size={18} />,

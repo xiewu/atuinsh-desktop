@@ -1,4 +1,5 @@
 pub(crate) mod clickhouse;
+pub(crate) mod editor;
 pub(crate) mod http;
 pub(crate) mod postgres;
 pub(crate) mod prometheus;

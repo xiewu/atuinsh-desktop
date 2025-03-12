@@ -1,13 +1,9 @@
 // TODO [mkt]
 // handle isEditable = false
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Button,
-  Card,
-  CardBody,
-  CardHeader,
-  CardFooter,
   Dropdown,
   DropdownItem,
   DropdownMenu,
@@ -34,11 +30,14 @@ import PromSettings, { PrometheusConfig } from "./promSettings";
 import { Settings } from "@/state/settings";
 import ErrorCard from "../common/ErrorCard";
 import PlayButton from "../common/PlayButton";
-import EditableHeading from "@/components/EditableHeading";
 import { templateString } from "@/state/templates";
 import { useStore } from "@/state/store";
 import { logExecution } from "@/lib/exec_log";
-import { PrometheusBlock as PrometheusBlockType } from "@/lib/blocks/prometheus";
+import { PrometheusBlock as PrometheusBlockType } from "@/lib/workflow/blocks/prometheus";
+import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency";
+import Block from "../common/Block";
+import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus";
+import BlockBus from "@/lib/workflow/block_bus";
 
 interface PromProps {
   setName: (name: string) => void;
@@ -46,6 +45,7 @@ interface PromProps {
   setEndpoint: (endpoint: string) => void;
   setPeriod: (period: string) => void;
   setAutoRefresh: (autoRefresh: boolean) => void;
+  setDependency: (dependency: DependencySpec) => void;
 
   isEditable: boolean;
   prometheus: PrometheusBlockType;
@@ -103,7 +103,8 @@ const Prometheus = ({
   setQuery,
   setEndpoint,
   setPeriod,
-  setAutoRefresh
+  setAutoRefresh,
+  setDependency,
 }: PromProps) => {
   let editor = useBlockNoteEditor();
   const colorMode = useStore((state) => state.functionalColorMode);
@@ -121,8 +122,9 @@ const Prometheus = ({
   const [promClient, setPromClient] = useState<PrometheusDriver | null>(null);
   const [promExtension, setPromExtension] = useState<PromQLExtension | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { canRun } = useDependencyState(prometheus, isRunning);
 
-  const runQuery = async (val: any) => {
+  const runQuery = useCallback(async (val: any) => {
     if (!promClient) return;
 
     const start = new Date().getTime() - timeFrame.seconds * 1000;
@@ -135,7 +137,8 @@ const Prometheus = ({
       let finish = new Date().getTime() * 1000000;
 
       let logResponse = {};
-      await logExecution(prometheus, "prometheus", begin, finish, JSON.stringify(logResponse));
+      await logExecution(prometheus, prometheus.typeName, begin, finish, JSON.stringify(logResponse));
+      BlockBus.get().blockFinished(prometheus);
 
       const series = res.result;
 
@@ -155,7 +158,9 @@ const Prometheus = ({
       });
 
       setData(data);
-  };
+  }, [promClient, prometheus.id, editor.document]);
+
+  useBlockBusRunSubscription(prometheus.id, () => runQuery(prometheus.query));
 
   useEffect(() => {
     (async () => {
@@ -215,68 +220,72 @@ const Prometheus = ({
     prometheus.autoRefresh ? 5000 : null,
   );
 
-  let renderBody = () => {
-    if (!prometheusUrl) return <ErrorCard error="No Prometheus endpoint set" />;
-    if (!promClient) return <Spinner />;
-    if (error) return <ErrorCard error={error} />;
-
-    if (!error) return <PromLineChart data={data} config={config} />;
-  };
-
   return (
-    <Card className="w-full !max-w-full !outline-none overflow-none" shadow="sm">
-      <CardHeader className="flex flex-col items-start gap-2 bg-default-50">
-        <EditableHeading initialText={prometheus.name} onTextChange={setName} />
-
-        <div className="w-full !max-w-full !outline-none overflow-none flex flex-row gap-2">
-          <PlayButton
-            eventName="runbooks.prometheus.run"
-            onPlay={async () => {
-              try {
-                setIsRunning(true);
-                await runQuery(prometheus.query);
-                setIsRunning(false);
-                setError(null);
-              } catch (e: any) {
-                setError(JSON.stringify(e));
-                setIsRunning(false);
-              }
-            }}
-            isRunning={isRunning}
-            cancellable={false}
-          />
-          <CodeMirror
-            placeholder={"Write your query here..."}
-            className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
-            value={value}
-            onChange={(val) => {
-              setValue(val);
-              setQuery(val);
-            }}
-            extensions={promExtension ? [promExtension.asExtension()] : []}
-            basicSetup={true}
-            editable={isEditable}
-            theme={colorMode === "dark" ? "dark" : "light"}
-          />
-        </div>
-      </CardHeader>
-      <CardBody className="min-h-64 overflow-x-scroll">
-        {renderBody()}
-      </CardBody>
-      <CardFooter className="justify-between">
+    <Block
+      block={prometheus}
+      hasDependency
+      setDependency={setDependency}
+      name={prometheus.name}
+      type={"Prometheus"}
+      setName={setName}
+      header={
+        <>
+          <div className="w-full !max-w-full !outline-none overflow-none flex flex-row gap-2">
+            <PlayButton
+              disabled={!canRun}
+              eventName="runbooks.prometheus.run"
+              onPlay={async () => {
+                try {
+                  setIsRunning(true);
+                  await runQuery(prometheus.query);
+                  setIsRunning(false);
+                  setError(null);
+                } catch (e: any) {
+                  setError(JSON.stringify(e));
+                  setIsRunning(false);
+                }
+              }}
+              isRunning={isRunning}
+              cancellable={false}
+            />
+            <CodeMirror
+              placeholder={"Write your query here..."}
+              className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
+              value={value}
+              onChange={(val) => {
+                setValue(val);
+                setQuery(val);
+              }}
+              extensions={promExtension ? [promExtension.asExtension()] : []}
+              basicSetup={true}
+              editable={isEditable}
+              theme={colorMode === "dark" ? "dark" : "light"}
+            />
+          </div>
+        </>
+      }
+    >
+      <div className="min-h-64 overflow-x-scroll">
+        {!prometheusUrl ? <ErrorCard error="No Prometheus endpoint set" /> : 
+         !promClient ? <Spinner /> :
+         error ? <ErrorCard error={error} /> :
+         <PromLineChart data={data} config={config} />}
+      </div>
+      
+      <div className="flex justify-between p-3 border-t">
         <div className="flex-row content-center items-center justify-center">
           <ButtonGroup className="mr-2">
             <Dropdown showArrow>
-            <DropdownTrigger>
-              <Button
-                variant="flat"
-                size="sm"
+              <DropdownTrigger>
+                <Button
+                  variant="flat"
+                  size="sm"
                   startContent={<ClockIcon />}
                   endContent={<ChevronDownIcon />}
-              >
+                >
                   {timeFrame.short}
-              </Button>
-            </DropdownTrigger>
+                </Button>
+              </DropdownTrigger>
               <DropdownMenu variant="faded" aria-label="Select time frame for chart">
                 {timeOptions.map((timeOption) => {
                   return (
@@ -285,14 +294,14 @@ const Prometheus = ({
                       onPress={() => {
                         setTimeFrame(timeOption);
                         setPeriod(timeOption.short);
-              }}
-            >
+                      }}
+                    >
                       {timeOption.name}
                     </DropdownItem>
                   );
                 })}
-            </DropdownMenu>
-          </Dropdown>
+              </DropdownMenu>
+            </Dropdown>
 
             <PromSettings
               config={{
@@ -314,12 +323,12 @@ const Prometheus = ({
           size="sm"
           onValueChange={(value) => {
             setAutoRefresh(value);
-            }}
-          >
+          }}
+        >
           <h3 className="text-sm">Auto refresh</h3>
         </Switch>
-      </CardFooter>
-    </Card>
+      </div>
+    </Block>
   );
 };
 
@@ -332,6 +341,7 @@ export default createReactBlockSpec(
       endpoint: { default: "" },
       period: { default: "" },
       autoRefresh: { default: false },
+      dependency: { default: "{}" },
     },
     content: "none",
   },
@@ -367,11 +377,18 @@ export default createReactBlockSpec(
           props: { ...block.props, autoRefresh: autoRefresh },
         });
       };
-      
 
+      const setDependency = (dependency: DependencySpec) => {
+        editor.updateBlock(block, {
+          props: { ...block.props, dependency: dependency.serialize() },
+        });
+      };
+      
+      let dependency = DependencySpec.deserialize(block.props.dependency);
       let prometheus = new PrometheusBlockType(
         block.id,
         block.props.name,
+        dependency,
         block.props.query,
         block.props.endpoint,
         block.props.period,
@@ -386,6 +403,7 @@ export default createReactBlockSpec(
           setEndpoint={setEndpoint}
           setPeriod={setPeriod}
           setAutoRefresh={setAutoRefresh}
+          setDependency={setDependency}
           isEditable={editor.isEditable}
         />
       );
@@ -396,8 +414,15 @@ export default createReactBlockSpec(
 export const insertPrometheus = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
   title: "Prometheus",
   onItemClick: () => {
+    let prometheusBlocks = editor.document.filter((block: any) => block.type === "prometheus");
+    let name = `Prometheus ${prometheusBlocks.length + 1}`;
+
     insertOrUpdateBlock(editor, {
       type: "prometheus",
+      // @ts-ignore
+      props: {
+        name: name,
+      },
     });
   },
   icon: <LineChartIcon size={18} />,

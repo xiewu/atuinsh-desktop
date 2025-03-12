@@ -1,3 +1,4 @@
+import { DependencySpec } from "../dependency";
 import Block from "./block";
 
 export enum HttpVerb {
@@ -12,8 +13,6 @@ export enum HttpVerb {
 export type HttpHeaders = { [key: string]: string };
 
 export class HttpBlock extends Block {
-    id: string;
-    name: string;
     url: string;
     verb: HttpVerb;
     headers: HttpHeaders;
@@ -25,27 +24,30 @@ export class HttpBlock extends Block {
     constructor(
         id: string, 
         name: string, 
+        dependency: DependencySpec,
         url: string, 
         verb: HttpVerb = HttpVerb.GET, 
         headers: HttpHeaders = {}
     ) {
-        super();
+        super(id, name, dependency);
 
-        this.id = id;
-        this.name = name;
         this.url = url;
         this.verb = verb;
         this.headers = headers;
     }
 
-    serialize() {
-        return JSON.stringify({
+    object() {
+        return {
             id: this.id,
             name: this.name,
             url: this.url,
             verb: this.verb,
             headers: this.headers,
-        });
+        };
+    }
+
+    serialize() {
+        return JSON.stringify(this.object());
     }
     
     static deserialize(json: string) {
@@ -53,6 +55,7 @@ export class HttpBlock extends Block {
         return new HttpBlock(
             data.id, 
             data.name, 
+            data.dependency,
             data.url, 
             data.verb, 
             data.headers

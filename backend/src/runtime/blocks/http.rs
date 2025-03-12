@@ -6,12 +6,17 @@ use uuid::Uuid;
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Default)]
 pub enum HttpVerb {
     #[default]
+    #[serde(rename = "GET")]
     Get,
-
+    #[serde(rename = "POST")]
     Post,
+    #[serde(rename = "PUT")]
     Put,
+    #[serde(rename = "DELETE")]
     Delete,
+    #[serde(rename = "PATCH")]
     Patch,
+    #[serde(rename = "HEAD")]
     Head,
 }
 

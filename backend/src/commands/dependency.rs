@@ -1,5 +1,5 @@
 use crate::runtime::blocks::Block;
-use crate::runtime::dependency::DependencySpec;
+use crate::runtime::workflow::dependency::DependencySpec;
 use eyre::Result;
 
 #[tauri::command]

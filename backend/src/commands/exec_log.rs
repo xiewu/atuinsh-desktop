@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 
-use crate::runtime::blocks::Block;
+use crate::runtime::{blocks::Block, workflow::event::WorkflowEvent};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct ExecLogCompletedEvent {
@@ -26,6 +26,11 @@ pub async fn log_execution(
         .log_execution(block.clone(), start_time, end_time, output.clone())
         .await
         .map_err(|e| e.to_string())?;
+
+    let event_sender = state.event_sender();
+    event_sender
+        .send(WorkflowEvent::BlockFinished { id: block.id() })
+        .expect("Failed to send stop block event");
 
     app.emit(
         format!("exec_log_completed:{}", block.id()).as_str(),

@@ -3,8 +3,9 @@ use std::path::Path;
 use std::{process::Stdio, sync::Arc};
 
 use atuin_common::utils::uuid_v7;
+use nix::unistd::Pid;
 use serde::{Deserialize, Serialize};
-use tauri::{Emitter, State};
+use tauri::{Emitter, Manager, State};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::RwLock;
@@ -12,6 +13,7 @@ use tokio::sync::RwLock;
 use crate::runtime::blocks::script::ScriptOutput;
 use crate::runtime::blocks::Block;
 use crate::state::AtuinState;
+
 /// Execute a shell command and stream the output over a channel
 /// Unlike a pty, this is not interactive
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -23,6 +25,14 @@ pub struct ShellProps {
 }
 
 #[tauri::command]
+pub async fn term_process(pid: u32) -> Result<(), String> {
+    nix::sys::signal::kill(Pid::from_raw(pid as i32), nix::sys::signal::SIGTERM)
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn shell_exec(
     app: tauri::AppHandle,
     state: State<'_, AtuinState>,
@@ -30,7 +40,7 @@ pub async fn shell_exec(
     channel: String,
     command: String,
     props: ShellProps,
-) -> Result<(), String> {
+) -> Result<u32, String> {
     let block = if let Block::Script(ref script) = props.block {
         script.clone()
     } else {
@@ -126,29 +136,39 @@ pub async fn shell_exec(
         }
     });
 
-    // Wait for the command to complete
-    let output = cmd.write().await.wait().await.unwrap();
-    out_handle.abort();
-    err_handle.abort();
-    drop(output_tx);
+    // wait for the command in another task
+    let pid = cmd.read().await.id().expect("Command has no id");
+    let app_clone = app.clone();
 
-    state.child_processes.write().await.remove(&id);
+    tauri::async_runtime::spawn(async move {
+        let state = app_clone.state::<AtuinState>();
+        let output = cmd.write().await.wait().await.unwrap();
+        out_handle.abort();
+        err_handle.abort();
+        drop(output_tx);
 
-    let nanoseconds_end = time::OffsetDateTime::now_utc().unix_timestamp_nanos();
-    let exit = output.code().unwrap_or(1);
-    let output = ScriptOutput::builder().exit_code(exit).build();
-    let output = serde_json::to_string(&output).unwrap();
+        state.child_processes.write().await.remove(&id);
 
-    crate::commands::exec_log::log_execution(
-        app,
-        state,
-        Block::Script(block),
-        nanoseconds_start as u64,
-        nanoseconds_end as u64,
-        output,
-    )
-    .await
-    .unwrap();
+        let nanoseconds_end = time::OffsetDateTime::now_utc().unix_timestamp_nanos();
+        let exit = output.code().unwrap_or(1);
+        let output = ScriptOutput::builder().exit_code(exit).build();
+        let output = serde_json::to_string(&output).unwrap();
 
-    Ok(())
+        crate::commands::exec_log::log_execution(
+            app_clone.clone(),
+            state,
+            Block::Script(block),
+            nanoseconds_start as u64,
+            nanoseconds_end as u64,
+            output,
+        )
+        .await
+        .unwrap();
+
+        app_clone
+            .emit(format!("shell_exec_finished:{}", pid).as_str(), "")
+            .unwrap();
+    });
+
+    Ok(pid)
 }

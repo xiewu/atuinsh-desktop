@@ -105,13 +105,14 @@ const SQL = ({
   const elementRef = useRef<HTMLDivElement>(null);
 
   const handlePlay = useCallback(async () => {
+    console.log("sql handlePlay called");
     setIsRunning(true);
 
+    let startTime = new Date().getTime() * 1000000;
     try {
       let tUri = await templateString(id, uri, editor.document, currentRunbookId);
       let tQuery = await templateString(id, query, editor.document, currentRunbookId);
 
-      let startTime = new Date().getTime() * 1000000;
 
       if (elementRef.current) {
         elementRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -137,6 +138,10 @@ const SQL = ({
       if (e.message) {
         e = e.message;
       }
+
+      let endTime = new Date().getTime() * 1000000;
+      await logExecution(block, block.typeName, startTime, endTime, JSON.stringify({ error: e }));
+      BlockBus.get().blockFinished(block);
 
       setError(e);
       setIsRunning(false);

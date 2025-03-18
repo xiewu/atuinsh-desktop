@@ -40,7 +40,6 @@ import SettingsPanel from "./components/Settings/Settings";
 import { invoke } from "@tauri-apps/api/core";
 import debounce from "lodash.debounce";
 import { getGlobalOptions } from "./lib/global_options";
-import { serialExecute } from "./lib/workflow/serial";
 const logger = new Logger("Main");
 
 (async () => {
@@ -59,11 +58,6 @@ const socketManager = SocketManager.get();
 const notificationManager = ServerNotificationManager.get();
 const syncManager = SyncManager.get(useStore);
 const queryClient = useStore.getState().queryClient;
-
-if (import.meta.env.MODE === "development") {
-  // @ts-ignore
-  window.runSerial = serialExecute;
-}
 
 event.listen("tauri://blur", () => {
   useStore.getState().setFocused(false);

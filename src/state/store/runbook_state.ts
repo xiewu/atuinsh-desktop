@@ -8,6 +8,10 @@ import { StateCreator } from "zustand";
 
 export interface AtuinRunbookState {
   runbooks: Runbook[];
+
+  // The ID of the runbook that is currently being executed
+  // Right now we do not support concurrent or background runbook execution
+  serialExecution: string | null;
   currentRunbookId: string | null;
   lastTagForRunbook: { [key: string]: string };
 
@@ -15,6 +19,7 @@ export interface AtuinRunbookState {
   refreshRunbooks: () => Promise<void>;
   deleteRunbookFromCache: (runbookId: string) => void;
 
+  setSerialExecution: (id: string | null) => void;
   setCurrentRunbookId: (id: string | null) => void;
   selectTag: (runbookId: string, tag: string | null) => void;
   getLastTagForRunbook: (runbookId: string) => string | null;
@@ -37,6 +42,7 @@ export const createRunbookState: StateCreator<AtuinRunbookState> = (
   runbooks: [],
   currentRunbookId: null,
   lastTagForRunbook: {},
+  serialExecution: null,
 
   importRunbook: async (): Promise<Runbook[] | null> => {
     let filePath = await open({
@@ -107,6 +113,10 @@ export const createRunbookState: StateCreator<AtuinRunbookState> = (
   },
 
   currentWorkspaceId: "",
+
+  setSerialExecution: (id: string | null) => {
+    set({ serialExecution: id });
+  },
 
   setCurrentWorkspaceId: (id: string) => {
     const lastWorkspaceId = get().currentWorkspaceId;

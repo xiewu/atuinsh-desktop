@@ -169,7 +169,6 @@ impl PtyStore {
 
     async fn handle_message(&mut self, message: PtyStoreMessage) {
         match message {
-            // TODO: kiss braelyn
             PtyStoreMessage::AddPty { pty } => self.add_pty(pty),
             PtyStoreMessage::RemovePty { id } => self.remove_pty(id).await,
             PtyStoreMessage::WritePty { id, data } => self.write_pty(id, data).await,
@@ -210,6 +209,7 @@ impl PtyStore {
         let pty = self.pty_sessions.remove(&id);
 
         if let Some(pty) = pty {
+            log::info!("Killing pty: {}", pty.metadata.pid);
             pty.kill_child().await.unwrap();
         }
     }

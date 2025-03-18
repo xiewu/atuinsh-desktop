@@ -12,7 +12,7 @@ import EditableHeading from "@/components/EditableHeading/index.tsx";
 import { insertOrUpdateBlock } from "@blocknote/core";
 import { invoke } from "@tauri-apps/api/core";
 import { uuidv7 } from "uuidv7";
-import { listen } from "@tauri-apps/api/event";
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
 
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
@@ -28,7 +28,7 @@ import Dependency from "../common/Dependency/Dependency.tsx";
 import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert.ts";
 import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency.ts";
 import BlockBus from "@/lib/workflow/block_bus.ts";
-import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus.ts";
+import { useBlockBusRunSubscription, useBlockBusStopSubscription } from "@/lib/hooks/useBlockBus.ts";
 
 interface ScriptBlockProps {
   onChange: (val: string) => void;
@@ -55,15 +55,19 @@ const ScriptBlock = ({
   editor,
   script,
 }: ScriptBlockProps) => {
-  const colorMode = useStore((state) => state.functionalColorMode);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [terminal, setTerminal] = useState<Terminal | null>(null);
   const [fitAddon, setFitAddon] = useState<FitAddon | null>(null);
+  const [pid, setPid] = useState<number | null>(null);
+
+  const colorMode = useStore((state) => state.functionalColorMode);
   const terminalRef = useRef<HTMLDivElement>(null);
   const [currentRunbookId] = useStore((store: AtuinState) => [store.currentRunbookId]);
   const [parentBlock, setParentBlock] = useState<BlockType | null>(null);
   const { canRun } = useDependencyState(script, isRunning);
   const elementRef = useRef<HTMLDivElement>(null);
+  const unlisten = useRef<UnlistenFn | null>(null);
+  const tauriUnlisten = useRef<UnlistenFn | null>(null);
 
   let interpreterCommand = useMemo(() => {
     // Handle common interpreters without a path
@@ -144,15 +148,15 @@ const ScriptBlock = ({
   }, [script.dependency]);
 
   const handlePlay = useCallback(async () => {
-    console.log("handlePLay", terminal);
     if (!terminal) return;
+    if (isRunning || unlisten.current) return;
 
     setIsRunning(true);
     terminal.clear();
 
     const channel = uuidv7();
 
-    const unlisten = await listen(channel, (event) => {
+    unlisten.current = await listen(channel, (event) => {
       terminal.write(event.payload + "\r\n");
     });
 
@@ -189,7 +193,7 @@ const ScriptBlock = ({
       elementRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
     }
 
-    await invoke("shell_exec", {
+    let pid = await invoke<number>("shell_exec", {
       channel: channel,
       command: command,
       interpreter: interpreterCommand,
@@ -204,18 +208,34 @@ const ScriptBlock = ({
       },
     });
 
-    unlisten();
-    setIsRunning(false);
+    setPid(pid);
 
-    BlockBus.get().blockFinished(script);
+    tauriUnlisten.current = await listen("shell_exec_finished:" + pid, async () => {
+      onStop();
+    });
   }, [script, terminal, editor.document]);
 
-  useBlockBusRunSubscription(script.id, handlePlay);
+  const onStop = useCallback(async () => {
+    unlisten.current?.();
+    tauriUnlisten.current?.();
 
-  const handleStop = () => {
-    // TODO: Implement stop functionality
+    unlisten.current = null;
+    tauriUnlisten.current = null;
+
     setIsRunning(false);
+    BlockBus.get().blockFinished(script);
+  }, [pid]);
+
+  const handleStop = async () => {
+    if (pid) {
+      await invoke("term_process", { pid: pid });
+    }
+    setIsRunning(false);
+    onStop();
   };
+
+  useBlockBusRunSubscription(script.id, handlePlay);
+  useBlockBusStopSubscription(script.id, handleStop);
 
   const handleCmdEnter: Command = useCallback(() => {
     if (!isRunning) {

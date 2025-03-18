@@ -1,7 +1,7 @@
 use eyre::Result;
 use serde::{Deserialize, Serialize};
 
-use super::{blocks::Block, exec_log::ExecLogHandle};
+use crate::runtime::{blocks::Block, exec_log::ExecLogHandle};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -42,8 +42,6 @@ impl DependencySpec {
                 // We have when the parent last ran. Now check when this block last ran. So long as it was before the parent last ran, we're good.
                 let parent_last_run = exec_log.get_last_execution_time(parent_uuid).await?;
                 let block_last_run = exec_log.get_last_execution_time(block.id()).await?;
-
-                println!("got run single, parent_id: {:?}, block_id: {:?}, parent_last_run: {:?}, block_last_run: {:?}", parent_id, block.id(), parent_last_run, block_last_run);
 
                 match (parent_last_run, block_last_run) {
                     (Some(parent_last_run), Some(block_last_run)) => {

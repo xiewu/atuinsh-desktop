@@ -13,7 +13,7 @@ import { useBlockNoteEditor } from "@blocknote/react";
 
 import "@xterm/xterm/css/xterm.css";
 import { AtuinState, useStore } from "@/state/store.ts";
-import { Chip, code, Spinner, Tooltip } from "@heroui/react";
+import { Chip, Spinner, Tooltip } from "@heroui/react";
 import { cn, formatDuration } from "@/lib/utils.ts";
 import { usePtyStore } from "@/state/ptyStore.ts";
 import track_event from "@/tracking.ts";
@@ -32,7 +32,7 @@ import Dependency from "../common/Dependency/Dependency.tsx";
 import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert.ts";
 import { default as BlockType } from "@/lib/workflow/blocks/block.ts";
 import BlockBus from "@/lib/workflow/block_bus.ts";
-import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus.ts";
+import { useBlockBusRunSubscription, useBlockBusStopSubscription } from "@/lib/hooks/useBlockBus.ts";
 
 interface RunBlockProps {
   onChange: (val: string) => void;
@@ -106,7 +106,8 @@ const RunBlock = ({
     }
   }, [pty]);
 
-  const handleStop = async () => {
+  const handleStop = useCallback(async () => {
+    console.log("handleStop", pty);
     if (pty === null) return;
 
     await invoke("pty_kill", { pid: pty.pid, runbook: currentRunbookId });
@@ -119,7 +120,7 @@ const RunBlock = ({
     setCommandRunning(false);
     setExitCode(null);
     setCommandDuration(null);
-  };
+  }, [pty, currentRunbookId, terminal.id, terminals, cleanupPtyTerm, onStop]);
 
   const openPty = async (): Promise<string> => {
     let cwd = findFirstParentOfType(editor, terminal.id, "directory");
@@ -163,19 +164,20 @@ const RunBlock = ({
 
   const handlePlay = useCallback(async (force: boolean = false) => {
     if (isRunning && !force) return;
-    if (!code) return;
+    if (!terminal.code) return;
 
-    let pty = await openPty();
+    await invoke("workflow_block_start_event", {
+      workflow: currentRunbookId,
+      block: terminal.id,
+    });
+
+    let p = await openPty();
     setFirstOpen(true);
 
-    if (onRun) onRun(pty);
+    if (onRun) onRun(p);
 
-      track_event("runbooks.terminal.run", {});
-    },
-    [terminal, isRunning, onRun],
-  );
-
-  useBlockBusRunSubscription(terminal.id, handlePlay);
+    track_event("runbooks.terminal.run", {});
+  }, [isRunning, terminal.code, terminal.id, currentRunbookId, onRun, openPty]);
 
   const handleRefresh = async () => {
     if (!isRunning) return;
@@ -255,6 +257,9 @@ const RunBlock = ({
       }
     };
   }, [terminal.dependency.parent]);
+  
+  useBlockBusRunSubscription(terminal.id, handlePlay);
+  useBlockBusStopSubscription(terminal.id, handleStop);
 
   return (
     <Block

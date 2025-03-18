@@ -19,6 +19,7 @@ import { logExecution } from "@/lib/exec_log";
 import { HttpBlock as HttpBlockType, HttpVerb } from "@/lib/workflow/blocks/http";
 import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency";
 import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus";
+import BlockBus from "@/lib/workflow/block_bus";
 
 type HttpHeaders = { [key: string]: string };
 
@@ -147,6 +148,7 @@ const Http = ({
         endTime,
         JSON.stringify(logResponse)
       );
+      BlockBus.get().blockFinished(http);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       console.error("Request failed:", errorMessage);
@@ -163,6 +165,7 @@ const Http = ({
         endTime,
         JSON.stringify({ error: errorMessage })
       );
+      BlockBus.get().blockFinished(http);
     }
     
     setIsRunning(false);
@@ -258,7 +261,7 @@ export default createReactBlockSpec(
       url: { default: "" },
       verb: { default: "GET" },
       body: { default: "" },
-      headers: { default: "" },
+      headers: { default: "{}" },
       dependency: { default: "{}" },
     },
     content: "none",
@@ -314,6 +317,7 @@ export default createReactBlockSpec(
         dependency,
         block.props.url,
         block.props.verb as HttpVerb,
+        JSON.parse(block.props.headers)
       );
 
       return (

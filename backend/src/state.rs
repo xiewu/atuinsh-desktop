@@ -5,12 +5,23 @@ use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
 };
+use tauri::Emitter;
 use tauri::{async_runtime::RwLock, AppHandle};
-use tokio::process::Child;
+use tokio::{
+    process::Child,
+    sync::{broadcast, mpsc},
+};
 use uuid::Uuid;
 
 use crate::{
-    runtime::{exec_log::ExecLogHandle, pty_store::PtyStoreHandle},
+    runtime::{
+        exec_log::ExecLogHandle,
+        pty_store::PtyStoreHandle,
+        workflow::{
+            event::{WorkflowCommand, WorkflowEvent},
+            executor::ExecutorHandle,
+        },
+    },
     shared_state::SharedStateHandle,
 };
 
@@ -28,6 +39,9 @@ pub(crate) struct AtuinState {
 
     // Shared state
     shared_state: Mutex<Option<SharedStateHandle>>,
+
+    executor: Mutex<Option<ExecutorHandle>>,
+    event_sender: Mutex<Option<broadcast::Sender<WorkflowEvent>>>,
 
     // the second rwlock could probs be a mutex
     // i cba it works fine
@@ -62,6 +76,8 @@ impl AtuinState {
             pty_store: Mutex::new(None),
             exec_log: Mutex::new(None),
             shared_state: Mutex::new(None),
+            executor: Mutex::new(None),
+            event_sender: Mutex::new(None),
             child_processes: Default::default(),
             template_state: Default::default(),
             runbooks_api_token: Default::default(),
@@ -86,6 +102,68 @@ impl AtuinState {
 
         let shared_state = SharedStateHandle::new(app.clone()).await;
         self.shared_state.lock().unwrap().replace(shared_state);
+
+        // New receivers are created by calling .subscribe() on the sender
+        // Hence, we pass in the sender and not a receiver
+        // This is a BROADCAST channel, not a normal mpsc!
+        // TODO: handle broadcast channel lag
+        let (event_sender, mut event_receiver) = tokio::sync::broadcast::channel(24);
+        let (cmd_sender, mut cmd_receiver) = mpsc::channel(8);
+
+        let executor = ExecutorHandle::new(event_sender.clone(), cmd_sender);
+
+        let app_clone = app.clone();
+        tauri::async_runtime::spawn(async move {
+            println!("starting executor command loop");
+
+            while let Some(event) = cmd_receiver.recv().await {
+                match event {
+                    WorkflowCommand::RunBlock { id } => {
+                        println!("emitting start block event {}", id);
+                        app_clone
+                            .emit("start-block", id)
+                            .expect("Failed to emit start block event");
+                    }
+                    WorkflowCommand::StopBlock { id } => {
+                        println!("emitting stop block event {}", id);
+                        app_clone
+                            .emit("stop-block", id)
+                            .expect("Failed to emit stop block event");
+                    }
+                }
+            }
+        });
+
+        let app_clone = app.clone();
+        let executor_clone = executor.clone();
+        tauri::async_runtime::spawn(async move {
+            while let Ok(event) = event_receiver.recv().await {
+                match event {
+                    WorkflowEvent::BlockStarted { id } => {
+                        println!("block {} started", id);
+                    }
+                    WorkflowEvent::BlockFinished { id } => {
+                        println!("block {} finished", id);
+                    }
+                    WorkflowEvent::WorkflowStarted { id } => {
+                        println!("workflow {} started", id);
+                        app_clone
+                            .emit("workflow-started", id)
+                            .expect("Failed to emit workflow started event");
+                    }
+                    WorkflowEvent::WorkflowFinished { id } => {
+                        println!("workflow {} finished", id);
+                        executor_clone.stop_workflow(id).await;
+                        app_clone
+                            .emit("workflow-finished", id)
+                            .expect("Failed to emit workflow finished event");
+                    }
+                }
+            }
+        });
+
+        self.executor.lock().unwrap().replace(executor);
+        self.event_sender.lock().unwrap().replace(event_sender);
     }
 
     pub async fn shutdown(&self) -> Result<()> {
@@ -119,6 +197,22 @@ impl AtuinState {
             shared_state.clone()
         } else {
             panic!("Shared state not initialized");
+        }
+    }
+
+    pub fn executor(&self) -> ExecutorHandle {
+        if let Some(executor) = self.executor.lock().unwrap().as_ref() {
+            (*executor).clone()
+        } else {
+            panic!("Executor not initialized");
+        }
+    }
+
+    pub fn event_sender(&self) -> broadcast::Sender<WorkflowEvent> {
+        if let Some(event_sender) = self.event_sender.lock().unwrap().as_ref() {
+            (*event_sender).clone()
+        } else {
+            panic!("Event sender not initialized");
         }
     }
 }

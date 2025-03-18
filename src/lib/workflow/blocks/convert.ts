@@ -35,7 +35,7 @@ export function convertBlocknoteToAtuin(bnb: any): Block | null {
     }
 
     if (bnb.type === "http"){
-        return new HttpBlock(bnb.id, bnb.props.name, bnb.props.dependency, bnb.props.url, bnb.props.verb, bnb.props.headers);
+        return new HttpBlock(bnb.id, bnb.props.name, bnb.props.dependency, bnb.props.url, bnb.props.verb, JSON.parse(bnb.props.headers));
     }
 
     if (bnb.type === "prometheus") {

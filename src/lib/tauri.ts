@@ -4,22 +4,40 @@
 /// when the component dismounts.
 
 import React from "react";
-import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { EventCallback, listen, UnlistenFn } from "@tauri-apps/api/event";
 
-const useTauriEvent = (eventName: string, func: () => Promise<void>) => {
-  let ref = React.useRef<UnlistenFn>(undefined);
+const useTauriEvent = (eventName: string, func: EventCallback<any>): void => {
+  const funcRef = React.useRef<EventCallback<any>>(func);
+  const unlistenRef = React.useRef<UnlistenFn | undefined>(undefined);
+
+  // Update the ref whenever func changes
+  React.useEffect(() => {
+    funcRef.current = func;
+  }, [func]);
 
   React.useEffect(() => {
-    (async () => {
-      if (ref.current) ref.current();
+    const startListen = async () => {
+      if (unlistenRef.current) {
+        await unlistenRef.current();
+        unlistenRef.current = undefined;
+      }
 
-      ref.current = await listen(eventName, func);
-    })();
+      unlistenRef.current = await listen(eventName, funcRef.current);
+    };
+
+    const stopListen = async () => {
+      if (unlistenRef.current) {
+        await unlistenRef.current();
+        unlistenRef.current = undefined;
+      }
+    };
+
+    startListen();
 
     return () => {
-      if (ref.current) ref.current();
+      stopListen();
     };
-  }, [eventName, func]);
+  }, [eventName]); // Only re-run if eventName changes
 };
 
 export { useTauriEvent };

@@ -6,6 +6,12 @@ import {
   DropdownMenu,
   DropdownItem,
   DropdownSection,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  useDisclosure,
 } from "@heroui/react";
 import {
   ChevronRightIcon,
@@ -46,12 +52,16 @@ const NoteSidebar = (props: NotesSidebarProps) => {
   ]);
   const currentRunbook = useCurrentRunbook();
   const currentWorkspaceId = useStore((state: AtuinState) => state.currentWorkspaceId);
+  const serialExecution = useStore((state: AtuinState) => state.serialExecution);
 
   const setCurrentRunbookId = useStore((state: AtuinState) => state.setCurrentRunbookId);
+  const setSerialExecution = useStore((state: AtuinState) => state.setSerialExecution);
   const ptys: { [pid: string]: PtyMetadata } = usePtyStore((state) => state.ptys);
 
   const [isMoveToOpen, setMoveToOpen] = useState(false);
   const [isExportAsOpen, setExportAsOpen] = useState(false);
+  const [pendingRunbookId, setPendingRunbookId] = useState<string | null>(null);
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -91,6 +101,38 @@ const NoteSidebar = (props: NotesSidebarProps) => {
   const sortedRunbooks = useMemo(() => {
     return (runbooks || []).sort((a, b) => a.name.localeCompare(b.name));
   }, [runbooks]);
+
+  const handleRunbookClick = async (runbookId: string) => {
+    if (serialExecution) {
+      setPendingRunbookId(runbookId);
+      onOpen();
+      return;
+    }
+
+    navigateToRunbook(runbookId);
+  };
+
+  const navigateToRunbook = async (runbookId: string) => {
+    track_event("runbooks.open", {
+      total: await Runbook.count(),
+    });
+
+    if (location.pathname !== "/runbooks") {
+      navigate("/runbooks");
+    }
+    setCurrentRunbookId(runbookId);
+  };
+
+  const handleStopAndNavigate = async () => {
+    if (currentRunbook?.id && pendingRunbookId) {
+      await invoke("workflow_stop", { id: currentRunbook.id });
+      setSerialExecution(null);
+
+
+      navigateToRunbook(pendingRunbookId);
+      onClose();
+    }
+  };
 
   return (
     <div className="hidden !w-64 !max-w-64 !min-w-64 h-full bg-gray-50 dark:bg-content1 border-r border-gray-200 dark:border-default-300 md:flex md:flex-col select-none">
@@ -144,16 +186,7 @@ const NoteSidebar = (props: NotesSidebarProps) => {
           return (
             <div
               key={runbook.id}
-              onClick={async () => {
-                track_event("runbooks.open", {
-                  total: await Runbook.count(),
-                });
-
-                if (location.pathname !== "/runbooks") {
-                  navigate("/runbooks");
-                }
-                setCurrentRunbookId(runbook.id);
-              }}
+              onClick={() => handleRunbookClick(runbook.id)}
               className={`cursor-pointer p-2 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-content2 ${
                 isActive ? "bg-gray-200 dark:bg-content2" : ""
               } relative`}
@@ -259,6 +292,24 @@ const NoteSidebar = (props: NotesSidebarProps) => {
           );
         })}
       </div>
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <ModalContent>
+          <ModalHeader>Stop Current Execution?</ModalHeader>
+          <ModalBody>
+            <p>
+              A runbook is currently being executed. Do you want to stop the execution and navigate to the selected runbook?
+            </p>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="flat" onPress={onClose}>
+              Cancel
+            </Button>
+            <Button color="danger" onPress={handleStopAndNavigate}>
+              Stop and Navigate
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </div>
   );
 };

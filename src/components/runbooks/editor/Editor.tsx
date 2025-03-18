@@ -38,7 +38,8 @@ import { useStore } from "@/state/store";
 import { usePromise } from "@/lib/utils";
 import { useCallback, useEffect, useRef } from "react";
 import BlockBus from "@/lib/workflow/block_bus";
-import { serialExecute } from "@/lib/workflow/serial";
+import { invoke } from "@tauri-apps/api/core";
+import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert";
 
 // Slash menu item to insert an Alert block
 const insertTerminal= (editor: typeof schema.BlockNoteEditor) => ({
@@ -100,11 +101,14 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
   const fontFamily = useStore((state) => state.fontFamily);
   const serialExecuteRef = useRef<(() => void) | null>(null);
 
-  const serialExecuteCallback = useCallback(() => {
+  const serialExecuteCallback = useCallback(async () => {
     if (!editor || !runbook) {
       return;
     }
-    serialExecute(editor.document);
+
+    let workflow = editor.document.map(convertBlocknoteToAtuin).filter((block) => block !== null).map((block) => ({type: block.typeName, ...block.object()}));
+    console.log(workflow);
+    await invoke("workflow_serial", { id: runbook.id, workflow });
 
   }, [editor, runbook]);
 
@@ -113,11 +117,11 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
       return;
     }
 
-    serialExecuteRef.current = BlockBus.get().subscribeSerialExecute(runbook.id, serialExecuteCallback);
+    serialExecuteRef.current = BlockBus.get().subscribeStartWorkflow(runbook.id, serialExecuteCallback);
 
     return () => {
       if (serialExecuteRef.current) {
-        BlockBus.get().unsubscribeSerialExecute(runbook.id, serialExecuteRef.current);
+        BlockBus.get().unsubscribeStartWorkflow(runbook.id, serialExecuteRef.current);
       }
     };
   }, [editor, runbook]);

@@ -37,13 +37,14 @@ export class HttpBlock extends Block {
     }
 
     object() {
-        return {
+        let obj = {
             id: this.id,
             name: this.name,
             url: this.url,
             verb: this.verb,
             headers: this.headers,
         };
+        return obj;
     }
 
     serialize() {
@@ -58,7 +59,7 @@ export class HttpBlock extends Block {
             data.dependency,
             data.url, 
             data.verb, 
-            data.headers
+            JSON.parse(data.headers)
         );
     }
 }

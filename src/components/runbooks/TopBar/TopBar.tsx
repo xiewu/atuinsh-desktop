@@ -10,6 +10,8 @@ import { BookTextIcon, PencilOffIcon, TrashIcon } from "lucide-react";
 import { PresenceUserInfo } from "@/lib/phoenix_provider";
 import PlayButton from "../editor/blocks/common/PlayButton";
 import BlockBus from "@/lib/workflow/block_bus";
+import { useStore } from "@/state/store";
+import { invoke } from "@tauri-apps/api/core";
 
 type TopbarProps = {
   runbook: Runbook;
@@ -33,6 +35,8 @@ type TopbarProps = {
 export default function Topbar(props: TopbarProps) {
   let runbook = props.runbook;
   let remoteRunbook = props.remoteRunbook;
+  let serialExecution = useStore((state) => state.serialExecution);
+  let setSerialExecution = useStore((state) => state.setSerialExecution);
 
   let name: string;
   if (remoteRunbook) {
@@ -147,12 +151,22 @@ export default function Topbar(props: TopbarProps) {
 
         <PlayButton
           className="mt-1 ml-2"
-          isRunning={false}
-          cancellable={false}
+          isRunning={serialExecution === runbook.id}
+          cancellable={true}
           onPlay={() => {
-            BlockBus.get().serialExecute(runbook.id);
+            BlockBus.get().startWorkflow(runbook.id);
+            setSerialExecution(runbook.id);
+
+            const onStop = () => {
+              setSerialExecution(null);
+              BlockBus.get().unsubscribeWorkflowFinished(runbook.id, onStop);
+            };
+
+            BlockBus.get().subscribeWorkflowFinished(runbook.id, onStop);
           }}
-          onStop={() => {}}
+          onStop={async () => {
+            await invoke("workflow_stop", { id: runbook.id });
+          }}
         />
       </div>
     );

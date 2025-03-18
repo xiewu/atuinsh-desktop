@@ -48,33 +48,6 @@ export function useDependencyState(block: Block, isRunning: boolean | null | und
   }, [isRunning]);
 
   useEffect(() => {
-    (async () => {
-      if (unlistenExecLogCompleted.current) {
-        unlistenExecLogCompleted.current();
-      }
-
-      const unlisten = await listen(
-        `exec_log_completed:${block.dependency.parent}`,
-        async (event: any) => {
-          console.log("exec_log_completed", event);
-          updateCanRun();
-        },
-      );
-
-      unlistenExecLogCompleted.current = unlisten;
-    })();
-    return () => {
-      if (unlistenExecLogCompleted.current) {
-        unlistenExecLogCompleted.current();
-      }
-    };
-  }, [block.dependency]);
-
-  useEffect(() => {
-    updateCanRun();
-  }, [isRunning]);
-
-  useEffect(() => {
     block.dependency.canRun(block).then(setCanRun);
   }, [block.dependency]);
 

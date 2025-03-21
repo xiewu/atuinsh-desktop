@@ -23,6 +23,7 @@ import Root from "@/routes/root/Root";
 import Home from "@/routes/home/Home";
 import Runbooks from "@/routes/runbooks/Runbooks";
 import History from "@/routes/history/History";
+import Stats from "@/routes/stats/Stats";
 import * as api from "./api/api";
 import SocketManager from "./socket";
 import SyncManager from "./lib/sync/sync_manager";
@@ -93,6 +94,11 @@ const router = createHashRouter([
       {
         path: "history",
         element: <History />,
+      },
+
+      {
+        path: "stats",
+        element: <Stats />,
       },
 
       {

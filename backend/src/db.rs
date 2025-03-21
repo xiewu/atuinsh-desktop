@@ -138,6 +138,55 @@ impl HistoryDB {
         Ok(history)
     }
 
+    pub async fn filter(
+        &self,
+        command_like: Option<String>,
+        path_like: Option<String>,
+        hostname_like: Option<String>,
+        start: Option<i64>,
+        end: Option<i64>,
+    ) -> Result<Vec<UIHistory>, String> {
+        let command_like = command_like.map_or("%".to_string(), |s| format!("%{}%", s));
+        let path_like = path_like.map_or("%".to_string(), |s| format!("%{}%", s));
+        let hostname_like = hostname_like.map_or("%".to_string(), |s| format!("%{}%", s));
+
+        let query = sqlx::query(
+            "select * from history where command like ?1 and cwd like ?2 and hostname like ?3 and timestamp > ?4 and timestamp < ?5",
+        );
+
+        let history = query
+            .bind(command_like)
+            .bind(path_like)
+            .bind(hostname_like)
+            .bind(start)
+            .bind(end)
+            .fetch_all(&self.0.pool)
+            .await
+            .map_err(|e| e.to_string())?;
+        let history = history
+            .into_iter()
+            .map(|h| {
+                History {
+                    id: atuin_client::history::HistoryId(h.get::<String, _>("id")),
+                    timestamp: time::OffsetDateTime::from_unix_timestamp_nanos(
+                        h.get::<i64, _>("timestamp") as i128,
+                    )
+                    .unwrap(),
+                    duration: h.get("duration"),
+                    exit: h.get("exit"),
+                    command: h.get("command"),
+                    cwd: h.get("cwd"),
+                    session: h.get("session"),
+                    hostname: h.get("hostname"),
+                    deleted_at: None,
+                }
+                .into()
+            })
+            .collect();
+
+        Ok(history)
+    }
+
     pub async fn search(&self, offset: Option<u64>, query: &str) -> Result<Vec<UIHistory>, String> {
         let context = Context {
             session: "".to_string(),
@@ -209,10 +258,35 @@ impl HistoryDB {
         Ok(history)
     }
 
-    pub async fn calendar(&self) -> Result<Vec<(String, u64)>, String> {
-        let query = "select count(1) as count, strftime('%F', datetime(timestamp / 1000000000, 'unixepoch')) as day from history where timestamp > ((unixepoch() - 31536000) * 1000000000) group by day;";
+    pub async fn calendar(
+        &self,
+        command_like: Option<String>,
+        path_like: Option<String>,
+        hostname_like: Option<String>,
+        start: Option<i64>,
+        end: Option<i64>,
+    ) -> Result<Vec<(String, u64)>, String> {
+        // If start and end are provided, use them to filter the query
+        // If they are not, default end to be now, and start to be one year ago
+        let start = start.unwrap_or_else(|| {
+            (time::OffsetDateTime::now_utc() - time::Duration::days(365)).unix_timestamp_nanos()
+                as i64
+        });
+        let end =
+            end.unwrap_or_else(|| time::OffsetDateTime::now_utc().unix_timestamp_nanos() as i64);
+
+        let command_like = command_like.map_or("%".to_string(), |s| format!("%{}%", s));
+        let path_like = path_like.map_or("%".to_string(), |s| format!("%{}%", s));
+        let hostname_like = hostname_like.map_or("%".to_string(), |s| format!("%{}%", s));
+
+        let query = "select count(1) as count, strftime('%F', datetime(timestamp / 1000000000, 'unixepoch')) as day from history where timestamp > ?1 and timestamp < ?2 and command like ?3 and cwd like ?4 and hostname like ?5 group by day;";
 
         let calendar: Vec<(String, u64)> = sqlx::query(query)
+            .bind(start)
+            .bind(end)
+            .bind(command_like)
+            .bind(path_like)
+            .bind(hostname_like)
             // safe to cast, count(x) is never < 0
             .map(|row: SqliteRow| {
                 (

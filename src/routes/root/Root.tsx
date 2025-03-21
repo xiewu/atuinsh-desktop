@@ -206,6 +206,7 @@ function App() {
               navigate("/");
             },
           },
+
           {
             key: "runbooks",
             icon: "solar:notebook-linear",
@@ -214,12 +215,22 @@ function App() {
               navigate("/runbooks");
             },
           },
+
           {
             key: "history",
             icon: "solar:history-outline",
             title: "History",
             onPress: () => {
               navigate("/history");
+            },
+          },
+
+          {
+            key: "stats",
+            icon: "solar:chart-linear",
+            title: "Stats",
+            onPress: () => {
+              navigate("/stats");
             },
           },
         ],

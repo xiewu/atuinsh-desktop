@@ -108,6 +108,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
         setSelected("dotfiles");
       } else if (location.pathname == "/settings") {
         setSelected("settings");
+      } else if (location.pathname == "/stats") {
+        setSelected("stats");
       } else {
         setSelected("home");
       }

@@ -510,6 +510,7 @@ dependencies = [
  "time",
  "tokio",
  "typed-builder 0.20.0",
+ "unicode-segmentation",
  "uuid",
  "vt100",
  "walkdir",

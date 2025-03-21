@@ -29,6 +29,7 @@
     "@heroui/react": "2.7.2",
     "@iconify/icons-lucide": "^1.2.135",
     "@iconify/icons-solar": "^1.2.3",
+    "@internationalized/date": "^3.7.0",
     "@kbox-labs/react-echarts": "^1.4.2",
     "@prometheus-io/codemirror-promql": "^0.53.3",
     "@radix-ui/react-dialog": "^1.1.6",

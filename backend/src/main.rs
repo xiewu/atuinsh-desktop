@@ -26,6 +26,7 @@ mod secret;
 mod shared_state;
 mod sqlite;
 mod state;
+mod stats;
 mod store;
 mod templates;
 
@@ -35,7 +36,7 @@ mod commands;
 
 use atuin_client::settings::Settings;
 use atuin_client::{history::HISTORY_TAG, record::sqlite_store::SqliteStore, record::store::Store};
-use atuin_history::stats;
+use atuin_history::stats as atuin_stats;
 use db::{GlobalStats, HistoryDB, UIHistory};
 use dotfiles::aliases::aliases;
 
@@ -87,7 +88,7 @@ async fn global_stats() -> Result<GlobalStats, String> {
     let mut stats = db.global_stats().await?;
 
     let history = db.list(None, None).await?;
-    let history_stats = stats::compute(&settings, &history, 10, 1);
+    let history_stats = atuin_stats::compute(&settings, &history, 10, 1);
 
     stats.stats = history_stats;
 
@@ -169,7 +170,7 @@ async fn home_info() -> Result<HomeInfo, String> {
         .map_err(|e| e.to_string())?;
 
     let history = db.list(None, None).await?;
-    let stats = stats::compute(&settings, &history, 10, 1)
+    let stats = atuin_stats::compute(&settings, &history, 10, 1)
         .map_or(vec![], |stats| stats.top[0..5].to_vec())
         .iter()
         .map(|(commands, count)| (commands.join(" "), *count as u64))
@@ -228,12 +229,26 @@ pub struct HistoryCalendarDay {
 }
 
 #[tauri::command]
-async fn history_calendar() -> Result<Vec<HistoryCalendarDay>, String> {
+async fn history_calendar(
+    command: Option<String>,
+    path: Option<String>,
+    hostname: Option<String>,
+    start: Option<i64>,
+    end: Option<i64>,
+) -> Result<Vec<HistoryCalendarDay>, String> {
     let settings = Settings::new().map_err(|e| e.to_string())?;
     let db_path = PathBuf::from(settings.db_path.as_str());
     let db = HistoryDB::new(db_path, settings.local_timeout).await?;
 
-    let calendar = db.calendar().await?;
+    let calendar = db
+        .calendar(
+            command,
+            path,
+            hostname,
+            start.map(|s| s * 1000000),
+            end.map(|e| e * 1000000),
+        )
+        .await?;
 
     // probs don't want to iterate _this_ many times, but it's only the last year. so 365
     // iterations at max. should be quick.
@@ -416,6 +431,7 @@ fn main() {
             commands::workflow::serial::workflow_serial,
             commands::workflow::serial::workflow_block_start_event,
             commands::workflow::serial::workflow_stop,
+            commands::stats::command_stats,
             shared_state::get_shared_state_document,
             shared_state::push_optimistic_update,
             shared_state::update_shared_state_document,

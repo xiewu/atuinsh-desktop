@@ -8,13 +8,18 @@ import Logger from "../logger";
 import {
   getSharedStateDocument,
   pushOptimisticUpdate,
-  removeOptimisticUpdate,
+  removeOptimisticUpdates,
   updateSharedStateDocument,
 } from "./commands";
+import { useStore } from "@/state/store";
+import { ConnectionState } from "@/state/store/user_state";
+import { Rc } from "@binarymuse/ts-stdlib";
 
 function applyOptimisticUpdates<T>(data: T, updates: Array<OptimisticUpdate>) {
   for (const update of updates) {
-    jsondiffpatch.patch(data, update.delta);
+    if (Object.keys(update.delta as object).length > 0) {
+      jsondiffpatch.patch(data, update.delta);
+    }
   }
   return data;
 }
@@ -28,6 +33,8 @@ function applyOptimisticUpdates<T>(data: T, updates: Array<OptimisticUpdate>) {
  * @param adapter - The adapter for managing the shared state. See {@link SharedStateAdapter}.
  */
 export class SharedStateManager<T extends SharableState> {
+  private static instanceMap = new Map<string, Rc<SharedStateManager<any>>>();
+
   public readonly stateId: string;
 
   private emitter = new Emittery();
@@ -36,6 +43,7 @@ export class SharedStateManager<T extends SharableState> {
 
   private _data: T = {} as T;
   private _optimisticData: T | null = null;
+  private initialized: boolean = false;
 
   private optimisticUpdates: Array<OptimisticUpdate> = [];
   private version: Version = -1;
@@ -45,7 +53,41 @@ export class SharedStateManager<T extends SharableState> {
   private shutdown = false;
   private resyncing = false;
 
-  constructor(stateId: string, adapter: SharedStateAdapter<T>) {
+  public static startInstance<T extends SharableState>(
+    stateId: string,
+    adapter: SharedStateAdapter<T>,
+  ): void {
+    const manager = this.getInstance(stateId, adapter);
+    // Dispose immediately, since we're storing a strong reference in the map
+    Rc.dispose(manager);
+  }
+
+  public static stopInstance(stateId: string) {
+    if (this.instanceMap.has(stateId)) {
+      const rc = this.instanceMap.get(stateId)!;
+      Rc.dispose(rc);
+    }
+  }
+
+  public static getInstance<T extends SharableState>(
+    stateId: string,
+    adapter: SharedStateAdapter<T>,
+  ): Rc<SharedStateManager<T>> {
+    if (this.instanceMap.has(stateId)) {
+      return Rc.clone(this.instanceMap.get(stateId)!);
+    }
+
+    const manager = new SharedStateManager<T>(stateId, adapter);
+    const rc = Rc(manager, () => {
+      this.instanceMap.delete(stateId);
+      manager.destroy();
+    });
+
+    this.instanceMap.set(stateId, rc);
+    return Rc.clone(rc);
+  }
+
+  private constructor(stateId: string, adapter: SharedStateAdapter<T>) {
     this.stateId = stateId;
     this.adapter = adapter;
     this.logger = new Logger(`SharedStateManager: ${stateId}`);
@@ -62,6 +104,14 @@ export class SharedStateManager<T extends SharableState> {
     return this.emitter.on(Event.UPDATE, callback);
   }
 
+  public getDataOnce(): Promise<T> {
+    if (this.initialized) {
+      return Promise.resolve(this.data);
+    } else {
+      return this.emitter.once(Event.UPDATE);
+    }
+  }
+
   /**
    * `updateOptimistic` can be used to update the stored data; the change to the data
    * is stored locally as an optimistic update. When the adapter acknowledges the update
@@ -69,21 +119,42 @@ export class SharedStateManager<T extends SharableState> {
    * permanently to the shared state and the temporary update is discarded, even if the
    * delta from the server is different from the one stored in the optimistic update.
    *
-   * @param callback - A function that **synchronously** applies an optimistic update to the data.
-   * @returns A promise to the change reference for the update.
+   * @param callback - A function that **synchronously** applies an optimistic update to the data
+   * and returns undefined, or else **synchronously** returns a new copy of the data that should
+   * be used instead. A function that cancels the update can be passed as the second argument;
+   * if the update is cancelled, `updateOptimistic` will return `undefined` instead of a change
+   * reference.
+   * @returns A promise to the change reference for the update, or `undefined` if the update was
+   * cancelled.
    */
   @autobind
-  public async updateOptimistic(callback: (data: T) => void): Promise<ChangeRef> {
+  public async updateOptimistic(
+    callback: (data: T, cancel: () => void) => T | undefined,
+  ): Promise<ChangeRef | undefined> {
     const orig = jsondiffpatch.clone(this.data) as T;
     const clone = jsondiffpatch.clone(this.data) as T;
 
-    callback(clone);
+    let cancelled = false;
+    const cancel = () => {
+      cancelled = true;
+    };
+    let changed = callback(clone, cancel);
+    if (cancelled) {
+      this.logger.debug("Optimistic update cancelled");
+      return undefined;
+    }
+
+    if (changed === undefined) {
+      changed = clone;
+    }
 
     const update = {
       sourceVersion: this.version,
-      delta: jsondiffpatch.diff(orig, clone),
+      delta: jsondiffpatch.diff(orig, changed) || {},
       changeRef: uuidv7(),
     };
+
+    this.logger.debug("Pushing optimistic update", update);
 
     await pushOptimisticUpdate(this.stateId, update);
 
@@ -108,14 +179,17 @@ export class SharedStateManager<T extends SharableState> {
     return this._optimisticData || this._data;
   }
 
-  private async setData(data: T, version: Version) {
+  private async setData(data: T, version: Version, updateDocument = true) {
     this._data = data;
     this.version = version;
 
-    await updateSharedStateDocument(this.stateId, data, version);
+    if (updateDocument) {
+      await updateSharedStateDocument(this.stateId, data, version);
+    }
 
     this.setOptmisticData();
     this.emitter.emit(Event.UPDATE, this.data);
+    this.initialized = true;
   }
 
   private setOptmisticData() {
@@ -130,18 +204,37 @@ export class SharedStateManager<T extends SharableState> {
   private async setup() {
     const document = await getSharedStateDocument<T>(this.stateId);
     if (document) {
-      this.setData(document.value, document.version);
+      this.setData(document.value, document.version, false);
       this.optimisticUpdates = document.optimisticUpdates;
+      this.logger.debug(`Setup; loaded version ${document.version}`, this.data);
     }
 
     await this.adapter.init();
     this.unsub = this.adapter.subscribe(this.handleUpdate);
 
-    this.resync();
+    useStore.subscribe(
+      (state) => state.connectionState,
+      (connectionState) => {
+        if (connectionState === ConnectionState.Online) {
+          this.adapter
+            .ensureConnected()
+            .then(() => {
+              this.resync();
+            })
+            .catch((_err) => {
+              this.logger.error("Failed to ensure channel connection");
+            });
+        }
+      },
+      {
+        fireImmediately: true,
+      },
+    );
   }
 
   private async resync() {
     if (this.shutdown || this.resyncing) return;
+    if (useStore.getState().connectionState !== ConnectionState.Online) return;
 
     this.resyncing = true;
     this.logger.info("Resyncing...");
@@ -157,6 +250,9 @@ export class SharedStateManager<T extends SharableState> {
       this.logger.debug(`Resynced; received version ${resync.version}`);
       newVersion = resync.version;
       newData = resync.data;
+      const changeRefs = resync.change_refs;
+
+      this.removeOptimisticUpdates(changeRefs);
 
       const maxVersion = Math.max(...this.cached_updates.keys());
       if (maxVersion > newVersion) {
@@ -216,10 +312,9 @@ export class SharedStateManager<T extends SharableState> {
 
       // If this update was sent as a response to an optimistic update,
       // remove the optimistic update from the list on both the frontend and backend.
-      await removeOptimisticUpdate(this.stateId, payload.change_ref);
-      this.optimisticUpdates = this.optimisticUpdates.filter(
-        (update) => update.changeRef !== payload.change_ref,
-      );
+      if (payload.change_ref) {
+        await this.removeOptimisticUpdates([payload.change_ref]);
+      }
 
       // JsonDiffEx can send an empty delta when the data hasn't changed;
       // `jsondiffpatch.patch()` will throw an error in this case, so we need to check for an empty delta.
@@ -235,5 +330,13 @@ export class SharedStateManager<T extends SharableState> {
         await updateSharedStateDocument(this.stateId, this._data, this.version);
       }
     }
+  }
+
+  private async removeOptimisticUpdates(changeRefs: ChangeRef[]) {
+    if (changeRefs.length === 0) return;
+
+    const set = new Set(changeRefs);
+    this.optimisticUpdates = this.optimisticUpdates.filter((update) => !set.has(update.changeRef));
+    await removeOptimisticUpdates(this.stateId, changeRefs);
   }
 }

@@ -1,6 +1,6 @@
 import { type ButtonProps } from "@heroui/react";
 import { Command } from "cmdk";
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef, useContext } from "react";
 import { Button, Kbd, Modal, ModalContent, cn } from "@heroui/react";
 import { tv } from "tailwind-variants";
 import MultiRef from "react-multi-ref";
@@ -18,6 +18,7 @@ import RunbookIndexService from "@/state/runbooks/search";
 import { useQuery } from "@tanstack/react-query";
 import { allRunbooks } from "@/lib/queries/runbooks";
 import { allWorkspaces } from "@/lib/queries/workspaces";
+import RunbookContext from "@/context/runbook_context";
 
 const cmdk = tv({
   slots: {
@@ -135,11 +136,11 @@ export default function CommandMenu(props: CommandMenuProps) {
     store.searchOpen,
     store.setSearchOpen,
   ]);
-  const setCurrentRunbookId = useStore((store: AtuinState) => store.setCurrentRunbookId);
   const currentWorkspaceId = useStore((store: AtuinState) => store.currentWorkspaceId);
   const setCurrentWorkspaceId = useStore((store: AtuinState) => store.setCurrentWorkspaceId);
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const navigate = useNavigate();
+  const { activateRunbook } = useContext(RunbookContext);
 
   const onClose = useCallback(() => {
     setOpen(false);
@@ -165,7 +166,8 @@ export default function CommandMenu(props: CommandMenuProps) {
         return {
           id: rb.id,
           workspaceId: rb.workspaceId,
-          workspaceName: (workspaces || []).find((w) => w.id === rb.workspaceId)?.name || null,
+          workspaceName:
+            (workspaces || []).find((w) => w.get("id") === rb.workspaceId)?.get("name") || null,
           title: rb.name,
           type: "runbook",
           subtitle: "edited xyz ago",
@@ -213,7 +215,7 @@ export default function CommandMenu(props: CommandMenuProps) {
       if (item.workspaceId) {
         setCurrentWorkspaceId(item.workspaceId);
       }
-      setCurrentRunbookId(item.id);
+      activateRunbook(item.id);
     },
     [onClose],
   );

@@ -1,0 +1,1 @@
+create table workspaces(id string primary key, name text, created bigint, updated bigint);

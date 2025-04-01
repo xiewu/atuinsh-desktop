@@ -120,9 +120,9 @@ test("HttpBlock can be created from blocknote", () => {
             name: "http-block",
             url: "http://foo/bar",
             verb: "GET",
-            headers: {
+            headers: JSON.stringify({
                 "Content-Type": "application/json",
-            },
+            }),
         },
         children: [],
     };

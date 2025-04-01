@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+body.resizing, body.resizing a:hover, body.resizing * {
+    cursor: col-resize !important;
+}
+
 @layer base {
     :root {
         --background: 0 0% 100%;

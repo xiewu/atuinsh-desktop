@@ -22,6 +22,6 @@ export async function updateSharedStateDocument<T extends SharableState>(
   await invoke("update_shared_state_document", { name: stateId, value, version });
 }
 
-export async function removeOptimisticUpdate(stateId: string, changeRef: ChangeRef) {
-  await invoke("remove_optimistic_update", { name: stateId, changeRef });
+export async function removeOptimisticUpdates(stateId: string, changeRefs: ChangeRef[]) {
+  await invoke("remove_optimistic_updates", { name: stateId, changeRefs });
 }

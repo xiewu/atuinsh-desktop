@@ -157,6 +157,7 @@ export interface RemoteRunbook {
   visibility: "public" | "private" | "unlisted";
   client_created: string;
   user: RemoteUser;
+  workspace_id: string;
   snapshots: RemoteSnapshot[];
   collaborations: RemoteCollaboration[];
   permissions: string[];

@@ -9,6 +9,10 @@ import { dbHook } from "@/lib/db_hooks";
 import Workspace from "./workspace";
 const logger = new Logger("Runbook", "green", "green");
 
+function camelCaseToSnakeCase(str: string) {
+  return str.replace(/([A-Z])/g, "_$1").toLowerCase();
+}
+
 // Definition of an atrb file
 // This is JSON encoded for ease of access, and may change in the future
 export interface RunbookFile {
@@ -33,6 +37,7 @@ export interface RunbookAttrs {
   source: RunbookSource;
   sourceInfo: string | null;
   workspaceId: string;
+  legacyWorkspaceId: string;
   forkedFrom: string | null;
   remoteInfo: string | null;
   viewed_at: Date | null;
@@ -53,6 +58,7 @@ export default class Runbook {
   updated: Date;
 
   workspaceId: string;
+  legacyWorkspaceId: string;
   forkedFrom: string | null;
 
   private _name: string;
@@ -93,13 +99,18 @@ export default class Runbook {
     this.updated = attrs.updated;
     this.forkedFrom = attrs.forkedFrom;
     this.workspaceId = attrs.workspaceId;
+    this.legacyWorkspaceId = attrs.legacyWorkspaceId;
     this.remoteInfo = attrs.remoteInfo;
     this.viewed_at = attrs.viewed_at || null;
     this.persisted = persisted;
   }
 
   /// Create a new Runbook, and automatically generate an ID.
-  public static async create(workspaceId: string, persist: boolean = true): Promise<Runbook> {
+  public static async create(workspace: Workspace, persist: boolean = true): Promise<Runbook> {
+    if (!workspace || !workspace.get("id") || !workspace.canManageRunbooks()) {
+      throw new Error("Must pass a workspace with manage_runbooks permissions");
+    }
+
     let now = new Date();
 
     // if (workspace === undefined || workspace === null) {
@@ -116,7 +127,8 @@ export default class Runbook {
       ydoc: null,
       created: now,
       updated: now,
-      workspaceId: workspaceId,
+      workspaceId: workspace.get("id")!,
+      legacyWorkspaceId: "",
       forkedFrom: null,
       remoteInfo: null,
       viewed_at: null,
@@ -129,11 +141,14 @@ export default class Runbook {
     return runbook;
   }
 
-  public static async createUntitled(workspaceId: string) {
-    let runbook = await Runbook.create(workspaceId);
+  public static async createUntitled(workspace: Workspace, markViewed: boolean = false) {
+    let runbook = await Runbook.create(workspace);
     runbook.name = "Untitled";
     runbook.content = JSON.stringify(untitledRunbook);
-    runbook.save();
+    if (markViewed) {
+      runbook.viewed_at = new Date();
+    }
+    await runbook.save();
 
     return runbook;
   }
@@ -169,8 +184,12 @@ export default class Runbook {
     source: RunbookSource,
     sourceInfo: string | null,
     remoteInfo: string | null,
-    workspaceId: string,
+    workspace: Workspace,
   ): Promise<Runbook> {
+    if (!workspace || !workspace.get("id") || !workspace.canManageRunbooks()) {
+      throw new Error("Must pass a workspace with manage_runbooks permissions");
+    }
+
     let content = typeof obj.content === "object" ? obj.content : JSON.parse(obj.content);
 
     let runbook = new Runbook({
@@ -182,7 +201,8 @@ export default class Runbook {
       ydoc: null,
       created: new Date(obj.created),
       updated: new Date(),
-      workspaceId: workspaceId,
+      workspaceId: workspace.get("id")!,
+      legacyWorkspaceId: "",
       forkedFrom: null,
       remoteInfo: remoteInfo,
       viewed_at: null,
@@ -193,13 +213,13 @@ export default class Runbook {
     return runbook;
   }
 
-  public static async importFile(filePath: string, workspaceId: string) {
+  public static async importFile(filePath: string, workspace: Workspace) {
     // For some reason, we're getting an ArrayBuffer here? Supposedly it should be passing a string.
     // But it's not.
     let file = await readTextFile(filePath);
     let parsed = JSON.parse(file);
 
-    return Runbook.importJSON(parsed, "file", null, null, workspaceId);
+    return Runbook.importJSON(parsed, "file", null, null, workspace);
   }
 
   public static async load(id: String): Promise<Runbook | null> {
@@ -207,8 +227,8 @@ export default class Runbook {
 
     let res = await logger.time(`Selecting runbook with ID ${id}`, async () =>
       db.select<any[]>(
-        "select id, name, source, source_info, content, created, updated, " +
-          "workspace_id, forked_from, remote_info, viewed_at from runbooks where id = $1",
+        "select id, name, source, source_info, content, created, updated, workspace_id, " +
+          "legacy_workspace_id, forked_from, remote_info, viewed_at from runbooks where id = $1",
         [id],
       ),
     );
@@ -221,6 +241,21 @@ export default class Runbook {
     rb.ydoc = doc;
 
     return Runbook.fromRow(rb);
+  }
+
+  public static async updateAll(attrs: Partial<RunbookAttrs>) {
+    const db = await AtuinDB.load("runbooks");
+    const keys = Object.keys(attrs).map(camelCaseToSnakeCase);
+    const values = Object.values(attrs);
+
+    if (keys.length === 0) {
+      return; // No attributes to update
+    }
+
+    const setClause = keys.map((key, index) => `${key} = $${index + 1}`).join(", ");
+    const query = `UPDATE runbooks SET ${setClause} WHERE 1`;
+
+    await db.execute(query, values);
   }
 
   public static async selectWhere(whereClause: string, bindValues?: any[]): Promise<Runbook[]> {
@@ -254,6 +289,7 @@ export default class Runbook {
         created: new Date(row.created / 1000000),
         updated: new Date(row.updated / 1000000),
         workspaceId: row.workspace_id,
+        legacyWorkspaceId: row.legacy_workspace_id,
         forkedFrom: row.forked_from,
         remoteInfo: row.remote_info,
         viewed_at: row.viewed_at ? new Date(row.viewed_at / 1000000) : null,
@@ -267,7 +303,7 @@ export default class Runbook {
 
     let runbooks = await logger.time("Selecting all runbooks", async () => {
       let res = await db.select<any[]>(
-        "select id, name, source, source_info, created, updated, workspace_id, forked_from, remote_info, viewed_at from runbooks " +
+        "select id, name, source, source_info, created, updated, workspace_id, legacy_workspace_id, forked_from, remote_info, viewed_at from runbooks " +
           "order by updated desc",
       );
 
@@ -292,11 +328,11 @@ export default class Runbook {
     const db = await AtuinDB.load("runbooks");
 
     let runbooks = await logger.time(
-      `Selecting all runbooks for workspace ${workspaceId}`,
+      `Selecting all runbooks for legacy workspace ${workspaceId}`,
       async () => {
         let res = await db.select<any[]>(
-          "select id, name, source, source_info, created, updated, workspace_id, forked_from, remote_info, viewed_at from runbooks " +
-            "where workspace_id = $1 or workspace_id is null order by updated desc",
+          "select id, name, source, source_info, created, updated, workspace_id, legacy_workspace_id, forked_from, remote_info, viewed_at from runbooks " +
+            "where legacy_workspace_id = $1 or legacy_workspace_id is null order by updated desc",
           [workspaceId],
         );
 
@@ -307,13 +343,32 @@ export default class Runbook {
     return runbooks;
   }
 
-  static async withNullWorkspaces(): Promise<Runbook[]> {
+  static async allFromWorkspace(workspaceId: string): Promise<Runbook[]> {
+    const db = await AtuinDB.load("runbooks");
+
+    let runbooks = await logger.time(
+      `Selecting all runbooks for workspace ${workspaceId}`,
+      async () => {
+        let res = await db.select<any[]>(
+          "select id, name, source, source_info, created, updated, workspace_id, legacy_workspace_id, forked_from, remote_info, viewed_at from runbooks " +
+            "where workspace_id = $1 order by updated desc",
+          [workspaceId],
+        );
+
+        return res.map(Runbook.fromRow);
+      },
+    );
+
+    return runbooks;
+  }
+
+  static async withNullLegacyWorkspaces(): Promise<Runbook[]> {
     const db = await AtuinDB.load("runbooks");
 
     let runbooks = await logger.time(`Selecting all runbooks with a null workspace`, async () => {
       let res = await db.select<Runbook[]>(
-        "select id, name, source, source_info, created, updated, workspace_id, forked_from, remote_info, viewed_at from runbooks " +
-          "where workspace_id is null or workspace_id = '' order by updated desc",
+        "select id, name, source, source_info, created, updated, workspace_id, legacy_workspace_id, forked_from, remote_info, viewed_at from runbooks " +
+          "where legacy_workspace_id is null or legacy_workspace_id = '' order by updated desc",
         [],
       );
 
@@ -328,8 +383,8 @@ export default class Runbook {
 
     logger.time(`Saving runbook ${this.id}`, async () => {
       await db.execute(
-        `insert into runbooks(id, name, content, created, updated, workspace_id, source, source_info, forked_from, remote_info, viewed_at)
-          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        `insert into runbooks(id, name, content, created, updated, workspace_id, legacy_workspace_id, source, source_info, forked_from, remote_info, viewed_at)
+          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 
           on conflict(id) do update
             set
@@ -337,11 +392,12 @@ export default class Runbook {
               content=$3,
               updated=$5,
               workspace_id=$6,
-              source=$7,
-              source_info=$8,
-              forked_from=$9,
-              remote_info=$10,
-              viewed_at=$11`,
+              legacy_workspace_id=$7,
+              source=$8,
+              source_info=$9,
+              forked_from=$10,
+              remote_info=$11,
+              viewed_at=$12`,
 
         // getTime returns a timestamp as unix milliseconds
         // we won't need or use the resolution here, but elsewhere Atuin stores timestamps in sqlite as nanoseconds since epoch
@@ -353,6 +409,7 @@ export default class Runbook {
           this.created.getTime() * 1000000,
           this.updated.getTime() * 1000000,
           this.workspaceId,
+          this.legacyWorkspaceId,
           this.source,
           this.sourceInfo,
           this.forkedFrom,
@@ -404,25 +461,31 @@ export default class Runbook {
     }
   }
 
-  public async moveTo(workspaceId: string) {
+  public async moveTo(targetWorkspace: Workspace) {
+    const currentWorkspace = await Workspace.get(this.workspaceId);
+    if (!currentWorkspace || !currentWorkspace.canManageRunbooks()) {
+      throw new Error("Cannot move runbook out of a workspace without manage_runbooks permissions");
+    }
+
+    if (!targetWorkspace || !targetWorkspace.get("id") || !targetWorkspace.canManageRunbooks()) {
+      throw new Error("Cannot move runbook to a workspace without manage_runbooks permissions");
+    }
+
     const db = await AtuinDB.load("runbooks");
 
-    logger.time(`Moving runbook to workspace ${workspaceId}`, async () => {
+    logger.time(`Moving runbook to workspace ${targetWorkspace.get("id")}`, async () => {
       await db.execute(`UPDATE runbooks SET workspace_id = $1 where id = $2`, [
-        workspaceId,
+        targetWorkspace.get("id")!,
         this.id,
       ]);
     });
 
-    const oldWorkspaceId = this.workspaceId;
-    this.workspaceId = workspaceId;
-
-    const oldWorkspace = await Workspace.findById(oldWorkspaceId);
-    const newWorkspace = await Workspace.findById(workspaceId);
+    this.workspaceId = targetWorkspace.get("id")!;
 
     dbHook("runbook", "update", this);
-    dbHook("workspace", "update", oldWorkspace);
-    dbHook("workspace", "update", newWorkspace);
+    // TODO: should this be migrated?? maybe using the shared state nav means it won't matter?
+    // dbHook("legacy_workspace", "update", oldWorkspace);
+    // dbHook("legacy_workspace", "update", newWorkspace);
   }
 
   public async updateRemoteInfo(remoteInfo: string | null) {
@@ -454,6 +517,7 @@ export default class Runbook {
         created: this.created,
         updated: this.updated,
         workspaceId: this.workspaceId,
+        legacyWorkspaceId: this.legacyWorkspaceId,
         forkedFrom: this.forkedFrom,
         remoteInfo: this.remoteInfo,
         viewed_at: this.viewed_at,

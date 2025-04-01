@@ -5,311 +5,306 @@ import {
   DropdownTrigger,
   DropdownMenu,
   DropdownItem,
-  DropdownSection,
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  useDisclosure,
+  Progress,
+  ButtonGroup,
 } from "@heroui/react";
-import {
-  ChevronRightIcon,
-  Import,
-  MoreVertical,
-  Plus,
-  RefreshCwIcon,
-  SearchIcon,
-  Terminal,
-} from "lucide-react";
-import { DateTime } from "luxon";
+import { ArrowUpDownIcon, ChevronDownIcon, FileSearchIcon, Plus } from "lucide-react";
 import Runbook from "@/state/runbooks/runbook";
 import { AtuinState, useStore } from "@/state/store";
-import { ptyForRunbook, PtyMetadata, usePtyStore } from "@/state/ptyStore";
-import { useMemo, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import track_event from "@/tracking";
+import { RefObject, useContext, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import MoveToRunbookDropdown from "./MoveToRunbookDropdown";
-import ExportAsRunbookDropdown from "./ExportAsRunbookDropdown";
-import { useCurrentRunbook } from "@/lib/useRunbook";
-import SyncManager from "@/lib/sync/sync_manager";
 import { PendingInvitations } from "./PendingInvitations";
-import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { runbooksByWorkspaceId } from "@/lib/queries/runbooks";
+import { Menu } from "@tauri-apps/api/menu";
+import { SortBy } from "./TreeView";
+import { userOwnedWorkspaces } from "@/lib/queries/workspaces";
+import { default as WorkspaceComponent } from "./Workspace";
+import VerticalDragHandle from "./VerticalDragHandle";
+import useResizeObserver from "use-resize-observer";
+import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
+import doWorkspaceSetup from "@/lib/workspace_setup";
+import RunbookContext from "@/context/runbook_context";
+import { createNewRunbookMenu } from "./menus";
+import { SharedStateManager } from "@/lib/shared_state/manager";
+import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
 
 interface NotesSidebarProps {
-  onDeleteRunbook: (runbookId: string) => void;
+  importRunbooks: (workspaceId: string, parentFolderId: string | null) => Promise<void>;
 }
 
 const NoteSidebar = (props: NotesSidebarProps) => {
-  const importRunbook = useStore((state: AtuinState) => state.importRunbook);
   const isSyncing = useStore((state: AtuinState) => state.isSyncing);
+  const { data: workspaces } = useQuery(userOwnedWorkspaces());
   const [isSearchOpen, setSearchOpen] = useStore((store: AtuinState) => [
     store.searchOpen,
     store.setSearchOpen,
   ]);
-  const currentRunbook = useCurrentRunbook();
+  const [sortBy, setSortBy] = useState<SortBy>(SortBy.Name);
+  const [pendingWorkspaceMigration, setPendingWorkspaceMigration] = useState<boolean>(true);
+  const [focusedWorkspaceId, setFocusedWorkspaceId] = useState<string | null>(null);
+
+  const currentRunbookId = useStore((state: AtuinState) => state.currentRunbookId);
   const currentWorkspaceId = useStore((state: AtuinState) => state.currentWorkspaceId);
-  const serialExecution = useStore((state: AtuinState) => state.serialExecution);
 
-  const setCurrentRunbookId = useStore((state: AtuinState) => state.setCurrentRunbookId);
-  const setSerialExecution = useStore((state: AtuinState) => state.setSerialExecution);
-  const ptys: { [pid: string]: PtyMetadata } = usePtyStore((state) => state.ptys);
+  const sidebarWidth = useStore((state: AtuinState) => state.sidebarWidth);
+  const setSidebarWidth = useStore((state: AtuinState) => state.setSidebarWidth);
+  const sidebarOpen = useStore((state: AtuinState) => state.sidebarOpen);
 
-  const [isMoveToOpen, setMoveToOpen] = useState(false);
-  const [isExportAsOpen, setExportAsOpen] = useState(false);
-  const [pendingRunbookId, setPendingRunbookId] = useState<string | null>(null);
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const { activateRunbook, promptDeleteRunbook, runbookCreated } = useContext(RunbookContext);
 
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  const handleNewRunbook = async () => {
-    window.getSelection()?.removeAllRanges();
-
-    const rb = await Runbook.createUntitled(currentWorkspaceId);
-    setCurrentRunbookId(rb.id);
-    navigate(`/runbooks`);
-
-    track_event("runbooks.create", {
-      total: await Runbook.count(),
+  useEffect(() => {
+    doWorkspaceSetup().then(() => {
+      setPendingWorkspaceMigration(false);
     });
+  }, []);
+
+  const handleNewRunbook = async (workspaceId: string, parentFolderId: string | null) => {
+    const workspace = workspaces?.find((ws) => ws.get("id") === workspaceId);
+    if (!workspace) return;
+
+    const rb = await Runbook.createUntitled(workspace, true);
+
+    runbookCreated(rb.id, workspaceId, parentFolderId);
+
+    activateRunbook(rb.id);
   };
 
-  const handleImportRunbook = async () => {
-    let runbooks = await importRunbook();
-
-    if (!runbooks) return;
-    if (runbooks.length === 0) return;
-
-    setCurrentRunbookId(runbooks[0].id);
+  const handleImportRunbook = async (workspaceId: string | null, parentFolderId: string | null) => {
+    const wsId = workspaceId ?? currentWorkspaceId;
+    props.importRunbooks(wsId, parentFolderId);
   };
 
   const handleOpenSearch = async () => {
     if (!isSearchOpen) setSearchOpen(true);
   };
 
-  function handleSync() {
-    SyncManager.get(useStore).startSync();
+  // function handleSync() {
+  //   SyncManager.get(useStore).startSync();
+  // }
+
+  async function handleOpenSortMenu() {
+    const sortMenu = await Menu.new({
+      id: "sort_menu",
+      items: [
+        {
+          id: "sort_by_name_desc",
+          text: "Name",
+          action: () => {
+            setSortBy(SortBy.Name);
+          },
+          accelerator: "N",
+          checked: sortBy === SortBy.Name,
+        },
+        {
+          id: "sort_by_name_asc",
+          text: "Name (ascending)",
+          action: () => {
+            setSortBy(SortBy.NameAsc);
+          },
+          accelerator: "Shift+N",
+          checked: sortBy === SortBy.NameAsc,
+        },
+        {
+          id: "sort_by_updated",
+          text: "Updated",
+          action: () => {
+            setSortBy(SortBy.Updated);
+          },
+          accelerator: "U",
+          checked: sortBy === SortBy.Updated,
+        },
+        {
+          id: "sort_by_updated_asc",
+          text: "Updated (ascending)",
+          action: () => {
+            setSortBy(SortBy.UpdatedAsc);
+          },
+          accelerator: "Shift+U",
+          checked: sortBy === SortBy.UpdatedAsc,
+        },
+      ],
+    });
+    await sortMenu.popup();
+    sortMenu.close();
   }
 
-  const { data: runbooks } = useQuery(runbooksByWorkspaceId(currentWorkspaceId));
+  async function handleNewRunbookMenu() {
+    if (!workspaces) return;
 
-  // sort runbooks alphabetically by name
-  const sortedRunbooks = useMemo(() => {
-    return (runbooks || []).sort((a, b) => a.name.localeCompare(b.name));
-  }, [runbooks]);
+    const workspaceFolders = await Promise.all(
+      workspaces.map(async (ws) => {
+        const stateId = `workspace-folder:${ws.get("id")}`;
+        const manager = SharedStateManager.getInstance<Folder>(
+          stateId,
+          new AtuinSharedStateAdapter(stateId),
+        );
+        const data = await manager.getDataOnce();
+        const folder = WorkspaceFolder.fromJS(data);
+        return folder.toArborist();
+      }),
+    );
 
-  const handleRunbookClick = async (runbookId: string) => {
-    if (serialExecution) {
-      setPendingRunbookId(runbookId);
-      onOpen();
-      return;
-    }
+    const menu = await createNewRunbookMenu(
+      workspaces.map((ws, idx) => ({
+        workspace: ws,
+        folder: workspaceFolders[idx],
+      })),
+      {
+        onNewRunbook: (workspaceId: string, parentFolderId: string | null) => {
+          handleNewRunbook(workspaceId, parentFolderId);
+        },
+        onImportRunbook: (workspaceId: string | null, parentFolderId: string | null) => {
+          handleImportRunbook(workspaceId, parentFolderId);
+        },
+      },
+    );
 
-    navigateToRunbook(runbookId);
-  };
+    await menu.popup();
+    menu.close();
+  }
 
-  const navigateToRunbook = async (runbookId: string) => {
-    track_event("runbooks.open", {
-      total: await Runbook.count(),
-    });
+  const [containerSize, setContainerSize] = useState<{ offsetLeft: number; offsetWidth: number }>({
+    offsetLeft: 0,
+    offsetWidth: 250,
+  });
+  const ref = useRef<HTMLDivElement>(null);
+  useResizeObserver({
+    ref: ref.current ? null : (ref as RefObject<HTMLDivElement>),
+    onResize: () => {
+      setContainerSize({
+        offsetLeft: ref.current!.offsetLeft,
+        offsetWidth: ref.current!.offsetWidth,
+      });
+    },
+  });
 
-    if (location.pathname !== "/runbooks") {
-      navigate("/runbooks");
-    }
-    setCurrentRunbookId(runbookId);
-  };
-
-  const handleStopAndNavigate = async () => {
-    if (currentRunbook?.id && pendingRunbookId) {
-      await invoke("workflow_stop", { id: currentRunbook.id });
-      setSerialExecution(null);
-
-
-      navigateToRunbook(pendingRunbookId);
-      onClose();
-    }
-  };
+  function onResize(width: number) {
+    setSidebarWidth(width);
+  }
 
   return (
-    <div className="hidden !w-64 !max-w-64 !min-w-64 h-full bg-gray-50 dark:bg-content1 border-r border-gray-200 dark:border-default-300 md:flex md:flex-col select-none">
-      <PendingInvitations />
-      <div className="p-2 h-[60px] min-height-[60px] flex justify-between items-center border-b border-gray-200 dark:border-gray-600">
-        <h2 className="text-lg font-semibold">Runbooks</h2>
-        <div className="flex space-x-1">
-          <Tooltip content="New">
-            <Button isIconOnly size="sm" variant="light" onPress={handleNewRunbook}>
-              <Plus size={18} />
-            </Button>
-          </Tooltip>
-
-          <Tooltip content="Import">
-            <Button isIconOnly size="sm" variant="light" onPress={handleImportRunbook}>
-              <Import size={18} />
-            </Button>
-          </Tooltip>
-
-          <Tooltip content="Search">
-            <Button isIconOnly size="sm" variant="light" onPress={handleOpenSearch}>
-              <SearchIcon size={18} />
-            </Button>
-          </Tooltip>
-
-          <Tooltip content={isSyncing ? "Syncing..." : "Sync"}>
-            <div>
-              {isSyncing && <div />}
-              <Button
-                isIconOnly
-                size="sm"
-                variant="light"
-                onPress={handleSync}
-                isDisabled={isSyncing}
-              >
-                <RefreshCwIcon
-                  size={18}
-                  className={isSyncing ? "animate-spinner-linear-spin duration-1000" : ""}
-                />
-              </Button>
-            </div>
-          </Tooltip>
+    <div
+      ref={ref}
+      className={cn([
+        "hidden h-full bg-gray-50 dark:bg-content1 border-r border-gray-200 dark:border-default-300 select-none",
+        {
+          "md:flex md:flex-col": sidebarOpen,
+        },
+      ])}
+      style={{
+        width: `${sidebarWidth}px`,
+        maxWidth: `${sidebarWidth}px`,
+        minWidth: `${sidebarWidth}px`,
+      }}
+    >
+      {pendingWorkspaceMigration && (
+        <div className="p-2 h-[60px] min-height-[60px] flex justify-between items-center border-b border-gray-200 dark:border-gray-600">
+          <h2 className="text-lg font-semibold">Loading...</h2>
+          <div className="flex space-x-1"></div>
         </div>
-      </div>
-      <div className="flex-grow overflow-y-auto">
-        {sortedRunbooks.map((runbook: Runbook) => {
-          const count = Object.values(ptys).filter((pty) => pty.runbook === runbook.id).length;
-          const isActive =
-            currentRunbook && currentRunbook.id === runbook.id && location.pathname === "/runbooks";
-
-          return (
-            <div
-              key={runbook.id}
-              onClick={() => handleRunbookClick(runbook.id)}
-              className={`cursor-pointer p-2 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-content2 ${
-                isActive ? "bg-gray-200 dark:bg-content2" : ""
-              } relative`}
-            >
-              <div className="flex justify-between items-start">
+      )}
+      {!pendingWorkspaceMigration && (
+        <>
+          <VerticalDragHandle parent={containerSize} onResize={onResize} minSize={250} />
+          <Progress
+            isIndeterminate={isSyncing}
+            size="sm"
+            radius="none"
+            disableAnimation
+            classNames={{ track: "bg-transparent" }}
+          />
+          <PendingInvitations />
+          <div className="border-b border-gray-200 dark:border-gray-600">
+            <Dropdown showArrow size="lg" placement="bottom-end">
+              <DropdownTrigger>
                 <div
-                  className={cn("flex-grow mr-2", {
-                    "!max-w-[10.5rem]": count > 0,
-                    "!max-w-[12rem]": count == 0,
-                  })}
-                >
-                  <h3 className="font-medium text-sm truncate text-ellipsis">
-                    {!runbook.viewed_at && (
-                      <div className="rounded-lg bg-blue-500 w-2 h-2 inline-block mr-1 mb-[1px]" />
-                    )}
-                    {runbook.name || "Untitled"}
-                  </h3>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {DateTime.fromJSDate(runbook.updated).toLocaleString(DateTime.DATETIME_SHORT)}
-                  </p>
-                </div>
-                <div className="flex items-center">
-                  {count > 0 && (
-                    <Tooltip content={`${count} active terminal${count > 1 ? "s" : ""}`}>
-                      <div className="flex items-center text-primary-500 mr-1">
-                        <Terminal size={14} />
-                        <span className="text-xs ml-1">{count}</span>
-                      </div>
-                    </Tooltip>
+                  className={cn(
+                    "flex flex-row justify-between items-center p-2 pl-4",
+                    "hover:bg-gray-100 dark:hover:bg-content2",
+                    "cursor-pointer",
+                    "border-b border-gray-200 dark:border-gray-700",
+                    "h-[56px] max-h-[56px] min-h-[56px]",
                   )}
-                  <Dropdown>
-                    <DropdownTrigger>
-                      <Button isIconOnly size="sm" variant="light">
-                        <MoreVertical size={16} />
-                      </Button>
-                    </DropdownTrigger>
-                    <DropdownMenu aria-label="Runbook actions">
-                      <DropdownSection showDivider title="Actions">
-                        <DropdownItem
-                          key="export"
-                          onPointerEnter={() => {
-                            setExportAsOpen(true);
-                            setMoveToOpen(false);
-                          }}
-                          onPointerLeave={() => setExportAsOpen(false)}
-                          endContent={<ChevronRightIcon size={16} />}
-                        >
-                          <ExportAsRunbookDropdown
-                            runbook={runbook}
-                            isOpen={isExportAsOpen}
-                            onClose={() => setExportAsOpen(false)}
-                          />
-                        </DropdownItem>
-
-                        <DropdownItem
-                          key="move"
-                          onPointerEnter={() => {
-                            setMoveToOpen(true);
-                            setExportAsOpen(false);
-                          }}
-                          onPointerLeave={() => setMoveToOpen(false)}
-                          endContent={<ChevronRightIcon size={16} />}
-                        >
-                          <MoveToRunbookDropdown
-                            runbook={runbook}
-                            isOpen={isMoveToOpen}
-                            onClose={() => setMoveToOpen(false)}
-                          />
-                        </DropdownItem>
-                      </DropdownSection>
-
-                      <DropdownSection title="Danger">
-                        <DropdownItem
-                          key="kill"
-                          isDisabled={count === 0}
-                          className="text-danger"
-                          color="danger"
-                          onPress={() =>
-                            ptyForRunbook(runbook.id).forEach((pty) =>
-                              invoke("pty_kill", { pid: pty.pid }),
-                            )
-                          }
-                        >
-                          Kill all terminals
-                        </DropdownItem>
-
-                        <DropdownItem
-                          key="delete"
-                          className="text-danger"
-                          color="danger"
-                          onPress={async () => {
-                            props.onDeleteRunbook(runbook.id);
-                          }}
-                        >
-                          Delete
-                        </DropdownItem>
-                      </DropdownSection>
-                    </DropdownMenu>
-                  </Dropdown>
+                >
+                  <h2 className="text-lg font-semibold">Personal</h2>
+                  <ChevronDownIcon size={16} />
                 </div>
+              </DropdownTrigger>
+              <DropdownMenu>
+                <DropdownItem key="personal">
+                  <h3>Personal</h3>
+                </DropdownItem>
+              </DropdownMenu>
+            </Dropdown>
+
+            <div className="flex justify-between items-center p-2">
+              <ButtonGroup>
+                <Button
+                  size="sm"
+                  variant="flat"
+                  onPress={() => handleNewRunbook(workspaces?.[0]?.get("id")!, null)}
+                >
+                  <Plus size={18} /> New Runbook
+                </Button>
+                <Button
+                  size="sm"
+                  variant="flat"
+                  isIconOnly
+                  className="border-l-2 border-gray-200 dark:border-gray-700"
+                  onPress={() => handleNewRunbookMenu()}
+                >
+                  <ChevronDownIcon size={18} />
+                </Button>
+              </ButtonGroup>
+
+              <div>
+                {false && (
+                  <Tooltip content="Sort by...">
+                    <Button isIconOnly size="sm" variant="light" onPress={handleOpenSortMenu}>
+                      <ArrowUpDownIcon size={18} />
+                    </Button>
+                  </Tooltip>
+                )}
+
+                <Tooltip content="Search">
+                  <Button isIconOnly size="sm" variant="light" onPress={handleOpenSearch}>
+                    <FileSearchIcon size={18} />
+                  </Button>
+                </Tooltip>
               </div>
             </div>
-          );
-        })}
-      </div>
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalContent>
-          <ModalHeader>Stop Current Execution?</ModalHeader>
-          <ModalBody>
-            <p>
-              A runbook is currently being executed. Do you want to stop the execution and navigate to the selected runbook?
-            </p>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="flat" onPress={onClose}>
-              Cancel
-            </Button>
-            <Button color="danger" onPress={handleStopAndNavigate}>
-              Stop and Navigate
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+          </div>
+          <div className="p-1 flex-grow overflow-y-scroll overscroll-none cursor-default">
+            {workspaces && (
+              <div className="flex flex-col gap-2">
+                {workspaces.map((workspace) => {
+                  return (
+                    <div
+                      onClick={() => setFocusedWorkspaceId(workspace.get("id")!)}
+                      key={workspace.get("id")!}
+                    >
+                      <WorkspaceComponent
+                        workspace={workspace}
+                        focused={focusedWorkspaceId === workspace.get("id")}
+                        sortBy={sortBy}
+                        currentRunbookId={currentRunbookId}
+                        onActivateRunbook={activateRunbook}
+                        onStartCreateRunbook={(
+                          workspaceId: string,
+                          parentFolderId: string | null,
+                        ) => handleNewRunbook(workspaceId, parentFolderId)}
+                        onStartDeleteRunbook={(_workspaceId: string, runbookId: string) =>
+                          promptDeleteRunbook(runbookId)
+                        }
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 };

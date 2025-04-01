@@ -21,6 +21,7 @@ import AtuinEnv from "@/atuin_env";
 import { AtuinQueryState, createQueryState, persistQueryKeys } from "./store/query_state";
 import { createChildState, persistChildKeys } from "./store/child_state";
 import { AtuinChildState } from "./store/child_state";
+import { AtuinDialogState, createDialogState, persistDialogKeys } from "./store/dialog_state";
 const logger = new Logger("AtuinStore", "purple", "pink");
 
 // To add a new state slice to the store:
@@ -56,6 +57,7 @@ const persistKeys = [
   persistCollaborationKeys,
   persistQueryKeys,
   persistChildKeys,
+  persistDialogKeys,
 ].flat();
 
 export type AtuinState = AtuinPtyState &
@@ -65,7 +67,8 @@ export type AtuinState = AtuinPtyState &
   AtuinShellInfoState &
   AtuinCollaborationState &
   AtuinChildState &
-  AtuinQueryState;
+  AtuinQueryState &
+  AtuinDialogState;
 
 const middleware = (f: StateCreator<AtuinState>) =>
   subscribeWithSelector(
@@ -125,6 +128,7 @@ export const useStore = create<AtuinState>()(
     ...createCollaborationState(...a),
     ...createQueryState(...a),
     ...createChildState(...a),
+    ...createDialogState(...a),
   })),
 );
 

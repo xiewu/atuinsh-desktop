@@ -1,15 +1,27 @@
-import Workspace from "@/state/runbooks/workspace";
-import { allRunbookIds, allRunbooks, runbookById, runbooksByWorkspaceId } from "./queries/runbooks";
+import LegacyWorkspace from "@/state/runbooks/legacy_workspace";
+import {
+  allRunbookIds,
+  allRunbooks,
+  remoteRunbook,
+  runbookById,
+  runbooksByLegacyWorkspaceId,
+  runbooksByWorkspaceId,
+} from "./queries/runbooks";
 import Runbook from "@/state/runbooks/runbook";
 import { useStore } from "@/state/store";
 import { InvalidateQueryFilters } from "@tanstack/react-query";
-import { allWorkspaces, workspaceById } from "./queries/workspaces";
+import {
+  allLegacyWorkspaces,
+  allWorkspaces,
+  legacyWorkspaceById,
+  workspaceById,
+} from "./queries/workspaces";
 import Snapshot from "@/state/runbooks/snapshot";
 import { snapshotByRunbookAndTag, snapshotsByRunbook } from "./queries/snapshots";
 import Operation from "@/state/runbooks/operation";
-import SyncManager from "./sync/sync_manager";
+import Workspace from "@/state/runbooks/workspace";
 
-export type Model = "runbook" | "workspace" | "snapshot";
+export type Model = "runbook" | "workspace" | "legacy_workspace" | "snapshot";
 export type Action = "create" | "update" | "delete";
 
 export function dbHook(kind: Model, action: Action, model: any) {
@@ -17,9 +29,7 @@ export function dbHook(kind: Model, action: Action, model: any) {
 
   if (kind === "runbook" && action === "delete") {
     const op = new Operation({ operation: { type: "runbook_deleted", runbookId: model.id } });
-    op.save().then(() => {
-      SyncManager.get(useStore).runbookUpdated(model.id);
-    });
+    op.save();
   }
 }
 
@@ -43,6 +53,8 @@ function getQueryKeys(
   switch (kind) {
     case "runbook":
       return getRunbookQueryKeys(action, model as Runbook);
+    case "legacy_workspace":
+      return getLegacyWorkspaceQueryKeys(action, model as LegacyWorkspace);
     case "workspace":
       return getWorkspaceQueryKeys(action, model as Workspace);
     case "snapshot":
@@ -59,18 +71,40 @@ function getRunbookQueryKeys(
       return [
         allRunbookIds(),
         allRunbooks(),
+        runbooksByLegacyWorkspaceId(model.legacyWorkspaceId),
+        allLegacyWorkspaces(),
         runbooksByWorkspaceId(model.workspaceId),
-        allWorkspaces(),
       ];
     case "update":
-      return [runbookById(model.id), runbooksByWorkspaceId(model.workspaceId)];
+      return [
+        allRunbooks(),
+        runbookById(model.id),
+        runbooksByLegacyWorkspaceId(model.legacyWorkspaceId),
+        runbooksByWorkspaceId(model.workspaceId),
+        remoteRunbook(model),
+      ];
     case "delete":
       return [
         allRunbookIds(),
         allRunbooks(),
+        runbooksByLegacyWorkspaceId(model.legacyWorkspaceId),
+        allLegacyWorkspaces(),
         runbooksByWorkspaceId(model.workspaceId),
-        allWorkspaces(),
       ];
+  }
+}
+
+function getLegacyWorkspaceQueryKeys(
+  action: Action,
+  model: LegacyWorkspace,
+): InvalidateQueryFilters<any, any, any, any>[] {
+  switch (action) {
+    case "create":
+      return [allLegacyWorkspaces()];
+    case "update":
+      return [allLegacyWorkspaces(), legacyWorkspaceById(model.id)];
+    case "delete":
+      return [allLegacyWorkspaces()];
   }
 }
 
@@ -82,7 +116,7 @@ function getWorkspaceQueryKeys(
     case "create":
       return [allWorkspaces()];
     case "update":
-      return [allWorkspaces(), workspaceById(model.id)];
+      return [allWorkspaces(), workspaceById(model.get("id")!)];
     case "delete":
       return [allWorkspaces()];
   }

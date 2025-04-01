@@ -30,10 +30,6 @@ import SyncManager from "./lib/sync/sync_manager";
 import { useStore } from "@/state/store";
 import ServerNotificationManager from "./server_notification_manager";
 import { trackOnlineStatus } from "./lib/online_tracker";
-import Workspace from "./state/runbooks/workspace";
-import Runbook from "./state/runbooks/runbook";
-import welcome from "@/state/runbooks/welcome.json";
-import Logger from "./lib/logger";
 import AtuinEnv from "./atuin_env";
 import { setupColorModes } from "./lib/color_modes";
 import { setupServerEvents } from "./lib/server_events";
@@ -41,7 +37,10 @@ import SettingsPanel from "./components/Settings/Settings";
 import { invoke } from "@tauri-apps/api/core";
 import debounce from "lodash.debounce";
 import { getGlobalOptions } from "./lib/global_options";
-const logger = new Logger("Main");
+import Workspace from "./state/runbooks/workspace";
+import { SharedStateManager } from "./lib/shared_state/manager";
+import { AtuinSharedStateAdapter } from "./lib/shared_state/adapter";
+import { startup as startupOperationProcessor } from "./state/runbooks/operation_processor";
 
 (async () => {
   try {
@@ -132,6 +131,27 @@ function Application() {
     }
   }, [online, user]);
 
+  useEffect(() => {
+    // Start up listeners for all known workspaces
+    Workspace.all()
+      .then((workspaces) => {
+        for (const workspace of workspaces) {
+          SharedStateManager.startInstance(
+            `workspace-folder:${workspace.get("id")}`,
+            new AtuinSharedStateAdapter(`workspace-folder:${workspace.get("id")}`),
+          );
+        }
+      })
+      .catch((err: any) => {
+        console.error("Error starting shared state managers");
+        console.error(err);
+      });
+  }, []);
+
+  useEffect(() => {
+    startupOperationProcessor();
+  }, []);
+
   return (
     <React.StrictMode>
       <HeroUIProvider>
@@ -148,7 +168,7 @@ function Application() {
               />
             )}
 
-            <div className="z-20 ">
+            <div className="z-20 relative">
               <RouterProvider router={router} />
             </div>
           </main>
@@ -162,60 +182,10 @@ function Application() {
 async function setup() {
   const currentVersion = await invoke<string>("get_app_version");
   useStore.getState().setCurrentVersion(currentVersion);
-
-  const { currentWorkspaceId, setCurrentWorkspaceId, setCurrentRunbookId } = useStore.getState();
-
-  // Ensure at least one workspace exists
-  let wss = await Workspace.all();
-  let ws;
-  if (wss.length === 0) {
-    ws = await Workspace.create("Default Workspace");
-    wss = [ws];
-  }
-
-  let wsId = currentWorkspaceId;
-  if (!wsId || !wss.some((ws) => ws.id === wsId)) {
-    wsId = wss[0].id;
-    setCurrentWorkspaceId(wsId);
-  }
-
-  // Ensure runbooks have a workspace assigned
-  // Workspaces didn't exist to start with,
-  // so for some users could be null
-  const rbs = await Runbook.withNullWorkspaces();
-  let promises = [];
-  for (let rb of rbs) {
-    rb.workspaceId = wsId;
-    promises.push(rb.save());
-  }
-
-  // It's also possible for a runbook to have a workspace_id that doesn't
-  // actually exist -- for example, a sync happened when `currentWorkspaceId`
-  // wasn't set right.
-  //
-  // This likely only happens in dev, when removing the SQLite database files
-  // and logging in as a new user.
-  const runbooks = await Runbook.selectWhere("workspace_id NOT IN (SELECT id FROM workspaces)");
-  for (const runbook of runbooks) {
-    runbook.moveTo(wsId);
-  }
-
-  const allRbIds = await Runbook.allIdsInAllWorkspaces();
-  if (allRbIds.length === 0) {
-    let runbook = await Runbook.create(wsId);
-
-    runbook.name = "Welcome to Atuin!";
-    runbook.content = JSON.stringify(welcome);
-    await runbook.save();
-    setCurrentRunbookId(runbook.id);
-  }
-
-  useStore.getState().refreshRunbooks();
-  await Promise.allSettled(promises);
 }
 
 (async () => {
-  await logger.time("Running setup...", setup);
+  await setup();
   ReactDOM.createRoot(document.getElementById("root")!).render(<Application />);
   invoke("show_window");
 })();

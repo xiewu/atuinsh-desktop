@@ -1,0 +1,1 @@
+CREATE TABLE snapshots(id STRING PRIMARY KEY, runbook_id STRING, tag TEXT, content TEXT, created BIGINT);

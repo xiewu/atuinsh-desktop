@@ -7,6 +7,9 @@ import { useEffect, useRef, useState } from "react";
 import { extendTailwindMerge } from "tailwind-merge";
 import { clearTimeout, setTimeout } from "worker-timers";
 
+export type { Option } from "@binarymuse/ts-stdlib";
+export { None, Some } from "@binarymuse/ts-stdlib";
+
 const COMMON_UNITS = ["small", "medium", "large"];
 
 /**
@@ -154,6 +157,18 @@ export function useMemory<T>(value: T): React.MutableRefObject<T> {
   return ref;
 }
 
+export function usePrevious<T>(value: T): T | undefined {
+  const [current, setCurrent] = useState<T>(value);
+  const [previous, setPrevious] = useState<T | undefined>(undefined);
+
+  if (value !== current) {
+    setPrevious(current);
+    setCurrent(value);
+  }
+
+  return previous;
+}
+
 export function slugify(name: string | null): string {
   if (name) {
     return name
@@ -185,53 +200,6 @@ export function usernameFromNwo(nwo?: string): string | undefined {
     return undefined;
   }
   return nwo.split("/")[0];
-}
-
-interface OptionMethods<T> {
-  isSome: () => boolean;
-  isNone: () => boolean;
-  unwrap: () => T;
-  unwrapOr: <U>(defaultValue: U) => T | U;
-  map: <U>(fn: (value: T) => U) => Option<U>;
-  toString: () => string;
-}
-
-export type None = {
-  readonly _type: "None";
-} & OptionMethods<never>;
-
-export type Some<T> = {
-  readonly _type: "Some";
-  readonly value: T;
-} & OptionMethods<T>;
-
-export type Option<T> = Some<T> | None;
-
-export function Some<T>(value: T): Some<T> {
-  return {
-    _type: "Some",
-    value,
-    isSome: () => true,
-    isNone: () => false,
-    unwrap: () => value,
-    unwrapOr: <U>(_defaultValue: U) => value,
-    map: (fn) => Some(fn(value)),
-    toString: () => String(value),
-  };
-}
-
-export function None(): None {
-  return {
-    _type: "None",
-    isSome: () => false,
-    isNone: () => true,
-    unwrap: () => {
-      throw new Error("Tried to unwrap None");
-    },
-    unwrapOr: <U>(defaultValue: U) => defaultValue,
-    map: <U>(_fn: (value: never) => U) => None(),
-    toString: () => "None",
-  };
 }
 
 export function normalizeInput(input: string) {

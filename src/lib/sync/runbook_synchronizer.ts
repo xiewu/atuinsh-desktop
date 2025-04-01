@@ -8,7 +8,8 @@ import * as Y from "yjs";
 import { PhoenixSynchronizer, SyncType } from "../phoenix_provider";
 import { ydocToBlocknote } from "../ydoc_to_blocknote";
 import AtuinEnv from "@/atuin_env";
-import { usernameFromNwo } from "../utils";
+import { Some, usernameFromNwo } from "../utils";
+import Workspace from "@/state/runbooks/workspace";
 
 export type SyncResult = {
   runbookId: string;
@@ -107,13 +108,23 @@ export default class RunbookSynchronizer {
       if (!runbook) {
         created = true;
         // Create local runbook from remote runbook
-        runbook = await Runbook.create(this.workspaceId, false);
+        const workspaces = await Workspace.all({ orgId: null });
+        // Prioritize the workspace from the remote runbook, if it exists locally.
+        // If it doesn't, use the workspace passed into the constructor (e.g. from collaborations).
+        // If that doesn't exist, just use the first workspace.
+        const workspace = Some(
+          workspaces.find((ws) => ws.get("id")! === remoteRunbook.workspace_id),
+        )
+          .orElse(() => Some(workspaces.find((ws) => ws.get("id")! === this.workspaceId)))
+          .unwrapOr(workspaces[0]);
+
+        runbook = await Runbook.create(workspace, false);
         runbook.id = remoteRunbook.id;
         runbook.name = remoteRunbook.name;
         runbook.source = AtuinEnv.hubRunbookSource;
         runbook.sourceInfo = remoteRunbook.nwo;
         runbook.created = new Date(remoteRunbook.client_created);
-        runbook.workspaceId = this.workspaceId;
+        runbook.workspaceId = workspace.get("id")!;
       }
       runbook.remoteInfo = JSON.stringify(remoteRunbook);
 
@@ -143,7 +154,15 @@ export default class RunbookSynchronizer {
         }
 
         if (!remoteId) {
-          await api.createSnapshot(localSnapshot);
+          try {
+            await api.createSnapshot(localSnapshot);
+          } catch (err: any) {
+            if (err instanceof api.HttpResponseError) {
+              this.logger.error(`Snapshot ${localTag} failed to create on server`);
+            } else {
+              this.reject(err);
+            }
+          }
         }
       }
 

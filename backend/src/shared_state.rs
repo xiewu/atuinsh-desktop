@@ -1,5 +1,5 @@
 use eyre::Result;
-use sqlx::{Row, SqlitePool};
+use sqlx::{QueryBuilder, Row, Sqlite, SqlitePool};
 use tauri::AppHandle;
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
@@ -114,17 +114,24 @@ impl SharedStateHandle {
         receiver.await?
     }
 
-    pub async fn remove_optimistic_update(&self, name: String, change_ref: String) -> Result<()> {
-        let (sender, receiver) = oneshot::channel();
+    pub async fn remove_optimistic_updates(
+        &self,
+        name: String,
+        change_refs: Vec<String>,
+    ) -> Result<()> {
+        for chunk in change_refs.chunks(100) {
+            let (sender, receiver) = oneshot::channel();
+            self.sender
+                .send(SharedStateMessage::RemoveOptimisticUpdates {
+                    name: name.clone(),
+                    change_refs: chunk.to_vec(),
+                    reply_to: sender,
+                })
+                .await?;
+            let _ = receiver.await?;
+        }
 
-        self.sender
-            .send(SharedStateMessage::RemoveOptimisticUpdate {
-                name,
-                change_ref,
-                reply_to: sender,
-            })
-            .await?;
-        receiver.await?
+        Ok(())
     }
 }
 
@@ -172,12 +179,12 @@ impl SharedState {
                     let res = self.push_optimistic_update(name, update).await;
                     reply_to.send(res).unwrap();
                 }
-                RemoveOptimisticUpdate {
+                RemoveOptimisticUpdates {
                     name,
-                    change_ref,
+                    change_refs,
                     reply_to,
                 } => {
-                    let res = self.remove_optimistic_update(name, change_ref).await;
+                    let res = self.remove_optimistic_updates(name, change_refs).await;
                     reply_to.send(res).unwrap();
                 }
                 Shutdown { reply_to } => {
@@ -271,14 +278,29 @@ impl SharedState {
         Ok(())
     }
 
-    async fn remove_optimistic_update(&self, name: String, change_ref: String) -> Result<()> {
-        let _ = sqlx::query(
-            "DELETE FROM optimistic_updates WHERE document_name = ? AND change_ref = ?",
-        )
-        .bind(&name)
-        .bind(&change_ref)
-        .execute(&self.pool)
-        .await?;
+    async fn remove_optimistic_updates(
+        &self,
+        name: String,
+        change_refs: Vec<String>,
+    ) -> Result<()> {
+        if change_refs.is_empty() {
+            return Ok(());
+        }
+
+        // Unfortunately, SQLx doesn't currently support binding a vector for an IN clause, so we have to take a different approach.
+        let mut builder: QueryBuilder<Sqlite> =
+            QueryBuilder::new("DELETE FROM optimistic_updates WHERE document_name = ");
+        builder.push_bind(&name);
+        builder.push(" AND change_ref IN (");
+
+        let mut sep = builder.separated(", ");
+        for change_ref in &change_refs {
+            sep.push_bind(change_ref);
+        }
+        sep.push_unseparated(")");
+
+        let query = builder.build();
+        let _ = query.execute(&self.pool).await?;
 
         Ok(())
     }
@@ -300,9 +322,9 @@ pub enum SharedStateMessage {
         update: OptimisticUpdate,
         reply_to: oneshot::Sender<Result<()>>,
     },
-    RemoveOptimisticUpdate {
+    RemoveOptimisticUpdates {
         name: String,
-        change_ref: String,
+        change_refs: Vec<String>,
         reply_to: oneshot::Sender<Result<()>>,
     },
     Shutdown {
@@ -353,14 +375,14 @@ pub async fn update_shared_state_document(
 }
 
 #[tauri::command]
-pub async fn remove_optimistic_update(
+pub async fn remove_optimistic_updates(
     state: tauri::State<'_, AtuinState>,
     name: String,
-    change_ref: String,
+    change_refs: Vec<String>,
 ) -> Result<(), String> {
     state
         .shared_state()
-        .remove_optimistic_update(name, change_ref)
+        .remove_optimistic_updates(name, change_refs)
         .await
         .map_err(|e| e.to_string())?;
     Ok(())

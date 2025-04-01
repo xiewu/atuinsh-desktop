@@ -1,0 +1,1 @@
+CREATE TABLE operation_log(id STRING PRIMARY KEY, operation TEXT, processed_at BIGINT, created BIGINT, updated BIGINT);

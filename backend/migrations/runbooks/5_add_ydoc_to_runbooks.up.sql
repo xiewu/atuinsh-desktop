@@ -1,0 +1,1 @@
+alter table runbooks add column ydoc blob;

@@ -11,13 +11,15 @@ import {
   ModalHeader,
   Spinner,
 } from "@heroui/react";
-import { useEffect, useMemo, useReducer } from "react";
+import { useContext, useEffect, useMemo, useReducer } from "react";
 import { None, Option, Some, usernameFromNwo } from "@/lib/utils";
 import { ConnectionState } from "@/state/store/user_state";
+import RunbookContext from "@/context/runbook_context";
 
 interface DeleteRunbookModalProps {
   runbookId: string;
   onClose: () => void;
+  onRunbookDeleted: (workspaceId: string, runbookId: string) => void;
 }
 
 type Ownership = "local" | "none" | "owner" | "collaborator";
@@ -25,6 +27,7 @@ type Ownership = "local" | "none" | "owner" | "collaborator";
 type DeleteState = {
   runbook: Runbook | null;
   remoteRunbook: Option<RemoteRunbook> | null;
+  isMissingFromRemote: boolean;
   isDeleting: boolean;
 };
 
@@ -40,6 +43,10 @@ type Action =
   | {
       type: "set_deleting";
       isDeleting: boolean;
+    }
+  | {
+      type: "set_missing";
+      isMissingFromRemote: boolean;
     };
 
 function reducer(state: DeleteState, action: Action): DeleteState {
@@ -50,6 +57,8 @@ function reducer(state: DeleteState, action: Action): DeleteState {
       return { ...state, remoteRunbook: action.remoteRunbook };
     case "set_runbook":
       return { ...state, runbook: action.runbook };
+    case "set_missing":
+      return { ...state, isMissingFromRemote: action.isMissingFromRemote };
   }
 }
 
@@ -57,6 +66,7 @@ const INITIAL_STATE: DeleteState = {
   runbook: null,
   remoteRunbook: null,
   isDeleting: false,
+  isMissingFromRemote: false,
 };
 
 export default function DeleteRunbookModal(props: DeleteRunbookModalProps) {
@@ -65,8 +75,8 @@ export default function DeleteRunbookModal(props: DeleteRunbookModalProps) {
   const user = useStore((store) => store.user);
   const connectionState = useStore((store) => store.connectionState);
   const currentRunbookId = useStore((store) => store.currentRunbookId);
-  const setCurrentRunbookId = useStore((store) => store.setCurrentRunbookId);
   const refreshRunbooks = useStore((store) => store.refreshRunbooks);
+  const { activateRunbook } = useContext(RunbookContext);
 
   const [deleteState, dispatch] = useReducer(reducer, INITIAL_STATE);
 
@@ -109,6 +119,7 @@ export default function DeleteRunbookModal(props: DeleteRunbookModalProps) {
       } catch (err) {
         if (err instanceof api.HttpResponseError && err.code === 404) {
           // No runbook exists on the remote
+          dispatch({ type: "set_missing", isMissingFromRemote: true });
         } else {
           const remoteData = deleteState.runbook.remoteInfo;
           if (remoteData) remoteRunbook = JSON.parse(remoteData) as RemoteRunbook;
@@ -116,7 +127,7 @@ export default function DeleteRunbookModal(props: DeleteRunbookModalProps) {
       }
 
       if (!remoteRunbook) {
-        dispatch({ type: "set_remote_runbook", remoteRunbook: None() });
+        dispatch({ type: "set_remote_runbook", remoteRunbook: None });
       } else {
         dispatch({ type: "set_remote_runbook", remoteRunbook: Some(remoteRunbook) });
       }
@@ -142,19 +153,20 @@ export default function DeleteRunbookModal(props: DeleteRunbookModalProps) {
     const { runbook, remoteRunbook } = deleteState;
     if (!runbook || !remoteRunbook) return;
 
-    if (runbook.id === currentRunbookId) setCurrentRunbookId(null);
+    if (runbook.id === currentRunbookId) activateRunbook(null);
+    const id = runbook.id;
+    const workspaceId = runbook.workspaceId;
     await runbook.delete();
+    props.onRunbookDeleted(workspaceId, id);
     refreshRunbooks();
-
-    onClose();
   }
 
   function renderModalContent() {
-    const { runbook, remoteRunbook } = deleteState;
-    if (!runbook || !remoteRunbook) {
+    const { runbook, remoteRunbook, isMissingFromRemote } = deleteState;
+    if (!runbook || (!remoteRunbook && !isMissingFromRemote)) {
       return <Spinner />;
     } else {
-      const nwo = remoteRunbook.map((rrb) => rrb.nwo);
+      const nwo = remoteRunbook ? remoteRunbook.map((rrb) => rrb.nwo) : None;
       return (
         <>
           <p>

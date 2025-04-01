@@ -12,7 +12,7 @@ import { RemoteRunbook } from "@/state/models";
 import ServerNotificationManager from "@/server_notification_manager";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { slugify, useDebounce } from "@/lib/utils";
-import { confirm } from "@tauri-apps/plugin-dialog";
+import { DialogBuilder } from "@/components/Dialogs/dialog";
 import Snapshot from "@/state/runbooks/snapshot";
 import Logger from "@/lib/logger";
 import OutOfDate from "./sharing/OutOfDate";
@@ -55,7 +55,7 @@ export default function Share({
     mutationFn: ({ runbook, slug, visibility }: ShareRunbookMutationArgs) => {
       return api.createRunbook(runbook, slug, visibility);
     },
-    onSuccess: (_data, vars) => {
+    onSuccess: async (_data, vars) => {
       setError(undefined);
       queryClient.invalidateQueries({ queryKey: ["remote_runbook", vars.runbook.id] });
 
@@ -63,6 +63,16 @@ export default function Share({
       // we can subscribe to changes in this runbook.
       ServerNotificationManager.get().subscribe(vars.runbook.id);
       onShareToHub();
+
+      // Update remote info immediately after sharing;
+      // this is necessary to get the sidebar list to update icon colors.
+      try {
+        const remoteRb = await api.getRunbookID(vars.runbook.id);
+        if (remoteRb) {
+          vars.runbook.remoteInfo = JSON.stringify(remoteRb);
+          await vars.runbook.save();
+        }
+      } catch (err: any) {}
     },
     onError: (err: any) => {
       if (err instanceof api.HttpResponseError) handleHttpError(err);
@@ -168,12 +178,17 @@ export default function Share({
   async function handleDelete() {
     if (!remoteRunbook) return;
 
-    const doDelete = await confirm(
-      "Are you sure you want to delete this runbook from Atuin Hub? This action cannot be undone.",
-      { title: "Atuin Desktop", kind: "warning" },
-    );
+    const confirm = await new DialogBuilder<"yes" | "no">()
+      .title("Delete runbook?")
+      .icon("warning")
+      .message(
+        "Are you sure you want to delete this runbook from Atuin Hub? This action cannot be undone.",
+      )
+      .action({ label: "Cancel", value: "no", variant: "flat" })
+      .action({ label: "Delete", value: "yes", color: "danger" })
+      .build();
 
-    if (doDelete) {
+    if (confirm === "yes") {
       deleteRunbook.mutate(remoteRunbook.id);
     }
   }

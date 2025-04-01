@@ -153,9 +153,14 @@ const GeneralSettings = () => {
   const colorMode = useStore((state) => state.colorMode);
   const fontSize = useStore((state) => state.fontSize);
   const fontFamily = useStore((state) => state.fontFamily);
+  const sidebarClickStyle = useStore((state) => state.sidebarClickStyle);
 
   function setColorMode(keys: SharedSelection) {
     useStore.getState().setColorMode(keys.currentKey as "light" | "dark" | "system");
+  }
+
+  function setSidebarClickStyle(keys: SharedSelection) {
+    useStore.getState().setSidebarClickStyle(keys.currentKey as "link" | "explorer");
   }
 
   function setFontSize(fontSize: number) {
@@ -188,13 +193,13 @@ const GeneralSettings = () => {
           placeholder="Select color mode"
           selectedKeys={[colorMode]}
         >
-          <SelectItem key="light" textValue="light">
+          <SelectItem key="light" textValue="Light">
             Light
           </SelectItem>
-          <SelectItem key="dark" textValue="dark">
+          <SelectItem key="dark" textValue="Dark">
             Dark
           </SelectItem>
-          <SelectItem key="system" textValue="system">
+          <SelectItem key="system" textValue="System">
             Follow System
           </SelectItem>
         </Select>
@@ -219,6 +224,21 @@ const GeneralSettings = () => {
             />
           </div>
         </div>
+        <Select
+          label="Runbook selection style"
+          value={sidebarClickStyle}
+          onSelectionChange={setSidebarClickStyle}
+          className="mt-2"
+          placeholder="Select sidebar click style"
+          selectedKeys={[sidebarClickStyle]}
+        >
+          <SelectItem key="link" textValue="Click to open">
+            Click to open
+          </SelectItem>
+          <SelectItem key="explorer" textValue="Click to select, double click to open">
+            Click to select, double click to open
+          </SelectItem>
+        </Select>
       </CardBody>
     </Card>
   );
@@ -359,7 +379,14 @@ const UserSettings = () => {
   function handleTokenSubmit(token: string) {
     setModalOpen(false);
     const deepLink = `atuin://register-token/${token}`;
-    handleDeepLink(navigate, deepLink);
+    // token submit deep link doesn't require a runbook activation,
+    // so passing an empty function for simplicity
+    handleDeepLink(
+      navigate,
+      deepLink,
+      () => {},
+      () => {},
+    );
   }
 
   let content;

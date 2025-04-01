@@ -1,5 +1,6 @@
 import { me, HttpResponseError, getRunbookID } from "@/api/api";
 import RunbookSynchronizer from "@/lib/sync/runbook_synchronizer";
+import Runbook from "@/state/runbooks/runbook";
 import { useStore } from "@/state/store";
 
 interface RouteHandler {
@@ -28,7 +29,12 @@ async function createRunbookFromHub(id: string) {
   }
 }
 
-const handleDeepLink = (navigate: any, url: string): void | null => {
+const handleDeepLink = (
+  navigate: any,
+  url: string,
+  activateRunbook: (runbookId: string | null) => void,
+  runbookCreated: (runbookId: string, workspaceId: string, parentFolderId: string | null) => void,
+): void | null => {
   const routes: Routes = {
     // Legacy "Open in desktop" from the hub
     "^atuin://runbook/([\\w-]+)/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$":
@@ -38,7 +44,14 @@ const handleDeepLink = (navigate: any, url: string): void | null => {
         let result = await createRunbookFromHub(id);
 
         if (result && result.runbookId) {
-          useStore.getState().setCurrentRunbookId(result.runbookId);
+          let runbook = await Runbook.load(result?.runbookId);
+          if (!runbook) {
+            console.error("Unable to open runbook from hub");
+            return;
+          }
+          runbookCreated(runbook.id, runbook.workspaceId, null);
+
+          activateRunbook(result.runbookId);
           useStore.getState().refreshRunbooks();
           navigate("/runbooks");
         } else {
@@ -55,7 +68,14 @@ const handleDeepLink = (navigate: any, url: string): void | null => {
       let result = await createRunbookFromHub(id);
 
       if (result) {
-        useStore.getState().setCurrentRunbookId(result.runbookId);
+        let runbook = await Runbook.load(result?.runbookId);
+        if (!runbook) {
+          console.error("Unable to open runbook from hub");
+          return;
+        }
+        runbookCreated(runbook.id, runbook.workspaceId, null);
+
+        activateRunbook(result.runbookId);
         useStore.getState().refreshRunbooks();
         navigate("/runbooks");
       } else {

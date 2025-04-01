@@ -1,9 +1,11 @@
 import * as api from "@/api/api";
+import RunbookContext from "@/context/runbook_context";
 import { allWorkspaces } from "@/lib/queries/workspaces";
 import RunbookSynchronizer from "@/lib/sync/runbook_synchronizer";
 import Workspace from "@/state/runbooks/workspace";
 import { useStore } from "@/state/store";
 import { Collaboration } from "@/state/store/collaboration_state";
+import { ConnectionState } from "@/state/store/user_state";
 import {
   Button,
   ButtonGroup,
@@ -19,7 +21,7 @@ import {
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { open } from "@tauri-apps/plugin-shell";
 import { ChevronDownIcon } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 
 interface CollaborationsModalProps {
   isOpen: boolean;
@@ -32,6 +34,7 @@ type Acceptance = {
 };
 
 export default function CollaborationsModal(props: CollaborationsModalProps) {
+  const connectionState = useStore((s) => s.connectionState);
   const currentWorkspaceId = useStore((s) => s.currentWorkspaceId);
   const user = useStore((s) => s.user);
   const collaborations = useStore((s) => s.collaborations);
@@ -44,9 +47,11 @@ export default function CollaborationsModal(props: CollaborationsModalProps) {
   const wsQuery = useQuery(allWorkspaces());
   const workspaces = wsQuery.data || [];
   const currentWorkspace = useMemo(() => {
-    return workspaces.find((ws) => ws.id === currentWorkspaceId);
+    return workspaces.find((ws) => ws.get("id") === currentWorkspaceId);
   }, [workspaces, currentWorkspaceId]);
   const [acceptIntoWs, setAcceptIntoWs] = useState<Record<string, Workspace>>({});
+
+  const { runbookCreated } = useContext(RunbookContext);
 
   function setWorkspaceForCollab(collabId: string, workspace: Workspace) {
     setAcceptIntoWs((map) => {
@@ -61,7 +66,13 @@ export default function CollaborationsModal(props: CollaborationsModalProps) {
     },
     onSuccess: (_data, acceptance) => {
       const { collaboration, workspaceId } = acceptance;
-      new RunbookSynchronizer(collaboration.runbook.id, workspaceId, user).sync();
+      new RunbookSynchronizer(collaboration.runbook.id, workspaceId, user)
+        .sync()
+        .then(async (result) => {
+          if (result.action === "created") {
+            runbookCreated(collaboration.runbook.id, workspaceId, null);
+          }
+        });
     },
     onSettled: () => refreshCollaborations(),
     scope: { id: "collaborations" },
@@ -86,7 +97,7 @@ export default function CollaborationsModal(props: CollaborationsModalProps) {
     markCollaborationAccepted(collab.id);
     acceptCollabMutation.mutate({
       collaboration: collab,
-      workspaceId: acceptIntoWs[collab.id]?.id || currentWorkspaceId,
+      workspaceId: acceptIntoWs[collab.id]?.get("id") || currentWorkspaceId,
     });
   }
 
@@ -118,8 +129,15 @@ export default function CollaborationsModal(props: CollaborationsModalProps) {
               </p>
             </ModalHeader>
             <ModalBody className="block">
-              {pendingCollabs.length === 0 && <p>No pending invitations</p>}
-              {pendingCollabs.length > 0 && (
+              {connectionState !== ConnectionState.Online && (
+                <p className="">
+                  You must be online and logged in to accept or decline collaboration invitations.
+                </p>
+              )}
+              {connectionState === ConnectionState.Online && pendingCollabs.length === 0 && (
+                <p>No pending invitations</p>
+              )}
+              {connectionState === ConnectionState.Online && pendingCollabs.length > 0 && (
                 <ul className="list-disc ml-6">
                   {pendingCollabs.map((collab) => {
                     const workspace = acceptIntoWs[collab.id] || currentWorkspace;
@@ -141,8 +159,9 @@ export default function CollaborationsModal(props: CollaborationsModalProps) {
                               color="success"
                               variant="flat"
                               onClick={() => acceptInvitation(collab)}
+                              isDisabled={connectionState !== ConnectionState.Online}
                             >
-                              Accept into {workspace.name}
+                              Accept into {workspace.get("name")}
                             </Button>
                             <Dropdown placement="bottom-end">
                               <DropdownTrigger>
@@ -155,14 +174,16 @@ export default function CollaborationsModal(props: CollaborationsModalProps) {
                                 </Button>
                               </DropdownTrigger>
                               <DropdownMenu
-                                items={workspaces.filter((ws) => ws.id !== workspace.id)}
+                                items={workspaces.filter((ws) => {
+                                  ws.get("id") !== workspace.get("id") && ws.canManageRunbooks();
+                                })}
                               >
                                 {(ws) => (
                                   <DropdownItem
-                                    key={ws.id}
+                                    key={ws.get("id")!}
                                     onClick={() => setWorkspaceForCollab(collab.id, ws)}
                                   >
-                                    Accept into {ws.name}
+                                    Accept into {ws.get("name")}
                                   </DropdownItem>
                                 )}
                               </DropdownMenu>
@@ -173,6 +194,7 @@ export default function CollaborationsModal(props: CollaborationsModalProps) {
                             color="danger"
                             variant="flat"
                             onClick={() => declineInvitation(collab)}
+                            isDisabled={connectionState !== ConnectionState.Online}
                           >
                             Decline
                           </Button>

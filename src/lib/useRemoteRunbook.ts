@@ -17,10 +17,12 @@ export default function useRemoteRunbook(
       const currentRemoteInfo = runbook.remoteInfo ? JSON.stringify(runbook.remoteInfo) : null;
 
       if (newRemoteInfo != currentRemoteInfo) {
-        runbook.updateRemoteInfo(newRemoteInfo);
+        runbook.remoteInfo = newRemoteInfo;
+        runbook.save();
       }
     } else if (query.isError && runbook.remoteInfo !== null) {
-      runbook.updateRemoteInfo(null);
+      runbook.remoteInfo = null;
+      runbook.save();
     }
   }, [runbook?.id, query.status]);
 

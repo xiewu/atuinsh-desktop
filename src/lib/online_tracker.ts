@@ -31,7 +31,7 @@ export async function trackOnlineStatus() {
     if (minVersion && (currentMinVersion.isNone() || currentMinVersion.unwrap() !== minVersion)) {
       useStore.getState().setMinimumVersion(Some(minVersion));
     } else if (currentMinVersion.isSome() && !minVersion) {
-      useStore.getState().setMinimumVersion(None());
+      useStore.getState().setMinimumVersion(None);
     }
 
     if (response.status === 200) {

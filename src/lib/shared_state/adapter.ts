@@ -12,6 +12,7 @@ type ResyncRequest = {
 type ResyncPayload<T> = {
   version: Version;
   data: T;
+  change_refs: ChangeRef[];
 };
 
 export type ServerUpdatePayload = {
@@ -24,16 +25,19 @@ export type ServerUpdatePayload = {
  * An adapter for managing a shared state. Responsible for receiving updates from
  * some endpoint.
  *
+ * They should be cheap to construct, and do any heavy initialization in the `init()` method,
+ * since they must be passed to `SharedStateManager.getInstance()`, even if the adapter doesn't
+ * end up being used (due to an instance already existing for the given state ID).
+ *
  * @param T - The type of the shared state.
  */
 export interface SharedStateAdapter<T extends SharableState> {
   init(): Promise<void>;
+  ensureConnected(): Promise<void>;
   subscribe(callback: (payload: ServerUpdate) => void): UnsubscribeFunction;
   resync(last_known_version: Version): Promise<ResyncPayload<T>>;
   destroy(): void;
 }
-
-const socketManager = SocketManager.get();
 
 /**
  * An adapter for managing a shared state document that uses Phoenix channels to communicate
@@ -42,25 +46,34 @@ const socketManager = SocketManager.get();
  * @param T - The type of the shared state.
  */
 export class AtuinSharedStateAdapter<T extends SharableState> implements SharedStateAdapter<T> {
-  private channel: WrappedChannel;
+  private stateId: string;
+  private channel: WrappedChannel | null;
   private emitter: Emittery = new Emittery();
-  private logger: Logger;
+  private logger: Logger | null;
   private unsub: UnsubscribeFunction | null = null;
 
   constructor(stateId: string) {
-    this.channel = socketManager.channel(`shared-state:${stateId}`);
-    this.logger = new Logger(`PhoenixSharedStateAdapter: ${stateId}`);
+    this.stateId = stateId;
+    this.channel = null;
+    this.logger = null;
   }
 
   public async init() {
+    const socketManager = SocketManager.get();
+    this.channel = socketManager.channel(`shared-state:${this.stateId}`);
+    this.logger = new Logger(`PhoenixSharedStateAdapter: ${this.stateId}`);
+    this.unsub = this.channel.on(Event.UPDATE, this.handleUpdate);
+  }
+
+  public async ensureConnected() {
+    if (this.channel!.state === "joined" || this.channel!.state === "joining") return;
+
     try {
-      await this.channel.join();
+      await this.channel!.join();
     } catch (err) {
-      this.logger.error("Failed to join channel:", err);
+      this.logger!.error("Failed to join channel:", err);
       throw err;
     }
-
-    this.unsub = this.channel.on(Event.UPDATE, this.handleUpdate);
   }
 
   public subscribe(callback: (payload: ServerUpdate) => void): UnsubscribeFunction {
@@ -68,19 +81,38 @@ export class AtuinSharedStateAdapter<T extends SharableState> implements SharedS
   }
 
   public resync(last_known_version: Version): Promise<ResyncPayload<T>> {
-    return this.channel
-      .push<ResyncRequest>(Event.RESYNC_REQ, { last_known_version })
-      .receive<ResyncPayload<T>>();
+    return this.channel!.push<ResyncRequest>(Event.RESYNC_REQ, { last_known_version }).receive<
+      ResyncPayload<T>
+    >();
   }
 
   public destroy() {
-    this.logger.debug("Shutting down");
+    this.logger!.debug("Shutting down");
     this.unsub?.();
+    this.channel!.leave();
     this.emitter.clearListeners();
   }
 
   @autobind
   private handleUpdate(payload: ServerUpdatePayload) {
     this.emitter.emit(Event.UPDATE, payload);
+  }
+}
+
+export class OfflineSharedStateAdapter<T extends SharableState> implements SharedStateAdapter<T> {
+  async init(): Promise<void> {
+    return;
+  }
+  async ensureConnected(): Promise<void> {
+    return;
+  }
+  subscribe(_callback: (payload: ServerUpdate) => void): UnsubscribeFunction {
+    return () => {};
+  }
+  async resync(_last_known_version: Version): Promise<ResyncPayload<T>> {
+    throw new Error("Offline adapter does not support resync");
+  }
+  destroy(): void {
+    return;
   }
 }

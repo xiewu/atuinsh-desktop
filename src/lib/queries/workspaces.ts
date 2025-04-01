@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { localQuery } from "./local_query";
+import LegacyWorkspace from "@/state/runbooks/legacy_workspace";
 import Workspace from "@/state/runbooks/workspace";
 
 export function allWorkspaces() {
@@ -7,7 +8,17 @@ export function allWorkspaces() {
     ...localQuery,
     queryKey: ["workspaces"],
     queryFn: async () => {
-      const wss = await Workspace.all();
+      return await Workspace.all();
+    },
+  });
+}
+
+export function allLegacyWorkspaces() {
+  return queryOptions({
+    ...localQuery,
+    queryKey: ["legacy_workspaces"],
+    queryFn: async () => {
+      const wss = await LegacyWorkspace.all();
       const promises = wss.map((ws) => ws.refreshMeta());
       await Promise.all(promises);
       return wss;
@@ -20,11 +31,31 @@ export function workspaceById(id: string) {
     ...localQuery,
     queryKey: ["workspace", id],
     queryFn: async () => {
-      const ws = await Workspace.findById(id);
+      return await Workspace.get(id);
+    },
+  });
+}
+
+export function legacyWorkspaceById(id: string) {
+  return queryOptions({
+    ...localQuery,
+    queryKey: ["legacy_workspace", id],
+    queryFn: async () => {
+      const ws = await LegacyWorkspace.findById(id);
       if (ws) {
         await ws.refreshMeta();
       }
       return ws;
+    },
+  });
+}
+
+export function userOwnedWorkspaces() {
+  return queryOptions({
+    ...localQuery,
+    queryKey: ["workspaces", "user"],
+    queryFn: async () => {
+      return await Workspace.all({ orgId: null });
     },
   });
 }

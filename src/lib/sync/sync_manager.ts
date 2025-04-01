@@ -1,6 +1,6 @@
 import { useStore } from "@/state/store";
 import Logger from "../logger";
-import Mutex from "../mutex";
+import Mutex from "../std/mutex";
 import { User } from "@/state/models";
 import { DateTime } from "luxon";
 import Runbook from "@/state/runbooks/runbook";
@@ -10,6 +10,7 @@ import * as api from "@/api/api";
 import { clearTimeout, setTimeout } from "worker-timers";
 import { processUnprocessedOperations } from "@/state/runbooks/operation_processor";
 import { ConnectionState } from "@/state/store/user_state";
+import Workspace from "@/state/runbooks/workspace";
 
 type Store = typeof useStore;
 
@@ -160,6 +161,23 @@ export default class SyncManager {
     try {
       this.store.getState().setIsSyncing(true);
       await processUnprocessedOperations();
+      // `processUnprocessedOperations` will exit early if we're offline;
+      // double check before we continue.
+      if (this.connectionState !== ConnectionState.Online) {
+        this.logger.error("Syncing while offline; aborting");
+        return;
+      }
+
+      // Before we sync the runbooks, we need to ensure that all the
+      // workspaces from the server exist locally. We don't need to
+      // send local workspaces to the server because we use the
+      // operation system for that.
+      await this.syncWorkspaces();
+      if (this.connectionState !== ConnectionState.Online) {
+        this.logger.error("Syncing while offline; aborting");
+        return;
+      }
+
       this.syncSet.start();
       await this.syncSet.donePromise;
       this.lastSync = DateTime.now();
@@ -171,6 +189,48 @@ export default class SyncManager {
       this.store.getState().refreshRunbooks();
       this.syncSet = null;
       this.syncing = false;
+    }
+  }
+
+  private async syncWorkspaces() {
+    const serverWorkspaces = await api.getWorkspaces();
+    const localWorkspaces = await Workspace.all();
+
+    const localWorkspaceIds = new Set(localWorkspaces.map((w) => w.get("id")!));
+    const serverWorkspaceIds = new Set(serverWorkspaces.map((w) => w.id));
+
+    const idsToCreate = Array.from(serverWorkspaceIds).filter((id) => !localWorkspaceIds.has(id));
+    const idsToUpdate = Array.from(serverWorkspaceIds).filter((id) => localWorkspaceIds.has(id));
+    const idsToDelete = Array.from(localWorkspaceIds).filter((id) => !serverWorkspaceIds.has(id));
+
+    for (const id of idsToCreate) {
+      const workspace = serverWorkspaces.find((w) => w.id === id);
+      if (workspace) {
+        const ws = new Workspace({
+          id: workspace.id,
+          name: workspace.name,
+          orgId: workspace.owner.type === "org" ? workspace.owner.id : null,
+          permissions: workspace.permissions,
+        });
+        await ws.save();
+      }
+    }
+
+    for (const id of idsToUpdate) {
+      const localWorkspace = localWorkspaces.find((w) => w.get("id")! === id);
+      const serverWorkspace = serverWorkspaces.find((w) => w.id === id);
+      if (localWorkspace && serverWorkspace) {
+        localWorkspace.set("name", serverWorkspace.name);
+        localWorkspace.set("permissions", serverWorkspace.permissions);
+        await localWorkspace.save();
+      }
+    }
+
+    for (const id of idsToDelete) {
+      const workspace = localWorkspaces.find((w) => w.get("id")! === id);
+      if (workspace) {
+        await workspace.del();
+      }
     }
   }
 

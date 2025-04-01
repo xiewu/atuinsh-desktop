@@ -348,18 +348,19 @@ fn show_window(app: &AppHandle) {
         .expect("Can't Bring Window to Focus");
 }
 
+async fn apply_runbooks_migrations(app: &AppHandle) -> eyre::Result<()> {
+    let pool = crate::sqlite::get_pool(app, "runbooks").await?;
+    sqlx::migrate!("./migrations/runbooks").run(&pool).await?;
+
+    Ok(())
+}
+
 fn main() {
     let dev_prefix = if tauri::is_dev() {
         Some(env::var("DEV_PREFIX").unwrap_or("dev".to_string()))
     } else {
         None
     };
-
-    let migration_path = dev_prefix
-        .as_ref()
-        .map_or("sqlite:runbooks.db".to_string(), |prefix| {
-            format!("sqlite:{}_runbooks.db", prefix)
-        });
 
     let builder = tauri::Builder::default();
     let builder = if cfg!(debug_assertions) {
@@ -435,16 +436,13 @@ fn main() {
             shared_state::get_shared_state_document,
             shared_state::push_optimistic_update,
             shared_state::update_shared_state_document,
-            shared_state::remove_optimistic_update,
+            shared_state::remove_optimistic_updates,
         ])
-        .plugin(
-            tauri_plugin_sql::Builder::default()
-                .add_migrations(&migration_path, run::migrations::migrations())
-                .build(),
-        )
+        .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_http::init())
         .setup(|app| {
             backup_databases(app)?;
+
             let handle = app.handle();
 
             let app_path = app
@@ -459,6 +457,11 @@ fn main() {
                     .state::<state::AtuinState>()
                     .init(&handle_clone)
                     .await;
+            });
+
+            let handle_clone = handle.clone();
+            run_async_command(async move {
+                apply_runbooks_migrations(&handle_clone).await.unwrap();
             });
 
             handle.set_menu(menu::menu(handle).expect("Failed to build menu"))?;

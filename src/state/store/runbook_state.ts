@@ -1,10 +1,11 @@
 import Runbook from "../runbooks/runbook";
 import { open } from "@tauri-apps/plugin-dialog";
-import track_event from "@/tracking";
 import Logger from "@/lib/logger";
 const logger = new Logger("RunbookStore", "purple", "pink");
 
 import { StateCreator } from "zustand";
+
+export const SET_RUNBOOK_TAG = Symbol("set_runbook_tag");
 
 export interface AtuinRunbookState {
   runbooks: Runbook[];
@@ -15,12 +16,12 @@ export interface AtuinRunbookState {
   currentRunbookId: string | null;
   lastTagForRunbook: { [key: string]: string };
 
-  importRunbook: () => Promise<Runbook[] | null>;
+  importRunbooks: () => Promise<string[]>;
   refreshRunbooks: () => Promise<void>;
   deleteRunbookFromCache: (runbookId: string) => void;
 
   setSerialExecution: (id: string | null) => void;
-  setCurrentRunbookId: (id: string | null) => void;
+  setCurrentRunbookId: (id: string | null, tag?: typeof SET_RUNBOOK_TAG) => void;
   selectTag: (runbookId: string, tag: string | null) => void;
   getLastTagForRunbook: (runbookId: string) => string | null;
 
@@ -44,7 +45,7 @@ export const createRunbookState: StateCreator<AtuinRunbookState> = (
   lastTagForRunbook: {},
   serialExecution: null,
 
-  importRunbook: async (): Promise<Runbook[] | null> => {
+  importRunbooks: async (): Promise<string[]> => {
     let filePath = await open({
       multiple: true,
       directory: false,
@@ -56,22 +57,9 @@ export const createRunbookState: StateCreator<AtuinRunbookState> = (
       ],
     });
 
-    if (!filePath || filePath.length === 0) return null;
+    if (!filePath || filePath.length === 0) return [];
 
-    const { currentWorkspaceId } = get();
-    let runbooks = await Promise.all(
-      filePath.map(async (file) => {
-        return await Runbook.importFile(file, currentWorkspaceId);
-      }),
-    );
-
-    await get().refreshRunbooks();
-
-    track_event("runbooks.import", {
-      total: await Runbook.count(),
-    });
-
-    return runbooks;
+    return filePath;
   },
 
   // PERF: Yeah this won't work long term. Let's see how many runbooks people have in reality and optimize for 10x that
@@ -90,8 +78,12 @@ export const createRunbookState: StateCreator<AtuinRunbookState> = (
     set({ runbooks: newRunbooks, currentRunbookId: newRunbookId });
   },
 
-  setCurrentRunbookId: async (id: string | null) => {
-    set({ currentRunbookId: id });
+  setCurrentRunbookId: async (id: string | null, tag?: typeof SET_RUNBOOK_TAG) => {
+    if (tag === SET_RUNBOOK_TAG) {
+      set({ currentRunbookId: id });
+    } else {
+      throw new Error("calling setCurrentRunbookId directly is not supported; use RunbookContext");
+    }
   },
 
   selectTag: (runbookId: string, tag: string | null) => {

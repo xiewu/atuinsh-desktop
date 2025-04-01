@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 
 import { AtuinState, useStore } from "@/state/store";
 import { getVersion } from "@tauri-apps/api/app";
@@ -12,6 +12,8 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { allRunbooks } from "@/lib/queries/runbooks";
 import Runbook from "@/state/runbooks/runbook";
+import RunbookContext from "@/context/runbook_context";
+import Workspace from "@/state/runbooks/workspace";
 import ActivityGraph from "@/components/ActivityGraph/ActivityGraph";
 import TopChart from "@/components/TopCommands/TopCommands";
 
@@ -40,7 +42,7 @@ export default function Home() {
   const refreshCalendar = useStore((state: AtuinState) => state.refreshCalendar);
   const refreshRunbooks = useStore((state: AtuinState) => state.refreshRunbooks);
   const currentWorkspaceId = useStore((state: AtuinState) => state.currentWorkspaceId);
-  const setCurrentRunbookId = useStore((state: AtuinState) => state.setCurrentRunbookId);
+  const { activateRunbook, runbookCreated } = useContext(RunbookContext);
 
   const [version, setVersion] = useState<string | null>(null);
 
@@ -92,8 +94,12 @@ export default function Home() {
                 description="Create an executable runbook"
                 startContent={<Terminal />}
                 onPress={async () => {
-                  const rb = await Runbook.createUntitled(currentWorkspaceId);
-                  setCurrentRunbookId(rb.id);
+                  const ws = await Workspace.get(currentWorkspaceId);
+                  if (!ws) return;
+
+                  const rb = await Runbook.createUntitled(ws);
+                  runbookCreated(rb.id, ws.get("id")!, null);
+                  activateRunbook(rb.id);
                   navigate("/runbooks");
                 }}
               >

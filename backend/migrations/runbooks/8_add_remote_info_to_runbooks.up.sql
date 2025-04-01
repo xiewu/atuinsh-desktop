@@ -1,0 +1,1 @@
+ALTER TABLE runbooks ADD COLUMN remote_info TEXT;

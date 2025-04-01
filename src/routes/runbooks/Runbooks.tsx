@@ -16,6 +16,7 @@ import { PresenceUserInfo } from "@/lib/phoenix_provider";
 import RunbookEditor from "@/lib/runbook_editor";
 import Operation from "@/state/runbooks/operation";
 import { ConnectionState } from "@/state/store/user_state";
+import { DialogBuilder } from "@/components/Dialogs/dialog";
 
 function useMarkRunbookRead(runbook: Runbook | null, refreshRunbooks: () => void) {
   useEffect(() => {
@@ -38,6 +39,7 @@ export default function Runbooks() {
   const [presences, setPresences] = useState<PresenceUserInfo[]>([]);
   const [runbookEditor, setRunbookEditor] = useState<RunbookEditor | null>(null);
   const lastRunbookEditor = useRef<RunbookEditor | null>(runbookEditor);
+  const serialExecution = useStore((store) => store.serialExecution);
 
   // Key used to re-render editor when making major changes to runbook
   const [editorKey, setEditorKey] = useState<boolean>(false);
@@ -226,6 +228,22 @@ export default function Runbooks() {
     updateEditorKey();
   }
 
+  function handleShowTagMenu() {
+    if (serialExecution) {
+      new DialogBuilder()
+        .title("Cannot switch tags")
+        .message("You cannot switch tags while a runbook is executing a workflow.")
+        .action({
+          label: "OK",
+          value: "ok",
+          color: "primary",
+        })
+        .build();
+    } else {
+      setShowTagMenu(true);
+    }
+  }
+
   useEffect(() => {
     if (lastRunbookEditor.current) {
       lastRunbookEditor.current.shutdown();
@@ -282,7 +300,7 @@ export default function Runbooks() {
             tags={tags}
             presences={presences}
             showTagMenu={showTagMenu}
-            onOpenTagMenu={() => setShowTagMenu(true)}
+            onOpenTagMenu={handleShowTagMenu}
             onCloseTagMenu={() => setShowTagMenu(false)}
             currentTag={selectedTag}
             onSelectTag={handleSelectTag}

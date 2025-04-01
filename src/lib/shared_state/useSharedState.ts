@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SharedStateManager } from "./manager";
 import { AtuinSharedStateAdapter } from "./adapter";
 import { SharableState } from "./types";
+import { Rc } from "@binarymuse/ts-stdlib";
 
-async function defaultUpdateOptimistic<T>(_data: T): Promise<string> {
+async function defaultUpdateOptimistic(
+  _data: any,
+  _cancel: () => void,
+): Promise<string | undefined> {
   throw new Error("Shared state is not ready");
 }
 
@@ -11,8 +15,9 @@ async function defaultUpdateOptimistic<T>(_data: T): Promise<string> {
  * Use a shared state document.
  *
  * To apply optimistic updates, pass a function to `updateOptimistic` that synchronously
- * applies an update to the data. The function will be called with the current state.
- * The call to `updateOptimistic` will return a promise to the change reference for the update.
+ * applies an update to the data and returns undefined, or returns a new copy of the data
+ * to diff against. The function will be called with the current state. The call to
+ * `updateOptimistic` will return a promise to the change reference for the update.
  *
  * ```
  * const [data, updateOptimistic] = useSharedState("state-id");
@@ -30,21 +35,43 @@ async function defaultUpdateOptimistic<T>(_data: T): Promise<string> {
  */
 export default function useSharedState<T extends SharableState>(
   stateId: string,
-): [T, (callback: (data: T) => void) => Promise<string>] {
+): [T, (callback: (data: T, cancel: () => void) => T | undefined) => Promise<string | undefined>] {
   const [data, setData] = useState<T>({} as T);
-  const [manager, setManager] = useState<SharedStateManager<T> | null>(null);
+  const managerRef = useRef<SharedStateManager<T> | null>(null);
 
   useEffect(() => {
-    const manager = new SharedStateManager<T>(stateId, new AtuinSharedStateAdapter<T>(stateId));
+    let disposed = false;
+    const manager = SharedStateManager.getInstance(
+      stateId,
+      new AtuinSharedStateAdapter<T>(stateId),
+    );
     const unsub = manager.subscribe(setData);
 
-    setManager(manager);
+    manager.getDataOnce().then((data) => {
+      if (!disposed) {
+        setData(data);
+      }
+    });
+
+    managerRef.current = manager;
 
     return () => {
+      disposed = true;
       unsub();
-      manager.destroy();
+      Rc.dispose(manager);
+      managerRef.current = null;
     };
   }, [stateId]);
 
-  return [data, manager?.updateOptimistic || defaultUpdateOptimistic];
+  const updateOptimistic = useCallback(
+    (callback: (data: T, cancel: () => void) => T | undefined) => {
+      return (
+        managerRef.current?.updateOptimistic(callback) ||
+        defaultUpdateOptimistic(callback, () => {})
+      );
+    },
+    [],
+  );
+
+  return [data, updateOptimistic];
 }

@@ -62,7 +62,7 @@ export const createUserState: StateCreator<AtuinUserState> = (
   user: DefaultUser,
   online: false,
   currentVersion: "",
-  minimumVersion: None(),
+  minimumVersion: None,
   connectionState: ConnectionState.Offline,
 
   isLoggedIn: () => {

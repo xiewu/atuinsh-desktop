@@ -1,0 +1,1 @@
+CREATE TABLE runbooks(id string PRIMARY KEY, name TEXT, content TEXT, created bigint, updated bigint);

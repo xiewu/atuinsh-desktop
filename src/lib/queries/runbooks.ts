@@ -25,7 +25,21 @@ export function runbooksByWorkspaceId(workspaceId: string | undefined) {
     queryKey: ["runbooks", "workspace", workspaceId],
     queryFn: () => {
       if (workspaceId) {
-        return Runbook.all(workspaceId);
+        return Runbook.allFromWorkspace(workspaceId);
+      } else {
+        return Promise.resolve([]);
+      }
+    },
+  });
+}
+
+export function runbooksByLegacyWorkspaceId(legacyWorkspaceId: string | undefined) {
+  return queryOptions({
+    ...localQuery,
+    queryKey: ["runbooks", "legacy_workspace", legacyWorkspaceId],
+    queryFn: () => {
+      if (legacyWorkspaceId) {
+        return Runbook.all(legacyWorkspaceId);
       } else {
         return Promise.resolve([]);
       }

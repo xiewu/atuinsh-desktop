@@ -7,6 +7,7 @@ import {
   DropdownItem,
   Progress,
   ButtonGroup,
+  CircularProgress,
 } from "@heroui/react";
 import { ArrowUpDownIcon, ChevronDownIcon, FileSearchIcon, Plus } from "lucide-react";
 import Runbook from "@/state/runbooks/runbook";
@@ -14,7 +15,7 @@ import { AtuinState, useStore } from "@/state/store";
 import { RefObject, useContext, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { PendingInvitations } from "./PendingInvitations";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Menu } from "@tauri-apps/api/menu";
 import { SortBy } from "./TreeView";
 import { userOwnedWorkspaces } from "@/lib/queries/workspaces";
@@ -52,8 +53,11 @@ const NoteSidebar = (props: NotesSidebarProps) => {
 
   const { activateRunbook, promptDeleteRunbook, runbookCreated } = useContext(RunbookContext);
 
+  const queryClient = useQueryClient();
+
   useEffect(() => {
     doWorkspaceSetup().then(() => {
+      queryClient.invalidateQueries(userOwnedWorkspaces());
       setPendingWorkspaceMigration(false);
     });
   }, []);
@@ -198,10 +202,16 @@ const NoteSidebar = (props: NotesSidebarProps) => {
       }}
     >
       {pendingWorkspaceMigration && (
-        <div className="p-2 h-[60px] min-height-[60px] flex justify-between items-center border-b border-gray-200 dark:border-gray-600">
-          <h2 className="text-lg font-semibold">Loading...</h2>
-          <div className="flex space-x-1"></div>
-        </div>
+        <>
+          <div className="p-2 h-[60px] min-height-[60px] flex justify-between items-center border-b border-gray-200 dark:border-gray-600">
+            <h2 className="text-lg font-semibold"></h2>
+            <div className="flex space-x-1"></div>
+          </div>
+          <div className="p-2 mt-10 text-center">Setting up...</div>
+          <div className="flex justify-center items-center mt-6">
+            <CircularProgress />
+          </div>
+        </>
       )}
       {!pendingWorkspaceMigration && (
         <>

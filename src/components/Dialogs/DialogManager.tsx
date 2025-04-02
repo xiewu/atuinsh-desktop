@@ -100,7 +100,9 @@ export default function DialogManager() {
               key={index}
               variant={action.variant}
               color={action.color}
-              onPress={() => {
+              // I don't know why using onPress here requires two clicks to activate the first click
+              // but I'm kinda tired of fighting with it so I'm using onClick instead
+              onClick={() => {
                 if (action.confirmWith && !confirmState.confirming[index]) {
                   dispatch({ type: "first_click", index });
                 } else {

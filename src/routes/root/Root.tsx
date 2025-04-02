@@ -152,7 +152,7 @@ function App() {
         color: "primary",
         radius: "sm",
         timeout: 5000,
-        shouldShowTimeoutProgess: true,
+        shouldShowTimeoutProgress: true,
       });
     }
   }

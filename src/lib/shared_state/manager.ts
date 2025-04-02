@@ -17,8 +17,10 @@ import { Rc } from "@binarymuse/ts-stdlib";
 
 function applyOptimisticUpdates<T>(data: T, updates: Array<OptimisticUpdate>) {
   for (const update of updates) {
-    if (Object.keys(update.delta as object).length > 0) {
-      jsondiffpatch.patch(data, update.delta);
+    // `patch` mutates the delta object, so we need to clone it first
+    let delta = jsondiffpatch.clone(update.delta) as jsondiffpatch.Delta;
+    if (Object.keys(delta as object).length > 0) {
+      jsondiffpatch.patch(data, delta);
     }
   }
   return data;
@@ -156,7 +158,9 @@ export class SharedStateManager<T extends SharableState> {
 
     this.logger.debug("Pushing optimistic update", update);
 
-    await pushOptimisticUpdate(this.stateId, update);
+    pushOptimisticUpdate(this.stateId, update).catch((err) => {
+      this.logger.error("Failed to push optimistic update to the backend!", err);
+    });
 
     this.optimisticUpdates.push(update);
     this.setOptmisticData();
@@ -204,8 +208,8 @@ export class SharedStateManager<T extends SharableState> {
   private async setup() {
     const document = await getSharedStateDocument<T>(this.stateId);
     if (document) {
-      this.setData(document.value, document.version, false);
       this.optimisticUpdates = document.optimisticUpdates;
+      this.setData(document.value, document.version, false);
       this.logger.debug(`Setup; loaded version ${document.version}`, this.data);
     }
 
@@ -330,6 +334,12 @@ export class SharedStateManager<T extends SharableState> {
         await updateSharedStateDocument(this.stateId, this._data, this.version);
       }
     }
+  }
+
+  public async expireOptimisticUpdates(changeRefs: ChangeRef[]) {
+    await this.removeOptimisticUpdates(changeRefs);
+    this.setOptmisticData();
+    this.emitter.emit(Event.UPDATE, this.data);
   }
 
   private async removeOptimisticUpdates(changeRefs: ChangeRef[]) {

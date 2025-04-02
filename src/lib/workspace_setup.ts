@@ -93,45 +93,45 @@ export default async function doWorkspaceSetup(): Promise<void> {
     // Create the default organization structure based off the legacy workspaces
     const runbooks = await Runbook.allInAllWorkspaces();
 
-    const stateManager = SharedStateManager.getInstance<Folder>(
-      `workspace-folder:${workspace.get("id")}`,
-      new AtuinSharedStateAdapter(`workspace-folder:${workspace.get("id")}`),
-    );
+    if (legacyWorkspaces.length > 0 || runbooks.length > 0) {
+      const stateManager = SharedStateManager.getInstance<Folder>(
+        `workspace-folder:${workspace.get("id")}`,
+        new AtuinSharedStateAdapter(`workspace-folder:${workspace.get("id")}`),
+      );
 
-    const changeRef = await stateManager.updateOptimistic((data) => {
-      const legacyWorkspaceIds = new Set<string>(legacyWorkspaces.map((ws) => ws.id));
-      const folder = WorkspaceFolder.fromJS(data);
+      const changeRef = await stateManager.updateOptimistic((data) => {
+        const legacyWorkspaceIds = new Set<string>(legacyWorkspaces.map((ws) => ws.id));
+        const folder = WorkspaceFolder.fromJS(data);
 
-      if (legacyWorkspaceIds.size === 0 && runbooks.length === 0) {
-        return {};
-      }
+        for (const legacyWs of legacyWorkspaces) {
+          folder.createFolder(legacyWs.id, legacyWs.name, null);
+        }
 
-      for (const legacyWs of legacyWorkspaces) {
-        folder.createFolder(legacyWs.id, legacyWs.name, null);
-      }
+        for (const rb of runbooks) {
+          const parentId = legacyWorkspaceIds.has(rb.legacyWorkspaceId)
+            ? rb.legacyWorkspaceId
+            : null;
+          folder.createRunbook(rb.id, parentId);
+        }
 
-      for (const rb of runbooks) {
-        const parentId = legacyWorkspaceIds.has(rb.legacyWorkspaceId) ? rb.legacyWorkspaceId : null;
-        folder.createRunbook(rb.id, parentId);
-      }
-
-      return folder.toJS();
-    });
-
-    if (changeRef) {
-      // Create an operation detailing the initial workspace folder layout
-      const op = new Operation({
-        operation: {
-          type: "workspace_initial_folder_layout",
-          workspaceId: workspace.get("id")!,
-          changeRef: changeRef,
-          data: stateManager.data,
-        },
+        return folder.toJS();
       });
-      await op.save();
-    }
 
-    Rc.dispose(stateManager);
+      if (changeRef) {
+        // Create an operation detailing the initial workspace folder layout
+        const op = new Operation({
+          operation: {
+            type: "workspace_initial_folder_layout",
+            workspaceId: workspace.get("id")!,
+            changeRef: changeRef,
+            data: stateManager.data,
+          },
+        });
+        await op.save();
+      }
+
+      Rc.dispose(stateManager);
+    }
   }
 
   if (!currentWorkspaceId || !workspaces.some((ws) => ws.get("id") === currentWorkspaceId)) {
@@ -169,6 +169,8 @@ export default async function doWorkspaceSetup(): Promise<void> {
       },
     });
     await op.save();
+
+    Rc.dispose(manager);
   }
 
   useStore.getState().refreshRunbooks();

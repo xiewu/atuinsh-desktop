@@ -59,7 +59,7 @@ export default function UpdateNotifier() {
         color: "primary",
         radius: "sm",
         timeout: Infinity,
-        shouldShowTimeoutProgess: false,
+        shouldShowTimeoutProgress: false,
         endContent: (
           <Button
             size="sm"

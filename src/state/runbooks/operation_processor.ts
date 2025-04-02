@@ -8,6 +8,9 @@ import { Folder } from "./workspace_folders";
 import { ChangeRef } from "@/lib/shared_state/types";
 import { ConnectionState } from "../store/user_state";
 import AsyncSingleton from "@/lib/async_singleton";
+import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
+import { SharedStateManager } from "@/lib/shared_state/manager";
+import { Rc } from "@binarymuse/ts-stdlib";
 const logger = new Logger("OperationProcessor", "DarkOliveGreen", "GreenYellow");
 
 function assertUnreachable(_x: never): never {
@@ -226,7 +229,7 @@ async function processWorkspaceCreated(
     return true;
   } catch (err) {
     if (err instanceof api.HttpResponseError) {
-      console.error("Failed to create workspace:", err);
+      logger.error("Failed to create workspace:", JSON.stringify(err.data));
       return true;
     } else {
       // Appears as though we're offline
@@ -241,8 +244,9 @@ async function processWorkspaceCreatedDefault(workspaceId: string): Promise<bool
     return true;
   } catch (err) {
     if (err instanceof api.HttpResponseError) {
-      console.error("Failed to update default workspace ID:", err);
-      return false;
+      logger.error("Failed to update default workspace ID:", JSON.stringify(err.data));
+      // In this case, the sync will simply download the default workspace.
+      return true;
     } else {
       // Appears as though we're offline
       return false;
@@ -260,8 +264,9 @@ async function processWorkspaceInitialFolderLayout(
     return true;
   } catch (err) {
     if (err instanceof api.HttpResponseError) {
-      console.error("Failed to update folder layout:", err);
-      return false;
+      logger.error("Failed to update folder layout:", JSON.stringify(err.data));
+      expireChangeRef(workspaceId, changeRef);
+      return true;
     } else {
       // Appears as though we're offline
       return false;
@@ -280,7 +285,8 @@ async function processWorkspaceFolderRenamed(
     return true;
   } catch (err) {
     if (err instanceof api.HttpResponseError) {
-      console.error("Failed to rename folder:", err);
+      logger.error("Failed to rename folder:", JSON.stringify(err.data));
+      expireChangeRef(workspaceId, changeRef);
       return true;
     } else {
       // Appears as though we're offline
@@ -307,7 +313,8 @@ async function processWorkspaceFolderCreated(
     return true;
   } catch (err) {
     if (err instanceof api.HttpResponseError) {
-      console.error("Failed to create folder:", err);
+      logger.error("Failed to create folder:", JSON.stringify(err.data));
+      expireChangeRef(workspaceId, changeRef);
       return true;
     } else {
       // Appears as though we're offline
@@ -326,7 +333,8 @@ async function processWorkspaceFolderDeleted(
     return true;
   } catch (err) {
     if (err instanceof api.HttpResponseError) {
-      console.error("Failed to delete folder:", err);
+      logger.error("Failed to delete folder:", JSON.stringify(err.data));
+      expireChangeRef(workspaceId, changeRef);
       return true;
     } else {
       // Appears as though we're offline
@@ -347,7 +355,8 @@ async function processWorkspaceItemsMoved(
     return true;
   } catch (err) {
     if (err instanceof api.HttpResponseError) {
-      console.error("Failed to move items:", err);
+      logger.error("Failed to move items:", JSON.stringify(err.data));
+      expireChangeRef(workspaceId, changeRef);
       return true;
     } else {
       // Appears as though we're offline
@@ -372,7 +381,8 @@ async function processWorkspaceRunbookCreated(
     return true;
   } catch (err) {
     if (err instanceof api.HttpResponseError) {
-      console.error("Failed to create runbook:", err);
+      logger.error("Failed to create runbook:", JSON.stringify(err.data));
+      expireChangeRef(workspaceId, changeRef);
       return true;
     } else {
       // Appears as though we're offline
@@ -395,7 +405,8 @@ async function processWorkspaceRunbookDeleted(
     return true;
   } catch (err) {
     if (err instanceof api.HttpResponseError) {
-      console.error("Failed to create runbook:", err);
+      logger.error("Failed to delete runbook:", JSON.stringify(err.data));
+      expireChangeRef(workspaceId, changeRef);
       return true;
     } else {
       // Appears as though we're offline
@@ -420,11 +431,20 @@ async function processWorkspaceImportRunbooks(
     return true;
   } catch (err) {
     if (err instanceof api.HttpResponseError) {
-      console.error("Failed to import runbooks:", err);
-      return false;
+      logger.error("Failed to import runbooks:", JSON.stringify(err.data));
+      expireChangeRef(workspaceId, changeRef);
+      return true;
     } else {
       // Appears as though we're offline
       return false;
     }
   }
+}
+
+async function expireChangeRef(workspaceId: string, changeRef: ChangeRef) {
+  const stateId = `workspace-folder:${workspaceId}`;
+  const adapter = new AtuinSharedStateAdapter(stateId);
+  const manager = SharedStateManager.getInstance(stateId, adapter);
+  await manager.expireOptimisticUpdates([changeRef]);
+  Rc.dispose(manager);
 }

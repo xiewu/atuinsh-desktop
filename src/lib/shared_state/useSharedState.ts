@@ -4,9 +4,8 @@ import { AtuinSharedStateAdapter } from "./adapter";
 import { SharableState } from "./types";
 import { Rc } from "@binarymuse/ts-stdlib";
 
-async function defaultUpdateOptimistic(
-  _data: any,
-  _cancel: () => void,
+async function defaultUpdateOptimistic<T>(
+  _callback: (data: T, cancel: () => void) => T | undefined,
 ): Promise<string | undefined> {
   throw new Error("Shared state is not ready");
 }
@@ -65,10 +64,7 @@ export default function useSharedState<T extends SharableState>(
 
   const updateOptimistic = useCallback(
     (callback: (data: T, cancel: () => void) => T | undefined) => {
-      return (
-        managerRef.current?.updateOptimistic(callback) ||
-        defaultUpdateOptimistic(callback, () => {})
-      );
+      return managerRef.current?.updateOptimistic(callback) || defaultUpdateOptimistic(callback);
     },
     [],
   );

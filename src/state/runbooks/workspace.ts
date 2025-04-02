@@ -3,6 +3,7 @@ import createTauriAdapter, { setTimestamps } from "@/lib/db/tauri-ar-adapter";
 import { DateEncoder, JSONEncoder } from "@/lib/db/encoders";
 import { SharedStateManager } from "@/lib/shared_state/manager";
 import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
+import { dbHook } from "@/lib/db_hooks";
 
 export type WorkspaceAttrs = {
   id?: string;
@@ -28,6 +29,7 @@ const fieldSpecs = {
 const globalSpecs: GlobalSpec<WorkspaceAttrs> = {
   preSave: setTimestamps,
   postSave: async (_context, model, type) => {
+    dbHook("workspace", type === "insert" ? "create" : "update", model);
     if (type === "insert") {
       SharedStateManager.startInstance(
         `workspace-folder:${model.get("id")}`,
@@ -36,6 +38,7 @@ const globalSpecs: GlobalSpec<WorkspaceAttrs> = {
     }
   },
   postDelete: async (_context, model) => {
+    dbHook("workspace", "delete", model);
     SharedStateManager.stopInstance(`workspace-folder:${model.get("id")}`);
   },
 };

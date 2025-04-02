@@ -14,6 +14,7 @@ import {
   allLegacyWorkspaces,
   allWorkspaces,
   legacyWorkspaceById,
+  userOwnedWorkspaces,
   workspaceById,
 } from "./queries/workspaces";
 import Snapshot from "@/state/runbooks/snapshot";
@@ -114,11 +115,11 @@ function getWorkspaceQueryKeys(
 ): InvalidateQueryFilters<any, any, any, any>[] {
   switch (action) {
     case "create":
-      return [allWorkspaces()];
+      return [allWorkspaces(), userOwnedWorkspaces()];
     case "update":
-      return [allWorkspaces(), workspaceById(model.get("id")!)];
+      return [allWorkspaces(), userOwnedWorkspaces(), workspaceById(model.get("id")!)];
     case "delete":
-      return [allWorkspaces()];
+      return [allWorkspaces(), userOwnedWorkspaces()];
   }
 }
 

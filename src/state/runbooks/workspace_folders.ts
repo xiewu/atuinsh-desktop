@@ -34,6 +34,11 @@ export default class WorkspaceFolder {
     this.root = Tree.fromJS<FolderItem>(data);
   }
 
+  // Note: its important that this method returns an object
+  // with as many shared references to the underlying data as possible;
+  // by default, `jsondiffpatch` uses reference equality to determine
+  // if two objects are the same, so we need to ensure that the same
+  // object is returned for the same id unless it's actually changed.
   public toJS(): TreeData<FolderItem> {
     return this.root.toJS();
   }

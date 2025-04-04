@@ -28,7 +28,10 @@ import Dependency from "../common/Dependency/Dependency.tsx";
 import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert.ts";
 import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency.ts";
 import BlockBus from "@/lib/workflow/block_bus.ts";
-import { useBlockBusRunSubscription, useBlockBusStopSubscription } from "@/lib/hooks/useBlockBus.ts";
+import {
+  useBlockBusRunSubscription,
+  useBlockBusStopSubscription,
+} from "@/lib/hooks/useBlockBus.ts";
 
 interface ScriptBlockProps {
   onChange: (val: string) => void;
@@ -68,6 +71,11 @@ const ScriptBlock = ({
   const elementRef = useRef<HTMLDivElement>(null);
   const unlisten = useRef<UnlistenFn | null>(null);
   const tauriUnlisten = useRef<UnlistenFn | null>(null);
+  const lightModeEditorTheme = useStore((state) => state.lightModeEditorTheme);
+  const darkModeEditorTheme = useStore((state) => state.darkModeEditorTheme);
+  const theme = useMemo(() => {
+    return colorMode === "dark" ? darkModeEditorTheme : lightModeEditorTheme;
+  }, [colorMode, lightModeEditorTheme, darkModeEditorTheme]);
 
   let interpreterCommand = useMemo(() => {
     // Handle common interpreters without a path
@@ -340,7 +348,7 @@ const ScriptBlock = ({
               code={script.code}
               isEditable={isEditable}
               language={script.interpreter}
-              colorMode={colorMode}
+              theme={theme}
               onChange={onChange}
               keyMap={[
                 TabAutoComplete,

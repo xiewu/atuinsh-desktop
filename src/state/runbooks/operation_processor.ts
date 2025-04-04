@@ -91,6 +91,12 @@ export function processOperation(op: Operation): Promise<boolean> {
     case "workspace_created_default": {
       return processWorkspaceCreatedDefault(details.workspaceId);
     }
+    case "workspace_renamed": {
+      return processWorkspaceRenamed(details.workspaceId, details.newName);
+    }
+    case "workspace_deleted": {
+      return processWorkspaceDeleted(details.workspaceId);
+    }
     case "workspace_initial_folder_layout": {
       return processWorkspaceInitialFolderLayout(
         details.workspaceId,
@@ -254,6 +260,35 @@ async function processWorkspaceCreatedDefault(workspaceId: string): Promise<bool
   }
 }
 
+async function processWorkspaceRenamed(workspaceId: string, newName: string): Promise<boolean> {
+  try {
+    await api.updateWorkspace(workspaceId, { name: newName });
+    return true;
+  } catch (err) {
+    if (err instanceof api.HttpResponseError) {
+      logger.error("Failed to rename workspace:", JSON.stringify(err.data));
+      return true;
+    } else {
+      // Appears as though we're offline
+      return false;
+    }
+  }
+}
+
+async function processWorkspaceDeleted(workspaceId: string): Promise<boolean> {
+  try {
+    await api.deleteWorkspace(workspaceId);
+    return true;
+  } catch (err) {
+    if (err instanceof api.HttpResponseError) {
+      logger.error("Failed to delete workspace:", JSON.stringify(err.data));
+      return true;
+    } else {
+      // Appears as though we're offline
+      return false;
+    }
+  }
+}
 async function processWorkspaceInitialFolderLayout(
   workspaceId: string,
   data: Folder,

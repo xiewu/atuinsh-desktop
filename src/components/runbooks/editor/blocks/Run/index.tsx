@@ -3,7 +3,7 @@ import { createReactBlockSpec } from "@blocknote/react";
 
 import "./index.css";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { invoke } from "@tauri-apps/api/core";
 import { platform } from "@tauri-apps/plugin-os";
@@ -32,7 +32,10 @@ import Dependency from "../common/Dependency/Dependency.tsx";
 import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert.ts";
 import { default as BlockType } from "@/lib/workflow/blocks/block.ts";
 import BlockBus from "@/lib/workflow/block_bus.ts";
-import { useBlockBusRunSubscription, useBlockBusStopSubscription } from "@/lib/hooks/useBlockBus.ts";
+import {
+  useBlockBusRunSubscription,
+  useBlockBusStopSubscription,
+} from "@/lib/hooks/useBlockBus.ts";
 
 interface RunBlockProps {
   onChange: (val: string) => void;
@@ -75,6 +78,12 @@ const RunBlock = ({
 
   const unsubscribeNameChanged = useRef<(() => void) | null>(null);
   const unsubscribeDependencyChanged = useRef<(() => void) | null>(null);
+
+  const lightModeEditorTheme = useStore((state) => state.lightModeEditorTheme);
+  const darkModeEditorTheme = useStore((state) => state.darkModeEditorTheme);
+  const theme = useMemo(() => {
+    return colorMode === "dark" ? darkModeEditorTheme : lightModeEditorTheme;
+  }, [colorMode, lightModeEditorTheme, darkModeEditorTheme]);
 
   const { canRun } = useDependencyState(terminal, isRunning);
 
@@ -162,22 +171,25 @@ const RunBlock = ({
     return pty;
   };
 
-  const handlePlay = useCallback(async (force: boolean = false) => {
-    if (isRunning && !force) return;
-    if (!terminal.code) return;
+  const handlePlay = useCallback(
+    async (force: boolean = false) => {
+      if (isRunning && !force) return;
+      if (!terminal.code) return;
 
-    await invoke("workflow_block_start_event", {
-      workflow: currentRunbookId,
-      block: terminal.id,
-    });
+      await invoke("workflow_block_start_event", {
+        workflow: currentRunbookId,
+        block: terminal.id,
+      });
 
-    let p = await openPty();
-    setFirstOpen(true);
+      let p = await openPty();
+      setFirstOpen(true);
 
-    if (onRun) onRun(p);
+      if (onRun) onRun(p);
 
-    track_event("runbooks.terminal.run", {});
-  }, [isRunning, terminal.code, terminal.id, currentRunbookId, onRun, openPty]);
+      track_event("runbooks.terminal.run", {});
+    },
+    [isRunning, terminal.code, terminal.id, currentRunbookId, onRun, openPty],
+  );
 
   const handleRefresh = async () => {
     if (!isRunning) return;
@@ -257,7 +269,7 @@ const RunBlock = ({
       }
     };
   }, [terminal.dependency.parent]);
-  
+
   useBlockBusRunSubscription(terminal.id, handlePlay);
   useBlockBusStopSubscription(terminal.id, handleStop);
 
@@ -325,7 +337,7 @@ const RunBlock = ({
               onChange={onChange}
               isEditable={isEditable}
               language="bash"
-              colorMode={colorMode}
+              theme={theme}
               keyMap={[
                 TabAutoComplete,
                 {

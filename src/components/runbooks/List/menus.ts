@@ -7,6 +7,7 @@ type Handler = () => void;
 type Actions = {
   onNewRunbook: (workspaceId: string, parentFolderId: string | null) => void;
   onImportRunbook: (workspaceId: string | null, parentFolderId: string | null) => void;
+  onNewWorkspace: () => void;
 };
 
 export async function createNewRunbookMenu(
@@ -33,6 +34,15 @@ export async function createNewRunbookMenu(
       },
       { item: "Separator" },
       ...workspaceItems,
+      { item: "Separator" },
+      {
+        id: "new_workspace",
+        text: "New Workspace",
+        action: () => {
+          actions.onNewWorkspace();
+        },
+        accelerator: "CmdOrCtrl+N",
+      },
     ],
   });
 
@@ -185,6 +195,7 @@ export async function createWorkspaceMenu(actions: {
   onNewRunbook: Handler;
   onNewWorkspace: Handler;
   onRenameWorkspace: Handler;
+  onDeleteWorkspace: Handler;
 }) {
   const menu = await Menu.new({
     items: [
@@ -218,6 +229,31 @@ export async function createWorkspaceMenu(actions: {
         },
         accelerator: "R",
       },
+      {
+        id: "new_workspace",
+        text: "New Workspace",
+        action: () => {
+          actions.onNewWorkspace();
+        },
+        accelerator: "CmdOrCtrl+N",
+      },
+      {
+        id: "delete_workspace",
+        text: "Delete Workspace",
+        action: () => {
+          actions.onDeleteWorkspace();
+        },
+        accelerator: "CmdOrCtrl+Delete",
+      },
+    ],
+  });
+
+  return menu;
+}
+
+export async function createRootMenu(actions: { onNewWorkspace: Handler }) {
+  const menu = await Menu.new({
+    items: [
       {
         id: "new_workspace",
         text: "New Workspace",

@@ -36,7 +36,11 @@ export default function RunbookTreeRow(props: RunbookTreeRowProps) {
       if (evt.shiftKey) {
         props.node.selectContiguous();
       } else if (evt.ctrlKey || evt.metaKey) {
-        props.node.selectMulti();
+        if (props.node.isSelected) {
+          props.node.deselect();
+        } else {
+          props.node.selectMulti();
+        }
       } else {
         props.node.select();
         props.node.activate();
@@ -45,7 +49,11 @@ export default function RunbookTreeRow(props: RunbookTreeRowProps) {
       if (evt.shiftKey) {
         props.node.selectContiguous();
       } else if (evt.ctrlKey || evt.metaKey) {
-        props.node.selectMulti();
+        if (props.node.isSelected) {
+          props.node.deselect();
+        } else {
+          props.node.selectMulti();
+        }
       } else {
         props.node.select();
       }
@@ -86,6 +94,15 @@ export default function RunbookTreeRow(props: RunbookTreeRowProps) {
     }
   }
 
+  let tooltipContent = "This is a local runbook";
+  if (hubRunbookOwnedByUser) {
+    tooltipContent = "This runbook has been shared to Atuin Hub";
+  } else if (hubRunbookNotOwnedButHasPermission) {
+    tooltipContent = "You're collaborating on this runbook";
+  } else if (hubRunbookNotOwnedAndNoPermission) {
+    tooltipContent = "This runbook belongs to another user";
+  }
+
   return (
     <div
       ref={props.dragHandle}
@@ -93,13 +110,14 @@ export default function RunbookTreeRow(props: RunbookTreeRowProps) {
       onClick={handleClick}
       onContextMenu={handleRightClickRunbook}
       className={cn(
-        `relative text-ellipsis overflow-hidden hover:bg-gray-100 dark:hover:bg-gray-900 p-[1px]`,
+        `relative text-ellipsis overflow-hidden hover:bg-gray-100 dark:hover:bg-gray-800 p-[1px]`,
         {
           "cursor-pointer": sidebarClickStyle === "link",
-          "bg-blue-200 dark:bg-blue-900 border border-1 border-blue-200 dark:bg-blue-900":
+          "bg-blue-200 dark:bg-blue-800 border border-1 border-blue-200 hover:bg-blue-100 hover:dark:bg-blue-900":
             props.node.isSelected,
           "border border-1 border-blue-400": props.node.isSelectedEnd,
           "bg-gray-100 dark:bg-gray-800": isActive,
+          "bg-blue-200/50 dark:bg-blue-800/50": props.node.isSelected && isActive,
         },
       )}
     >
@@ -112,17 +130,23 @@ export default function RunbookTreeRow(props: RunbookTreeRowProps) {
             },
           )}
         >
-          <RunbookIcon
-            className={cn("w-4 h-4 mr-1 inline-block", {
-              "stroke-green-700 dark:stroke-green-500": hubRunbookOwnedByUser,
-              "stroke-blue-600 dark:stroke-blue-400": hubRunbookNotOwnedButHasPermission,
-              "stroke-orange-600 dark:stroke-orange-400": hubRunbookNotOwnedAndNoPermission,
+          <span title={tooltipContent}>
+            <RunbookIcon
+              className={cn("w-4 h-4 mr-1 inline-block", {
+                "stroke-green-700 dark:stroke-green-500": hubRunbookOwnedByUser,
+                "stroke-blue-600 dark:stroke-blue-400": hubRunbookNotOwnedButHasPermission,
+                "stroke-orange-600 dark:stroke-orange-400": hubRunbookNotOwnedAndNoPermission,
+              })}
+            />
+          </span>
+          <span
+            className={cn("font-normal", {
+              "font-semibold": props.runbook && !props.runbook.viewed_at,
+              "text-gray-900 dark:text-gray-100": props.runbook && !props.runbook.viewed_at,
             })}
-          />
-          {props.runbook && !props.runbook.viewed_at && (
-            <div className="rounded-lg bg-blue-500 w-2 h-2 inline-block mr-1 mb-[1px]" />
-          )}
-          {(props.runbook && props.runbook.name) || "Untitled"}
+          >
+            {(props.runbook && props.runbook.name) || "Untitled"}
+          </span>
         </h3>
         <div className="flex items-center">
           {count > 0 && (

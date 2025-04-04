@@ -1,4 +1,5 @@
 import CodeMirror, { Command, keymap, Prec } from "@uiw/react-codemirror";
+import * as themes from "@uiw/codemirror-themes-all";
 import { langs } from "@uiw/codemirror-extensions-langs";
 import { extensions } from "./extensions";
 import { useMemo } from "react";
@@ -15,14 +16,22 @@ interface CodeEditorProps {
   code: string;
   isEditable: boolean;
   language: string;
-  colorMode: string;
+  theme: string;
   keyMap?: KeyMap[];
   onChange: (code: string) => void;
 }
 
 export const TabAutoComplete: KeyMap = { key: "Tab", run: acceptCompletion };
 
-export default function CodeEditor({ id, code, isEditable, onChange, language, colorMode, keyMap }: CodeEditorProps) {
+export default function CodeEditor({
+  id,
+  code,
+  isEditable,
+  onChange,
+  language,
+  theme,
+  keyMap,
+}: CodeEditorProps) {
   let editorLanguage = useMemo(() => {
     // Do the best we can with the interpreter name - get the language
     // TODO: consider dropdown to override this
@@ -58,27 +67,27 @@ export default function CodeEditor({ id, code, isEditable, onChange, language, c
     return null;
   }, [language]);
 
-
   const customKeymap = Prec.highest(keymap.of(keyMap || [TabAutoComplete]));
+  const themeObj = (themes as any)[theme];
 
   let editorExtensions: any[] = useMemo(() => {
     return [...extensions(), editorLanguage, customKeymap];
   }, [editorLanguage, customKeymap]);
 
   return (
-            <CodeMirror
-              id={id}
-              placeholder={"Write your code here..."}
-              className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
-              value={code}
-              editable={isEditable}
-              onChange={(val) => {
-                onChange(val);
-              }}
-              extensions={editorExtensions}
-              basicSetup={false}
-              indentWithTab={false}
-              theme={colorMode === "dark" ? "dark" : "light"}
-      />
+    <CodeMirror
+      id={id}
+      placeholder={"Write your code here..."}
+      className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
+      value={code}
+      editable={isEditable}
+      onChange={(val) => {
+        onChange(val);
+      }}
+      extensions={editorExtensions}
+      basicSetup={false}
+      indentWithTab={false}
+      theme={themeObj}
+    />
   );
 }

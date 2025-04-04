@@ -25,12 +25,28 @@ import Workspace from "@/state/runbooks/workspace";
 export type Model = "runbook" | "workspace" | "legacy_workspace" | "snapshot";
 export type Action = "create" | "update" | "delete";
 
-export function dbHook(kind: Model, action: Action, model: any) {
+export async function dbHook(kind: Model, action: Action, model: any) {
   invalidateQueryKeys(kind, action, model);
 
   if (kind === "runbook" && action === "delete") {
+    model = model as Runbook;
     const op = new Operation({ operation: { type: "runbook_deleted", runbookId: model.id } });
     op.save();
+  }
+
+  if (kind === "workspace" && action === "delete") {
+    model = model as Workspace;
+    const op = new Operation({
+      operation: { type: "workspace_deleted", workspaceId: model.get("id") },
+    });
+    op.save();
+
+    const runbooks = await Runbook.allFromWorkspace(model.get("id")!);
+    const promises = runbooks.map(async (runbook) => {
+      // post-delete runbook operations will delete remote runbook
+      await runbook.delete();
+    });
+    await Promise.allSettled(promises);
   }
 }
 

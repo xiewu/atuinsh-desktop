@@ -27,6 +27,15 @@ type WorkspaceOperations =
       workspaceId: string;
       workspaceName: string;
       workspaceOwner: { type: "user" } | { type: "org"; orgId: string };
+    }
+  | {
+      type: "workspace_renamed";
+      workspaceId: string;
+      newName: string;
+    }
+  | {
+      type: "workspace_deleted";
+      workspaceId: string;
     };
 
 type WorkspaceFolderOperations =
@@ -230,5 +239,26 @@ export function deleteRunbook(
     workspaceId,
     runbookId,
     changeRef,
+  };
+}
+
+export function renameWorkspace(workspaceId: string, newName: string): OperationData {
+  return {
+    type: "workspace_renamed",
+    workspaceId,
+    newName,
+  };
+}
+
+export function createWorkspace(
+  workspaceId: string,
+  workspaceName: string,
+  workspaceOwner: { type: "user" } | { type: "org"; orgId: string },
+): OperationData {
+  return {
+    type: "workspace_created",
+    workspaceId,
+    workspaceName,
+    workspaceOwner,
   };
 }

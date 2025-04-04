@@ -1,12 +1,12 @@
 use eyre::Result;
 use tauri::{
     menu::{AboutMetadata, Menu, MenuItem, MenuItemBuilder, PredefinedMenuItem, Submenu},
-    AppHandle, Emitter, Runtime,
+    AppHandle, Emitter, Manager, Runtime,
 };
 
 #[allow(dead_code)]
 fn update_check<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
-    let update_check = MenuItemBuilder::new("Check for updates")
+    let update_check = MenuItemBuilder::new("Check for Updates")
         .id("update-check")
         .build(handle)?;
 
@@ -19,6 +19,23 @@ fn update_check<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
     });
 
     Ok(update_check)
+}
+
+#[allow(dead_code)]
+fn start_sync<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
+    let start_sync = MenuItemBuilder::new("Start Sync")
+        .id("start-sync")
+        .build(handle)?;
+
+    handle.on_menu_event(move |window, event| {
+        if event.id().0 == "start-sync" {
+            window
+                .emit("start-sync", 0)
+                .expect("Failed to emit menu event");
+        }
+    });
+
+    Ok(start_sync)
 }
 
 #[allow(dead_code)]
@@ -67,6 +84,27 @@ fn new_workspace<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
         }
     });
     Ok(import_workspace)
+}
+
+#[allow(dead_code)]
+fn show_devtools<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
+    let show_devtools = MenuItemBuilder::new("Toggle DevTools")
+        .id("toggle-devtools")
+        .accelerator("CmdOrCtrl+Shift+I")
+        .build(handle)?;
+
+    handle.on_menu_event(move |handle, event| {
+        if event.id().0 == "toggle-devtools" {
+            let window = handle.get_webview_window("main").unwrap();
+            if window.is_devtools_open() {
+                window.close_devtools();
+            } else {
+                window.open_devtools();
+            }
+        }
+    });
+
+    Ok(show_devtools)
 }
 
 fn link_menu_item<R: Runtime>(
@@ -151,6 +189,7 @@ pub fn menu<R: Runtime>(app_handle: &AppHandle<R>) -> Result<Menu<R>> {
                 &[
                     &PredefinedMenuItem::about(app_handle, None, Some(about_metadata))?,
                     &update_check(app_handle)?,
+                    &start_sync(app_handle)?,
                     &PredefinedMenuItem::separator(app_handle)?,
                     &PredefinedMenuItem::services(app_handle, None)?,
                     &PredefinedMenuItem::separator(app_handle)?,
@@ -203,6 +242,13 @@ pub fn menu<R: Runtime>(app_handle: &AppHandle<R>) -> Result<Menu<R>> {
                     &PredefinedMenuItem::paste(app_handle, None)?,
                     &PredefinedMenuItem::select_all(app_handle, None)?,
                 ],
+            )?,
+            #[cfg(debug_assertions)]
+            &Submenu::with_items(
+                app_handle,
+                "Developer",
+                true,
+                &[&show_devtools(app_handle)?],
             )?,
             #[cfg(target_os = "macos")]
             &Submenu::with_items(

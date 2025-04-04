@@ -17,11 +17,7 @@ import { Rc } from "@binarymuse/ts-stdlib";
 
 function applyOptimisticUpdates<T>(data: T, updates: Array<OptimisticUpdate>) {
   for (const update of updates) {
-    // `patch` mutates the delta object, so we need to clone it first
-    let delta = jsondiffpatch.clone(update.delta) as jsondiffpatch.Delta;
-    if (Object.keys(delta as object).length > 0) {
-      jsondiffpatch.patch(data, delta);
-    }
+    patchMutate(data, update.delta);
   }
   return data;
 }
@@ -266,7 +262,7 @@ export class SharedStateManager<T extends SharableState> {
         for (let i = newVersion + 1; i <= maxVersion; i++) {
           const update = this.cached_updates.get(i);
           if (update && Object.keys(update.delta as object).length > 0) {
-            jsondiffpatch.patch(newData, update.delta);
+            patchMutate(newData, update.delta);
             newVersion = i;
           } else if (update) {
             this.logger.debug(`Skipping cached update for version ${i}; delta is empty`);
@@ -320,11 +316,8 @@ export class SharedStateManager<T extends SharableState> {
         await this.removeOptimisticUpdates([payload.change_ref]);
       }
 
-      // JsonDiffEx can send an empty delta when the data hasn't changed;
-      // `jsondiffpatch.patch()` will throw an error in this case, so we need to check for an empty delta.
       if (Object.keys(payload.delta as object).length > 0) {
-        const clone = jsondiffpatch.clone(this._data) as T;
-        jsondiffpatch.patch(clone, payload.delta);
+        const clone = patchClone(this._data, payload.delta);
 
         if (!this.shutdown) {
           this.setData(clone, payload.version);
@@ -349,4 +342,21 @@ export class SharedStateManager<T extends SharableState> {
     this.optimisticUpdates = this.optimisticUpdates.filter((update) => !set.has(update.changeRef));
     await removeOptimisticUpdates(this.stateId, changeRefs);
   }
+}
+
+function patchMutate<T>(data: T, delta: jsondiffpatch.Delta) {
+  // JsonDiffEx can send an empty delta when the data hasn't changed;
+  // `jsondiffpatch.patch()` will throw an error in this case, so we need to check for an empty delta.
+  if (Object.keys(delta as object).length > 0) {
+    // `patch` mutates the delta object, so we need to clone it first
+    const deltaClone = jsondiffpatch.clone(delta) as jsondiffpatch.Delta;
+
+    jsondiffpatch.patch(data, deltaClone);
+  }
+}
+
+function patchClone<T>(data: T, delta: jsondiffpatch.Delta): T {
+  const clone = jsondiffpatch.clone(data) as T;
+  patchMutate(clone, delta);
+  return clone;
 }

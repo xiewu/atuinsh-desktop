@@ -12,7 +12,7 @@ export type ArboristNode = {
 
 export type ArboristTree = Array<ArboristNode>;
 
-type FolderItem =
+export type FolderItem =
   | {
       type: "folder";
       id: string;
@@ -197,8 +197,8 @@ export default class WorkspaceFolder {
     return true;
   }
 
-  getDescendants(id: string): Node<FolderItem>[] {
-    const node = this.root.getNode(id);
+  getDescendants(id: string | null): Node<FolderItem>[] {
+    const node = id ? this.root.getNode(id) : Some(this.root.root());
     if (node.isNone()) {
       return [];
     }

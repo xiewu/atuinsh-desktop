@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NodeApi, NodeRendererProps, Tree, TreeApi } from "react-arborist";
 import useResizeObserver from "use-resize-observer";
 import RunbookTreeRow, { RunbookRowData, RunbookTreeRowProps } from "./TreeView/RunbookTreeRow";
@@ -22,17 +22,25 @@ interface MoveHandlerArgs<T> {
   index: number;
 }
 
+interface DragCheckArgs<T> {
+  parentNode: NodeApi<T> | null;
+  dragNodes: NodeApi<T>[];
+  index: number;
+}
+
 interface TreeViewProps {
   data: TreeRowData[];
   sortBy: SortBy;
   selectedItemId: string | null;
   runbooksById: Record<string, Runbook>;
+  initialOpenState: Record<string, boolean>;
   onTreeApiReady: (treeApi: TreeApi<TreeRowData>) => void;
   onActivateItem: (itemId: string) => void;
   onNewFolder: (parentId: string | null) => void;
   onRenameFolder: (folderId: string, newName: string) => void;
   onMoveItems: (ids: string[], parentId: string | null, index: number) => void;
   onContextMenu: (evt: React.MouseEvent<HTMLDivElement>, itemId: string) => void;
+  onToggleFolder: (nodeId: string) => void;
 }
 
 export default function TreeView(props: TreeViewProps) {
@@ -66,8 +74,9 @@ export default function TreeView(props: TreeViewProps) {
 
   const [rowCount, setRowCount] = useState<number | null>(null);
 
-  function handleToggle() {
+  function handleToggle(nodeId: string) {
     setTimeout(() => setRowCount(treeRef.current?.visibleNodes.length || 10));
+    props.onToggleFolder(nodeId);
   }
 
   function handleMove(args: MoveHandlerArgs<TreeRowData>) {
@@ -78,6 +87,31 @@ export default function TreeView(props: TreeViewProps) {
     props.onMoveItems(ids, parentId, index);
   }
 
+  function checkDisableDrop({ dragNodes }: DragCheckArgs<TreeRowData>) {
+    // When dragging nodes over a different tree,
+    // `dragNodes` will be empty.
+    if (dragNodes.length === 0) {
+      return true;
+    }
+    return false;
+  }
+
+  // Hack to allow TreeRow to be memoized, which keeps
+  // the inline editor for resetting during sync
+  const onContextMenuRef = useRef(props.onContextMenu);
+  useEffect(() => {
+    onContextMenuRef.current = props.onContextMenu;
+  }, [props.onContextMenu]);
+  const onContextMenu = useCallback((evt: React.MouseEvent<HTMLDivElement>, itemId: string) => {
+    onContextMenuRef.current(evt, itemId);
+  }, []);
+
+  const runbooksByIdRef = useRef(props.runbooksById);
+  useEffect(() => {
+    runbooksByIdRef.current = props.runbooksById;
+  }, [props.runbooksById]);
+  const getRunbookById = useCallback((id: string) => runbooksByIdRef.current[id], []);
+
   const TreeRow = useMemo(
     () => (innerProps: NodeRendererProps<FolderRowData | RunbookRowData>) => {
       if (innerProps.node.data.type === "folder") {
@@ -87,9 +121,9 @@ export default function TreeView(props: TreeViewProps) {
           tree: innerProps.tree as TreeApi<FolderRowData>,
           dragHandle: innerProps.dragHandle,
           preview: innerProps.preview,
-          onContextMenu: props.onContextMenu,
+          onContextMenu,
         };
-        return <FolderTreeRow {...folderProps} />;
+        return <FolderTreeRow key={innerProps.node.data.id} {...folderProps} />;
       } else {
         const runbookProps: RunbookTreeRowProps = {
           style: innerProps.style,
@@ -97,13 +131,13 @@ export default function TreeView(props: TreeViewProps) {
           tree: innerProps.tree as TreeApi<RunbookRowData>,
           dragHandle: innerProps.dragHandle,
           preview: innerProps.preview,
-          runbook: props.runbooksById[innerProps.node.data.id],
-          onContextMenu: props.onContextMenu,
+          runbook: getRunbookById(innerProps.node.data.id),
+          onContextMenu,
         };
-        return <RunbookTreeRow {...runbookProps} />;
+        return <RunbookTreeRow key={innerProps.node.data.id} {...runbookProps} />;
       }
     },
-    [props],
+    [getRunbookById, onContextMenu],
   );
 
   async function handleRename({ id, name }: { id: string; name: string }) {
@@ -128,10 +162,11 @@ export default function TreeView(props: TreeViewProps) {
         // scroll to the selected node while the tree was resizing.
         selection={rowCount ? props.selectedItemId ?? undefined : undefined}
         openByDefault={true}
-        initialOpenState={{}}
+        initialOpenState={props.initialOpenState}
         width={width}
         height={Math.max((rowCount || 10) * 24 + 8, 30)}
         padding={4}
+        disableDrop={checkDisableDrop}
         onActivate={handleActivate}
         onMove={handleMove}
         onSelect={handleSelect}

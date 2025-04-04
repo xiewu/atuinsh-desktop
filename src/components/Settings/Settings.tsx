@@ -154,6 +154,56 @@ const GeneralSettings = () => {
   const fontSize = useStore((state) => state.fontSize);
   const fontFamily = useStore((state) => state.fontFamily);
   const sidebarClickStyle = useStore((state) => state.sidebarClickStyle);
+  const lightModeEditorTheme = useStore((state) => state.lightModeEditorTheme);
+  const darkModeEditorTheme = useStore((state) => state.darkModeEditorTheme);
+
+  const themes = [
+    ["Abcdef", "abcdef"],
+    ["Abyss", "abyss"],
+    ["Androidstudio", "androidstudio"],
+    ["Andromeda", "andromeda"],
+    ["Atomone", "atomone"],
+    ["Aura", "aura"],
+    ["Basic Light", "basicLight"],
+    ["Basic Dark", "basicDark"],
+    ["Bbedit", "bbedit"],
+    ["Bespin", "bespin"],
+    ["Console Dark", "consoleDark"],
+    ["Console Light", "consoleLight"],
+    ["Copilot", "copilot"],
+    ["Darcula", "darcula"],
+    ["Dracula", "dracula"],
+    ["Duotone Light", "duotoneLight"],
+    ["Duotone Dark", "duotoneDark"],
+    ["Eclipse", "eclipse"],
+    ["GitHub Light", "githubLight"],
+    ["GitHub Dark", "githubDark"],
+    ["Gruvbox Dark", "gruvboxDark"],
+    ["Gruvbox Light", "gruvboxLight"],
+    ["Kimbie", "kimbie"],
+    ["Material Light", "materialLight"],
+    ["Material Dark", "materialDark"],
+    ["Monokai", "monokai"],
+    ["Monokai Dimmed", "monokaiDimmed"],
+    ["Noctis Lilac", "noctisLilac"],
+    ["Nord", "nord"],
+    ["Okaidia", "okaidia"],
+    ["Red", "red"],
+    ["Quietlight", "quietlight"],
+    ["Solarized Light", "solarizedLight"],
+    ["Solarized Dark", "solarizedDark"],
+    ["Sublime", "sublime"],
+    ["Tokyo Night", "tokyoNight"],
+    ["Tokyo Night Storm", "tokyoNightStorm"],
+    ["Tokyo Night Day", "tokyoNightDay"],
+    ["Tomorrow Night Blue", "tomorrowNightBlue"],
+    ["VS Code Dark", "vscodeDark"],
+    ["VS Code Light", "vscodeLight"],
+    ["White Light", "whiteLight"],
+    ["White Dark", "whiteDark"],
+    ["Xcode Light", "xcodeLight"],
+    ["Xcode Dark", "xcodeDark"],
+  ];
 
   function setColorMode(keys: SharedSelection) {
     useStore.getState().setColorMode(keys.currentKey as "light" | "dark" | "system");
@@ -171,76 +221,127 @@ const GeneralSettings = () => {
     useStore.getState().setFontFamily(fontFamily);
   }
 
+  function setLightModeEditorTheme(keys: SharedSelection) {
+    useStore.getState().setLightModeEditorTheme(keys.currentKey as string);
+  }
+
+  function setDarkModeEditorTheme(keys: SharedSelection) {
+    useStore.getState().setDarkModeEditorTheme(keys.currentKey as string);
+  }
+
   if (isLoading) return <Spinner />;
 
   return (
-    <Card shadow="sm" className="w-full">
-      <CardBody>
-        <h2 className="text-xl font-semibold">General</h2>
+    <>
+      <Card shadow="sm" className="w-full">
+        <CardBody>
+          <h2 className="text-xl font-semibold">General</h2>
 
-        <SettingSwitch
-          className="mt-4"
-          label="Enable usage tracking"
-          isSelected={trackingOptIn}
-          onValueChange={setTrackingOptIn}
-          description="Track usage and errors to improve Atuin"
-        />
-        <Select
-          label="Color Mode"
-          value={colorMode}
-          onSelectionChange={setColorMode}
-          className="mt-8"
-          placeholder="Select color mode"
-          selectedKeys={[colorMode]}
-        >
-          <SelectItem key="light" textValue="Light">
-            Light
-          </SelectItem>
-          <SelectItem key="dark" textValue="Dark">
-            Dark
-          </SelectItem>
-          <SelectItem key="system" textValue="System">
-            Follow System
-          </SelectItem>
-        </Select>
-        <div className="flex flex-row gap-4 mt-4">
-          <Autocomplete
-            label="Font"
-            value={fontFamily}
-            selectedKey={fontFamily}
-            onSelectionChange={setFontFamily}
-            description="Font to use for the Runbook editor"
-            defaultItems={fonts?.map((font) => ({ label: font, key: font })) || []}
+          <SettingSwitch
+            className="mt-4"
+            label="Enable usage tracking"
+            isSelected={trackingOptIn}
+            onValueChange={setTrackingOptIn}
+            description="Track usage and errors to improve Atuin"
+          />
+          <Select
+            label="Color Mode"
+            value={colorMode}
+            onSelectionChange={setColorMode}
+            className="mt-8"
+            placeholder="Select color mode"
+            selectedKeys={[colorMode]}
           >
-            {(item) => <AutocompleteItem key={item.key}>{item.label}</AutocompleteItem>}
-          </Autocomplete>
+            <SelectItem key="light" textValue="Light">
+              Light
+            </SelectItem>
+            <SelectItem key="dark" textValue="Dark">
+              Dark
+            </SelectItem>
+            <SelectItem key="system" textValue="System">
+              Follow System
+            </SelectItem>
+          </Select>
+          <div className="flex flex-row gap-4 mt-4">
+            <Autocomplete
+              label="Font"
+              value={fontFamily}
+              selectedKey={fontFamily}
+              onSelectionChange={setFontFamily}
+              description="Font to use for the Runbook editor"
+              defaultItems={fonts?.map((font) => ({ label: font, key: font })) || []}
+            >
+              {(item) => <AutocompleteItem key={item.key}>{item.label}</AutocompleteItem>}
+            </Autocomplete>
 
-          <div>
-            <Input
-              label="Font Size"
-              type="number"
-              value={fontSize.toString()}
-              onChange={(e) => setFontSize(parseInt(e.target.value))}
-            />
+            <div>
+              <Input
+                label="Font Size"
+                type="number"
+                value={fontSize.toString()}
+                onChange={(e) => setFontSize(parseInt(e.target.value))}
+              />
+            </div>
           </div>
-        </div>
-        <Select
-          label="Runbook selection style"
-          value={sidebarClickStyle}
-          onSelectionChange={setSidebarClickStyle}
-          className="mt-2"
-          placeholder="Select sidebar click style"
-          selectedKeys={[sidebarClickStyle]}
-        >
-          <SelectItem key="link" textValue="Click to open">
-            Click to open
-          </SelectItem>
-          <SelectItem key="explorer" textValue="Click to select, double click to open">
-            Click to select, double click to open
-          </SelectItem>
-        </Select>
-      </CardBody>
-    </Card>
+          <Select
+            label="Runbook selection style"
+            value={sidebarClickStyle}
+            onSelectionChange={setSidebarClickStyle}
+            className="mt-2"
+            placeholder="Select sidebar click style"
+            selectedKeys={[sidebarClickStyle]}
+          >
+            <SelectItem key="link" textValue="Click to open">
+              Click to open
+            </SelectItem>
+            <SelectItem key="explorer" textValue="Click to select, double click to open">
+              Click to select, double click to open
+            </SelectItem>
+          </Select>
+        </CardBody>
+      </Card>
+
+      <Card shadow="sm">
+        <CardBody>
+          <h2 className="text-xl font-semibold">Editor</h2>
+
+          <Select
+            label="Light mode editor theme"
+            value={lightModeEditorTheme}
+            onSelectionChange={setLightModeEditorTheme}
+            className="mt-4"
+            placeholder="Select light mode editor theme"
+            selectedKeys={[lightModeEditorTheme]}
+            items={themes.map((theme) => ({ label: theme[0], key: theme[1] }))}
+          >
+            {(item) => <SelectItem key={item.key}>{item.label}</SelectItem>}
+          </Select>
+
+          <Select
+            label="Dark mode editor theme"
+            value={darkModeEditorTheme}
+            onSelectionChange={setDarkModeEditorTheme}
+            className="mt-4"
+            placeholder="Select dark mode editor theme"
+            selectedKeys={[darkModeEditorTheme]}
+            items={themes.map((theme) => ({ label: theme[0], key: theme[1] }))}
+          >
+            {(item) => <SelectItem key={item.key}>{item.label}</SelectItem>}
+          </Select>
+
+          <div className="mt-2 ml-1">
+            <Link
+              isExternal
+              href="https://uiwjs.github.io/react-codemirror/#/theme/home"
+              className="text-sm text-blue-500 underline"
+              onPress={() => open("https://uiwjs.github.io/react-codemirror/#/theme/home")}
+            >
+              Preview available themes
+            </Link>
+          </div>
+        </CardBody>
+      </Card>
+    </>
   );
 };
 

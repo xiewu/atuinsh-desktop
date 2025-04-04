@@ -1,6 +1,6 @@
 import { ChangeRef } from "@/lib/shared_state/types";
 import { Folder } from "@/state/runbooks/workspace_folders";
-import { get, post, put } from "./api";
+import { del, get, post, put } from "./api";
 
 export type WorkspacePermission = "create" | "read" | "update" | "manage_runbooks" | "delete";
 
@@ -28,27 +28,39 @@ export async function getWorkspaces(): Promise<ServerWorkspace[]> {
 
 export function createUserWorkspace(id: string, name: string) {
   return post("/workspaces", {
+    type: "user",
     workspace: {
       id: id,
       name: name,
-      type: "user",
     },
   });
 }
 
 export function createOrgWorkspace(id: string, name: string, orgId: string) {
   return post("/workspaces", {
+    type: "org",
+    org_id: orgId,
     workspace: {
       id: id,
       name: name,
-      type: "org",
-      org_id: orgId,
     },
   });
 }
 
+export function deleteWorkspace(workspaceId: string) {
+  return del(`/workspaces/${workspaceId}`);
+}
+
 export function updateDefaultWorkspace(newId: string) {
   return put("/workspaces", { id: newId });
+}
+
+type WorkspaceParams = {
+  name: string;
+};
+
+export function updateWorkspace(workspaceId: string, params: WorkspaceParams) {
+  return post(`/workspaces/${workspaceId}`, { workspace: params });
 }
 
 export type WorkspaceFolderOperation =

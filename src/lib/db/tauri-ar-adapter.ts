@@ -119,6 +119,7 @@ export default function createTauriAdapter<T extends ModelAttributes>(
     )}) VALUES (?, ${fields.map(() => "?").join(", ")})`;
     const bindValues = [primaryKey, ...fields.map((field) => data[field as keyof T])];
     const res = await context.db.execute(query, bindValues);
+    model.put(getPrimaryKeyField(), primaryKey as T[keyof T]);
     return { success: true, inserted: true, rows: res.rowsAffected, primaryKey };
   }
 

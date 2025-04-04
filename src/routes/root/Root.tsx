@@ -36,7 +36,7 @@ import DesktopConnect from "@/components/DesktopConnect/DesktopConnect";
 import * as api from "@/api/api";
 import SocketManager from "@/socket";
 import AtuinEnv from "@/atuin_env";
-import List from "@/components/runbooks/List/List";
+import List, { ListApi } from "@/components/runbooks/List/List";
 import Onboarding from "@/components/Onboarding/Onboarding";
 import { KVStore } from "@/state/kv";
 import Runbook from "@/state/runbooks/runbook";
@@ -51,12 +51,17 @@ import { invoke } from "@tauri-apps/api/core";
 import RunbookContext from "@/context/runbook_context";
 import { SET_RUNBOOK_TAG } from "@/state/store/runbook_state";
 import DeleteRunbookModal from "./DeleteRunbookModal";
-import Operation, { createRunbook, deleteRunbook } from "@/state/runbooks/operation";
+import Operation, {
+  createRunbook,
+  createWorkspace,
+  deleteRunbook,
+} from "@/state/runbooks/operation";
 import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
 import { SharedStateManager } from "@/lib/shared_state/manager";
 import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
 import { Rc } from "@binarymuse/ts-stdlib";
+import SyncManager from "@/lib/sync/sync_manager";
 
 const runbookIndex = new RunbookIndexService();
 
@@ -86,6 +91,8 @@ function App() {
   const user = useStore((state: AtuinState) => state.user);
   const isLoggedIn = useStore((state: AtuinState) => state.isLoggedIn);
   const showDesktopConnect = useStore((state: AtuinState) => state.proposedDesktopConnectUser);
+
+  const listRef = useRef<ListApi>(null);
 
   let onOpenUrlListener = useRef<UnlistenFn | null>(null);
 
@@ -157,6 +164,26 @@ function App() {
     }
   }
 
+  async function createNewWorkspace() {
+    const workspace = new Workspace({
+      name: "Untitled Workspace",
+    });
+    console.log("createNewWorkspace", workspace);
+    await workspace.save();
+    console.log("workspace saved", workspace);
+    setCurrentWorkspaceId(workspace.get("id")!);
+    navigate(`/runbooks`);
+
+    const op = new Operation({
+      operation: createWorkspace(workspace.get("id")!, workspace.get("name")!, {
+        type: "user",
+      }),
+    });
+    await op.save();
+
+    listRef.current?.scrollWorkspaceIntoView(workspace.get("id")!);
+  }
+
   useTauriEvent("update-check", doUpdateCheck);
   useEffect(() => {
     window.addEventListener("update-check", doUpdateCheck);
@@ -165,6 +192,10 @@ function App() {
       window.removeEventListener("update-check", doUpdateCheck);
     };
   }, []);
+
+  useTauriEvent("start-sync", async () => {
+    await SyncManager.get(useStore).startSync();
+  });
 
   useTauriEvent("import-runbook", async () => {
     handleImportRunbooks(currentWorkspaceId, null);
@@ -188,12 +219,7 @@ function App() {
   });
 
   useTauriEvent("new-workspace", async () => {
-    const workspace = new Workspace({
-      name: "Untitled Workspace",
-    });
-    await workspace.save();
-    setCurrentWorkspaceId(workspace.get("id")!);
-    navigate(`/runbooks`);
+    createNewWorkspace();
   });
 
   useEffect(() => {
@@ -606,7 +632,11 @@ function App() {
             </div>
           </div>
 
-          <List importRunbooks={handleImportRunbooks} />
+          <List
+            importRunbooks={handleImportRunbooks}
+            onStartCreateWorkspace={createNewWorkspace}
+            ref={listRef}
+          />
           <Outlet />
 
           <Toaster />

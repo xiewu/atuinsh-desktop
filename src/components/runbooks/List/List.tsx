@@ -12,7 +12,15 @@ import {
 import { ArrowUpDownIcon, ChevronDownIcon, FileSearchIcon, Plus } from "lucide-react";
 import Runbook from "@/state/runbooks/runbook";
 import { AtuinState, useStore } from "@/state/store";
-import { RefObject, useContext, useEffect, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useContext,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { cn } from "@/lib/utils";
 import { PendingInvitations } from "./PendingInvitations";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -20,20 +28,24 @@ import { Menu } from "@tauri-apps/api/menu";
 import { SortBy } from "./TreeView";
 import { userOwnedWorkspaces } from "@/lib/queries/workspaces";
 import { default as WorkspaceComponent } from "./Workspace";
-import VerticalDragHandle from "./VerticalDragHandle";
-import useResizeObserver from "use-resize-observer";
 import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
 import doWorkspaceSetup from "@/lib/workspace_setup";
 import RunbookContext from "@/context/runbook_context";
-import { createNewRunbookMenu } from "./menus";
+import { createNewRunbookMenu, createRootMenu } from "./menus";
 import { SharedStateManager } from "@/lib/shared_state/manager";
 import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
+import VerticalDragHandle from "./VerticalDragHandle";
+
+export type ListApi = {
+  scrollWorkspaceIntoView: (workspaceId: string) => void;
+};
 
 interface NotesSidebarProps {
   importRunbooks: (workspaceId: string, parentFolderId: string | null) => Promise<void>;
+  onStartCreateWorkspace: () => void;
 }
 
-const NoteSidebar = (props: NotesSidebarProps) => {
+const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRef<ListApi>) => {
   const isSyncing = useStore((state: AtuinState) => state.isSyncing);
   const { data: workspaces } = useQuery(userOwnedWorkspaces());
   const [isSearchOpen, setSearchOpen] = useStore((store: AtuinState) => [
@@ -50,10 +62,50 @@ const NoteSidebar = (props: NotesSidebarProps) => {
   const sidebarWidth = useStore((state: AtuinState) => state.sidebarWidth);
   const setSidebarWidth = useStore((state: AtuinState) => state.setSidebarWidth);
   const sidebarOpen = useStore((state: AtuinState) => state.sidebarOpen);
+  const elRef = useRef<HTMLDivElement>(null);
+
+  const onResize = useCallback(
+    (delta: number) => {
+      setSidebarWidth(sidebarWidth + delta);
+    },
+    [sidebarWidth],
+  );
 
   const { activateRunbook, promptDeleteRunbook, runbookCreated } = useContext(RunbookContext);
 
   const queryClient = useQueryClient();
+
+  useImperativeHandle(ref, () => {
+    return {
+      scrollWorkspaceIntoView: async (workspaceId: string) => {
+        const getElPromise = new Promise<HTMLElement | null>((resolve, reject) => {
+          let start = performance.now();
+          let el: HTMLElement | null = null;
+          const tryGetEl = () => {
+            el = document.getElementById(`workspace-el-${workspaceId}`);
+            if (el) {
+              resolve(el);
+            } else if (performance.now() - start < 1000) {
+              setTimeout(tryGetEl, 100);
+            } else {
+              reject(new Error("Element not found"));
+            }
+          };
+          tryGetEl();
+        });
+
+        try {
+          const el = await getElPromise;
+          console.log(el);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth" });
+          }
+        } catch (_e) {
+          //
+        }
+      },
+    };
+  });
 
   useEffect(() => {
     doWorkspaceSetup().then(() => {
@@ -160,6 +212,9 @@ const NoteSidebar = (props: NotesSidebarProps) => {
         onImportRunbook: (workspaceId: string | null, parentFolderId: string | null) => {
           handleImportRunbook(workspaceId, parentFolderId);
         },
+        onNewWorkspace: () => {
+          props.onStartCreateWorkspace();
+        },
       },
     );
 
@@ -167,30 +222,24 @@ const NoteSidebar = (props: NotesSidebarProps) => {
     menu.close();
   }
 
-  const [containerSize, setContainerSize] = useState<{ offsetLeft: number; offsetWidth: number }>({
-    offsetLeft: 0,
-    offsetWidth: 250,
-  });
-  const ref = useRef<HTMLDivElement>(null);
-  useResizeObserver({
-    ref: ref.current ? null : (ref as RefObject<HTMLDivElement>),
-    onResize: () => {
-      setContainerSize({
-        offsetLeft: ref.current!.offsetLeft,
-        offsetWidth: ref.current!.offsetWidth,
-      });
-    },
-  });
+  async function handleBaseContextMenu(evt: React.MouseEvent<HTMLDivElement>) {
+    evt.preventDefault();
+    evt.stopPropagation();
 
-  function onResize(width: number) {
-    setSidebarWidth(width);
+    const menu = await createRootMenu({
+      onNewWorkspace: () => {
+        props.onStartCreateWorkspace();
+      },
+    });
+
+    await menu.popup();
+    menu.close();
   }
 
   return (
     <div
-      ref={ref}
       className={cn([
-        "hidden h-full bg-gray-50 dark:bg-content1 border-r border-gray-200 dark:border-default-300 select-none",
+        "hidden relative h-full bg-gray-50 dark:bg-content1 border-r border-gray-200 dark:border-default-300 select-none",
         {
           "md:flex md:flex-col": sidebarOpen,
         },
@@ -200,6 +249,7 @@ const NoteSidebar = (props: NotesSidebarProps) => {
         maxWidth: `${sidebarWidth}px`,
         minWidth: `${sidebarWidth}px`,
       }}
+      ref={elRef}
     >
       {pendingWorkspaceMigration && (
         <>
@@ -215,7 +265,6 @@ const NoteSidebar = (props: NotesSidebarProps) => {
       )}
       {!pendingWorkspaceMigration && (
         <>
-          <VerticalDragHandle parent={containerSize} onResize={onResize} minSize={250} />
           <Progress
             isIndeterminate={isSyncing}
             size="sm"
@@ -284,14 +333,19 @@ const NoteSidebar = (props: NotesSidebarProps) => {
               </div>
             </div>
           </div>
-          <div className="p-1 flex-grow overflow-y-scroll overscroll-none cursor-default">
+          <div
+            className="p-1 flex-grow overflow-y-scroll overscroll-none cursor-default"
+            onContextMenu={handleBaseContextMenu}
+          >
             {workspaces && (
               <div className="flex flex-col gap-2">
                 {workspaces.map((workspace) => {
                   return (
                     <div
+                      className="w-[98%] m-auto"
                       onClick={() => setFocusedWorkspaceId(workspace.get("id")!)}
                       key={workspace.get("id")!}
+                      id={`workspace-el-${workspace.get("id")!}`}
                     >
                       <WorkspaceComponent
                         workspace={workspace}
@@ -303,6 +357,7 @@ const NoteSidebar = (props: NotesSidebarProps) => {
                           workspaceId: string,
                           parentFolderId: string | null,
                         ) => handleNewRunbook(workspaceId, parentFolderId)}
+                        onStartCreateWorkspace={props.onStartCreateWorkspace}
                         onStartDeleteRunbook={(_workspaceId: string, runbookId: string) =>
                           promptDeleteRunbook(runbookId)
                         }
@@ -315,8 +370,9 @@ const NoteSidebar = (props: NotesSidebarProps) => {
           </div>
         </>
       )}
+      <VerticalDragHandle minSize={200} onResize={onResize} />
     </div>
   );
-};
+});
 
 export default NoteSidebar;

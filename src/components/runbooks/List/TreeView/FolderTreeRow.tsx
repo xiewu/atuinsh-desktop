@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import InlineInput from "./InlineInput";
 import { useStore } from "@/state/store";
+import { memo } from "react";
 
 export interface FolderRowData {
   type: "folder";
@@ -16,12 +17,18 @@ export interface FolderTreeRowProps extends NodeRendererProps<FolderRowData> {
   onContextMenu: (evt: React.MouseEvent<HTMLDivElement>, itemId: string) => void;
 }
 
-export default function FolderTreeRow(props: FolderTreeRowProps) {
+const FolderTreeRow = memo((props: FolderTreeRowProps) => {
   const sidebarClickStyle = useStore((state) => state.sidebarClickStyle);
 
   function handleClick(evt: React.MouseEvent<HTMLDivElement>) {
-    if (evt.shiftKey || evt.ctrlKey || evt.metaKey) {
-      //
+    if (props.node.isEditing) {
+      return;
+    }
+
+    if (evt.shiftKey) {
+      props.node.selectContiguous();
+    } else if (evt.ctrlKey || evt.metaKey) {
+      props.node.selectMulti();
     } else {
       if (props.node.isSelected && props.node.isInternal) {
         props.node.toggle();
@@ -56,7 +63,8 @@ export default function FolderTreeRow(props: FolderTreeRowProps) {
         props.node.state,
         {
           "cursor-pointer": sidebarClickStyle === "link",
-          "bg-blue-200 dark:bg-blue-900": props.node.isSelected,
+          "bg-blue-200 dark:bg-blue-800 hover:bg-blue-100 hover:dark:bg-blue-900":
+            props.node.isSelected,
           "border border-1 border-blue-400": props.node.isSelectedEnd,
         },
       ])}
@@ -89,11 +97,13 @@ export default function FolderTreeRow(props: FolderTreeRowProps) {
           </span>
         )}
         {!props.node.isEditing && (
-          <span className="overflow-hidden whitespace-nowrap text-ellipsis">
+          <span className="overflow-hidden whitespace-nowrap text-ellipsis font-normal text-gray-700 dark:text-gray-300">
             {props.node.data.name}
           </span>
         )}
       </div>{" "}
     </div>
   );
-}
+});
+
+export default FolderTreeRow;

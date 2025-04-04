@@ -23,6 +23,9 @@ export interface AtuinUiState {
   sidebarOpen: boolean;
   sidebarClickStyle: "link" | "explorer";
 
+  lightModeEditorTheme: string;
+  darkModeEditorTheme: string;
+
   setFocused: (focused: boolean) => void;
   setConnectedToHubSocket: (online: boolean) => void;
   setSearchOpen: (open: boolean) => void;
@@ -39,8 +42,12 @@ export interface AtuinUiState {
   setSidebarOpen: (open: boolean) => void;
   setSidebarClickStyle: (style: "link" | "explorer") => void;
 
+  setLightModeEditorTheme: (theme: string) => void;
+  setDarkModeEditorTheme: (theme: string) => void;
+
   getFolderState: (workspaceId: string) => Option<Record<string, boolean>>;
-  updateFolderState: (workspaceId: string, state: Record<string, boolean>) => void;
+  toggleFolder: (workspaceId: string, folderId: string) => void;
+  // updateFolderState: (workspaceId: string, state: Record<string, boolean>) => void;
   deleteWorkspaceFolderState: (workspaceId: string) => void;
   deleteFolderState: (workspaceId: string, folderId: string) => void;
 }
@@ -53,6 +60,8 @@ export const persistUiKeys: (keyof AtuinUiState)[] = [
   "sidebarWidth",
   "sidebarOpen",
   "sidebarClickStyle",
+  "lightModeEditorTheme",
+  "darkModeEditorTheme",
 ];
 
 export const createUiState: StateCreator<AtuinUiState> = (set, get, _store): AtuinUiState => ({
@@ -72,6 +81,10 @@ export const createUiState: StateCreator<AtuinUiState> = (set, get, _store): Atu
   sidebarWidth: 250,
   sidebarOpen: true,
   sidebarClickStyle: "link",
+
+  lightModeEditorTheme: "githubLight",
+  darkModeEditorTheme: "githubDark",
+
   setFocused: (focused: boolean) => set(() => ({ focused })),
   setConnectedToHubSocket: (online: boolean) => set(() => ({ connectedToHubSocket: online })),
   setSearchOpen: (open) => set(() => ({ searchOpen: open })),
@@ -90,14 +103,28 @@ export const createUiState: StateCreator<AtuinUiState> = (set, get, _store): Atu
   setSidebarOpen: (open: boolean) => set(() => ({ sidebarOpen: open })),
   setSidebarClickStyle: (style: "link" | "explorer") => set(() => ({ sidebarClickStyle: style })),
 
+  setLightModeEditorTheme: (theme: string) => set(() => ({ lightModeEditorTheme: theme })),
+  setDarkModeEditorTheme: (theme: string) => set(() => ({ darkModeEditorTheme: theme })),
+
   getFolderState: (workspaceId: string) => Some(get().folderState[workspaceId]),
-  updateFolderState: (workspaceId: string, state: Record<string, boolean>) => {
-    const currentState = get().folderState[workspaceId] || {};
-    for (const [folderId, isOpen] of Object.entries(state)) {
-      currentState[folderId] = isOpen;
-    }
-    set(() => ({ folderState: { ...get().folderState, [workspaceId]: currentState } }));
+  toggleFolder: (workspaceId: string, folderId: string) => {
+    set((state) => {
+      const currentState = state.folderState[workspaceId] || {};
+      if (currentState[folderId] === undefined) {
+        currentState[folderId] = false;
+      } else {
+        currentState[folderId] = !currentState[folderId];
+      }
+      return { folderState: { ...state.folderState, [workspaceId]: currentState } };
+    });
   },
+  // updateFolderState: (workspaceId: string, state: Record<string, boolean>) => {
+  //   const currentState = get().folderState[workspaceId] || {};
+  //   for (const [folderId, isOpen] of Object.entries(state)) {
+  //     currentState[folderId] = isOpen;
+  //   }
+  //   set(() => ({ folderState: { ...get().folderState, [workspaceId]: currentState } }));
+  // },
   deleteWorkspaceFolderState: (workspaceId: string) => {
     const currentState = get().folderState;
     delete currentState[workspaceId];

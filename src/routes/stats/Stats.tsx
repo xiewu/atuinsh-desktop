@@ -232,7 +232,7 @@ const Stats = () => {
   }, [stats.exit_code_distribution]);
 
   return (
-    <div className="flex flex-col gap-4 w-full pl-10 pr-10 pt-4">
+    <div className="flex flex-col gap-4 w-full pl-10 pr-10 pt-4 overflow-y-scroll">
       <div>
         <StatsFilterBar
           isLoading={loading}

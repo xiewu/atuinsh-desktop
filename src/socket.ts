@@ -149,6 +149,12 @@ export class WrappedChannel {
     });
   }
 
+  public async ensureJoined(): Promise<void> {
+    if (this.channel!.state === "joined" || this.channel!.state === "joining") return;
+
+    await this.join();
+  }
+
   public leave(timeout?: number) {
     const push = this.channel.leave(timeout);
     return new WrappedPush(push);

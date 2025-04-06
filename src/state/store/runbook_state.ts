@@ -111,11 +111,6 @@ export const createRunbookState: StateCreator<AtuinRunbookState> = (
   },
 
   setCurrentWorkspaceId: (id: string) => {
-    const lastWorkspaceId = get().currentWorkspaceId;
-    let runbookId = get().currentRunbookId;
-    if (id !== lastWorkspaceId) {
-      runbookId = null;
-    }
-    set({ currentWorkspaceId: id, currentRunbookId: runbookId });
+    set({ currentWorkspaceId: id });
   },
 });

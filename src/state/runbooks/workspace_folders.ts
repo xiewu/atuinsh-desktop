@@ -1,5 +1,5 @@
 import { Tree, TreeData, Node, DeleteStrategy, TraversalOrder } from "@/lib/tree";
-import { Some } from "@binarymuse/ts-stdlib";
+import { Some, Option } from "@binarymuse/ts-stdlib";
 
 export type Folder = TreeData<FolderItem>;
 
@@ -81,6 +81,10 @@ export default class WorkspaceFolder {
     processNode(root, data);
 
     return data;
+  }
+
+  public getNode(id: string): Option<Node<FolderItem>> {
+    return this.root.getNode(id);
   }
 
   public createFolder(id: string, name: string, parentId: string | null): boolean {

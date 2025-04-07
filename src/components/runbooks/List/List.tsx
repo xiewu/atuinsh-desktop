@@ -8,6 +8,8 @@ import {
   Progress,
   ButtonGroup,
   CircularProgress,
+  Avatar,
+  DropdownSection,
 } from "@heroui/react";
 import { ArrowUpDownIcon, ChevronDownIcon, FileSearchIcon, Plus } from "lucide-react";
 import Runbook from "@/state/runbooks/runbook";
@@ -63,6 +65,7 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
   const setSidebarWidth = useStore((state: AtuinState) => state.setSidebarWidth);
   const sidebarOpen = useStore((state: AtuinState) => state.sidebarOpen);
   const elRef = useRef<HTMLDivElement>(null);
+  const user = useStore((state: AtuinState) => state.user);
 
   const onResize = useCallback(
     (delta: number) => {
@@ -285,14 +288,46 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
                     "h-[56px] max-h-[56px] min-h-[56px]",
                   )}
                 >
-                  <h2 className="text-lg font-semibold">Personal</h2>
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    {user.isLoggedIn() ? (
+                      <>
+                        {user.avatar_url && (
+                          <Avatar
+                            src={user.avatar_url}
+                            size="sm"
+                            radius="sm"
+                            classNames={{ base: "inline-block mr-2 mt min-w-[32px]" }}
+                            name={user.username}
+                          />
+                        )}
+                        {user.username}
+                      </>
+                    ) : (
+                      "Personal"
+                    )}
+                  </h2>
                   <ChevronDownIcon size={16} />
                 </div>
               </DropdownTrigger>
               <DropdownMenu>
-                <DropdownItem key="personal">
-                  <h3>Personal</h3>
-                </DropdownItem>
+                <DropdownSection title="Choose an Organization">
+                  <DropdownItem
+                    key="personal"
+                    startContent={
+                      user.avatar_url && (
+                        <Avatar
+                          src={user.avatar_url}
+                          size="sm"
+                          radius="sm"
+                          classNames={{ base: "inline-block mr-2 mt min-w-[32px]" }}
+                          name={user.username}
+                        />
+                      )
+                    }
+                  >
+                    {user.isLoggedIn() ? <h3>{user.username} (Personal)</h3> : <h3>Personal</h3>}
+                  </DropdownItem>
+                </DropdownSection>
               </DropdownMenu>
             </Dropdown>
 
@@ -325,7 +360,7 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
                   </Tooltip>
                 )}
 
-                <Tooltip content="Search">
+                <Tooltip content="Search" placement="bottom">
                   <Button isIconOnly size="sm" variant="light" onPress={handleOpenSearch}>
                     <FileSearchIcon size={18} />
                   </Button>

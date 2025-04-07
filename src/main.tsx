@@ -174,7 +174,6 @@ function Application() {
           </main>
         </QueryClientProvider>
       </HeroUIProvider>
-      <div id="portal" />
     </React.StrictMode>
   );
 }

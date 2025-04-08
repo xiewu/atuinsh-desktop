@@ -24,7 +24,6 @@ import CodeEditor, { TabAutoComplete } from "../common/CodeEditor/CodeEditor.tsx
 import { Command } from "@codemirror/view";
 import { ScriptBlock as ScriptBlockType } from "@/lib/workflow/blocks/script.ts";
 import { default as BlockType } from "@/lib/workflow/blocks/block.ts";
-import Dependency from "../common/Dependency/Dependency.tsx";
 import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert.ts";
 import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency.ts";
 import BlockBus from "@/lib/workflow/block_bus.ts";
@@ -328,8 +327,6 @@ const ScriptBlock = ({
                   {script.outputVisible ? <Eye size={20} /> : <EyeOff size={20} />}
                 </Button>
               </Tooltip>
-
-              <Dependency block={script} setDependency={setDependency} />
             </div>
           </div>
 

@@ -1,6 +1,5 @@
 import EditableHeading from "@/components/EditableHeading";
 import { Card, CardHeader, CardBody, CardFooter, cn, Tooltip, Chip } from "@heroui/react";
-import Dependency from "./Dependency/Dependency";
 import { default as BlockType } from "@/lib/workflow/blocks/block";
 import { DependencySpec } from "@/lib/workflow/dependency";
 import { useBlockNoteEditor } from "@blocknote/react";
@@ -35,7 +34,6 @@ export default function Block({
   footer,
   inlineHeader,
   hideChild,
-  setDependency,
   hasDependency,
   ref,
 }: BlockProps) {
@@ -76,12 +74,6 @@ export default function Block({
         {!inlineHeader && (
           <div className="flex flex-row justify-between w-full">
             <EditableHeading initialText={name} onTextChange={setName} />
-            {hasDependency && (
-              <Dependency
-                block={block}
-                setDependency={setDependency}
-              />
-            )}
           </div>
         )}
 

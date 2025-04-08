@@ -28,7 +28,6 @@ import { Command } from "@codemirror/view";
 import { TerminalBlock } from "@/lib/workflow/blocks/terminal.ts";
 import { logExecution } from "@/lib/exec_log.ts";
 import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency.ts";
-import Dependency from "../common/Dependency/Dependency.tsx";
 import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert.ts";
 import { default as BlockType } from "@/lib/workflow/blocks/block.ts";
 import BlockBus from "@/lib/workflow/block_bus.ts";
@@ -317,7 +316,6 @@ const RunBlock = ({
                   {terminal.outputVisible ? <Eye size={20} /> : <EyeOff size={20} />}
                 </button>
               </Tooltip>
-              <Dependency block={terminal} setDependency={setDependency} />
             </div>
           </div>
 

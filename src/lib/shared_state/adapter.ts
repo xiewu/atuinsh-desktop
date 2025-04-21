@@ -69,7 +69,7 @@ export class AtuinSharedStateAdapter<T extends SharableState> implements SharedS
     if (this.channel!.state === "joined" || this.channel!.state === "joining") return;
 
     try {
-      await this.channel!.join();
+      await this.channel!.ensureJoined();
     } catch (err) {
       this.logger!.error("Failed to join channel:", err);
       throw err;

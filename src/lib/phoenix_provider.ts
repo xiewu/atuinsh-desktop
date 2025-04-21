@@ -106,7 +106,7 @@ export class PhoenixSynchronizer extends Emittery {
     this.logger.debug("Socket connected");
     if (this.channel.state == "closed") {
       try {
-        await this.channel.join(10000);
+        await this.channel.ensureJoined();
 
         // Either this is the first connection, or we're reconnecting. Either way,
         // we need to resync with the remote document.

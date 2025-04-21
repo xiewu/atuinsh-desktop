@@ -4,6 +4,7 @@ import Emittery from "emittery";
 const logger = new Logger("Socket");
 import { useStore } from "@/state/store";
 import AtuinEnv from "./atuin_env";
+import { timeoutPromise } from "./lib/utils";
 
 export default class SocketManager extends Emittery {
   private static apiToken: string | null = null;
@@ -119,13 +120,14 @@ export default class SocketManager extends Emittery {
   }
 }
 
-export class WrappedChannel {
+export class WrappedChannel<J = unknown> {
   private topic: string;
   private manager: SocketManager;
   private emitter: Emittery;
   private handlers: Map<string, { count: number; ref: number }> = new Map();
   private channelParams: object | undefined;
   private channel: Channel;
+  private joinPromise: Promise<J> | null = null;
 
   constructor(manager: SocketManager, topic: string, channelParams?: object) {
     this.manager = manager;
@@ -137,8 +139,10 @@ export class WrappedChannel {
     this.manager.onSocketChange(this.handleNewSocket.bind(this));
   }
 
-  public join<T = unknown>(timeout?: number): Promise<T> {
-    return new Promise((resolve, reject) => {
+  // Internal method to join the channel;
+  // consumers should use `ensureJoined` instead
+  private join(timeout: number = 10000): Promise<J> {
+    const promise = new Promise<J>((resolve, reject) => {
       this.channel
         .join(timeout)
         .receive("ok", resolve)
@@ -147,12 +151,23 @@ export class WrappedChannel {
           reject(resp);
         });
     });
+
+    this.joinPromise = promise;
+    return promise;
   }
 
-  public async ensureJoined(): Promise<void> {
-    if (this.channel!.state === "joined" || this.channel!.state === "joining") return;
+  public async ensureJoined(timeout: number = 10000): Promise<J> {
+    if (this.channel!.state === "joined" || this.channel!.state === "joining") {
+      const timeoutSym = Symbol("timeout");
+      const timeoutProm = timeoutPromise(timeout, timeoutSym);
+      const result = await Promise.race([this.joinPromise!, timeoutProm]);
+      if (result === timeoutSym) {
+        throw new Error("Timeout joining channel");
+      }
+      return result;
+    }
 
-    await this.join();
+    return await this.join(timeout);
   }
 
   public leave(timeout?: number) {

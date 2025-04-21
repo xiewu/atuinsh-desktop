@@ -39,9 +39,7 @@ export default class ServerNotificationManager extends Emittery {
   }
 
   public async startNotifications() {
-    if (this.channel.state == "closed") {
-      await this.channel.join();
-    }
+    await this.channel.ensureJoined();
 
     // Subscribe is idempotent on the server, so we can just call it with all the runbook IDs
     const ids = await Runbook.allIdsInAllWorkspaces();

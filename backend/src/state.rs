@@ -17,6 +17,7 @@ use crate::{
     runtime::{
         exec_log::ExecLogHandle,
         pty_store::PtyStoreHandle,
+        ssh_pool::SshPoolHandle,
         workflow::{
             event::{WorkflowCommand, WorkflowEvent},
             executor::ExecutorHandle,
@@ -36,6 +37,7 @@ pub(crate) struct AtuinState {
     // Annoying that it needs to be done in two steps, but ok.
     pty_store: Mutex<Option<PtyStoreHandle>>,
     exec_log: Mutex<Option<ExecLogHandle>>,
+    ssh_pool: Mutex<Option<SshPoolHandle>>,
 
     // Shared state
     shared_state: Mutex<Option<SharedStateHandle>>,
@@ -75,6 +77,7 @@ impl AtuinState {
         Self {
             pty_store: Mutex::new(None),
             exec_log: Mutex::new(None),
+            ssh_pool: Mutex::new(None),
             shared_state: Mutex::new(None),
             executor: Mutex::new(None),
             event_sender: Mutex::new(None),
@@ -99,6 +102,9 @@ impl AtuinState {
 
         let pty_store = PtyStoreHandle::new();
         self.pty_store.lock().unwrap().replace(pty_store);
+
+        let ssh_pool = SshPoolHandle::new();
+        self.ssh_pool.lock().unwrap().replace(ssh_pool);
 
         let shared_state = SharedStateHandle::new(app.clone()).await;
         self.shared_state.lock().unwrap().replace(shared_state);
@@ -189,6 +195,14 @@ impl AtuinState {
             (*pty_store).clone()
         } else {
             panic!("Pty store not initialized");
+        }
+    }
+
+    pub fn ssh_pool(&self) -> SshPoolHandle {
+        if let Some(ssh_pool) = &self.ssh_pool.lock().unwrap().as_ref() {
+            (*ssh_pool).clone()
+        } else {
+            panic!("SSH pool not initialized");
         }
     }
 

@@ -356,6 +356,10 @@ async fn apply_runbooks_migrations(app: &AppHandle) -> eyre::Result<()> {
 }
 
 fn main() {
+    env_logger::builder()
+        .filter(Some("atuin_desktop"), log::LevelFilter::Trace)
+        .init();
+
     let dev_prefix = if tauri::is_dev() {
         Some(env::var("DEV_PREFIX").unwrap_or("dev".to_string()))
     } else {
@@ -364,8 +368,7 @@ fn main() {
 
     let builder = tauri::Builder::default();
     let builder = if cfg!(debug_assertions) {
-        let devtools = tauri_plugin_devtools::init();
-        builder.plugin(devtools)
+        builder
     } else {
         builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             show_window(app);
@@ -429,6 +432,13 @@ fn main() {
             commands::exec_log::log_execution,
             commands::dependency::can_run,
             commands::pty_store::runbook_kill_all_ptys,
+            commands::ssh_pool::ssh_connect,
+            commands::ssh_pool::ssh_disconnect,
+            commands::ssh_pool::ssh_list_connections,
+            commands::ssh_pool::ssh_exec,
+            commands::ssh_pool::ssh_exec_cancel,
+            commands::ssh_pool::ssh_open_pty,
+            commands::ssh_pool::ssh_write_pty,
             commands::workflow::serial::workflow_serial,
             commands::workflow::serial::workflow_block_start_event,
             commands::workflow::serial::workflow_stop,

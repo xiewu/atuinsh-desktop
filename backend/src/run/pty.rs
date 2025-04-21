@@ -7,8 +7,8 @@ use minijinja::Environment;
 use crate::{pty::PtyMetadata, runtime::pty_store::PtyStoreHandle, state::AtuinState};
 use tauri::{async_runtime::block_on, Emitter, Manager, State};
 
-const PTY_OPEN_CHANNEL: &str = "pty_open";
-const PTY_KILL_CHANNEL: &str = "pty_kill";
+pub const PTY_OPEN_CHANNEL: &str = "pty_open";
+pub const PTY_KILL_CHANNEL: &str = "pty_kill";
 
 async fn update_badge_count(app: &tauri::AppHandle, store: PtyStoreHandle) -> Result<()> {
     let len = store.len().await?;
@@ -48,10 +48,9 @@ pub async fn pty_open(
         .unwrap();
 
     let reader = pty.reader.clone();
-
     let app_inner = app.clone();
-
     let pty_store = state.pty_store();
+    let channel = format!("pty-{id}");
 
     tauri::async_runtime::spawn_blocking(move || loop {
         let mut buf = [0u8; 512];
@@ -60,16 +59,21 @@ pub async fn pty_open(
             // EOF
             Ok(0) => {
                 println!("reader loop hit eof");
-                block_on(remove_pty(app_inner.clone(), id, pty_store))
-                    .expect("failed to remove pty");
-                break;
+                match block_on(remove_pty(app_inner.clone(), id, pty_store)) {
+                    Ok(_) => {
+                        break;
+                    }
+                    Err(e) => {
+                        println!("failed to remove pty: {e}");
+                        break;
+                    }
+                }
             }
 
             Ok(_n) => {
                 // TODO: sort inevitable encoding issues
                 let out = String::from_utf8_lossy(&buf).to_string();
                 let out = out.trim_matches(char::from(0));
-                let channel = format!("pty-{id}");
 
                 app_inner.emit(channel.as_str(), out).unwrap();
             }
@@ -90,7 +94,7 @@ pub async fn pty_open(
 
     state
         .pty_store()
-        .add_pty(pty)
+        .add_pty(Box::new(pty))
         .await
         .map_err(|e| e.to_string())?;
     update_badge_count(&app, state.pty_store())

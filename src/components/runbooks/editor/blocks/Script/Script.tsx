@@ -6,7 +6,7 @@ import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { AtuinState, useStore } from "@/state/store.ts";
 import { Button, Input, Select, SelectItem, Tooltip } from "@heroui/react";
 import PlayButton from "../common/PlayButton.tsx";
-import { FileTerminalIcon, Eye, EyeOff } from "lucide-react";
+import { FileTerminalIcon, Eye, EyeOff, GlobeIcon } from "lucide-react";
 import Block from "../common/Block.tsx";
 import EditableHeading from "@/components/EditableHeading/index.tsx";
 import { insertOrUpdateBlock } from "@blocknote/core";
@@ -31,6 +31,8 @@ import {
   useBlockBusRunSubscription,
   useBlockBusStopSubscription,
 } from "@/lib/hooks/useBlockBus.ts";
+import { useAnySSHConnectionChange } from "@/lib/hooks/useSSHConnection.ts";
+import SSHBus, { ConnectionStatus } from "@/lib/workflow/ssh_bus.ts";
 
 interface ScriptBlockProps {
   onChange: (val: string) => void;
@@ -67,6 +69,7 @@ const ScriptBlock = ({
   const [currentRunbookId] = useStore((store: AtuinState) => [store.currentRunbookId]);
   const [parentBlock, setParentBlock] = useState<BlockType | null>(null);
   const { canRun } = useDependencyState(script, isRunning);
+  const channelRef = useRef<string | null>(null);
   const elementRef = useRef<HTMLDivElement>(null);
   const unlisten = useRef<UnlistenFn | null>(null);
   const tauriUnlisten = useRef<UnlistenFn | null>(null);
@@ -75,9 +78,60 @@ const ScriptBlock = ({
   const theme = useMemo(() => {
     return colorMode === "dark" ? darkModeEditorTheme : lightModeEditorTheme;
   }, [colorMode, lightModeEditorTheme, darkModeEditorTheme]);
+  const [sshConnectionStatus, setSshConnectionStatus] = useState<ConnectionStatus>("idle");
+
+  const connectionString = useMemo(() => {
+    let ssh = findFirstParentOfType(editor, script.id, "ssh-connect");
+    if (!ssh) return null;
+
+    return ssh.props.userHost || "";
+  }, [editor]);
+
+  const onConnectionChange = useCallback((data: { connectionString: string, status: ConnectionStatus }) => {
+    setSshConnectionStatus(data.status);
+  }, []);
+
+  useAnySSHConnectionChange(onConnectionChange);
+
+  // Class name for SSH indicator styling based on connection status
+  const sshBorderClass = useMemo(() => {
+    if (!connectionString) return "";
+    
+    if (sshConnectionStatus === "success") {
+      return "border-2 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)] rounded-md transition-all duration-300";
+    } else if (sshConnectionStatus === "error") {
+      return "border-2 border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)] rounded-md transition-all duration-300";
+    } else {
+      return "border-2 border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.4)] rounded-md transition-all duration-300";
+    }
+  }, [connectionString, sshConnectionStatus]);
 
   let interpreterCommand = useMemo(() => {
     // Handle common interpreters without a path
+    if (connectionString) {
+      if (script.interpreter == "bash") {
+        return "/bin/bash -l";
+      }
+
+      if (script.interpreter == "sh") {
+        return "/bin/sh -i";
+      }
+
+      if (script.interpreter == "zsh") {
+        return "/bin/zsh -l";
+      }
+
+      if (script.interpreter == "python3") {
+        return "/usr/bin/env python3";
+      }
+
+      if (script.interpreter == "node") {
+        return "/usr/bin/env node";
+      }
+
+      // guess
+      return `/usr/bin/env ${script.interpreter}`;
+    }
 
     if (script.interpreter == "bash") {
       return "/bin/bash -lc";
@@ -91,8 +145,16 @@ const ScriptBlock = ({
       return "/bin/zsh -lc";
     }
 
-    // Otherwise, assume the interpreter is a path
-    return script.interpreter;
+    if (script.interpreter == "python3") {
+      return "/usr/bin/env python3 -c";
+    }
+
+    if (script.interpreter == "node") {
+      return "/usr/bin/env node -e";
+    }
+
+    // guess
+    return `/usr/bin/env ${script.interpreter}`;
   }, [script.interpreter]);
 
   // Initialize terminal
@@ -162,12 +224,14 @@ const ScriptBlock = ({
     terminal.clear();
 
     const channel = uuidv7();
+    channelRef.current = channel;
 
     unlisten.current = await listen(channel, (event) => {
       terminal.write(event.payload + "\r\n");
     });
 
     let cwd = findFirstParentOfType(editor, script.id, "directory");
+    let connectionBlock = findFirstParentOfType(editor, script.id, ["ssh-connect", "host-select"]);
 
     if (cwd) {
       cwd = cwd.props.path;
@@ -198,6 +262,32 @@ const ScriptBlock = ({
 
     if (elementRef.current) {
       elementRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    if (connectionBlock && connectionBlock.type === "ssh-connect") {
+      try {
+        let [username, host] = connectionBlock.props.userHost.split("@");
+
+      tauriUnlisten.current = await listen("ssh_exec_finished:" + channel, async () => {
+        onStop();
+      });
+
+      await invoke<string>("ssh_exec", {
+        host: host,
+        username: username,
+        command: command,
+        interpreter: interpreterCommand,
+        channel: channel,
+      });
+        SSHBus.get().updateConnectionStatus(connectionBlock.props.userHost, "success");
+      } catch (error) {
+        console.error("SSH connection failed:", error);
+        terminal.write("SSH connection failed\r\n");
+        SSHBus.get().updateConnectionStatus(connectionBlock.props.userHost, "error");
+        onStop();
+      }
+
+      return;
     }
 
     let pid = await invoke<number>("shell_exec", {
@@ -234,8 +324,17 @@ const ScriptBlock = ({
   }, [pid]);
 
   const handleStop = async () => {
-    if (pid) {
-      await invoke("term_process", { pid: pid });
+    // Check for SSH block or Host block, prioritizing SSH if both exist
+    let connectionBlock = findFirstParentOfType(editor, script.id, ["ssh-connect", "host-select"]);
+    
+    // Use SSH cancel for SSH blocks
+    if (connectionBlock && connectionBlock.type === "ssh-connect") {
+      await invoke("ssh_exec_cancel", { channel: channelRef.current });
+    } else {
+      // For Host blocks or no connection block, use local process termination
+      if (pid) {
+        await invoke("term_process", { pid: pid });
+      }
     }
     setIsRunning(false);
     onStop();
@@ -264,6 +363,7 @@ const ScriptBlock = ({
       setName={setName}
       inlineHeader
       hideChild={!script.outputVisible}
+      className={sshBorderClass}
       header={
         <>
           <div className="flex flex-row justify-between w-full">
@@ -277,6 +377,24 @@ const ScriptBlock = ({
             </h1>
 
             <div className="flex flex-row gap-2" ref={elementRef}>
+              {connectionString && (
+                <Tooltip content={`SSH ${sshConnectionStatus === "success" ? "connected" : sshConnectionStatus === "error" ? "connection failed" : "not connected"}`}>
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="light"
+                  >
+                    <GlobeIcon 
+                      size={18} 
+                      className={
+                        sshConnectionStatus === "success" ? "text-green-500" : 
+                        sshConnectionStatus === "error" ? "text-red-500" : 
+                        "text-blue-400"
+                      } 
+                    />
+                  </Button>
+                </Tooltip>
+              )}
               <Input
                 size="sm"
                 variant="flat"

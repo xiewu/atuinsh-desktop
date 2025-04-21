@@ -22,6 +22,7 @@ interface BlockProps {
   hideChild?: boolean;
   hasDependency?: boolean;
   ref?: React.RefObject<HTMLDivElement>;
+  className?: string;
 }
 
 export default function Block({
@@ -36,6 +37,7 @@ export default function Block({
   hideChild,
   hasDependency,
   ref,
+  className,
 }: BlockProps) {
   let editor = useBlockNoteEditor();
 
@@ -54,7 +56,7 @@ export default function Block({
   }, [editor.document, block?.dependency?.parent]);
 
   return (
-    <Card className="w-full !max-w-full !outline-none" shadow="sm" ref={ref}>
+    <Card className={cn("w-full !max-w-full !outline-none", className)} shadow="sm" ref={ref}>
       <CardHeader className="p-3 gap-2 bg-default-50 flex flex-col items-start justify-start z-auto">
         <div className="flex flex-row justify-between w-full">
           <span className="text-default-700 font-semibold text-xs">{type}</span>

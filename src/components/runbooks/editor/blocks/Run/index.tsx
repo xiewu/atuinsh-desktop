@@ -35,6 +35,7 @@ import {
   useBlockBusRunSubscription,
   useBlockBusStopSubscription,
 } from "@/lib/hooks/useBlockBus.ts";
+import { uuidv7 } from "uuidv7";
 
 interface RunBlockProps {
   onChange: (val: string) => void;
@@ -158,8 +159,28 @@ const RunBlock = ({
       env[name] = value;
     }
 
-    // TODO: make the terminal _also_ handle opening the pty?
-    // I think that would make more sense lol
+    // Check for SSH block or Host block, prioritizing SSH if both exist
+    let connectionBlock = findFirstParentOfType(editor, terminal.id, ["ssh-connect", "host-select"]);
+
+    // If SSH block found, use SSH connection
+    if (connectionBlock && connectionBlock.type === "ssh-connect") {
+      let pty = uuidv7();
+      let [user, host] = connectionBlock.props.userHost.split("@");
+
+      await invoke<void>("ssh_open_pty", {
+        host: host,
+        username: user,
+        channel: pty,
+        runbook: currentRunbookId,
+        block: terminal.id,
+        width: 80,
+        height: 24,
+      });
+
+      return pty;
+    }
+
+    // Default to local execution if Host block found or no connection block found
     let pty = await invoke<string>("pty_open", {
       cwd,
       env,

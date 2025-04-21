@@ -1,6 +1,6 @@
 ---
-description: 
-globs: 
+description: Good comment style
+globs: *
 ---
 # Avoid Unnecessary Comments
 

@@ -1,16 +1,26 @@
 // An actor for managing all ptys
 
+use async_trait::async_trait;
 use bytes::Bytes;
+use eyre::Result;
 use std::collections::HashMap;
 use tokio::sync::{mpsc, oneshot};
 
 use uuid::Uuid;
 
-use crate::pty::{Pty, PtyMetadata};
+use crate::pty::PtyMetadata;
+
+#[async_trait]
+pub trait PtyLike {
+    fn metadata(&self) -> PtyMetadata;
+    async fn kill_child(&self) -> Result<()>;
+    async fn send_bytes(&self, data: Bytes) -> Result<()>;
+    async fn resize(&self, rows: u16, cols: u16) -> Result<()>;
+}
 
 pub enum PtyStoreMessage {
     AddPty {
-        pty: Pty,
+        pty: Box<dyn PtyLike + Send>,
     },
     RemovePty {
         id: Uuid,
@@ -55,7 +65,10 @@ impl PtyStoreHandle {
         Self { sender }
     }
 
-    pub async fn add_pty(&self, pty: Pty) -> Result<(), mpsc::error::SendError<PtyStoreMessage>> {
+    pub async fn add_pty(
+        &self,
+        pty: Box<dyn PtyLike + Send>,
+    ) -> Result<(), mpsc::error::SendError<PtyStoreMessage>> {
         let msg = PtyStoreMessage::AddPty { pty };
 
         self.sender.send(msg).await
@@ -145,7 +158,7 @@ impl Default for PtyStoreHandle {
 pub(crate) struct PtyStore {
     pub receiver: mpsc::Receiver<PtyStoreMessage>,
 
-    pty_sessions: HashMap<Uuid, Pty>,
+    pty_sessions: HashMap<Uuid, Box<dyn PtyLike + Send>>,
 }
 
 impl PtyStore {
@@ -179,13 +192,13 @@ impl PtyStore {
             }
             PtyStoreMessage::GetPtyMeta { id, reply_to } => {
                 let pty = self.pty_sessions.get(&id);
-                reply_to.send(pty.map(|pty| pty.metadata.clone())).unwrap();
+                reply_to.send(pty.map(|pty| pty.metadata())).unwrap();
             }
             PtyStoreMessage::ListPtyMeta { reply_to } => {
                 let pty_metas = self
                     .pty_sessions
                     .values()
-                    .map(|pty| pty.metadata.clone())
+                    .map(|pty| pty.metadata())
                     .collect();
                 reply_to.send(pty_metas).unwrap();
             }
@@ -193,23 +206,23 @@ impl PtyStore {
                 let pty_metas = self
                     .pty_sessions
                     .values()
-                    .filter(|pty| pty.metadata.runbook == runbook)
-                    .map(|pty| pty.metadata.clone())
+                    .filter(|pty| pty.metadata().runbook == runbook)
+                    .map(|pty| pty.metadata())
                     .collect();
                 reply_to.send(pty_metas).unwrap();
             }
         }
     }
 
-    fn add_pty(&mut self, pty: Pty) {
-        self.pty_sessions.insert(pty.metadata.pid, pty);
+    fn add_pty(&mut self, pty: Box<dyn PtyLike + Send>) {
+        self.pty_sessions.insert(pty.metadata().pid, pty);
     }
 
     async fn remove_pty(&mut self, id: Uuid) {
         let pty = self.pty_sessions.remove(&id);
 
         if let Some(pty) = pty {
-            log::info!("Killing pty: {}", pty.metadata.pid);
+            log::info!("Killing pty: {}", pty.metadata().pid);
             pty.kill_child().await.unwrap();
         }
     }

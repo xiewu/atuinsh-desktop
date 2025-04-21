@@ -4,7 +4,6 @@ import { Spinner } from "@heroui/react";
 
 import { filterSuggestionItems, insertOrUpdateBlock } from "@blocknote/core";
 
-
 import {
   SuggestionMenuController,
   getDefaultReactSlashMenuItems,
@@ -26,6 +25,8 @@ import { insertClickhouse } from "@/components/runbooks/editor/blocks/Clickhouse
 import { insertScript } from "@/components/runbooks/editor/blocks/Script/Script";
 import { insertPrometheus } from "@/components/runbooks/editor/blocks/Prometheus/Prometheus";
 import { insertEditor } from "@/components/runbooks/editor/blocks/Editor/Editor";
+import { insertSshConnect } from "@/components/runbooks/editor/blocks/ssh/SshConnect";
+import { insertHostSelect } from "@/components/runbooks/editor/blocks/Host";
 
 import Runbook from "@/state/runbooks/runbook";
 import { insertHttp } from "./blocks/Http/Http";
@@ -42,7 +43,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert";
 
 // Slash menu item to insert an Alert block
-const insertTerminal= (editor: typeof schema.BlockNoteEditor) => ({
+const insertTerminal = (editor: typeof schema.BlockNoteEditor) => ({
   title: "Terminal",
   subtext: "Interactive terminal",
   onItemClick: () => {
@@ -53,8 +54,8 @@ const insertTerminal= (editor: typeof schema.BlockNoteEditor) => ({
     insertOrUpdateBlock(editor, {
       type: "run",
       props: {
-        name
-      }
+        name,
+      },
     });
   },
   icon: <CodeIcon size={18} />,
@@ -106,10 +107,12 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
       return;
     }
 
-    let workflow = editor.document.map(convertBlocknoteToAtuin).filter((block) => block !== null).map((block) => ({type: block.typeName, ...block.object()}));
+    let workflow = editor.document
+      .map(convertBlocknoteToAtuin)
+      .filter((block) => block !== null)
+      .map((block) => ({ type: block.typeName, ...block.object() }));
     console.log(workflow);
     await invoke("workflow_serial", { id: runbook.id, workflow });
-
   }, [editor, runbook]);
 
   useEffect(() => {
@@ -117,7 +120,10 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
       return;
     }
 
-    serialExecuteRef.current = BlockBus.get().subscribeStartWorkflow(runbook.id, serialExecuteCallback);
+    serialExecuteRef.current = BlockBus.get().subscribeStartWorkflow(
+      runbook.id,
+      serialExecuteCallback,
+    );
 
     return () => {
       if (serialExecuteRef.current) {
@@ -134,7 +140,6 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
     );
   }
 
-
   // Renders the editor instance.
   return (
     <div
@@ -145,7 +150,11 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
       }}
       onClick={(e) => {
         // Only return if clicking inside editor content, not modals/inputs
-        if ((e.target as Element).matches(".editor .bn-container *") || (e.target as HTMLElement).tagName === "INPUT") return;
+        if (
+          (e.target as Element).matches(".editor .bn-container *") ||
+          (e.target as HTMLElement).tagName === "INPUT"
+        )
+          return;
         // If the user clicks below the document, focus on the last block
         // But if the last block is not an empty paragraph, create it :D
         let blocks = editor.document;
@@ -185,15 +194,26 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
             filterSuggestionItems(
               [
                 ...getDefaultReactSlashMenuItems(editor),
+                // Execute group
                 insertTerminal(editor as any),
                 insertEnv(editor as any),
                 insertScript(schema)(editor),
                 insertDirectory(editor as any),
+                
+                // Monitoring group
                 insertPrometheus(schema)(editor),
+                
+                // Database group
                 insertSQLite(schema)(editor),
                 insertPostgres(schema)(editor),
                 insertClickhouse(schema)(editor),
+                
+                // Network group
                 insertHttp(schema)(editor),
+                insertSshConnect(schema)(editor),
+                insertHostSelect(schema)(editor),
+                
+                // Misc group
                 insertEditor(schema)(editor),
               ],
               query,

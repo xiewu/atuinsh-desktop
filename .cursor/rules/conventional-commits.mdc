@@ -1,3 +1,7 @@
+---
+description: Writing a good commit message
+globs: *
+---
 # Conventional Commits
 
 A rule to enforce proper conventional commit formatting with clear, descriptive messages.

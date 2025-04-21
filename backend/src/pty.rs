@@ -4,11 +4,14 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use async_trait::async_trait;
 use bytes::Bytes;
 use eyre::{eyre, Result};
 use portable_pty::{CommandBuilder, MasterPty, PtySize};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+use crate::runtime::pty_store::PtyLike;
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct PtyMetadata {
@@ -25,6 +28,25 @@ pub struct Pty {
     pub master: Arc<Mutex<Box<dyn MasterPty + Send>>>,
     pub reader: Arc<Mutex<Box<dyn std::io::Read + Send>>>,
     pub child: Arc<Mutex<Box<dyn portable_pty::Child + Send>>>,
+}
+
+#[async_trait]
+impl PtyLike for Pty {
+    fn metadata(&self) -> PtyMetadata {
+        self.metadata.clone()
+    }
+
+    async fn kill_child(&self) -> Result<()> {
+        self.kill_child().await
+    }
+
+    async fn send_bytes(&self, bytes: Bytes) -> Result<()> {
+        self.send_bytes(bytes).await
+    }
+
+    async fn resize(&self, rows: u16, cols: u16) -> Result<()> {
+        self.resize(rows, cols).await
+    }
 }
 
 impl Pty {

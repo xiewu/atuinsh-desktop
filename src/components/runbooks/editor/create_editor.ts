@@ -9,6 +9,8 @@ import Postgres from "./blocks/Postgres/Postgres";
 import Clickhouse from "./blocks/Clickhouse/Clickhouse";
 import Http from "./blocks/Http/Http";
 import Script from "./blocks/Script/Script";
+import SshConnect from "./blocks/ssh/SshConnect";
+import HostSelect from "./blocks/Host";
 
 import { randomColor } from "@/lib/colors";
 import PhoenixProvider from "@/lib/phoenix_provider";
@@ -39,6 +41,8 @@ export const schema = BlockNoteSchema.create({
 
     // Network
     http: Http,
+    "ssh-connect": SshConnect,
+    "host-select": HostSelect,
 
     // Misc
     editor: CodeEditor,

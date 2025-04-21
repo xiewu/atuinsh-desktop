@@ -177,6 +177,10 @@ export function processOperation(op: Operation): Promise<boolean> {
         details.changeRef,
       );
     }
+    case "workspace_items_moved_to_new_workspace": {
+      // TODO
+      return Promise.resolve(false);
+    }
   }
   // Ensure all possible operation types are checked
   return assertUnreachable(details);

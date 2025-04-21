@@ -3,11 +3,12 @@ import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
 import { useMemo, useCallback } from "react";
 import { ChangeRef } from "../shared_state/types";
 import useSharedState from "../shared_state/useSharedState";
+import { doFolderOp } from "@/state/runbooks/workspace_folder_ops";
 
 type FolderOpFn = (
-  op: (wsf: WorkspaceFolder, cancel: () => void) => boolean,
+  op: (wsf: WorkspaceFolder, cancel: () => undefined) => boolean,
   operation: (changeRef: ChangeRef) => OperationData,
-) => Promise<void>;
+) => Promise<boolean>;
 
 /**
  * Returns a tuple of the current {@link WorkspaceFolder} and a function for performing operations on it.
@@ -45,30 +46,16 @@ export default function useWorkspaceFolder(workspaceId: string): [WorkspaceFolde
     return WorkspaceFolder.fromJS(folderState);
   }, [folderState]);
 
-  const doFolderOp = useCallback(
+  const wrappedDoFolderOp = useCallback(
     async (
-      op: (wsf: WorkspaceFolder, cancel: () => void) => boolean,
+      op: (wsf: WorkspaceFolder, cancel: () => undefined) => boolean,
       operation: (changeRef: ChangeRef) => OperationData,
     ) => {
-      const changeRef = await updateFolderState((state, cancel) => {
-        const workspaceFolder = WorkspaceFolder.fromJS(state);
-        const success = op(workspaceFolder, cancel);
-        if (success === true) {
-          return workspaceFolder.toJS();
-        } else {
-          cancel();
-          return undefined;
-        }
-      });
-
-      if (changeRef) {
-        const opData = operation(changeRef);
-        const op = new Operation({ operation: opData });
-        await op.save();
-      }
+      const result = await doFolderOp(updateFolderState, op, operation);
+      return result.success;
     },
-    [],
+    [updateFolderState],
   );
 
-  return [workspaceFolder, doFolderOp];
+  return [workspaceFolder, wrappedDoFolderOp];
 }

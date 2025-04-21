@@ -56,12 +56,39 @@ import Operation, {
   createWorkspace,
   deleteRunbook,
 } from "@/state/runbooks/operation";
-import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
-import { SharedStateManager } from "@/lib/shared_state/manager";
-import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
-import { Rc } from "@binarymuse/ts-stdlib";
 import SyncManager from "@/lib/sync/sync_manager";
+import doWorkspaceFolderOp from "@/state/runbooks/workspace_folder_ops";
+import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
+import { SharedStateManager } from "@/lib/shared_state/manager";
+import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
+import { Rc } from "@binarymuse/ts-stdlib";
+import { TraversalOrder } from "@/lib/tree";
+
+type MoveBundleDescendant =
+  | {
+      type: "runbook";
+      id: string;
+      parentId: string;
+    }
+  | {
+      type: "folder";
+      id: string;
+      name: string;
+      parentId: string;
+    };
+
+type MoveBundle =
+  | {
+      type: "runbook";
+      id: string;
+    }
+  | {
+      type: "folder";
+      id: string;
+      name: string;
+      descendants: Array<MoveBundleDescendant>;
+    };
 
 const runbookIndex = new RunbookIndexService();
 
@@ -251,26 +278,21 @@ function App() {
       }),
     );
 
-    const manager = SharedStateManager.getInstance<Folder>(
-      `workspace-folder:${workspace.get("id")}`,
-      new AtuinSharedStateAdapter(`workspace-folder:${workspace.get("id")}`),
+    doWorkspaceFolderOp(
+      workspaceId,
+      (wsf) => {
+        return wsf.importRunbooks(runbookIds, parentFolderId);
+      },
+      (changeRef) => {
+        return {
+          type: "workspace_import_runbooks",
+          workspaceId: workspace.get("id")!,
+          parentFolderId,
+          runbookIds,
+          changeRef,
+        };
+      },
     );
-
-    const changeRef = await manager.updateOptimistic((data) => {
-      const folder = WorkspaceFolder.fromJS(data);
-      folder.importRunbooks(runbookIds, parentFolderId);
-      return folder.toJS();
-    });
-
-    if (changeRef) {
-      await Operation.create({
-        type: "workspace_import_runbooks",
-        workspaceId: workspace.get("id")!,
-        parentFolderId,
-        runbookIds,
-        changeRef,
-      });
-    }
 
     handleRunbookActivate(runbookIds[0]);
   }
@@ -407,6 +429,7 @@ function App() {
     setCurrentRunbookId(runbookId, SET_RUNBOOK_TAG);
     if (runbook) {
       setCurrentWorkspaceId(runbook.workspaceId);
+      listRef.current?.scrollWorkspaceIntoView(runbook.workspaceId);
     }
   };
 
@@ -425,28 +448,15 @@ function App() {
       await invoke("workflow_stop", { id: runbookId });
     }
 
-    const stateId = `workspace-folder:${workspaceId}`;
-    const manager = SharedStateManager.getInstance<Folder>(
-      stateId,
-      new AtuinSharedStateAdapter(stateId),
+    doWorkspaceFolderOp(
+      workspaceId,
+      (wsf) => {
+        return wsf.deleteRunbook(runbookId);
+      },
+      (changeRef) => {
+        return deleteRunbook(workspaceId, runbookId, changeRef);
+      },
     );
-
-    const changeRef = await manager.updateOptimistic((state, cancel) => {
-      const workspaceFolder = WorkspaceFolder.fromJS(state);
-      const success = workspaceFolder.deleteRunbook(runbookId);
-      if (!success) {
-        cancel();
-        return;
-      }
-
-      return workspaceFolder.toJS();
-    });
-
-    if (changeRef) {
-      await Operation.create(deleteRunbook(workspaceId, runbookId, changeRef));
-    }
-
-    Rc.dispose(manager);
   }
 
   async function handleRunbookCreated(
@@ -454,37 +464,235 @@ function App() {
     workspaceId: string,
     parentFolderId: string | null,
   ) {
-    const stateId = `workspace-folder:${workspaceId}`;
-    const manager = SharedStateManager.getInstance<Folder>(
-      stateId,
-      new AtuinSharedStateAdapter(stateId),
+    doWorkspaceFolderOp(
+      workspaceId,
+      (wsf) => {
+        wsf.createRunbook(runbookId, parentFolderId);
+        return true;
+      },
+      (changeRef) => {
+        return createRunbook(workspaceId, parentFolderId, runbookId, changeRef);
+      },
     );
+  }
 
-    const changeRef = await manager.updateOptimistic((state, cancel) => {
-      const workspaceFolder = WorkspaceFolder.fromJS(state);
-      const success = workspaceFolder.createRunbook(runbookId, parentFolderId);
-
-      if (!success) {
-        cancel();
-        Rc.dispose(manager);
-        return;
-      }
-
-      return workspaceFolder.toJS();
-    });
-
-    if (changeRef) {
-      let workspace = await Workspace.get(workspaceId);
-      if (!workspace) {
-        const workspaces = await Workspace.all();
-        workspace = workspaces[0];
-      }
-      await Operation.create(
-        createRunbook(workspace.get("id")!, parentFolderId, runbookId, changeRef),
-      );
+  async function handleMoveItemsToWorkspace(
+    items: string[],
+    oldWorkspaceId: string,
+    newWorkspaceId: string,
+    newParentFolderId: string | null,
+  ) {
+    if (oldWorkspaceId === newWorkspaceId) {
+      return;
     }
 
-    Rc.dispose(manager);
+    const oldWorkspace = await Workspace.get(oldWorkspaceId);
+    const newWorkspace = await Workspace.get(newWorkspaceId);
+
+    if (!oldWorkspace || !newWorkspace) {
+      return;
+    }
+
+    if (!oldWorkspace.canManageRunbooks() || !newWorkspace.canManageRunbooks()) {
+      await new DialogBuilder()
+        .title("Cannot Move Items")
+        .icon("error")
+        .message(
+          "You must have permissions to manage runbooks in both the source and destination workspaces " +
+            "in order to move items.",
+        )
+        .action({
+          label: "OK",
+          variant: "flat",
+          value: "ok",
+        })
+        .build();
+
+      return;
+    }
+
+    const oldStateId = `workspace-folder:${oldWorkspace.get("id")}`;
+    const newStateId = `workspace-folder:${newWorkspace.get("id")}`;
+    const oldManager = SharedStateManager.getInstance<Folder>(
+      oldStateId,
+      new AtuinSharedStateAdapter(oldStateId),
+    );
+    const newManager = SharedStateManager.getInstance<Folder>(
+      newStateId,
+      new AtuinSharedStateAdapter(newStateId),
+    );
+
+    const oldFolder = WorkspaceFolder.fromJS(await oldManager.getDataOnce());
+
+    // Step 1: Calculate the items that need to be moved
+    let moveInfo = {
+      folders: 0,
+      runbooks: 0,
+    };
+    // Each bundle represents a top-level runbook or folder
+    // that is being moved, along with all of its descendants
+    const moveBundles: Array<MoveBundle> = [];
+    for (const item of items) {
+      const node = oldFolder.getNode(item);
+      if (node.isNone()) {
+        continue;
+      }
+      const data = node.unwrap().getData().unwrap();
+
+      if (data.type === "runbook") {
+        moveBundles.push({ type: "runbook", id: item });
+        moveInfo.runbooks++;
+      } else {
+        const descendants = oldFolder
+          .getDescendants(item, TraversalOrder.DepthFirst)
+          .map((node) => {
+            const data = node.getData().unwrap();
+            const parentId = node
+              .parent()
+              .map((n) => n.id() as string) // safe because parent is definitely not root
+              .unwrap();
+            if (data.type === "folder") {
+              return { id: data.id, type: data.type, name: data.name, parentId };
+            } else {
+              return { id: data.id, type: data.type, parentId };
+            }
+          });
+
+        for (const descendant of descendants) {
+          if (descendant.type === "runbook") {
+            moveInfo.runbooks++;
+          } else {
+            moveInfo.folders++;
+          }
+        }
+
+        moveBundles.push({ type: "folder", id: item, name: data.name, descendants });
+      }
+    }
+    // Step 2: Confirm the move
+    const answer = await confirmMoveItems(moveBundles, moveInfo, newWorkspace);
+    if (answer === "no") {
+      return;
+    }
+
+    // Step 3: Add the items to the new workspace first
+    let failure: string | null = null;
+    const createChangeRef = await newManager.updateOptimistic((data, cancel) => {
+      // Refresh workspace folder since we awaited the confirmation
+      const wsf = WorkspaceFolder.fromJS(data);
+
+      // Make sure the folder we're moving to exists, if it's not root
+      if (newParentFolderId && wsf.getNode(newParentFolderId).isNone()) {
+        failure = "Target parent folder not found";
+        return cancel();
+      }
+
+      for (const item of moveBundles) {
+        if (item.type === "folder") {
+          const success = wsf.createFolder(item.id, item.name, newParentFolderId);
+          if (!success) {
+            failure = "Failed to create folder";
+            return cancel();
+          }
+
+          for (const descendant of item.descendants) {
+            // Descendants are in DFS order
+            if (descendant.type === "folder") {
+              const success = wsf.createFolder(descendant.id, descendant.name, descendant.parentId);
+              if (!success) {
+                failure = "Failed to create folder";
+                return cancel();
+              }
+            } else {
+              const parentNode = wsf.getNode(descendant.parentId);
+              if (parentNode.isNone()) {
+                failure = "Failed to create runbook";
+                return cancel();
+              }
+              wsf.createRunbook(descendant.id, descendant.parentId);
+            }
+          }
+        } else {
+          wsf.createRunbook(item.id, newParentFolderId);
+        }
+      }
+
+      return wsf.toJS();
+    });
+
+    if (!createChangeRef || failure) {
+      if (createChangeRef) {
+        oldManager.expireOptimisticUpdates([createChangeRef]);
+      }
+
+      await new DialogBuilder()
+        .title("Failed to move items")
+        .icon("error")
+        .message(failure || "An unknown error occurred")
+        .action({ label: "OK", value: "ok", variant: "flat" })
+        .build();
+
+      return;
+    }
+
+    // Step 4: Remove the items from the old workspace, using delete cascade
+    const deleteChangeRef = await oldManager.updateOptimistic((data) => {
+      const wsf = WorkspaceFolder.fromJS(data);
+
+      // Deleting fails if the item isn't found in the tree, so we can ignore errors
+      for (const item of moveBundles) {
+        if (item.type === "folder") {
+          wsf.deleteFolder(item.id);
+        } else {
+          wsf.deleteRunbook(item.id);
+        }
+      }
+
+      return wsf.toJS();
+    });
+
+    // This should never fail, but those are famous last words
+    if (!deleteChangeRef) {
+      if (createChangeRef) {
+        oldManager.expireOptimisticUpdates([createChangeRef]);
+      }
+
+      await new DialogBuilder()
+        .title("Failed to move items")
+        .icon("error")
+        .message("Failed to remove items from old workspace")
+        .build();
+
+      return;
+    }
+
+    // Step 5: Update the runbook models to point to the new workspace
+    for (const item of moveBundles) {
+      if (item.type === "runbook") {
+        const runbook = await Runbook.load(item.id);
+        if (runbook) {
+          runbook.workspaceId = newWorkspaceId;
+          await runbook.save();
+        }
+      } else if (item.type === "folder") {
+        for (const descendant of item.descendants) {
+          if (descendant.type === "runbook") {
+            const runbook = await Runbook.load(descendant.id);
+            if (runbook) {
+              runbook.workspaceId = newWorkspaceId;
+              await runbook.save();
+            }
+          }
+        }
+      }
+    }
+
+    // Step 6: Create an operation that contains both changeRefs to send to the server;
+    // the server will then process the changeRefs and update the runbook models as well
+    // TODO
+
+    Rc.dispose(oldManager);
+    Rc.dispose(newManager);
   }
 
   const sidebarOpen = useStore((state) => state.sidebarOpen);
@@ -501,7 +709,7 @@ function App() {
           promptDeleteRunbook: handlePromptDeleteRunbook,
           runbookDeleted: handleRunbookDeleted,
           runbookCreated: handleRunbookCreated,
-          promptMoveRunbookWorkspace: () => {},
+          runbookMoved: () => {},
         }}
       >
         <CommandMenu index={runbookIndex} />
@@ -635,6 +843,7 @@ function App() {
           <List
             importRunbooks={handleImportRunbooks}
             onStartCreateWorkspace={createNewWorkspace}
+            moveItemsToWorkspace={handleMoveItemsToWorkspace}
             ref={listRef}
           />
           <Outlet />
@@ -659,3 +868,67 @@ function App() {
 }
 
 export default App;
+
+async function confirmMoveItems(
+  moveBundles: Array<MoveBundle>,
+  info: {
+    folders: number;
+    runbooks: number;
+  },
+  targetWorkspace: Workspace,
+): Promise<"yes" | "no"> {
+  const total = info.folders + info.runbooks;
+  let countSnippet: React.ReactNode | null = null;
+
+  if (info.folders === 0 && info.runbooks > 0) {
+    countSnippet = (
+      <strong className="text-danger">
+        {info.runbooks} {info.runbooks === 1 ? "runbook" : "runbooks"}
+      </strong>
+    );
+  } else if (info.folders > 0 && info.runbooks === 0) {
+    countSnippet = (
+      <strong className="text-danger">
+        {info.folders} {info.folders === 1 ? "subfolder" : "subfolders"}
+      </strong>
+    );
+  } else if (info.folders > 0 && info.runbooks > 0) {
+    countSnippet = (
+      <>
+        <strong className="text-danger">
+          {info.folders} {info.folders === 1 ? "subfolder" : "subfolders"}
+        </strong>{" "}
+        and{" "}
+        <strong className="text-danger">
+          {info.runbooks} {info.runbooks === 1 ? "runbook" : "runbooks"}
+        </strong>
+      </>
+    );
+  }
+
+  const message = (
+    <div>
+      <p>
+        Are you sure you want to move {moveBundles.length}{" "}
+        {moveBundles.length === 1 ? "item" : "items"}
+        to the {targetWorkspace.get("name")} workspace?
+      </p>
+
+      {total > 0 && <p>This will move {countSnippet}.</p>}
+    </div>
+  );
+
+  return new DialogBuilder<"yes" | "no">()
+    .title(`Confirm Move Items`)
+    .icon("warning")
+    .message(message)
+    .action({ label: "Cancel", value: "no", variant: "flat" })
+    .action({
+      label: `Move ${total} ${total === 1 ? "Item" : "Items"}`,
+      value: "yes",
+      color: "danger",
+      confirmWith:
+        total > 0 ? `Confirm Moving ${total} ${total === 1 ? "Item" : "Items"}` : undefined,
+    })
+    .build();
+}

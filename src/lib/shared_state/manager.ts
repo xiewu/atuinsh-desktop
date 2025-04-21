@@ -127,7 +127,7 @@ export class SharedStateManager<T extends SharableState> {
    */
   @autobind
   public async updateOptimistic(
-    callback: (data: T, cancel: () => void) => T | undefined,
+    callback: (data: T, cancel: () => undefined) => T | undefined,
   ): Promise<ChangeRef | undefined> {
     const orig = jsondiffpatch.clone(this.data) as T;
     const clone = jsondiffpatch.clone(this.data) as T;
@@ -135,6 +135,7 @@ export class SharedStateManager<T extends SharableState> {
     let cancelled = false;
     const cancel = () => {
       cancelled = true;
+      return undefined;
     };
     let changed = callback(clone, cancel);
     if (cancelled) {

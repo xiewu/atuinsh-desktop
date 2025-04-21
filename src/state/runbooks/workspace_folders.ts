@@ -201,13 +201,13 @@ export default class WorkspaceFolder {
     return true;
   }
 
-  getDescendants(id: string | null): Node<FolderItem>[] {
+  getDescendants(id: string | null, order = TraversalOrder.BreadthFirst): Node<FolderItem>[] {
     const node = id ? this.root.getNode(id) : Some(this.root.root());
     if (node.isNone()) {
       return [];
     }
 
-    return node.unwrap().descendants(TraversalOrder.BreadthFirst);
+    return node.unwrap().descendants(order);
   }
 }
 

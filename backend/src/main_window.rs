@@ -75,11 +75,21 @@ pub(crate) async fn create_main_window(app: &AppHandle) -> Result<(), String> {
 
     let window_state = saved_window_state.unwrap_or(WindowState::default(default_window_size_phys));
 
-    let query_string = format!(
-        "os={}&devPrefix={}",
-        get_os(),
-        dev_prefix.unwrap_or("dev".to_string())
-    );
+    let mut query_elems: Vec<(&str, String)> = vec![
+        ("os", get_os()),
+        ("devPrefix", dev_prefix.unwrap_or("dev".to_string())),
+    ];
+
+    if std::env::var("NO_SYNC").is_ok() {
+        query_elems.push(("noSync", "true".to_string()));
+    }
+
+    let query_string = query_elems
+        .iter()
+        .map(|(k, v)| format!("{}={}", k, v))
+        .collect::<Vec<String>>()
+        .join("&");
+
     let app_url = WebviewUrl::App(format!("index.html?{}", query_string).into());
 
     let mut builder = WebviewWindowBuilder::new(app, "main", app_url)

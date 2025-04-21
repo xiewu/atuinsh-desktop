@@ -4,6 +4,7 @@ type GlobalOptions = {
   os: OperatingSystem;
   customTitleBar: boolean;
   devPrefix: string;
+  noSync: boolean;
 };
 
 export function getGlobalOptions(): GlobalOptions {
@@ -13,5 +14,6 @@ export function getGlobalOptions(): GlobalOptions {
     os: params.get("os") as OperatingSystem,
     customTitleBar: params.get("os") === "macos",
     devPrefix: params.get("devPrefix") || "dev",
+    noSync: params.get("noSync") === "true",
   } as const;
 }

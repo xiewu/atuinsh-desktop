@@ -45,6 +45,12 @@ export type ListApi = {
 interface NotesSidebarProps {
   importRunbooks: (workspaceId: string, parentFolderId: string | null) => Promise<void>;
   onStartCreateWorkspace: () => void;
+  moveItemsToWorkspace: (
+    items: string[],
+    oldWorkspaceId: string,
+    newWorkspaceId: string,
+    newParentFolderId: string | null,
+  ) => void;
 }
 
 const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRef<ListApi>) => {
@@ -97,11 +103,27 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
           tryGetEl();
         });
 
+        const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         try {
           const el = await getElPromise;
           console.log(el);
           if (el) {
-            el.scrollIntoView({ behavior: "smooth" });
+            // Check if element is completely outside the container
+            const rect = el.getBoundingClientRect();
+            const containerRect = elRef.current?.getBoundingClientRect();
+
+            if (containerRect) {
+              const isCompletelyOutsideViewport =
+                rect.bottom <= containerRect.top || // element is entirely above container
+                rect.top >= containerRect.bottom || // element is entirely below container
+                rect.right <= containerRect.left || // element is entirely to the left of container
+                rect.left >= containerRect.right; // element is entirely to the right of container
+
+              // Only scroll if the element is completely outside the container
+              if (isCompletelyOutsideViewport) {
+                el.scrollIntoView({ behavior: prefersReducedMotion ? "instant" : "smooth" });
+              }
+            }
           }
         } catch (_e) {
           //
@@ -116,6 +138,15 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
       setPendingWorkspaceMigration(false);
     });
   }, []);
+
+  const handleMoveItemsToWorkspace = async (
+    items: string[],
+    workspaceId: string,
+    newWorkspaceId: string,
+    newParentFolderId: string | null,
+  ) => {
+    props.moveItemsToWorkspace(items, workspaceId, newWorkspaceId, newParentFolderId);
+  };
 
   const handleNewRunbook = async (workspaceId: string, parentFolderId: string | null) => {
     const workspace = workspaces?.find((ws) => ws.get("id") === workspaceId);
@@ -396,6 +427,7 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
                         onStartDeleteRunbook={(_workspaceId: string, runbookId: string) =>
                           promptDeleteRunbook(runbookId)
                         }
+                        onStartMoveItemsToWorkspace={handleMoveItemsToWorkspace}
                       />
                     </div>
                   );

@@ -15,6 +15,7 @@ import { SharedStateManager } from "../shared_state/manager";
 import { OfflineSharedStateAdapter } from "../shared_state/adapter";
 import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
 import Operation, { createRunbook } from "@/state/runbooks/operation";
+import { getGlobalOptions } from "../global_options";
 
 type Store = typeof useStore;
 
@@ -272,6 +273,7 @@ export default class SyncManager {
       this.connectionState === ConnectionState.Online &&
       !!this.focused &&
       !this.syncing &&
+      !getGlobalOptions().noSync &&
       this.secondsSinceLastSync() >= syncInterval
     );
   }

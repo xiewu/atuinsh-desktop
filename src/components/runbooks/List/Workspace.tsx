@@ -29,6 +29,12 @@ interface WorkspaceProps {
   onStartCreateRunbook: (workspaceId: string, parentFolderId: string | null) => void;
   onStartCreateWorkspace: () => void;
   onStartDeleteRunbook: (workspaceId: string, runbookId: string) => void;
+  onStartMoveItemsToWorkspace: (
+    items: string[],
+    oldWorkspaceId: string,
+    newWorkspaceId: string,
+    newParentFolderId: string | null,
+  ) => void;
 }
 
 type WorkspaceRenameAction =
@@ -293,6 +299,13 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
           onRenameFolder: () => node.edit(),
           onDeleteFolder: () => onStartDeleteFolder(node.data.id),
           onNewRunbook: () => handleNewRunbook(node.data.id),
+          // onMoveToWorkspace: (
+          //   items: Array<{ id: string; type: "folder" | "runbook" }>,
+          //   newWorkspaceId: string,
+          //   newParentId: string | null,
+          // ) => {
+          //   //
+          // },
         });
         await menu.popup();
         menu.close();
@@ -444,7 +457,7 @@ async function confirmDeleteFolder(
 
   const message = (
     <div>
-      <p>Are you sure you want to delete the folder {idSnippet}?</p>
+      <p>Are you sure you want to delete {idSnippet}?</p>
       {countSnippet && <p>This will delete {countSnippet}.</p>}
     </div>
   );

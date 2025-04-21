@@ -5,7 +5,7 @@ import { SharableState } from "./types";
 import { Rc } from "@binarymuse/ts-stdlib";
 
 async function defaultUpdateOptimistic<T>(
-  _callback: (data: T, cancel: () => void) => T | undefined,
+  _callback: (data: T, cancel: () => undefined) => T | undefined,
 ): Promise<string | undefined> {
   throw new Error("Shared state is not ready");
 }
@@ -34,7 +34,10 @@ async function defaultUpdateOptimistic<T>(
  */
 export default function useSharedState<T extends SharableState>(
   stateId: string,
-): [T, (callback: (data: T, cancel: () => void) => T | undefined) => Promise<string | undefined>] {
+): [
+  T,
+  (callback: (data: T, cancel: () => undefined) => T | undefined) => Promise<string | undefined>,
+] {
   const [data, setData] = useState<T>({} as T);
   const managerRef = useRef<SharedStateManager<T> | null>(null);
 
@@ -63,7 +66,7 @@ export default function useSharedState<T extends SharableState>(
   }, [stateId]);
 
   const updateOptimistic = useCallback(
-    (callback: (data: T, cancel: () => void) => T | undefined) => {
+    (callback: (data: T, cancel: () => undefined) => T | undefined) => {
       return managerRef.current?.updateOptimistic(callback) || defaultUpdateOptimistic(callback);
     },
     [],

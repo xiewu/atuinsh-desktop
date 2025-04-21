@@ -102,6 +102,13 @@ type WorkspaceFolderOperations =
       runbookIds: string[];
       parentFolderId: string | null;
       changeRef: ChangeRef;
+    }
+  | {
+      type: "workspace_items_moved_to_new_workspace";
+      oldWorkspaceId: string;
+      newWorkspaceId: string;
+      // need to send the move bundles
+      // as well as both change refs
     };
 
 export type OperationData =

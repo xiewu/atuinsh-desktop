@@ -3,6 +3,8 @@ import { BlockNoteEditor, BlockNoteSchema, defaultBlockSpecs } from "@blocknote/
 import Run from "./blocks/Run";
 import Directory from "./blocks/Directory";
 import Env from "./blocks/Env";
+import Var from "./blocks/Var";
+import LocalVar from "./blocks/LocalVar";
 import Prometheus from "./blocks/Prometheus/Prometheus";
 import SQLite from "./blocks/SQLite/SQLite";
 import Postgres from "./blocks/Postgres/Postgres";
@@ -30,6 +32,8 @@ export const schema = BlockNoteSchema.create({
     script: Script,
     directory: Directory,
     env: Env,
+    var: Var,
+    "local-var": LocalVar,
 
     // Monitoring
     prometheus: Prometheus,

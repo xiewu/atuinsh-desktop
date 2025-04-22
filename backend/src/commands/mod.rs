@@ -3,4 +3,5 @@ pub(crate) mod exec_log;
 pub(crate) mod pty_store;
 pub(crate) mod ssh_pool;
 pub(crate) mod stats;
+pub(crate) mod template;
 pub(crate) mod workflow;

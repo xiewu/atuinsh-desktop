@@ -443,6 +443,8 @@ fn main() {
             commands::workflow::serial::workflow_block_start_event,
             commands::workflow::serial::workflow_stop,
             commands::stats::command_stats,
+            commands::template::set_template_var,
+            commands::template::get_template_var,
             shared_state::get_shared_state_document,
             shared_state::push_optimistic_update,
             shared_state::update_shared_state_document,

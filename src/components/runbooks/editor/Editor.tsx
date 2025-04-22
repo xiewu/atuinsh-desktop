@@ -17,7 +17,7 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 
-import { CodeIcon, FolderOpenIcon, VariableIcon } from "lucide-react";
+import { CodeIcon, FolderOpenIcon, VariableIcon, TextCursorInputIcon } from "lucide-react";
 
 import { insertSQLite } from "@/components/runbooks/editor/blocks/SQLite/SQLite";
 import { insertPostgres } from "@/components/runbooks/editor/blocks/Postgres/Postgres";
@@ -27,6 +27,7 @@ import { insertPrometheus } from "@/components/runbooks/editor/blocks/Prometheus
 import { insertEditor } from "@/components/runbooks/editor/blocks/Editor/Editor";
 import { insertSshConnect } from "@/components/runbooks/editor/blocks/ssh/SshConnect";
 import { insertHostSelect } from "@/components/runbooks/editor/blocks/Host";
+import { insertLocalVar } from "@/components/runbooks/editor/blocks/LocalVar";
 
 import Runbook from "@/state/runbooks/runbook";
 import { insertHttp } from "./blocks/Http/Http";
@@ -77,15 +78,28 @@ const insertDirectory = (editor: typeof schema.BlockNoteEditor) => ({
 });
 
 const insertEnv = (editor: typeof schema.BlockNoteEditor) => ({
-  title: "Env",
-  subtext: "Set environment variables",
+  title: "Environment Variable",
+  subtext: "Set environment variable for all subsequent code blocks",
   onItemClick: () => {
     insertOrUpdateBlock(editor, {
       type: "env",
     });
   },
   icon: <VariableIcon size={18} />,
-  aliases: ["var", "envvar", "export"],
+  aliases: ["env", "environment", "variable"],
+  group: "Execute",
+});
+
+const insertVar = (editor: typeof schema.BlockNoteEditor) => ({
+  title: "Template Variable",
+  subtext: "Set template variable for use in subsequent blocks",
+  onItemClick: () => {
+    insertOrUpdateBlock(editor, {
+      type: "var",
+    });
+  },
+  icon: <TextCursorInputIcon size={18} />,
+  aliases: ["var", "template", "variable"],
   group: "Execute",
 });
 
@@ -197,6 +211,8 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
                 // Execute group
                 insertTerminal(editor as any),
                 insertEnv(editor as any),
+                insertVar(editor as any),
+                insertLocalVar(schema)(editor),
                 insertScript(schema)(editor),
                 insertDirectory(editor as any),
                 

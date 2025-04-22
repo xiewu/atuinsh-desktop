@@ -156,7 +156,35 @@ pub async fn template_str(
     doc: Vec<serde_json::Value>,
 ) -> Result<String, String> {
     // Fetch the variables from the state
-    let output_vars = state.runbook_output_variables.read().await.clone();
+    let mut output_vars = state.runbook_output_variables.read().await.clone();
+
+    // We might also have var blocks in the document, which we need to add to the output vars
+    let var_blocks = doc.iter().filter(|block| block.get("type").unwrap().as_str().unwrap() == "var").collect::<Vec<_>>();
+    for block in var_blocks {
+        let props = match block.get("props") {
+            Some(props) => props,
+            None => continue,
+        };
+        
+        let name = match props.get("name").and_then(|n| n.as_str()) {
+            Some(name) => name,
+            None => continue,
+        };
+
+        // Only add the var if it doesn't already exist, as it might have been set by something else
+        if output_vars.get(&runbook).unwrap().contains_key(name) {
+            continue;
+        }
+        
+        let value = match props.get("value").and_then(|v| v.as_str()) {
+            Some(value) => value,
+            None => continue,
+        };
+        
+        output_vars.entry(runbook.clone())
+            .or_insert_with(HashMap::new)
+            .insert(name.to_string(), value.to_string());
+    }
 
     let mut env = Environment::new();
     env.set_trim_blocks(true);

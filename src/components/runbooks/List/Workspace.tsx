@@ -393,7 +393,10 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
           />
         </div>
       ) : (
-        <div className="p-1 mb-2 bg-muted text-sm font-semibold whitespace-nowrap text-ellipsis overflow-x-hidden rounded-t-md">
+        <div
+          className="p-1 mb-2 bg-muted text-sm font-semibold whitespace-nowrap text-ellipsis overflow-x-hidden rounded-t-md"
+          onDoubleClick={() => dispatchWorkspaceName({ type: "start_rename", currentName: props.workspace.get("name")! })}
+        >
           {props.workspace.get("name")}
         </div>
       )}

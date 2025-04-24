@@ -11,8 +11,18 @@ import {
   DropdownItem,
   ButtonGroup,
   Tooltip,
+  DropdownSection,
 } from "@heroui/react";
-import { ArrowDownToLineIcon, ArrowUpToLineIcon, ChevronDown, DatabaseIcon, RefreshCwIcon } from "lucide-react";
+import {
+  ArrowDownToLineIcon,
+  ArrowUpToLineIcon,
+  ChevronDown,
+  CloudOffIcon,
+  DatabaseIcon,
+  FileTerminalIcon,
+  LockIcon,
+  RefreshCwIcon,
+} from "lucide-react";
 import CodeMirror, { Extension } from "@uiw/react-codemirror";
 import { GridColumn } from "@glideapps/glide-data-grid";
 
@@ -30,7 +40,7 @@ import Block from "./Block";
 import { templateString } from "@/state/templates";
 import { useBlockNoteEditor } from "@blocknote/react";
 import { AtuinState, useStore } from "@/state/store";
-import { cn } from "@/lib/utils";
+import { cn, toSnakeCase } from "@/lib/utils";
 import { logExecution } from "@/lib/exec_log";
 import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency";
 import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus";
@@ -113,7 +123,6 @@ const SQL = ({
       let tUri = await templateString(id, uri, editor.document, currentRunbookId);
       let tQuery = await templateString(id, query, editor.document, currentRunbookId);
 
-
       if (elementRef.current) {
         elementRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
       }
@@ -162,6 +171,51 @@ const SQL = ({
     autoRefresh > 0 ? autoRefresh : null,
   );
 
+  const addScriptForUri = () => {
+    let blockName = toSnakeCase(name);
+
+    // TODO: register custom schema type for typescript blocknote
+    editor.insertBlocks(
+      [
+        {
+          // @ts-ignore
+          type: "script",
+          props: {
+            name: `uri for ${name}`,
+            // @ts-ignore
+            outputVariable: blockName,
+            outputVisible: false,
+            code: `# Output the uri for ${name}`,
+          },
+        },
+      ],
+      id,
+      "before",
+    );
+
+    setUri(`{{ var.${blockName} }}`);
+  };
+
+  const addLocalVar = () => {
+    let blockName = toSnakeCase(name);
+
+    editor.insertBlocks(
+      [
+        {
+          // @ts-ignore
+          type: "local-var",
+          props: {
+            name: `${blockName}`,
+          },
+        },
+      ],
+      id,
+      "before",
+    );
+
+    setUri(`{{ var.${blockName} }}`);
+  };
+
   return (
     <Block
       hasDependency
@@ -172,18 +226,56 @@ const SQL = ({
       setName={setName}
       header={
         <>
-          <MaskedInput
-            maskRegex={/(?<=:\/\/)([^@]+)(?=@)/}
-            placeholder={placeholder || "protocol://user:password@host:port/db"}
-            label="URI"
-            isRequired
-            startContent={<DatabaseIcon size={18} />}
-            value={uri}
-            onChange={(val: string) => {
-              setUri(val);
-            }}
-            disabled={!isEditable}
-          />
+          <div className="flex flex-row gap-2 w-full items-center">
+            <MaskedInput
+              size="sm"
+              maskRegex={/(?<=:\/\/)([^@]+)(?=@)/}
+              placeholder={placeholder || "protocol://user:password@host:port/db"}
+              label="URI"
+              isRequired
+              startContent={<DatabaseIcon size={18} />}
+              value={uri}
+              onChange={(val: string) => {
+                setUri(val);
+              }}
+              disabled={!isEditable}
+            />
+
+            <Dropdown>
+              <DropdownTrigger>
+                <Button isIconOnly variant="flat">
+                  <LockIcon size={16} />
+                </Button>
+              </DropdownTrigger>
+              <DropdownMenu disabledKeys={["secret"]}>
+                <DropdownSection title="Use a local variable or script">
+                  <DropdownItem
+                    key="local-var"
+                    description="Local variable - not synced"
+                    startContent={<CloudOffIcon size={16} />}
+                    onPress={addLocalVar}
+                  >
+                    Variable
+                  </DropdownItem>
+                  <DropdownItem
+                    key="template"
+                    description="Shell command output"
+                    startContent={<FileTerminalIcon size={16} />}
+                    onPress={addScriptForUri}
+                  >
+                    Script
+                  </DropdownItem>
+                  <DropdownItem
+                    key="secret"
+                    description="Synchronized + encrypted secret"
+                    startContent={<LockIcon size={16} />}
+                  >
+                    Secret
+                  </DropdownItem>
+                </DropdownSection>
+              </DropdownMenu>
+            </Dropdown>
+          </div>
 
           <div className="flex flex-row gap-2 w-full" ref={elementRef}>
             <PlayButton
@@ -195,7 +287,9 @@ const SQL = ({
             />
             <CodeMirror
               placeholder={"Write your query here..."}
-              className={cn("!pt-0 max-w-full border border-gray-300 rounded flex-grow", { "h-8 overflow-hidden": collapseQuery })}
+              className={cn("!pt-0 max-w-full border border-gray-300 rounded flex-grow", {
+                "h-8 overflow-hidden": collapseQuery,
+              })}
               basicSetup={true}
               extensions={[...extensions]}
               value={query}

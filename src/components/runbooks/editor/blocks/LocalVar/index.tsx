@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Input, Tooltip, Button } from "@heroui/react";
-import { LockIcon } from "lucide-react";
+import { CloudOffIcon, LockIcon } from "lucide-react";
 import { createReactBlockSpec } from "@blocknote/react";
 import { insertOrUpdateBlock } from "@blocknote/core";
 import { invoke } from "@tauri-apps/api/core";
@@ -84,7 +84,7 @@ const LocalVar = ({ name = "", onNameUpdate, isEditable }: LocalVarProps) => {
         <div className="flex flex-1 flex-row gap-2">
           <div className="">
             <Button isIconOnly isDisabled variant="light">
-              <LockIcon />
+              <CloudOffIcon />
             </Button>
           </div>
 
@@ -105,7 +105,7 @@ const LocalVar = ({ name = "", onNameUpdate, isEditable }: LocalVarProps) => {
 
         <div className="flex-1">
           <Input
-            placeholder="Value (private - only stored on your device)"
+            placeholder="Value (private and ephemeral - only stored on your device)"
             value={localValue}
             onChange={handleValueChange}
             autoComplete="off"

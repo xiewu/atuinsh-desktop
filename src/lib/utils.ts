@@ -217,3 +217,17 @@ export function usePromise<T>(promise: Promise<T>) {
 
   return value;
 }
+
+export function toSnakeCase(str: string) {
+  return str
+    // Replace any non-alphanumeric characters with spaces
+    .replace(/[^\w\s]/g, ' ')
+    // Replace multiple spaces with a single space
+    .replace(/\s+/g, ' ')
+    // Trim whitespace from beginning and end
+    .trim()
+    // Convert to lowercase
+    .toLowerCase()
+    // Replace spaces with underscores
+    .replace(/\s/g, '_');
+}

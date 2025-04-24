@@ -1,6 +1,7 @@
 ---
 description: Guidelines for using and extending the template system in Atuin runbooks.
 globs: *
+alwaysApply: undefined
 ---
 # Atuin Runbook Template System
 
@@ -27,7 +28,7 @@ actions:
       
       ## Overview
       
-      The template system uses [MiniJinja](https://docs.rs/minijinja/latest/minijinja/) (Rust implementation of Jinja2) and provides:
+      The template system uses [MiniJinja](mdc:https:/docs.rs/minijinja/latest/minijinja) (Rust implementation of Jinja2) and provides:
       
       - Access to document structure and blocks
       - Variable substitution

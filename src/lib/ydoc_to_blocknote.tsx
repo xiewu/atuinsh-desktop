@@ -1,23 +1,40 @@
 import * as Y from "yjs";
-import ReactDOM from "react-dom/client";
-import { BlockNoteView } from "@blocknote/mantine";
 import debounce from "lodash.debounce";
 import { createConversionEditor } from "@/components/runbooks/editor/create_editor";
 import { Block } from "@blocknote/core";
+import Mutex from "./std/mutex";
 
-export function ydocToBlocknote(doc: Y.Doc): Promise<Block<any>[]> {
-  return new Promise((resolve) => {
+let convertMutex = new Mutex();
+
+export async function ydocToBlocknote(doc: Y.Doc): Promise<Block<any>[]> {
+  const unlock = await convertMutex.lock();
+
+  const promise = new Promise<Block<any>[]>((resolve, reject) => {
+    let resolved = false;
+
     const fragment = doc.getXmlFragment("document-store");
     const editor = createConversionEditor(doc, fragment);
 
+    editor.onChange(
+      debounce((editor) => {
+        if (resolved) return;
+        resolved = true;
+        resolve(editor.document);
+        editor.mount(undefined);
+      }, 100),
+    );
+
     const el = document.createElement("div");
-    const root = ReactDOM.createRoot(el);
+    setTimeout(() => {
+      if (resolved) return;
+      resolved = true;
+      reject(new Error("Yjs to BlockNote conversation timed out"));
+      editor.mount(undefined);
+    }, 5000);
 
-    const onChange = debounce(() => {
-      resolve(editor.document);
-      root.unmount();
-    }, 100);
-
-    root.render(<BlockNoteView editor={editor} editable={false} onChange={onChange} />);
+    editor.mount(el);
   });
+
+  promise.finally(() => unlock());
+  return promise;
 }

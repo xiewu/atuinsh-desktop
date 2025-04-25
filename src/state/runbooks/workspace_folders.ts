@@ -87,6 +87,13 @@ export default class WorkspaceFolder {
     return this.root.getNode(id);
   }
 
+  public getRunbooks(): string[] {
+    return this.root
+      .descendants(TraversalOrder.BreadthFirst)
+      .filter((n) => n.getData().unwrap().type === "runbook")
+      .map((n) => n.id() as string);
+  }
+
   public createFolder(id: string, name: string, parentId: string | null): boolean {
     const parent = parentId ? this.root.getNode(parentId) : Some(this.root.root());
 

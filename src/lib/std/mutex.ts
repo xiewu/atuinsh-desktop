@@ -66,8 +66,8 @@ export default class Mutex extends Emittery {
       .then((unlock) => {
         _unlock = unlock;
       })
-      .then(() => {
-        return fn();
+      .then(async () => {
+        return await Promise.resolve(fn());
       })
       .finally(() => {
         _unlock!();

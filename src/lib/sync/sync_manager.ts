@@ -12,7 +12,7 @@ import { processUnprocessedOperations } from "@/state/runbooks/operation_process
 import { ConnectionState } from "@/state/store/user_state";
 import Workspace from "@/state/runbooks/workspace";
 import { SharedStateManager } from "../shared_state/manager";
-import { OfflineSharedStateAdapter } from "../shared_state/adapter";
+import { AtuinSharedStateAdapter, OfflineSharedStateAdapter } from "../shared_state/adapter";
 import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
 import Operation, { createRunbook } from "@/state/runbooks/operation";
 import { getGlobalOptions } from "../global_options";
@@ -151,20 +151,9 @@ export default class SyncManager {
     this.syncing = true;
     this.startNextSyncEarly = false;
 
-    const ids = await this.getRunbookIdsToSync();
-    this.priorityRunbookIds.clear();
-    this.syncSet = new SyncSet(ids, this.workspaceId, this.currentUser);
-
-    this.syncSet.on("deleted", (runbookId: string) => {
-      this.store.getState().deleteRunbookFromCache(runbookId);
-    });
-    this.syncSet.on("created", () => {
-      this.store.getState().refreshRunbooks();
-    });
-    this.syncSet.setCurrentRunbookId(this.currentRunbookId);
-
     try {
       this.store.getState().setIsSyncing(true);
+      // The operation processor may create server models, so it needs to run first.
       await processUnprocessedOperations();
       // `processUnprocessedOperations` will exit early if we're offline;
       // double check before we continue.
@@ -178,6 +167,31 @@ export default class SyncManager {
       // send local workspaces to the server because we use the
       // operation system for that.
       await this.syncWorkspaces();
+      const workspaceRunbookIds = await this.getRunbookIdsFromWorkspaces();
+      const localRunbookIds = new Set(await Runbook.allIdsInAllWorkspaces());
+      // Prioritize runbooks that exist in workspace folders but not locally
+      for (const runbookId of workspaceRunbookIds) {
+        if (!localRunbookIds.has(runbookId)) {
+          this.priorityRunbookIds.add(runbookId);
+        }
+      }
+
+      const ids = await this.getRunbookIdsToSync();
+      this.priorityRunbookIds.clear();
+      this.syncSet = new SyncSet(ids, this.workspaceId, this.currentUser);
+
+      this.syncSet.on("deleted", (runbookId: string) => {
+        this.store.getState().deleteRunbookFromCache(runbookId);
+      });
+      this.syncSet.on("created", () => {
+        this.store.getState().refreshRunbooks();
+      });
+      this.syncSet.setCurrentRunbookId(this.currentRunbookId);
+
+      for (const runbookId of workspaceRunbookIds) {
+        this.syncSet.addRunbook(runbookId);
+      }
+
       if (this.connectionState !== ConnectionState.Online) {
         this.logger.error("Syncing while offline; aborting");
         return;
@@ -189,7 +203,7 @@ export default class SyncManager {
     } catch (err: any) {
       this.logger.error(`Synchronizer threw an error: ${err}`);
     } finally {
-      this.syncSet.clearListeners();
+      this.syncSet?.clearListeners();
       this.store.getState().setIsSyncing(false);
       this.store.getState().refreshRunbooks();
       this.syncSet = null;
@@ -263,6 +277,25 @@ export default class SyncManager {
         }
       }
     }
+  }
+
+  private async getRunbookIdsFromWorkspaces(): Promise<string[]> {
+    const workspaces = await Workspace.all();
+    const promises = workspaces.map(async (workspace) => {
+      const stateId = `workspace-folder:${workspace.get("id")}`;
+      const manager = SharedStateManager.getInstance<Folder>(
+        stateId,
+        new AtuinSharedStateAdapter<Folder>(stateId),
+      );
+      return manager.getDataOnce();
+    });
+
+    const workspaceFoldersData = await Promise.all(promises);
+
+    return workspaceFoldersData.flatMap((data) => {
+      const workspaceFolder = WorkspaceFolder.fromJS(data);
+      return workspaceFolder.getRunbooks();
+    });
   }
 
   private shouldSync(): boolean {

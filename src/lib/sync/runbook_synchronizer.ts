@@ -42,14 +42,19 @@ export default class RunbookSynchronizer {
     this.logger = new Logger(`RunbookSynchronizer ${runbookId}`, "#ff33cc", "#ff6677");
   }
 
-  public sync(attemptYjsSync: boolean = false): Promise<SyncResult> {
+  public async sync(attemptYjsSync: boolean = false): Promise<SyncResult> {
     this.logger.debug("Acquiring sync lock...");
     const mutex = SyncManager.syncMutex(this.runbookId);
     return mutex.runExclusive(async () => {
       this.logger.debug("Lock acquired");
-      const ret = await this.doSync(attemptYjsSync);
-      this.logger.debug("Sync complete");
-      return ret;
+      try {
+        const ret = await this.doSync(attemptYjsSync);
+        this.logger.debug("Sync complete");
+        return ret;
+      } catch (err) {
+        this.reject?.(err);
+        throw err;
+      }
     });
   }
 

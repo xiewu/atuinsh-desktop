@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo } from "react";
 // @ts-ignore
 import { createReactBlockSpec } from "@blocknote/react";
 import { insertOrUpdateBlock } from "@blocknote/core";
+import * as themes from "@uiw/codemirror-themes-all";
 import * as LanguageData from "@codemirror/language-data";
 import EditorBlockType from "@/lib/workflow/blocks/editor.ts";
 
@@ -113,12 +114,20 @@ const EditorBlock = ({
     })();
   }, [language]);
 
+  const lightModeEditorTheme = useStore((state) => state.lightModeEditorTheme);
+  const darkModeEditorTheme = useStore((state) => state.darkModeEditorTheme);
+  const theme = useMemo(() => {
+    return colorMode === "dark" ? darkModeEditorTheme : lightModeEditorTheme;
+  }, [colorMode, lightModeEditorTheme, darkModeEditorTheme]);
+
+  const themeObj = (themes as any)[theme];
+
   return (
     <Block
       name={name}
       block={editor}
-      type={editor.typeName} 
-      setDependency={()=>{}}
+      type={editor.typeName}
+      setDependency={() => {}}
       setName={setName}
       inlineHeader
       header={
@@ -187,7 +196,7 @@ const EditorBlock = ({
         }}
         extensions={extension ? [extension] : []}
         basicSetup={true}
-        theme={colorMode === "dark" ? "dark" : "light"}
+        theme={themeObj}
       />
     </Block>
   );
@@ -228,7 +237,13 @@ export default createReactBlockSpec(
 
       // The editor block cannot have a dependency, because it is not runnable.
       // TODO(ellie): a more elegant way of expressing this
-      let editorBlock = new EditorBlockType(block.id, block.props.name, DependencySpec.empty(), block.props.code, block.props.language);
+      let editorBlock = new EditorBlockType(
+        block.id,
+        block.props.name,
+        DependencySpec.empty(),
+        block.props.code,
+        block.props.language,
+      );
 
       return (
         <EditorBlock
@@ -256,7 +271,7 @@ export default createReactBlockSpec(
 export const insertEditor = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
   title: "Editor",
   onItemClick: () => {
-    let editorBlocks = editor.document.filter((block: any) => block.type === "editor"); 
+    let editorBlocks = editor.document.filter((block: any) => block.type === "editor");
     let name = `Editor ${editorBlocks.length + 1}`;
 
     insertOrUpdateBlock(editor, {

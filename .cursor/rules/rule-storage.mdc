@@ -1,6 +1,7 @@
 ---
 description: Rules for placing and organizing Cursor rule files in the repository.
 globs: *.mdc
+alwaysApply: false
 ---
 # Cursor Rules Location
 

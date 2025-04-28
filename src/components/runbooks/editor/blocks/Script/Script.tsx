@@ -1,12 +1,12 @@
 // @ts-ignore
-import { createReactBlockSpec } from "@blocknote/react";
+import { createReactBlockSpec, useEditorChange, useEditorContentOrSelectionChange } from "@blocknote/react";
 
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 
 import { AtuinState, useStore } from "@/state/store.ts";
-import { Button, Input, Select, SelectItem, Tooltip } from "@heroui/react";
+import { addToast, Button, Input, Select, SelectItem, Tooltip } from "@heroui/react";
 import PlayButton from "../common/PlayButton.tsx";
-import { FileTerminalIcon, Eye, EyeOff, GlobeIcon } from "lucide-react";
+import { FileTerminalIcon, Eye, EyeOff } from "lucide-react";
 import Block from "../common/Block.tsx";
 import EditableHeading from "@/components/EditableHeading/index.tsx";
 import { insertOrUpdateBlock } from "@blocknote/core";
@@ -31,8 +31,9 @@ import {
   useBlockBusRunSubscription,
   useBlockBusStopSubscription,
 } from "@/lib/hooks/useBlockBus.ts";
-import { useAnySSHConnectionChange } from "@/lib/hooks/useSSHConnection.ts";
-import SSHBus, { ConnectionStatus } from "@/lib/workflow/ssh_bus.ts";
+import SSHBus from "@/lib/buses/ssh.ts";
+import { useBlockDeleted } from "@/lib/buses/editor.ts";
+import { useBlockInserted } from "@/lib/buses/editor.ts";
 
 interface ScriptBlockProps {
   onChange: (val: string) => void;
@@ -78,37 +79,35 @@ const ScriptBlock = ({
   const theme = useMemo(() => {
     return colorMode === "dark" ? darkModeEditorTheme : lightModeEditorTheme;
   }, [colorMode, lightModeEditorTheme, darkModeEditorTheme]);
-  const [sshConnectionStatus, setSshConnectionStatus] = useState<ConnectionStatus>("idle");
 
-  const connectionString = useMemo(() => {
-    let ssh = findFirstParentOfType(editor, script.id, "ssh-connect");
-    if (!ssh) return null;
+  const [sshParent, setSshParent] = useState<any | null>(null);
 
-    return ssh.props.userHost || "";
-  }, [editor]);
+  const updateSshParent = useCallback(() => {
+    let host = findFirstParentOfType(editor, script.id, ["ssh-connect", "host-select"]);
+    if (host?.type === "ssh-connect") {
+      setSshParent(host);
+    } else {
+      setSshParent(null);
+    }
+  }, [editor, script.id]);
 
-  const onConnectionChange = useCallback((data: { connectionString: string, status: ConnectionStatus }) => {
-    setSshConnectionStatus(data.status);
-  }, []);
+  useEffect(updateSshParent, []);
 
-  useAnySSHConnectionChange(onConnectionChange);
+  useBlockInserted("ssh-connect", updateSshParent);
+  useBlockInserted("host-select", updateSshParent);
+  useBlockDeleted("ssh-connect", updateSshParent);
+  useBlockDeleted("host-select", updateSshParent);
 
   // Class name for SSH indicator styling based on connection status
   const sshBorderClass = useMemo(() => {
-    if (!connectionString) return "";
-    
-    if (sshConnectionStatus === "success") {
-      return "border-2 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)] rounded-md transition-all duration-300";
-    } else if (sshConnectionStatus === "error") {
-      return "border-2 border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)] rounded-md transition-all duration-300";
-    } else {
-      return "border-2 border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.4)] rounded-md transition-all duration-300";
-    }
-  }, [connectionString, sshConnectionStatus]);
+    if (!sshParent) return "";
+
+    return "border-2 border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.4)] rounded-md transition-all duration-300";
+  }, [sshParent]);
 
   let interpreterCommand = useMemo(() => {
     // Handle common interpreters without a path
-    if (connectionString) {
+    if (sshParent) {
       if (script.interpreter == "bash") {
         return "/bin/bash -l";
       }
@@ -283,6 +282,11 @@ const ScriptBlock = ({
       } catch (error) {
         console.error("SSH connection failed:", error);
         terminal.write("SSH connection failed\r\n");
+        addToast({
+          title: `ssh ${connectionBlock.props.userHost}`,
+          description: `${error}`,
+          color: "danger",
+        });
         SSHBus.get().updateConnectionStatus(connectionBlock.props.userHost, "error");
         onStop();
       }
@@ -377,24 +381,6 @@ const ScriptBlock = ({
             </h1>
 
             <div className="flex flex-row gap-2" ref={elementRef}>
-              {connectionString && (
-                <Tooltip content={`SSH ${sshConnectionStatus === "success" ? "connected" : sshConnectionStatus === "error" ? "connection failed" : "not connected"}`}>
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="light"
-                  >
-                    <GlobeIcon 
-                      size={18} 
-                      className={
-                        sshConnectionStatus === "success" ? "text-green-500" : 
-                        sshConnectionStatus === "error" ? "text-red-500" : 
-                        "text-blue-400"
-                      } 
-                    />
-                  </Button>
-                </Tooltip>
-              )}
               <Input
                 size="sm"
                 variant="flat"

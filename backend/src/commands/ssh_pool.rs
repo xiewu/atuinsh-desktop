@@ -20,6 +20,12 @@ pub async fn ssh_connect(
 ) -> Result<(), String> {
     let ssh_pool = state.ssh_pool();
 
+    let host = if !host.contains(":") {
+        format!("{}:22", host)
+    } else {
+        host
+    };
+
     // Determine authentication method
     let auth = match (password, key_path) {
         (Some(pass), _) => Some(Authentication::Password(
@@ -75,12 +81,18 @@ pub async fn ssh_list_connections(
 pub async fn ssh_exec(
     state: tauri::State<'_, AtuinState>,
     app: tauri::AppHandle,
-    host: &str,
+    host: String,
     username: &str,
     channel: &str,
     command: &str,
     interpreter: &str,
 ) -> Result<String, String> {
+    let host = if !host.contains(":") {
+        format!("{}:22", host)
+    } else {
+        host
+    };
+
     let ssh_pool = state.ssh_pool();
     let (sender, mut receiver) = tokio::sync::mpsc::channel(100);
     let (result_tx, result_rx) = tokio::sync::oneshot::channel();
@@ -91,7 +103,7 @@ pub async fn ssh_exec(
 
     ssh_pool
         .exec(
-            host,
+            &host,
             username,
             interpreter,
             command,
@@ -146,6 +158,12 @@ pub async fn ssh_open_pty(
     width: u16,
     height: u16,
 ) -> Result<(), String> {
+    let host = if !host.contains(":") {
+        format!("{}:22", host)
+    } else {
+        host.to_string()
+    };
+
     let ssh_pool = state.ssh_pool();
 
     // Create channels for bidirectional communication
@@ -153,7 +171,14 @@ pub async fn ssh_open_pty(
 
     // Start the PTY session
     let pty_tx = ssh_pool
-        .open_pty(host, username, channel, output_sender, width, height)
+        .open_pty(
+            host.as_str(),
+            username,
+            channel,
+            output_sender,
+            width,
+            height,
+        )
         .await
         .map_err(|e| e.to_string())?;
 

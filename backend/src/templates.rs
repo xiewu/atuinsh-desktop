@@ -159,13 +159,16 @@ pub async fn template_str(
     let mut output_vars = state.runbook_output_variables.read().await.clone();
 
     // We might also have var blocks in the document, which we need to add to the output vars
-    let var_blocks = doc.iter().filter(|block| block.get("type").unwrap().as_str().unwrap() == "var").collect::<Vec<_>>();
+    let var_blocks = doc
+        .iter()
+        .filter(|block| block.get("type").unwrap().as_str().unwrap() == "var")
+        .collect::<Vec<_>>();
     for block in var_blocks {
         let props = match block.get("props") {
             Some(props) => props,
             None => continue,
         };
-        
+
         let name = match props.get("name").and_then(|n| n.as_str()) {
             Some(name) => name,
             None => continue,
@@ -175,13 +178,14 @@ pub async fn template_str(
         if output_vars.get(&runbook).unwrap().contains_key(name) {
             continue;
         }
-        
+
         let value = match props.get("value").and_then(|v| v.as_str()) {
             Some(value) => value,
             None => continue,
         };
-        
-        output_vars.entry(runbook.clone())
+
+        output_vars
+            .entry(runbook.clone())
             .or_insert_with(HashMap::new)
             .insert(name.to_string(), value.to_string());
     }

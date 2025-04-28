@@ -13,7 +13,7 @@ import { useBlockNoteEditor } from "@blocknote/react";
 
 import "@xterm/xterm/css/xterm.css";
 import { AtuinState, useStore } from "@/state/store.ts";
-import { Chip, Spinner, Tooltip } from "@heroui/react";
+import { addToast, Chip, Spinner, Tooltip } from "@heroui/react";
 import { cn, formatDuration } from "@/lib/utils.ts";
 import { usePtyStore } from "@/state/ptyStore.ts";
 import track_event from "@/tracking.ts";
@@ -36,6 +36,7 @@ import {
   useBlockBusStopSubscription,
 } from "@/lib/hooks/useBlockBus.ts";
 import { uuidv7 } from "uuidv7";
+import { useBlockDeleted, useBlockInserted } from "@/lib/buses/editor.ts";
 
 interface RunBlockProps {
   onChange: (val: string) => void;
@@ -68,6 +69,9 @@ const RunBlock = ({
 
   // isRunning = a terminal is running
   const [isRunning, setIsRunning] = useState<boolean>(false);
+  // isLoading - we're waiting for a pty to open. usually network related
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
   // commandRunning = an individual command is running
   const [commandRunning, setCommandRunning] = useState<boolean>(false);
   const [exitCode, setExitCode] = useState<number | null>(null);
@@ -96,6 +100,30 @@ const RunBlock = ({
   const [currentRunbookId] = useStore((store: AtuinState) => [store.currentRunbookId]);
 
   const pty = usePtyStore((store) => store.ptyForBlock(terminal.id));
+  const [sshParent, setSshParent] = useState<any | null>(null);
+
+  const updateSshParent = useCallback(() => {
+    let host = findFirstParentOfType(editor, terminal.id, ["ssh-connect", "host-select"]);
+    if (host?.type === "ssh-connect") {
+      setSshParent(host);
+    } else {
+      setSshParent(null);
+    }
+  }, [editor, terminal.id]);
+
+  useEffect(updateSshParent, []);
+
+  useBlockInserted("ssh-connect", updateSshParent);
+  useBlockInserted("host-select", updateSshParent);
+  useBlockDeleted("ssh-connect", updateSshParent);
+  useBlockDeleted("host-select", updateSshParent);
+
+  const sshBorderClass = useMemo(() => {
+    if (!sshParent) return "";
+    
+      return "border-2 border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.4)] rounded-md transition-all duration-300";
+  }, [sshParent]);
+
 
   useEffect(() => {
     setIsRunning(pty != null);
@@ -160,23 +188,35 @@ const RunBlock = ({
     }
 
     // Check for SSH block or Host block, prioritizing SSH if both exist
-    let connectionBlock = findFirstParentOfType(editor, terminal.id, ["ssh-connect", "host-select"]);
+    let connectionBlock = findFirstParentOfType(editor, terminal.id, [
+      "ssh-connect",
+      "host-select",
+    ]);
 
     // If SSH block found, use SSH connection
     if (connectionBlock && connectionBlock.type === "ssh-connect") {
       let pty = uuidv7();
       let [user, host] = connectionBlock.props.userHost.split("@");
 
-      await invoke<void>("ssh_open_pty", {
-        host: host,
-        username: user,
-        channel: pty,
-        runbook: currentRunbookId,
-        block: terminal.id,
-        width: 80,
-        height: 24,
-      });
-
+      try {
+        await invoke<void>("ssh_open_pty", {
+          host: host,
+          username: user,
+          channel: pty,
+          runbook: currentRunbookId,
+          block: terminal.id,
+          width: 80,
+          height: 24,
+        });
+      } catch (error) {
+        console.error(error);
+        setIsLoading(false);
+        addToast({
+          title: `ssh ${connectionBlock.props.userHost}`,
+          description: `${error}`,
+          color: "danger",
+        });
+      }
       return pty;
     }
 
@@ -201,7 +241,9 @@ const RunBlock = ({
         block: terminal.id,
       });
 
+      setIsLoading(true);
       let p = await openPty();
+      setIsLoading(false);
       setFirstOpen(true);
 
       if (onRun) onRun(p);
@@ -295,6 +337,7 @@ const RunBlock = ({
 
   return (
     <Block
+      className={sshBorderClass}
       hasDependency
       name={terminal.name}
       block={terminal}
@@ -342,6 +385,7 @@ const RunBlock = ({
 
           <div className="flex flex-row gap-2 flex-grow w-full" ref={elementRef}>
             <PlayButton
+              isLoading={isLoading}
               isRunning={isRunning}
               cancellable={true}
               onPlay={handlePlay}

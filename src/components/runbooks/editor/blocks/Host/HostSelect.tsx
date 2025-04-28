@@ -7,12 +7,25 @@ import { HomeIcon } from "lucide-react";
 // @ts-ignore
 import { createReactBlockSpec } from "@blocknote/react";
 import { insertOrUpdateBlock } from "@blocknote/core";
+import { useEffect } from "react";
+import EditorBus from "@/lib/buses/editor";
 
 interface HostSelectProps {
   isEditable: boolean;
 }
 
 const HostSelect = ({ }: HostSelectProps) => {
+  useEffect(() => {
+    EditorBus.get().emitBlockInserted("host-select", {
+      host: "local",
+    });
+    return () => {
+      EditorBus.get().emitBlockDeleted("host-select", {
+        host: "local",
+      });
+    }
+  }, []);
+
   return (
     <div className="w-full !max-w-full !outline-none overflow-none">
       <Tooltip

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 /// Set a template variable for a runbook
-/// 
+///
 /// This stores the variable in the state so it can be accessed by the template engine
 #[tauri::command]
 pub async fn set_template_var(
@@ -41,4 +41,4 @@ pub async fn get_template_var(
         .cloned();
 
     Ok(value)
-} 
+}

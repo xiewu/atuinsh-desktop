@@ -1,7 +1,8 @@
 // handle calls to the backend to make ssh happen ✨
 
 import { invoke } from "@tauri-apps/api/core";
-import SSHBus from "@/lib/workflow/ssh_bus";
+import SSHBus from "@/lib/buses/ssh";
+import { addToast } from "@heroui/react";
 
 export async function sshConnect(userHost: string): Promise<void> {
   let [username, host] = userHost.split("@");
@@ -18,6 +19,14 @@ export async function sshConnect(userHost: string): Promise<void> {
   } catch (error) {
     // If there's an error, update the status
     SSHBus.get().updateConnectionStatus(userHost, "error");
+    console.error(error);
+
+      addToast({
+        title: "SSH connection failed",
+      description: `Failed to connect to ${userHost}.`,
+      color: "danger",
+    });
+
     return Promise.reject(error);
   }
 }

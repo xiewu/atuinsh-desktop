@@ -8,6 +8,8 @@ import { GlobeIcon } from "lucide-react";
 import { createReactBlockSpec } from "@blocknote/react";
 import { insertOrUpdateBlock } from "@blocknote/core";
 import { sshConnect } from "./ssh";
+import EditorBus from "@/lib/buses/editor";
+import { useEffect } from "react";
 
 interface SshConnectProps {
   userHost: string; // foo@bar, combine for natural-ness
@@ -16,6 +18,17 @@ interface SshConnectProps {
 }
 
 const SshConnect = ({ userHost, onUserHostChange, isEditable }: SshConnectProps) => {
+  useEffect(() => {
+    EditorBus.get().emitBlockInserted("ssh-connect", {
+      userHost,
+    });
+    return () => {
+      EditorBus.get().emitBlockDeleted("ssh-connect", {
+        userHost,
+      });
+    };
+  }, [userHost]);
+
   return (
     <div className="w-full !max-w-full !outline-none overflow-none">
       <Tooltip

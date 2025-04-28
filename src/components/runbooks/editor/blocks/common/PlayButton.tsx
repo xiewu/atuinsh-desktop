@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 interface PlayButtonProps {
   isRunning: boolean;
+  isLoading?: boolean;
   cancellable: boolean;
 
   /// Called when the play button is pressed, and when stop is pressed if onStop is not specified.
@@ -25,6 +26,7 @@ interface PlayButtonProps {
 
 const PlayButton = ({
   isRunning,
+  isLoading = false,
   onPlay,
   cancellable,
   eventName,
@@ -83,7 +85,7 @@ const PlayButton = ({
           }
         }}
         className={`w-8 h-8 min-w-unit-8 min-h-unit-8 ${className}`}
-        isLoading={isRunning && !cancellable}
+        isLoading={(isRunning && !cancellable) || isLoading}
       >
         <span
           className={`transition-transform duration-300 ease-in-out ${isRunning ? "rotate-180" : ""}`}

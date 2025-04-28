@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import SSHBus, { ConnectionStatus } from '../workflow/ssh_bus';
+import SSHBus, { ConnectionStatus } from '../buses/ssh';
 
 
 /**

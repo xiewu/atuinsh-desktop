@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react";
 import Editor from "@/components/runbooks/editor/Editor";
 import Topbar from "@/components/runbooks/TopBar/TopBar";
 import useRemoteRunbook from "@/lib/useRemoteRunbook";
@@ -311,7 +312,7 @@ export default function Runbooks() {
             onShareToHub={handleSharedToHub}
             onDeleteFromHub={handleDeletedFromHub}
           />
-          <ErrorBoundary>
+          <Sentry.ErrorBoundary showDialog={false}>
             {!hasNoTags && (
               <Editor
                 key={editorKey ? "1" : "2"}
@@ -325,7 +326,7 @@ export default function Runbooks() {
                 <h1 className="text-center">This runbook has no published tags</h1>
               </div>
             )}
-          </ErrorBoundary>
+          </Sentry.ErrorBoundary>
         </div>
       )}
 

@@ -4,6 +4,7 @@ import useResizeObserver from "use-resize-observer";
 import RunbookTreeRow, { RunbookRowData, RunbookTreeRowProps } from "./TreeView/RunbookTreeRow";
 import FolderTreeRow, { FolderRowData, FolderTreeRowProps } from "./TreeView/FolderTreeRow";
 import Runbook from "@/state/runbooks/runbook";
+import { useDragDropManager } from "react-dnd";
 
 export type TreeRowData = FolderRowData | RunbookRowData;
 
@@ -152,6 +153,9 @@ export default function TreeView(props: TreeViewProps) {
     }
   }, []);
 
+  // See https://github.com/brimdata/react-arborist/issues/230#issuecomment-2404208311
+  const dragDropManager = useDragDropManager();
+
   return (
     <div ref={resizeRef} className="w-[98%] m-auto">
       <Tree
@@ -172,6 +176,7 @@ export default function TreeView(props: TreeViewProps) {
         onSelect={handleSelect}
         onRename={handleRename}
         onToggle={handleToggle}
+        dndManager={dragDropManager}
       >
         {TreeRow}
       </Tree>

@@ -10,7 +10,6 @@ import { useMemory } from "@/lib/utils";
 import { useCurrentRunbook } from "@/lib/useRunbook";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "@/api/api";
-import { ErrorBoundary } from "@sentry/react";
 import { snapshotByRunbookAndTag, snapshotsByRunbook } from "@/lib/queries/snapshots";
 import Runbook from "@/state/runbooks/runbook";
 import { PresenceUserInfo } from "@/lib/phoenix_provider";

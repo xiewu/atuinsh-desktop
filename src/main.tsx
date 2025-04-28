@@ -41,6 +41,8 @@ import Workspace from "./state/runbooks/workspace";
 import { SharedStateManager } from "./lib/shared_state/manager";
 import { AtuinSharedStateAdapter } from "./lib/shared_state/adapter";
 import { startup as startupOperationProcessor } from "./state/runbooks/operation_processor";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
 
 (async () => {
   try {
@@ -154,26 +156,28 @@ function Application() {
 
   return (
     <React.StrictMode>
-      <HeroUIProvider>
-        <ToastProvider placement="bottom-center" toastOffset={40} />
-        <QueryClientProvider client={queryClient}>
-          <main className="text-foreground bg-background overflow-hidden">
-            {AtuinEnv.isProd && globalOptions.customTitleBar && (
-              <div data-tauri-drag-region className="w-full min-h-8 z-10 border-b-1" />
-            )}
-            {AtuinEnv.isDev && globalOptions.customTitleBar && (
-              <div
-                data-tauri-drag-region
-                className="w-full min-h-8 z-10 border-b-1 bg-striped dark:bg-dark-striped bg-[length:7px_7px]"
-              />
-            )}
+      <DndProvider backend={HTML5Backend}>
+        <HeroUIProvider>
+          <ToastProvider placement="bottom-center" toastOffset={40} />
+          <QueryClientProvider client={queryClient}>
+            <main className="text-foreground bg-background overflow-hidden">
+              {AtuinEnv.isProd && globalOptions.customTitleBar && (
+                <div data-tauri-drag-region className="w-full min-h-8 z-10 border-b-1" />
+              )}
+              {AtuinEnv.isDev && globalOptions.customTitleBar && (
+                <div
+                  data-tauri-drag-region
+                  className="w-full min-h-8 z-10 border-b-1 bg-striped dark:bg-dark-striped bg-[length:7px_7px]"
+                />
+              )}
 
-            <div className="z-20 relative">
-              <RouterProvider router={router} />
-            </div>
-          </main>
-        </QueryClientProvider>
-      </HeroUIProvider>
+              <div className="z-20 relative">
+                <RouterProvider router={router} />
+              </div>
+            </main>
+          </QueryClientProvider>
+        </HeroUIProvider>
+      </DndProvider>
     </React.StrictMode>
   );
 }

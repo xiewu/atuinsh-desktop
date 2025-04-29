@@ -175,8 +175,10 @@ pub async fn template_str(
         };
 
         // Only add the var if it doesn't already exist, as it might have been set by something else
-        if output_vars.get(&runbook).unwrap().contains_key(name) {
-            continue;
+        if let Some(vars) = output_vars.get(&runbook) {
+            if vars.contains_key(name) {
+                continue;
+            }
         }
 
         let value = match props.get("value").and_then(|v| v.as_str()) {

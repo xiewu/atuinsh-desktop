@@ -233,7 +233,7 @@ const ScriptBlock = ({
     let connectionBlock = findFirstParentOfType(editor, script.id, ["ssh-connect", "host-select"]);
 
     if (cwd) {
-      cwd = cwd.props.path;
+      cwd = cwd.props.path || "~";
     } else {
       cwd = "~";
     }

@@ -64,7 +64,7 @@ pub async fn shell_exec(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .unwrap();
+        .map_err(|e| format!("Failed to spawn command: {:?} {}", path, e))?;
 
     let cmd = Arc::new(RwLock::new(cmd));
     let nanoseconds_start = time::OffsetDateTime::now_utc().unix_timestamp_nanos();

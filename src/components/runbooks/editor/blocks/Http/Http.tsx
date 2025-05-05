@@ -20,6 +20,7 @@ import { HttpBlock as HttpBlockType, HttpVerb } from "@/lib/workflow/blocks/http
 import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency";
 import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus";
 import BlockBus from "@/lib/workflow/block_bus";
+import track_event from "@/tracking";
 
 type HttpHeaders = { [key: string]: string };
 
@@ -340,6 +341,8 @@ export default createReactBlockSpec(
 export const insertHttp = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
   title: "HTTP",
   onItemClick: () => {
+    track_event("runbooks.block.create", { type: "http" });
+    
     let httpBlocks = editor.document.filter((block: any) => block.type === "http");
     let name = `HTTP ${httpBlocks.length + 1}`;
 

@@ -42,12 +42,15 @@ import { useCallback, useEffect, useRef } from "react";
 import BlockBus from "@/lib/workflow/block_bus";
 import { invoke } from "@tauri-apps/api/core";
 import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert";
+import track_event from "@/tracking";
 
 // Slash menu item to insert an Alert block
 const insertTerminal = (editor: typeof schema.BlockNoteEditor) => ({
   title: "Terminal",
   subtext: "Interactive terminal",
   onItemClick: () => {
+    track_event("runbooks.block.create", { type: "run" });
+
     // Count the number of terminal blocks
     let terminalBlocks = editor.document.filter((block) => block.type === "run");
     let name = `Terminal ${terminalBlocks.length + 1}`;
@@ -68,6 +71,8 @@ const insertDirectory = (editor: typeof schema.BlockNoteEditor) => ({
   title: "Directory",
   subtext: "Set runbook directory",
   onItemClick: () => {
+    track_event("runbooks.block.create", { type: "directory" });
+
     insertOrUpdateBlock(editor, {
       type: "directory",
     });
@@ -81,6 +86,7 @@ const insertEnv = (editor: typeof schema.BlockNoteEditor) => ({
   title: "Environment Variable",
   subtext: "Set environment variable for all subsequent code blocks",
   onItemClick: () => {
+    track_event("runbooks.block.create", { type: "env" });
     insertOrUpdateBlock(editor, {
       type: "env",
     });
@@ -94,6 +100,8 @@ const insertVar = (editor: typeof schema.BlockNoteEditor) => ({
   title: "Template Variable",
   subtext: "Set template variable for use in subsequent blocks",
   onItemClick: () => {
+    track_event("runbooks.block.create", { type: "var" });
+
     insertOrUpdateBlock(editor, {
       type: "var",
     });
@@ -107,6 +115,8 @@ const insertVarDisplay = (editor: typeof schema.BlockNoteEditor) => ({
   title: "Display Variable",
   subtext: "Show the current value of a template variable",
   onItemClick: () => {
+    track_event("runbooks.block.create", { type: "var_display" });
+
     insertOrUpdateBlock(editor, {
       type: "var_display",
     });
@@ -229,20 +239,20 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
                 insertLocalVar(schema)(editor),
                 insertScript(schema)(editor),
                 insertDirectory(editor as any),
-                
+
                 // Monitoring group
                 insertPrometheus(schema)(editor),
-                
+
                 // Database group
                 insertSQLite(schema)(editor),
                 insertPostgres(schema)(editor),
                 insertClickhouse(schema)(editor),
-                
+
                 // Network group
                 insertHttp(schema)(editor),
                 insertSshConnect(schema)(editor),
                 insertHostSelect(schema)(editor),
-                
+
                 // Misc group
                 insertEditor(schema)(editor),
               ],

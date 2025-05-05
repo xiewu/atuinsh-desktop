@@ -38,6 +38,7 @@ import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency";
 import Block from "../common/Block";
 import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus";
 import BlockBus from "@/lib/workflow/block_bus";
+import track_event from "@/tracking";
 
 interface PromProps {
   setName: (name: string) => void;
@@ -414,6 +415,8 @@ export default createReactBlockSpec(
 export const insertPrometheus = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
   title: "Prometheus",
   onItemClick: () => {
+    track_event("runbooks.block.create", { type: "prometheus" });
+
     let prometheusBlocks = editor.document.filter((block: any) => block.type === "prometheus");
     let name = `Prometheus ${prometheusBlocks.length + 1}`;
 

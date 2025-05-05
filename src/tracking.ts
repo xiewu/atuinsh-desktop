@@ -55,7 +55,7 @@ export const init_tracking = async () => {
   }
 };
 
-export default function track_event(event: string, properties: any) {
+export default function track_event(event: string, properties: any = {}) {
   if (AtuinEnv.isDev) {
     console.log(`[dev] track_event: ${event} -> ${JSON.stringify(properties)}`);
     return;

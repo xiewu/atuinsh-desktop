@@ -5,6 +5,7 @@ import { createReactBlockSpec } from "@blocknote/react";
 import { insertOrUpdateBlock } from "@blocknote/core";
 import { invoke } from "@tauri-apps/api/core";
 import { useStore } from "@/state/store";
+import track_event from "@/tracking";
 
 interface LocalVarProps {
   name: string;
@@ -156,6 +157,8 @@ export const insertLocalVar = (schema: any) => (editor: typeof schema.BlockNoteE
   title: "Local Variable",
   subtext: "Variable stored only on your device - useful for credentials",
   onItemClick: () => {
+    track_event("runbooks.block.create", { type: "local-var" });
+
     insertOrUpdateBlock(editor, {
       type: "local-var",
     });

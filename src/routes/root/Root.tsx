@@ -67,28 +67,28 @@ import { TraversalOrder } from "@/lib/tree";
 
 type MoveBundleDescendant =
   | {
-      type: "runbook";
-      id: string;
-      parentId: string;
-    }
+    type: "runbook";
+    id: string;
+    parentId: string;
+  }
   | {
-      type: "folder";
-      id: string;
-      name: string;
-      parentId: string;
-    };
+    type: "folder";
+    id: string;
+    name: string;
+    parentId: string;
+  };
 
 type MoveBundle =
   | {
-      type: "runbook";
-      id: string;
-    }
+    type: "runbook";
+    id: string;
+  }
   | {
-      type: "folder";
-      id: string;
-      name: string;
-      descendants: Array<MoveBundleDescendant>;
-    };
+    type: "folder";
+    id: string;
+    name: string;
+    descendants: Array<MoveBundleDescendant>;
+  };
 
 const runbookIndex = new RunbookIndexService();
 
@@ -197,7 +197,10 @@ function App() {
     });
     console.log("createNewWorkspace", workspace);
     await workspace.save();
+
     console.log("workspace saved", workspace);
+    track_event("workspace.create");
+
     setCurrentWorkspaceId(workspace.get("id")!);
     navigate(`/runbooks`);
 
@@ -464,6 +467,8 @@ function App() {
     workspaceId: string,
     parentFolderId: string | null,
   ) {
+    track_event("runbooks.create");
+
     doWorkspaceFolderOp(
       workspaceId,
       (wsf) => {
@@ -499,7 +504,7 @@ function App() {
         .icon("error")
         .message(
           "You must have permissions to manage runbooks in both the source and destination workspaces " +
-            "in order to move items.",
+          "in order to move items.",
         )
         .action({
           label: "OK",
@@ -709,7 +714,7 @@ function App() {
           promptDeleteRunbook: handlePromptDeleteRunbook,
           runbookDeleted: handleRunbookDeleted,
           runbookCreated: handleRunbookCreated,
-          runbookMoved: () => {},
+          runbookMoved: () => { },
         }}
       >
         <CommandMenu index={runbookIndex} />

@@ -8,6 +8,7 @@ import { runQuery } from "./query";
 import SQL from "../common/SQL";
 import { ClickhouseBlock } from "@/lib/workflow/blocks/clickhouse";
 import { DependencySpec } from "@/lib/workflow/dependency";
+import track_event from "@/tracking";
 
 interface SQLProps {
   isEditable: boolean;
@@ -140,6 +141,8 @@ export default createReactBlockSpec(
 export const insertClickhouse = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
   title: "Clickhouse",
   onItemClick: () => {
+    track_event("runbooks.block.create", { type: "clickhouse" });
+    
     let clickhouseBlocks = editor.document.filter((block: any) => block.type === "clickhouse");
     let name = `Clickhouse ${clickhouseBlocks.length + 1}`;
 

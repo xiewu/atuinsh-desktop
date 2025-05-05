@@ -37,6 +37,7 @@ import { createNewRunbookMenu, createRootMenu } from "./menus";
 import { SharedStateManager } from "@/lib/shared_state/manager";
 import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
 import VerticalDragHandle from "./VerticalDragHandle";
+import track_event from "@/tracking";
 
 export type ListApi = {
   scrollWorkspaceIntoView: (workspaceId: string) => void;

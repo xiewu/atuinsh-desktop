@@ -10,6 +10,7 @@ import { runQuery } from "./query";
 import SQL from "../common/SQL";
 import { SQLiteBlock } from "@/lib/workflow/blocks/sqlite";
 import { DependencySpec } from "@/lib/workflow/dependency";
+import track_event from "@/tracking";
 
 interface SQLiteProps {
   isEditable: boolean;
@@ -136,6 +137,8 @@ export default createReactBlockSpec(
 export const insertSQLite = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
   title: "SQLite",
   onItemClick: () => {
+    track_event("runbooks.block.create", { type: "sqlite" });
+
     let sqliteBlocks = editor.document.filter((block: any) => block.type === "sqlite"); 
     let name = `SQLite ${sqliteBlocks.length + 1}`;
 

@@ -10,6 +10,7 @@ import { runQuery } from "./query";
 import SQL from "../common/SQL";
 import { PostgresBlock } from "@/lib/workflow/blocks/postgres";
 import { DependencySpec } from "@/lib/workflow/dependency";
+import track_event from "@/tracking";
 
 interface SQLProps {
   isEditable: boolean;
@@ -136,6 +137,8 @@ export default createReactBlockSpec(
 export const insertPostgres = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
   title: "PostgreSQL",
   onItemClick: () => {
+    track_event("runbooks.block.create", { type: "postgres" });
+    
     let postgresBlocks = editor.document.filter((block: any) => block.type === "postgres");
     let name = `PostgreSQL ${postgresBlocks.length + 1}`;
 

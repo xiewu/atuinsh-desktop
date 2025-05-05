@@ -34,6 +34,7 @@ import {
 import SSHBus from "@/lib/buses/ssh.ts";
 import { useBlockDeleted } from "@/lib/buses/editor.ts";
 import { useBlockInserted } from "@/lib/buses/editor.ts";
+import track_event from "@/tracking";
 
 interface ScriptBlockProps {
   onChange: (val: string) => void;
@@ -594,6 +595,8 @@ export const insertScript = (schema: any) => (editor: typeof schema.BlockNoteEdi
   title: "Script",
   subtext: "Non-interactive script (bash)",
   onItemClick: () => {
+    track_event("runbooks.block.create", { type: "script" });
+
     let scriptBlocks = editor.document.filter((block: any) => block.type === "script");
     let name = `Script ${scriptBlocks.length + 1}`;
 

@@ -6,6 +6,7 @@ import { insertOrUpdateBlock } from "@blocknote/core";
 import * as themes from "@uiw/codemirror-themes-all";
 import * as LanguageData from "@codemirror/language-data";
 import EditorBlockType from "@/lib/workflow/blocks/editor.ts";
+import track_event from "@/tracking";
 
 import CodeMirror, { Extension } from "@uiw/react-codemirror";
 
@@ -271,6 +272,8 @@ export default createReactBlockSpec(
 export const insertEditor = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
   title: "Editor",
   onItemClick: () => {
+    track_event("runbooks.block.create", { type: "editor" });
+    
     let editorBlocks = editor.document.filter((block: any) => block.type === "editor");
     let name = `Editor ${editorBlocks.length + 1}`;
 

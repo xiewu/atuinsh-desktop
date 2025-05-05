@@ -10,6 +10,7 @@ import { insertOrUpdateBlock } from "@blocknote/core";
 import { sshConnect } from "./ssh";
 import EditorBus from "@/lib/buses/editor";
 import { useEffect } from "react";
+import track_event from "@/tracking";
 
 interface SshConnectProps {
   userHost: string; // foo@bar, combine for natural-ness
@@ -102,6 +103,8 @@ export default createReactBlockSpec(
 export const insertSshConnect = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
   title: "SSH Connect",
   onItemClick: () => {
+    track_event("runbooks.block.create", { type: "ssh-connect" });
+    
     insertOrUpdateBlock(editor, {
       type: "ssh-connect",
     });

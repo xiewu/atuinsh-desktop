@@ -9,6 +9,7 @@ import { createReactBlockSpec } from "@blocknote/react";
 import { insertOrUpdateBlock } from "@blocknote/core";
 import { useEffect } from "react";
 import EditorBus from "@/lib/buses/editor";
+import track_event from "@/tracking";
 
 interface HostSelectProps {
   isEditable: boolean;
@@ -76,6 +77,8 @@ export const insertHostSelect = (schema: any) => (editor: typeof schema.BlockNot
   title: "Host",
   subtext: "Specify that commands run on localhost",
   onItemClick: () => {
+    track_event("runbooks.block.create", { type: "host-select" });
+    
     insertOrUpdateBlock(editor, {
       type: "host-select",
     });

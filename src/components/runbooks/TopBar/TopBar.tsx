@@ -12,6 +12,7 @@ import PlayButton from "../editor/blocks/common/PlayButton";
 import BlockBus from "@/lib/workflow/block_bus";
 import { useStore } from "@/state/store";
 import { invoke } from "@tauri-apps/api/core";
+import track_event from "@/tracking";
 
 type TopbarProps = {
   runbook: Runbook;
@@ -154,6 +155,7 @@ export default function Topbar(props: TopbarProps) {
           isRunning={serialExecution === runbook.id}
           cancellable={true}
           onPlay={() => {
+            track_event("runbooks.serial.run");
             BlockBus.get().startWorkflow(runbook.id);
             setSerialExecution(runbook.id);
 

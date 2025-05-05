@@ -17,7 +17,7 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 
-import { CodeIcon, FolderOpenIcon, VariableIcon, TextCursorInputIcon } from "lucide-react";
+import { CodeIcon, FolderOpenIcon, VariableIcon, TextCursorInputIcon, EyeIcon } from "lucide-react";
 
 import { insertSQLite } from "@/components/runbooks/editor/blocks/SQLite/SQLite";
 import { insertPostgres } from "@/components/runbooks/editor/blocks/Postgres/Postgres";
@@ -100,6 +100,19 @@ const insertVar = (editor: typeof schema.BlockNoteEditor) => ({
   },
   icon: <TextCursorInputIcon size={18} />,
   aliases: ["var", "template", "variable"],
+  group: "Execute",
+});
+
+const insertVarDisplay = (editor: typeof schema.BlockNoteEditor) => ({
+  title: "Display Variable",
+  subtext: "Show the current value of a template variable",
+  onItemClick: () => {
+    insertOrUpdateBlock(editor, {
+      type: "var_display",
+    });
+  },
+  icon: <EyeIcon size={18} />,
+  aliases: ["show", "display", "view", "variable"],
   group: "Execute",
 });
 
@@ -212,6 +225,7 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
                 insertTerminal(editor as any),
                 insertEnv(editor as any),
                 insertVar(editor as any),
+                insertVarDisplay(editor as any),
                 insertLocalVar(schema)(editor),
                 insertScript(schema)(editor),
                 insertDirectory(editor as any),

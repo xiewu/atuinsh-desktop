@@ -4,6 +4,7 @@ import Run from "./blocks/Run";
 import Directory from "./blocks/Directory";
 import Env from "./blocks/Env";
 import Var from "./blocks/Var";
+import VarDisplay from "./blocks/VarDisplay";
 import LocalVar from "./blocks/LocalVar";
 import Prometheus from "./blocks/Prometheus/Prometheus";
 import SQLite from "./blocks/SQLite/SQLite";
@@ -33,6 +34,7 @@ export const schema = BlockNoteSchema.create({
     directory: Directory,
     env: Env,
     var: Var,
+    var_display: VarDisplay,
     "local-var": LocalVar,
 
     // Monitoring

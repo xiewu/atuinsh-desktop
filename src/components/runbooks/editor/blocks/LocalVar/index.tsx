@@ -80,27 +80,25 @@ const LocalVar = ({ name = "", onNameUpdate, isEditable }: LocalVarProps) => {
       delay={1000}
       className="outline-none"
     >
-      <div className="flex flex-row items-center space-x-2 w-full">
-        <div className="flex flex-1 flex-row gap-2">
-          <div className="">
-            <Button isIconOnly isDisabled variant="light">
-              <CloudOffIcon />
-            </Button>
-          </div>
+      <div className="flex flex-row items-center space-x-3 w-full bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-slate-800 dark:to-purple-950 rounded-lg p-3 border border-purple-200 dark:border-purple-900 shadow-sm hover:shadow-md transition-all duration-200">
+        <div className="flex items-center">
+          <Button isIconOnly variant="light" className="bg-purple-100 dark:bg-purple-800 text-purple-600 dark:text-purple-300">
+            <CloudOffIcon className="h-4 w-4" />
+          </Button>
+        </div>
 
-          <div className="flex-grow">
-            <Input
-              placeholder="Name (shared)"
-              value={name}
-              onChange={handleKeyChange}
-              autoComplete="off"
-              autoCapitalize="off"
-              autoCorrect="off"
-              spellCheck="false"
-              className="flex-1"
-              disabled={!isEditable}
-            />
-          </div>
+        <div className="flex-1">
+          <Input
+            placeholder="Name (shared)"
+            value={name}
+            onChange={handleKeyChange}
+            autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck="false"
+            className="flex-1 border-purple-200 dark:border-purple-800 focus:ring-purple-500"
+            disabled={!isEditable}
+          />
         </div>
 
         <div className="flex-1">
@@ -112,7 +110,7 @@ const LocalVar = ({ name = "", onNameUpdate, isEditable }: LocalVarProps) => {
             autoCapitalize="off"
             autoCorrect="off"
             spellCheck="false"
-            className="flex-1"
+            className="flex-1 border-purple-200 dark:border-purple-800 focus:ring-purple-500"
             disabled={!isEditable}
             type="password"
           />

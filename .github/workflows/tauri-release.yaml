@@ -12,7 +12,7 @@ env:
 
 jobs:
   draft:
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04
 
     steps:
       - uses: actions/checkout@v4
@@ -33,11 +33,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: "macos-14" # for Arm based macs (M1 and above).
+          - platform: "depot-macos-14" # for Arm based macs (M1 and above).
             args: "--target aarch64-apple-darwin"
           - platform: "macos-13" # for Intel based macs.
             args: "--target x86_64-apple-darwin"
-          - platform: 'ubuntu-22.04'
+          - platform: 'ubuntu-22.04-4'
             args: ''
 
     runs-on: ${{ matrix.platform }}

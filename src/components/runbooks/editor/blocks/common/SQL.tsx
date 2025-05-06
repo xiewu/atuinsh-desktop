@@ -52,7 +52,7 @@ interface SQLProps {
   placeholder?: string;
   collapseQuery: boolean;
   extensions?: Extension[];
-  eventName?: string;
+  sqlType: "sqlite" | "postgres" | "clickhouse"; // explicit SQL type: 'sqlite', 'postgres', 'clickhouse'
   isEditable: boolean;
   block: any;
 
@@ -99,7 +99,7 @@ const SQL = ({
   setDependency,
   isEditable,
   runQuery,
-  eventName,
+  sqlType,
   extensions = [],
 }: SQLProps) => {
   let editor = useBlockNoteEditor();
@@ -280,7 +280,7 @@ const SQL = ({
           <div className="flex flex-row gap-2 w-full" ref={elementRef}>
             <PlayButton
               disabled={!canRun}
-              eventName={`${eventName}.run`}
+              eventName="runbooks.block.execute" eventProps={{type: sqlType}}
               isRunning={isRunning}
               onPlay={handlePlay}
               cancellable={false}

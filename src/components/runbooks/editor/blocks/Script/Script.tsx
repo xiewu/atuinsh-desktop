@@ -438,7 +438,7 @@ const ScriptBlock = ({
           <div className="flex flex-row gap-2 flex-grow w-full">
             <PlayButton
               disabled={!canRun}
-              eventName="runbooks.script.run"
+              eventName="runbooks.block.execute" eventProps={{type: "script"}}
               onPlay={handlePlay}
               onStop={handleStop}
               isRunning={isRunning}

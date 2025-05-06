@@ -17,6 +17,8 @@ interface PlayButtonProps {
 
   /// If specified, this will be the event name that is tracked when the button is clicked.
   eventName?: string;
+  /// Additional properties to pass to the tracking event.
+  eventProps?: Record<string, any>;
   disabled?: boolean;
 
   // If specified, the button will not be disabled when in running state.
@@ -30,6 +32,7 @@ const PlayButton = ({
   onPlay,
   cancellable,
   eventName,
+  eventProps,
   onStop,
   onRefresh,
   disabled,
@@ -71,7 +74,9 @@ const PlayButton = ({
           // If we're not running, call onPlay.
           // If we are running, but have not specified onStop, call onPlay again.
           // If we are running and have specified onStop, call onStop.
-          if (eventName) track_event(eventName, {});
+          if (eventName) {
+            track_event(eventName, eventProps || {});
+          }
 
           if (isRunning && isShiftPressed && onRefresh) {
             onRefresh();

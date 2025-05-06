@@ -40,7 +40,7 @@ const Postgres = ({
     <SQL
       block={postgres}
       id={postgres.id}
-      eventName="runbooks.postgresql"
+      sqlType="postgres"
       name={postgres.name}
       setName={setName}
       query={postgres.query}

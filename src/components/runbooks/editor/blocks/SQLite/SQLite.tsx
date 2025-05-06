@@ -41,7 +41,7 @@ const SQLite = ({
     <SQL
       block={sqlite}
       id={sqlite.id}
-      eventName="runbooks.sqlite"
+      sqlType="sqlite"
       name={sqlite.name}
       setName={setName}
       query={sqlite.query}

@@ -234,7 +234,7 @@ const Prometheus = ({
           <div className="w-full !max-w-full !outline-none overflow-none flex flex-row gap-2">
             <PlayButton
               disabled={!canRun}
-              eventName="runbooks.prometheus.run"
+              eventName="runbooks.block.execute" eventProps={{type: "prometheus"}}
               onPlay={async () => {
                 try {
                   setIsRunning(true);

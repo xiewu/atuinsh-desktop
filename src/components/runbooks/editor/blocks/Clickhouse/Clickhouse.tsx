@@ -38,7 +38,7 @@ const Clickhouse = ({
     <SQL
       block={clickhouse}
       id={clickhouse.id}
-      eventName="runbooks.clickhouse"
+      sqlType="clickhouse"
       name={clickhouse.name}
       setName={setName}
       query={clickhouse.query}

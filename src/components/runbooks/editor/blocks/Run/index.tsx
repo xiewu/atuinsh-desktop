@@ -248,7 +248,7 @@ const RunBlock = ({
 
       if (onRun) onRun(p);
 
-      track_event("runbooks.terminal.run", {});
+      track_event("runbooks.block.execute", {type: "terminal"});
     },
     [isRunning, terminal.code, terminal.id, currentRunbookId, onRun, openPty],
   );

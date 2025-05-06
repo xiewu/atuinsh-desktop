@@ -155,7 +155,7 @@ export default function Topbar(props: TopbarProps) {
           isRunning={serialExecution === runbook.id}
           cancellable={true}
           onPlay={() => {
-            track_event("runbooks.serial.run");
+            track_event("runbooks.serial.execute");
             BlockBus.get().startWorkflow(runbook.id);
             setSerialExecution(runbook.id);
 

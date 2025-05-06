@@ -186,7 +186,7 @@ const Http = ({
       header={
         <div className="flex flex-row items-center gap-2 w-full" ref={elementRef}>
           <PlayButton
-            eventName="runbooks.http.run"
+            eventName="runbooks.block.execute" eventProps={{type: "http"}}
             isRunning={isRunning}
             onPlay={onPlay}
             cancellable={false}

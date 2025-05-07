@@ -4,6 +4,7 @@ const PROMETHEUS_URL_KEY = "settings.runbooks.prometheus_url";
 const TERMINAL_FONT = "settings.runbooks.terminal.font";
 const TERMINAL_FONT_SIZE = "settings.runbooks.terminal.font_size";
 const TERMINAL_GL = "settings.runbooks.terminal.gl";
+const TERMINAL_SHELL = "settings.runbooks.terminal.shell";
 
 export class Settings {
   public static DEFAULT_FONT = "FiraCode";
@@ -51,5 +52,16 @@ export class Settings {
     }
 
     return (await store.get(TERMINAL_GL)) || false;
+  }
+
+  public static async terminalShell(val: string | null = null): Promise<string | null> {
+    let store = await KVStore.open_default();
+
+    if (val || val === "") {
+      await store.set(TERMINAL_SHELL, val);
+      return val;
+    }
+
+    return await store.get(TERMINAL_SHELL);
   }
 }

@@ -56,6 +56,7 @@ impl Pty {
         cwd: Option<String>,
         env: HashMap<String, String>,
         metadata: PtyMetadata,
+        shell: Option<String>,
     ) -> Result<Self> {
         let sys = portable_pty::native_pty_system();
 
@@ -68,7 +69,14 @@ impl Pty {
             })
             .map_err(|e| eyre!("Failed to open pty: {}", e))?;
 
-        let mut cmd = CommandBuilder::new_default_prog();
+        let mut cmd = match shell {
+            Some(shell_path) if !shell_path.is_empty() => {
+                let mut cmd = CommandBuilder::new(shell_path);
+                cmd.arg("-i"); // Interactive mode
+                cmd
+            }
+            _ => CommandBuilder::new_default_prog(),
+        };
 
         // Flags to our shell integration that this is running within the desktop app
         cmd.env("ATUIN_DESKTOP_PTY", "true");
@@ -82,7 +90,10 @@ impl Pty {
             cmd.env(key, value);
         }
 
-        let child = pair.slave.spawn_command(cmd).unwrap();
+        let child = match pair.slave.spawn_command(cmd) {
+            Ok(child) => child,
+            Err(e) => return Err(eyre!("Failed to spawn shell process: {}", e)),
+        };
         drop(pair.slave);
 
         // Handle input -> write to master writer

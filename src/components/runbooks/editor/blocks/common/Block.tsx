@@ -23,6 +23,7 @@ interface BlockProps {
   hasDependency?: boolean;
   ref?: React.RefObject<HTMLDivElement>;
   className?: string;
+  topRightElement?: React.ReactNode;
 }
 
 export default function Block({
@@ -38,6 +39,7 @@ export default function Block({
   hasDependency,
   ref,
   className,
+  topRightElement,
 }: BlockProps) {
   let editor = useBlockNoteEditor();
 
@@ -60,7 +62,9 @@ export default function Block({
       <CardHeader className="p-3 gap-2 bg-default-50 flex flex-col items-start justify-start z-auto">
         <div className="flex flex-row justify-between w-full">
           <span className="text-default-700 font-semibold text-xs">{type}</span>
-          {hasDependency && parentBlock && (
+          <div className="flex items-center gap-2">
+            {topRightElement}
+            {hasDependency && parentBlock && (
             <Tooltip content={`This ${type} depends on ${parentBlock?.name}`}>
               <Chip
                 variant="flat"
@@ -71,7 +75,8 @@ export default function Block({
                 {parentBlock?.name}
               </Chip>
             </Tooltip>
-          )}
+            )}
+          </div>
         </div>
         {!inlineHeader && (
           <div className="flex flex-row justify-between w-full">

@@ -366,6 +366,12 @@ const RunbookSettings = () => {
     Settings.terminalGL,
     Settings.terminalGL,
   );
+  const [terminalShell, setTerminalShell, shellLoading] = useSettingsState(
+    "terminal_shell",
+    "",
+    Settings.terminalShell,
+    Settings.terminalShell,
+  );
   const [prometheusUrl, setPrometheusUrl, urlLoading] = useSettingsState(
     "prometheus_url",
     "http://localhost:9090",
@@ -373,7 +379,7 @@ const RunbookSettings = () => {
     Settings.runbookPrometheusUrl,
   );
 
-  if (fontLoading || glLoading || urlLoading || fontSizeLoading || !fonts) return <Spinner />;
+  if (fontLoading || glLoading || urlLoading || fontSizeLoading || shellLoading || !fonts) return <Spinner />;
 
   return (
     <>
@@ -404,6 +410,14 @@ const RunbookSettings = () => {
             isSelected={terminalGl}
             onValueChange={setTerminalGl}
             description="May have issues with some fonts"
+          />
+          <SettingInput
+            type="text"
+            label="Custom shell"
+            value={terminalShell || ""}
+            onChange={setTerminalShell}
+            placeholder="/bin/bash, /bin/zsh, /usr/bin/fish"
+            description="Leave empty to use your default shell"
           />
         </CardBody>
       </Card>

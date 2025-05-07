@@ -6,11 +6,10 @@ import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { AtuinState, useStore } from "@/state/store.ts";
 import { addToast, Button, Input, Select, SelectItem, Tooltip } from "@heroui/react";
 import PlayButton from "../common/PlayButton.tsx";
-import { FileTerminalIcon, Eye, EyeOff } from "lucide-react";
+import { FileTerminalIcon, Eye, EyeOff, TriangleAlertIcon } from "lucide-react";
 import Block from "../common/Block.tsx";
 import EditableHeading from "@/components/EditableHeading/index.tsx";
 import { insertOrUpdateBlock } from "@blocknote/core";
-import { invoke } from "@tauri-apps/api/core";
 import { uuidv7 } from "uuidv7";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 
@@ -35,6 +34,7 @@ import SSHBus from "@/lib/buses/ssh.ts";
 import { useBlockDeleted } from "@/lib/buses/editor.ts";
 import { useBlockInserted } from "@/lib/buses/editor.ts";
 import track_event from "@/tracking";
+import { invoke } from "@tauri-apps/api/core";
 
 interface ScriptBlockProps {
   onChange: (val: string) => void;
@@ -49,6 +49,16 @@ interface ScriptBlockProps {
 
   script: ScriptBlockType;
 }
+
+// Supported shells with their possible paths
+const supportedShells = [
+  { id: "bash", name: "bash", paths: ["/bin/bash"], defaultArgs: "-lc", sshArgs: "-l" },
+  { id: "zsh", name: "zsh", paths: ["/bin/zsh"], defaultArgs: "-lc", sshArgs: "-l" },
+  { id: "fish", name: "fish", paths: ["/usr/bin/fish", "/usr/local/bin/fish", "/opt/homebrew/bin/fish"], defaultArgs: "-c", sshArgs: "" },
+  { id: "python3", name: "python3", paths: ["/usr/bin/python3", "/usr/local/bin/python3"], defaultArgs: "-c", sshArgs: "" },
+  { id: "node", name: "node", paths: ["/usr/bin/node", "/usr/local/bin/node"], defaultArgs: "-e", sshArgs: "" },
+  { id: "sh", name: "sh", paths: ["/bin/sh"], defaultArgs: "-ic", sshArgs: "-i" },
+];
 
 const ScriptBlock = ({
   onChange,
@@ -65,6 +75,18 @@ const ScriptBlock = ({
   const [terminal, setTerminal] = useState<Terminal | null>(null);
   const [fitAddon, setFitAddon] = useState<FitAddon | null>(null);
   const [pid, setPid] = useState<number | null>(null);
+  // Track available shells
+  const [availableShells, setAvailableShells] = useState<Record<string, boolean>>({});
+
+
+  // Check if selected shell is missing
+  const shellMissing = useMemo(() => {
+    // These shells are always available
+    if (script.interpreter === "bash" || script.interpreter === "sh") return false;
+
+    // Check if shell is in our supported list but not available
+    return script.interpreter in availableShells && !availableShells[script.interpreter];
+  }, [script.interpreter, availableShells]);
 
   const colorMode = useStore((state) => state.functionalColorMode);
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -100,62 +122,102 @@ const ScriptBlock = ({
   useBlockDeleted("host-select", updateSshParent);
 
   // Class name for SSH indicator styling based on connection status
-  const sshBorderClass = useMemo(() => {
-    if (!sshParent) return "";
+  const blockBorderClass = useMemo(() => {
+    if (shellMissing) {
+      return "border-2 border-red-400 shadow-[0_0_10px_rgba(239,68,68,0.4)] rounded-md transition-all duration-300";
+    }
 
-    return "border-2 border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.4)] rounded-md transition-all duration-300";
-  }, [sshParent]);
+    if (sshParent) {
+      return "border-2 border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.4)] rounded-md transition-all duration-300";
+    }
+
+    return "";
+  }, [sshParent, shellMissing]);
+
+  // For the shell warning message in the top right
+  const topRightWarning = useMemo(() => {
+    if (shellMissing) {
+      return (
+        <div className="flex items-center gap-1 text-[10px] font-medium text-red-500">
+          <div className="flex items-center">
+            <TriangleAlertIcon size={16} />
+          </div>
+          {script.interpreter} not found
+        </div>
+      );
+    }
+    return null;
+  }, [shellMissing, script.interpreter]);
 
   let interpreterCommand = useMemo(() => {
-    // Handle common interpreters without a path
-    if (sshParent) {
-      if (script.interpreter == "bash") {
-        return "/bin/bash -l";
+    // Find the shell configuration
+    const shellConfig = supportedShells.find(s => s.id === script.interpreter);
+
+    if (shellConfig) {
+      if (sshParent) {
+        // For SSH execution
+        if (shellConfig.paths[0].startsWith('/bin/')) {
+          // Use absolute path for system shells
+          return `${shellConfig.paths[0]} ${shellConfig.sshArgs}`.trim();
+        } else {
+          // Use env for other shells
+          return `/usr/bin/env ${shellConfig.id}${shellConfig.sshArgs ? ' ' + shellConfig.sshArgs : ''}`;
+        }
+      } else {
+        // For local execution
+        if (shellConfig.paths[0].startsWith('/bin/')) {
+          // Use absolute path for system shells
+          return `${shellConfig.paths[0]} ${shellConfig.defaultArgs}`.trim();
+        } else {
+          // Use env for other shells
+          return `/usr/bin/env ${shellConfig.id}${shellConfig.defaultArgs ? ' ' + shellConfig.defaultArgs : ''}`;
+        }
       }
-
-      if (script.interpreter == "sh") {
-        return "/bin/sh -i";
-      }
-
-      if (script.interpreter == "zsh") {
-        return "/bin/zsh -l";
-      }
-
-      if (script.interpreter == "python3") {
-        return "/usr/bin/env python3";
-      }
-
-      if (script.interpreter == "node") {
-        return "/usr/bin/env node";
-      }
-
-      // guess
-      return `/usr/bin/env ${script.interpreter}`;
     }
 
-    if (script.interpreter == "bash") {
-      return "/bin/bash -lc";
-    }
-
-    if (script.interpreter == "sh") {
-      return "/bin/sh -ic";
-    }
-
-    if (script.interpreter == "zsh") {
-      return "/bin/zsh -lc";
-    }
-
-    if (script.interpreter == "python3") {
-      return "/usr/bin/env python3 -c";
-    }
-
-    if (script.interpreter == "node") {
-      return "/usr/bin/env node -e";
-    }
-
-    // guess
+    // Fallback for unknown shells
     return `/usr/bin/env ${script.interpreter}`;
-  }, [script.interpreter]);
+  }, [script.interpreter, supportedShells, sshParent]);
+
+  // Check which shells are installed
+  useEffect(() => {
+    const checkShellsAvailable = async () => {
+      try {
+        const shellStatus: Record<string, boolean> = {};
+
+        // Check each supported shell
+        for (const shell of supportedShells) {
+          // Skip bash and sh as they're always available
+          if (shell.id === "bash" || shell.id === "sh") {
+            shellStatus[shell.id] = true;
+            continue;
+          }
+
+          // Check each possible path for this shell
+          let found = false;
+          for (const path of shell.paths) {
+            try {
+              const exists = await invoke<boolean>("check_binary_exists", { path });
+              if (exists) {
+                found = true;
+                break;
+              }
+            } catch (e) {
+              console.error(`Error checking ${path}:`, e);
+            }
+          }
+
+          shellStatus[shell.id] = found;
+        }
+
+        setAvailableShells(shellStatus);
+      } catch (error) {
+        console.error("Failed to check available shells:", error);
+      }
+    };
+
+    checkShellsAvailable();
+  }, [supportedShells]);
 
   // Initialize terminal
   useEffect(() => {
@@ -268,17 +330,17 @@ const ScriptBlock = ({
       try {
         let [username, host] = connectionBlock.props.userHost.split("@");
 
-      tauriUnlisten.current = await listen("ssh_exec_finished:" + channel, async () => {
-        onStop();
-      });
+        tauriUnlisten.current = await listen("ssh_exec_finished:" + channel, async () => {
+          onStop();
+        });
 
-      await invoke<string>("ssh_exec", {
-        host: host,
-        username: username,
-        command: command,
-        interpreter: interpreterCommand,
-        channel: channel,
-      });
+        await invoke<string>("ssh_exec", {
+          host: host,
+          username: username,
+          command: command,
+          interpreter: interpreterCommand,
+          channel: channel,
+        });
         SSHBus.get().updateConnectionStatus(connectionBlock.props.userHost, "success");
       } catch (error) {
         console.error("SSH connection failed:", error);
@@ -331,7 +393,7 @@ const ScriptBlock = ({
   const handleStop = async () => {
     // Check for SSH block or Host block, prioritizing SSH if both exist
     let connectionBlock = findFirstParentOfType(editor, script.id, ["ssh-connect", "host-select"]);
-    
+
     // Use SSH cancel for SSH blocks
     if (connectionBlock && connectionBlock.type === "ssh-connect") {
       await invoke("ssh_exec_cancel", { channel: channelRef.current });
@@ -368,7 +430,8 @@ const ScriptBlock = ({
       setName={setName}
       inlineHeader
       hideChild={!script.outputVisible}
-      className={sshBorderClass}
+      className={blockBorderClass}
+      topRightElement={topRightWarning}
       header={
         <>
           <div className="flex flex-row justify-between w-full">
@@ -381,7 +444,7 @@ const ScriptBlock = ({
               }
             </h1>
 
-            <div className="flex flex-row gap-2" ref={elementRef}>
+            <div className="flex flex-row items-center gap-2" ref={elementRef}>
               <Input
                 size="sm"
                 variant="flat"
@@ -406,18 +469,19 @@ const ScriptBlock = ({
                   setInterpreter(e.currentKey);
                 }}
               >
-                <SelectItem aria-label="bash" key="bash">
-                  bash
-                </SelectItem>
-                <SelectItem aria-label="zsh" key="zsh">
-                  zsh
-                </SelectItem>
-                <SelectItem aria-label="node" key="node">
-                  node
-                </SelectItem>
-                <SelectItem aria-label="python3" key="python3">
-                  python3
-                </SelectItem>
+                {supportedShells.map(shell => {
+                  // Always show bash and sh, or any shell that's available, or the current selected shell
+                  const shouldShow = shell.id === "bash" ||
+                    shell.id === "sh" ||
+                    availableShells[shell.id] ||
+                    script.interpreter === shell.id;
+
+                  return shouldShow ? (
+                    <SelectItem key={shell.id} aria-label={shell.name}>
+                      {shell.name}
+                    </SelectItem>
+                  ) : null;
+                })}
               </Select>
 
               <Tooltip
@@ -436,14 +500,22 @@ const ScriptBlock = ({
           </div>
 
           <div className="flex flex-row gap-2 flex-grow w-full">
-            <PlayButton
-              disabled={!canRun}
-              eventName="runbooks.block.execute" eventProps={{type: "script"}}
-              onPlay={handlePlay}
-              onStop={handleStop}
-              isRunning={isRunning}
-              cancellable={true}
-            />
+            <Tooltip
+              content={shellMissing ? `${script.interpreter} shell not found. This script may not run correctly.` : ""}
+              isDisabled={!shellMissing}
+              color="danger"
+            >
+              <div>
+                <PlayButton
+                  disabled={!canRun}
+                  eventName="runbooks.block.execute" eventProps={{ type: "script" }}
+                  onPlay={handlePlay}
+                  onStop={handleStop}
+                  isRunning={isRunning}
+                  cancellable={true}
+                />
+              </div>
+            </Tooltip>
 
             <CodeEditor
               id={script.id}

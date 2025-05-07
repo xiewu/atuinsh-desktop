@@ -37,6 +37,7 @@ import {
 } from "@/lib/hooks/useBlockBus.ts";
 import { uuidv7 } from "uuidv7";
 import { useBlockDeleted, useBlockInserted } from "@/lib/buses/editor.ts";
+import { Settings } from "@/state/settings";
 
 interface RunBlockProps {
   onChange: (val: string) => void;
@@ -221,14 +222,28 @@ const RunBlock = ({
     }
 
     // Default to local execution if Host block found or no connection block found
-    let pty = await invoke<string>("pty_open", {
-      cwd,
-      env,
-      runbook: currentRunbookId,
-      block: terminal.id,
-    });
-
-    return pty;
+    // Get the custom shell from settings if available
+    const customShell = await Settings.terminalShell();
+    
+    try {
+      let pty = await invoke<string>("pty_open", {
+        cwd,
+        env,
+        runbook: currentRunbookId,
+        block: terminal.id,
+        shell: customShell,
+      });
+      return pty;
+    } catch (error) {
+      console.error(error);
+      setIsLoading(false);
+      addToast({
+        title: `Terminal error`,
+        description: `${error}`,
+        color: "danger",
+      });
+      throw error;
+    }
   };
 
   const handlePlay = useCallback(
@@ -242,11 +257,16 @@ const RunBlock = ({
       });
 
       setIsLoading(true);
-      let p = await openPty();
-      setIsLoading(false);
-      setFirstOpen(true);
+      try {
+        let p = await openPty();
+        setIsLoading(false);
+        setFirstOpen(true);
 
-      if (onRun) onRun(p);
+        if (onRun) onRun(p);
+      } catch (error) {
+        // Error is already handled in openPty
+        setIsLoading(false);
+      }
 
       track_event("runbooks.block.execute", {type: "terminal"});
     },

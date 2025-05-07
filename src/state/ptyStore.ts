@@ -21,7 +21,7 @@ export interface PtyStore {
 
   listenBackend: () => Promise<void>;
   unlistenBackend: () => void;
-  createPty: (cwd: string, env: any, runbook: string, block: string) => void;
+  createPty: (cwd: string, env: any, runbook: string, block: string, shell?: string) => void;
   ptyForBlock: (block: string) => PtyMetadata | null;
 }
 
@@ -87,10 +87,10 @@ export const usePtyStore = create<PtyStore>(
       });
     },
 
-    createPty: async (cwd: string, env: any, runbook: string, block: string) => {
-      let pid = await invoke("pty_open", { cwd, env, runbook, block });
+    createPty: async (cwd: string, env: any, runbook: string, block: string, shell?: string) => {
+    let pid = await invoke("pty_open", { cwd, env, runbook, block, shell });
 
-      return pid as string;
+    return pid as string;
     },
 
     ptyForBlock: (block: string): PtyMetadata | null => {

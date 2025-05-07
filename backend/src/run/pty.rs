@@ -31,6 +31,7 @@ pub async fn pty_open(
     env: Option<HashMap<String, String>>,
     runbook: Uuid,
     block: String,
+    shell: Option<String>,
 ) -> Result<uuid::Uuid, String> {
     let id = uuid::Uuid::new_v4();
 
@@ -43,9 +44,21 @@ pub async fn pty_open(
     };
     let cwd = cwd.map(|c| shellexpand::tilde(c.as_str()).to_string());
 
-    let pty = crate::pty::Pty::open(24, 80, cwd, env.unwrap_or_default(), metadata.clone())
-        .await
-        .unwrap();
+    let pty = match crate::pty::Pty::open(
+        24,
+        80,
+        cwd,
+        env.unwrap_or_default(),
+        metadata.clone(),
+        shell,
+    )
+    .await
+    {
+        Ok(pty) => pty,
+        Err(e) => {
+            return Err(format!("Failed to open terminal: {}", e));
+        }
+    };
 
     let reader = pty.reader.clone();
     let app_inner = app.clone();

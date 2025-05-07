@@ -72,6 +72,7 @@ impl Pty {
 
         // Flags to our shell integration that this is running within the desktop app
         cmd.env("ATUIN_DESKTOP_PTY", "true");
+        cmd.env("TERM", "xterm-256color");
 
         if let Some(cwd) = cwd {
             cmd.cwd(cwd);

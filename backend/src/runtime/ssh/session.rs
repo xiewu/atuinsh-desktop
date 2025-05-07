@@ -326,7 +326,11 @@ impl Session {
         // TODO(ellie): allow specifying mode and dimensions
         // Investigate what TERM is best to use for us
         channel
-            .request_pty("xterm-256color", None, Some((width as u32, height as u32, 0, 0)))
+            .request_pty(
+                "xterm-256color",
+                None,
+                Some((width as u32, height as u32, 0, 0)),
+            )
             .await?;
         channel.shell().await?; // Start a shell session
 

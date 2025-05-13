@@ -12,9 +12,11 @@ import {
 import { useStore } from "@/state/store";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { None, Option, Some } from "@/lib/utils";
+import AtuinEnv from "@/atuin_env";
 
 export default function UpdateNotifier() {
   const [relaunching, setRelaunching] = useState(false);
+  const [showingUpdate, setShowingUpdate] = useState(false);
   const showedUpdatePrompt = useStore((state) => state.showedUpdatePrompt);
   const setShowedUpdatePrompt = useStore((state) => state.setShowedUpdatePrompt);
   const [contentLength, setContentLength] = useState<Option<number>>(None);
@@ -30,6 +32,11 @@ export default function UpdateNotifier() {
   const setUpdating = useStore((state) => state.setUpdating);
 
   async function doUpdate() {
+    if (AtuinEnv.isDev) {
+      console.log("UpdateNotifier: doUpdate: skipping update in dev mode");
+      return;
+    }
+
     setUpdating(true);
     await availableUpdate?.downloadAndInstall((progress) => {
       switch (progress.event) {
@@ -50,7 +57,13 @@ export default function UpdateNotifier() {
   }
 
   useEffect(() => {
+    if (showingUpdate) {
+      setShowedUpdatePrompt(true);
+      return;
+    }
+
     if (availableUpdate && !updating && !showedUpdatePrompt) {
+      setShowingUpdate(true);
       setShowedUpdatePrompt(true);
       addToast({
         title: "Update Available",
@@ -60,6 +73,9 @@ export default function UpdateNotifier() {
         radius: "sm",
         timeout: Infinity,
         shouldShowTimeoutProgress: false,
+        onClose: () => {
+          setShowingUpdate(false);
+        },
         endContent: (
           <Button
             size="sm"
@@ -73,7 +89,7 @@ export default function UpdateNotifier() {
         ),
       });
     }
-  }, [availableUpdate, updating, showedUpdatePrompt]);
+  }, [availableUpdate, updating, showedUpdatePrompt, showingUpdate]);
 
   if (availableUpdate && updating) {
     return (

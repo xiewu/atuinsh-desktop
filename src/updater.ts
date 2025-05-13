@@ -1,25 +1,27 @@
 import { check } from "@tauri-apps/plugin-updater";
 import Logger from "@/lib/logger";
-import AtuinEnv from "./atuin_env";
 import { useStore } from "./state/store";
+import AtuinEnv from "./atuin_env";
 const logger = new Logger("Updater");
 
-export async function checkForAppUpdates(): Promise<boolean> {
+export async function checkForAppUpdates(manualActivation: boolean = false): Promise<boolean> {
   logger.debug("Checking for updates...");
   const update = await check();
 
-  if (update?.available && AtuinEnv.isProd) {
+  if (update?.available) {
     logger.info("Update available!");
 
-    useStore.getState().setShowedUpdatePrompt(false);
-    useStore.getState().setAvailableUpdate(update);
-  } else if (update?.available) {
-    logger.info("Update available; suppressing prompt in development mode");
+    if (!manualActivation && AtuinEnv.isDev) {
+      logger.info("Skipping update prompt in dev for automatic checks");
+      return false;
+    }
+
+    const state = useStore.getState();
+    if (manualActivation && state.showedUpdatePrompt) {
+      state.setShowedUpdatePrompt(false);
+    }
+    state.setAvailableUpdate(update);
   }
 
-  if (AtuinEnv.isProd) {
-    return update?.available ?? false;
-  } else {
-    return false;
-  }
+  return update?.available ?? false;
 }

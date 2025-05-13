@@ -177,7 +177,7 @@ function App() {
 
   async function doUpdateCheck() {
     // An available update will trigger a toast
-    let updateAvailable = await checkForAppUpdates();
+    let updateAvailable = await checkForAppUpdates(true);
 
     if (!updateAvailable) {
       addToast({
@@ -255,7 +255,7 @@ function App() {
   useEffect(() => {
     const check = () => {
       (async () => {
-        await checkForAppUpdates();
+        await checkForAppUpdates(false);
       })();
 
       setTimeout(check, 1000 * 60 * 60);

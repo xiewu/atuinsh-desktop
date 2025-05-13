@@ -43,6 +43,7 @@ import BlockBus from "@/lib/workflow/block_bus";
 import { invoke } from "@tauri-apps/api/core";
 import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert";
 import track_event from "@/tracking";
+import { insertDropdown } from "./blocks/Dropdown/Dropdown";
 
 // Slash menu item to insert an Alert block
 const insertTerminal = (editor: typeof schema.BlockNoteEditor) => ({
@@ -239,6 +240,7 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
                 insertLocalVar(schema)(editor),
                 insertScript(schema)(editor),
                 insertDirectory(editor as any),
+                insertDropdown(schema)(editor),
 
                 // Monitoring group
                 insertPrometheus(schema)(editor),

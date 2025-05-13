@@ -35,6 +35,7 @@ import { useBlockDeleted } from "@/lib/buses/editor.ts";
 import { useBlockInserted } from "@/lib/buses/editor.ts";
 import track_event from "@/tracking";
 import { invoke } from "@tauri-apps/api/core";
+import { buildInterpreterCommand } from "../common/InterpreterSelector.tsx";
 
 interface ScriptBlockProps {
   onChange: (val: string) => void;
@@ -150,33 +151,7 @@ const ScriptBlock = ({
   }, [shellMissing, script.interpreter]);
 
   let interpreterCommand = useMemo(() => {
-    // Find the shell configuration
-    const shellConfig = supportedShells.find(s => s.id === script.interpreter);
-
-    if (shellConfig) {
-      if (sshParent) {
-        // For SSH execution
-        if (shellConfig.paths[0].startsWith('/bin/')) {
-          // Use absolute path for system shells
-          return `${shellConfig.paths[0]} ${shellConfig.sshArgs}`.trim();
-        } else {
-          // Use env for other shells
-          return `/usr/bin/env ${shellConfig.id}${shellConfig.sshArgs ? ' ' + shellConfig.sshArgs : ''}`;
-        }
-      } else {
-        // For local execution
-        if (shellConfig.paths[0].startsWith('/bin/')) {
-          // Use absolute path for system shells
-          return `${shellConfig.paths[0]} ${shellConfig.defaultArgs}`.trim();
-        } else {
-          // Use env for other shells
-          return `/usr/bin/env ${shellConfig.id}${shellConfig.defaultArgs ? ' ' + shellConfig.defaultArgs : ''}`;
-        }
-      }
-    }
-
-    // Fallback for unknown shells
-    return `/usr/bin/env ${script.interpreter}`;
+    return buildInterpreterCommand(script.interpreter, sshParent !== null);
   }, [script.interpreter, supportedShells, sshParent]);
 
   // Check which shells are installed

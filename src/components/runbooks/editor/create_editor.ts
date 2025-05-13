@@ -20,6 +20,7 @@ import PhoenixProvider from "@/lib/phoenix_provider";
 import { User } from "@/state/models";
 import * as Y from "yjs";
 import * as awarenessProtocol from "y-protocols/awareness";
+import Dropdown from "./blocks/Dropdown/Dropdown";
 
 // Our schema with block specs, which contain the configs and implementations for blocks
 // that we want our editor to use.
@@ -36,6 +37,7 @@ export const schema = BlockNoteSchema.create({
     var: Var,
     var_display: VarDisplay,
     "local-var": LocalVar,
+    dropdown: Dropdown,
 
     // Monitoring
     prometheus: Prometheus,

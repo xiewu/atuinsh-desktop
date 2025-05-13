@@ -68,7 +68,7 @@ pub async fn shell_exec(
 
     // Split interpreter string into command and args
     let parts: Vec<&str> = interpreter.split_whitespace().collect();
-    let (cmd_name, cmd_args) = parts.split_first().unwrap();
+    let (cmd_name, cmd_args) = parts.split_first().unwrap_or((&"bash", &[]));
 
     let env = props.env.clone().unwrap_or_default();
     let cwd = props.clone().cwd.unwrap_or(String::from("~"));
@@ -105,6 +105,9 @@ pub async fn shell_exec(
 
         while let Some(line) = output_rx.recv().await {
             output.push_str(&line);
+
+            // we're reading by lines, which eats the newline characters. sooooo add them back in :)
+            output.push('\n');
         }
 
         // the above loop stops when the channel is closed
@@ -190,4 +193,48 @@ pub async fn shell_exec(
     });
 
     Ok(pid)
+}
+
+#[tauri::command]
+pub async fn shell_exec_sync(
+    interpreter: String,
+    command: String,
+    env: Option<HashMap<String, String>>,
+    cwd: Option<String>,
+) -> Result<String, String> {
+    // Split interpreter string into command and args
+    let parts: Vec<&str> = interpreter.split_whitespace().collect();
+    let (cmd_name, cmd_args) = parts.split_first().unwrap_or((&"bash", &[]));
+
+    let env = env.clone().unwrap_or_default();
+    let cwd = cwd.unwrap_or(String::from("~"));
+    let cwd = shellexpand::tilde(&cwd).to_string();
+    let path = Path::new(&cwd);
+
+    let output = Command::new(cmd_name)
+        .args(cmd_args)
+        .arg(command)
+        .current_dir(path)
+        .envs(env)
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run command: {:?} {}", path, e))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    // Combine stdout and stderr
+    // TODO(ellie): think of some good examples to test and make a nicer way of combining output
+    let mut combined_output = String::new();
+    if !stdout.is_empty() {
+        combined_output.push_str(&stdout);
+    }
+    if !stderr.is_empty() {
+        if !combined_output.is_empty() {
+            combined_output.push('\n');
+        }
+        combined_output.push_str(&stderr);
+    }
+
+    Ok(combined_output)
 }

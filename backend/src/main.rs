@@ -405,6 +405,7 @@ fn main() {
             run::pty::pty_kill,
             run::pty::pty_list,
             run::shell::shell_exec,
+            run::shell::shell_exec_sync,
             run::shell::term_process,
             run::shell::check_binary_exists,
             install::install_cli,

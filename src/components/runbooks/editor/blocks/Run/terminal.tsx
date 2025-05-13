@@ -108,7 +108,7 @@ const TerminalComponent = ({
 
   if (!isReady) return null;
 
-  return <div className="!max-w-full min-w-0 overflow-hidden" ref={terminalRef} />;
+  return <div className="!max-w-full min-w-0 overflow-hidden rounded-lg" ref={terminalRef} />;
 };
 
 export default TerminalComponent;

@@ -2,22 +2,24 @@ import { useEffect, useState } from "react";
 import { QueryResult } from "./database";
 import ResultTable from "./ResultTable";
 import { GridColumn } from "@glideapps/glide-data-grid";
-import { Card, CardBody, CardHeader, Chip, Tooltip } from "@heroui/react";
+import { Card, CardBody, CardHeader, Chip, Tooltip, Button, Divider } from "@heroui/react";
 import {
   CheckCircle,
   CircleXIcon,
   Clock,
   HardDriveIcon,
   Rows4Icon,
+  TrashIcon
 } from "lucide-react";
 import { formatBytes } from "@/lib/utils";
 
 interface SQLProps {
   error: any;
   results: QueryResult | null;
+  dismiss?: () => void;
 }
 
-const SQLResults = ({ results, error }: SQLProps) => {
+const SQLResults = ({ results, error, dismiss }: SQLProps) => {
   const [columns, setColumns] = useState<GridColumn[] | null>(null);
 
   useEffect(() => {
@@ -40,6 +42,11 @@ const SQLResults = ({ results, error }: SQLProps) => {
       <Card shadow="sm" className="w-full max-w-full border border-danger-200">
         <CardHeader className="flex justify-between items-center bg-danger-50">
           <div className="flex items-center gap-3">
+            {dismiss && (
+              <Button variant="flat" isIconOnly onClick={dismiss} size="sm">
+                <TrashIcon size={16} />
+              </Button>
+            )}
             <Chip
               color="danger"
               variant="flat"
@@ -69,6 +76,11 @@ const SQLResults = ({ results, error }: SQLProps) => {
     <Card shadow="sm" className="w-full max-w-full border border-default-200">
       <CardHeader className="flex justify-between items-center bg-default-50">
         <div className="flex items-center gap-3">
+          {dismiss && (
+            <Button variant="flat" isIconOnly onClick={dismiss} size="sm">
+              <TrashIcon size={16} />
+            </Button>
+          )}
           <Chip
             color="success"
             variant="flat"
@@ -128,6 +140,7 @@ const SQLResults = ({ results, error }: SQLProps) => {
           </span>
         </div>
       </CardHeader>
+      <Divider />
       <CardBody className="p-0">
         {error && (
           <div className="bg-red-100 text-red-600 p-2 rounded">{error}</div>

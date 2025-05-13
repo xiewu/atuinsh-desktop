@@ -349,7 +349,16 @@ const SQL = ({
         </ButtonGroup>
       }
     >
-      <SQLResults results={results} error={error} />
+      {(results || error) && (
+        <SQLResults 
+          results={results} 
+          error={error}
+          dismiss={() => {
+            setResults(null);
+            setError(null);
+          }}
+        />
+      )}
     </Block>
   );
 };

@@ -474,7 +474,7 @@ const ScriptBlock = ({
             </div>
           </div>
 
-          <div className="flex flex-row gap-2 flex-grow w-full">
+          <div className="flex flex-row gap-2 flex-grow w-full overflow-x-auto">
             <Tooltip
               content={shellMissing ? `${script.interpreter} shell not found. This script may not run correctly.` : ""}
               isDisabled={!shellMissing}
@@ -492,21 +492,23 @@ const ScriptBlock = ({
               </div>
             </Tooltip>
 
-            <CodeEditor
-              id={script.id}
-              code={script.code}
-              isEditable={isEditable}
-              language={script.interpreter}
-              theme={theme}
-              onChange={onChange}
-              keyMap={[
-                TabAutoComplete,
-                {
-                  key: "Mod-Enter",
-                  run: handleCmdEnter,
-                },
-              ]}
-            />
+            <div className="min-w-0 flex-1 overflow-x-auto">
+              <CodeEditor
+                id={script.id}
+                code={script.code}
+                isEditable={isEditable}
+                language={script.interpreter}
+                theme={theme}
+                onChange={onChange}
+                keyMap={[
+                  TabAutoComplete,
+                  {
+                    key: "Mod-Enter",
+                    run: handleCmdEnter,
+                  },
+                ]}
+              />
+            </div>
           </div>
         </>
       }

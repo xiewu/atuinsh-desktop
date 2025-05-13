@@ -87,10 +87,10 @@ const VarDisplay = ({ name = "", isEditable, onUpdate }: VarDisplayProps) => {
           />
         </div>
         
-        <div className="flex-1 bg-white dark:bg-slate-900 rounded-md px-4 py-2 border border-blue-200 dark:border-blue-800 font-mono text-sm">
-          {loading ? 
-            <span className="text-gray-500 dark:text-gray-400 animate-pulse">Loading...</span> : 
-            value || <span className="italic text-gray-500 dark:text-gray-400">(empty)</span>}
+        <div className="flex-1 bg-white dark:bg-slate-900 rounded-md px-4 py-2 border border-blue-200 dark:border-blue-800 font-mono text-sm min-h-[2rem] max-h-[6rem] overflow-auto">
+          <div className="w-full transition-opacity duration-200" style={{ opacity: loading ? 0.5 : 1 }}>
+            {value || <span className="italic text-gray-500 dark:text-gray-400">(empty)</span>}
+          </div>
         </div>
       </div>
     </Tooltip>

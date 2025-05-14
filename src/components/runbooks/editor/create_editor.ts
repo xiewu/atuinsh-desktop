@@ -82,8 +82,8 @@ export function createCollaborativeEditor(
     schema,
     _tiptapOptions: {
       editorProps: {
-        scrollThreshold: 80,
-        scrollMargin: 80,
+        scrollThreshold: 200,
+        scrollMargin: 200,
       },
     },
     collaboration: {

@@ -219,6 +219,7 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
       <BlockNoteView
         editor={editor}
         slashMenu={false}
+        className="pb-[200px]"
         sideMenu={false}
         onChange={() => {
           runbookEditor.save(runbook, editor);

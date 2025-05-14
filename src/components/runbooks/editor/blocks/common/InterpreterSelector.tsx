@@ -229,7 +229,7 @@ const InterpreterSelector: React.FC<InterpreterSelectorProps> = ({
               <SelectSection title="Saved">
                 {scriptInterpreters.map(interpreter => (
                   <SelectItem 
-                    key={interpreter.name}
+                    key={interpreter.command}
                     classNames={{ base: "py-1", description: "text-xs opacity-70" }}
                     description={interpreter.command}
                   >

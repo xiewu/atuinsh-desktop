@@ -53,7 +53,7 @@ export default function CodeEditor({
       language.indexOf("bun") != -1 ||
       language.indexOf("deno") != -1
     ) {
-      return langs.python();
+      return langs.javascript();
     }
 
     if (language.indexOf("lua") != -1) {
@@ -71,7 +71,11 @@ export default function CodeEditor({
   const themeObj = (themes as any)[theme];
 
   let editorExtensions: any[] = useMemo(() => {
-    return [...extensions(), editorLanguage, customKeymap];
+    const ext = [...extensions(), customKeymap];
+    if (editorLanguage) {
+      ext.push(editorLanguage);
+    }
+    return ext;
   }, [editorLanguage, customKeymap]);
 
   return (

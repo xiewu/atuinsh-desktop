@@ -4,7 +4,7 @@ import { createReactBlockSpec, useEditorChange, useEditorContentOrSelectionChang
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 
 import { AtuinState, useStore } from "@/state/store.ts";
-import { addToast, Button, Input, Select, SelectItem, Tooltip } from "@heroui/react";
+import { addToast, Button, Input, Tooltip } from "@heroui/react";
 import PlayButton from "../common/PlayButton.tsx";
 import { FileTerminalIcon, Eye, EyeOff, TriangleAlertIcon } from "lucide-react";
 import Block from "../common/Block.tsx";
@@ -35,7 +35,7 @@ import { useBlockDeleted } from "@/lib/buses/editor.ts";
 import { useBlockInserted } from "@/lib/buses/editor.ts";
 import track_event from "@/tracking";
 import { invoke } from "@tauri-apps/api/core";
-import { buildInterpreterCommand } from "../common/InterpreterSelector.tsx";
+import InterpreterSelector, { buildInterpreterCommand, supportedShells } from "../common/InterpreterSelector.tsx";
 
 interface ScriptBlockProps {
   onChange: (val: string) => void;
@@ -51,15 +51,7 @@ interface ScriptBlockProps {
   script: ScriptBlockType;
 }
 
-// Supported shells with their possible paths
-const supportedShells = [
-  { id: "bash", name: "bash", paths: ["/bin/bash"], defaultArgs: "-lc", sshArgs: "-l" },
-  { id: "zsh", name: "zsh", paths: ["/bin/zsh"], defaultArgs: "-lc", sshArgs: "-l" },
-  { id: "fish", name: "fish", paths: ["/usr/bin/fish", "/usr/local/bin/fish", "/opt/homebrew/bin/fish"], defaultArgs: "-c", sshArgs: "" },
-  { id: "python3", name: "python3", paths: ["/usr/bin/python3", "/usr/local/bin/python3"], defaultArgs: "-c", sshArgs: "" },
-  { id: "node", name: "node", paths: ["/usr/bin/node", "/usr/local/bin/node"], defaultArgs: "-e", sshArgs: "" },
-  { id: "sh", name: "sh", paths: ["/bin/sh"], defaultArgs: "-ic", sshArgs: "-i" },
-];
+// Now using the supportedShells from InterpreterSelector
 
 const ScriptBlock = ({
   onChange,
@@ -152,7 +144,7 @@ const ScriptBlock = ({
 
   let interpreterCommand = useMemo(() => {
     return buildInterpreterCommand(script.interpreter, sshParent !== null);
-  }, [script.interpreter, supportedShells, sshParent]);
+  }, [script.interpreter, sshParent]);
 
   // Check which shells are installed
   useEffect(() => {
@@ -163,8 +155,8 @@ const ScriptBlock = ({
         // Check each supported shell
         for (const shell of supportedShells) {
           // Skip bash and sh as they're always available
-          if (shell.id === "bash" || shell.id === "sh") {
-            shellStatus[shell.id] = true;
+          if (shell.name === "bash" || shell.name === "sh") {
+            shellStatus[shell.name] = true;
             continue;
           }
 
@@ -182,7 +174,7 @@ const ScriptBlock = ({
             }
           }
 
-          shellStatus[shell.id] = found;
+          shellStatus[shell.name] = found;
         }
 
         setAvailableShells(shellStatus);
@@ -433,31 +425,12 @@ const ScriptBlock = ({
                 onValueChange={(val) => setOutputVariable(val)}
               />
 
-              <Select
+              <InterpreterSelector
+                interpreter={script.interpreter}
+                onInterpreterChange={setInterpreter}
                 size="sm"
                 variant="flat"
-                selectionMode="single"
-                className="max-w-[250px]"
-                selectedKeys={[script.interpreter]}
-                onSelectionChange={(e) => {
-                  if (!e.currentKey) return;
-                  setInterpreter(e.currentKey);
-                }}
-              >
-                {supportedShells.map(shell => {
-                  // Always show bash and sh, or any shell that's available, or the current selected shell
-                  const shouldShow = shell.id === "bash" ||
-                    shell.id === "sh" ||
-                    availableShells[shell.id] ||
-                    script.interpreter === shell.id;
-
-                  return shouldShow ? (
-                    <SelectItem key={shell.id} aria-label={shell.name}>
-                      {shell.name}
-                    </SelectItem>
-                  ) : null;
-                })}
-              </Select>
+              />
 
               <Tooltip
                 content={script.outputVisible ? "Hide output terminal" : "Show output terminal"}

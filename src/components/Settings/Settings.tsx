@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-shell";
+import { PlusIcon, TrashIcon } from "lucide-react";
 import {
   Autocomplete,
   AutocompleteItem,
@@ -347,6 +348,40 @@ const GeneralSettings = () => {
 
 const RunbookSettings = () => {
   const fonts = usePromise(loadFonts());
+  const [scriptInterpreters, setScriptInterpreters] = useState<Array<{command: string; name: string}>>([]);
+  const [newInterpreterName, setNewInterpreterName] = useState('');
+  const [newInterpreterCommand, setNewInterpreterCommand] = useState('');
+
+  // Load script interpreters
+  useEffect(() => {
+    Settings.scriptInterpreters().then(interpreters => {
+      setScriptInterpreters(interpreters);
+    });
+  }, []);
+
+  // Save script interpreters
+  const saveScriptInterpreters = (interpreters: Array<{command: string; name: string}>) => {
+    setScriptInterpreters(interpreters);
+    Settings.setScriptInterpreters(interpreters);
+  };
+
+  const addScriptInterpreter = () => {
+    if (!newInterpreterCommand || !newInterpreterName) return;
+    
+    const newInterpreters = [...scriptInterpreters, { 
+      name: newInterpreterName,
+      command: newInterpreterCommand 
+    }];
+    
+    saveScriptInterpreters(newInterpreters);
+    setNewInterpreterCommand('');
+    setNewInterpreterName('');
+  };
+
+  const removeScriptInterpreter = (command: string) => {
+    const newInterpreters = scriptInterpreters.filter(i => i.command !== command);
+    saveScriptInterpreters(newInterpreters);
+  };
 
   const [terminalFont, setTerminalFont, fontLoading] = useSettingsState(
     "terminal_font",
@@ -419,6 +454,56 @@ const RunbookSettings = () => {
             placeholder="/bin/bash, /bin/zsh, /usr/bin/fish"
             description="Leave empty to use your default shell"
           />
+        </CardBody>
+      </Card>
+
+      <Card shadow="sm">
+        <CardBody className="flex flex-col gap-4">
+          <h2 className="text-xl font-semibold">Script</h2>
+          <p className="text-sm text-default-500">Add custom script interpreters for use in script blocks</p>
+          
+          <div className="flex flex-col gap-3">
+            {scriptInterpreters.map((interpreter) => (
+              <div key={interpreter.command} className="flex items-center justify-between p-2 border rounded-md">
+                <div>
+                  <div className="font-medium">{interpreter.name}</div>
+                  <div className="text-small text-default-500">{interpreter.command}</div>
+                </div>
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="light"
+                  color="danger"
+                  onPress={() => removeScriptInterpreter(interpreter.command)}
+                >
+                  <TrashIcon size={16} />
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-row gap-2 mt-2">
+            <Input
+              placeholder="Display name (e.g., Ruby)"
+              value={newInterpreterName}
+              onValueChange={setNewInterpreterName}
+              size="sm"
+            />
+            <Input
+              placeholder="Command (e.g., /usr/bin/ruby -e)"
+              value={newInterpreterCommand}
+              onValueChange={setNewInterpreterCommand}
+              size="sm"
+            />
+            <Button
+              isIconOnly
+              color="primary"
+              onPress={addScriptInterpreter}
+              isDisabled={!newInterpreterCommand || !newInterpreterName}
+            >
+              <PlusIcon size={16} />
+            </Button>
+          </div>
         </CardBody>
       </Card>
 

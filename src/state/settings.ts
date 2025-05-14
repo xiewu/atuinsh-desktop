@@ -5,6 +5,7 @@ const TERMINAL_FONT = "settings.runbooks.terminal.font";
 const TERMINAL_FONT_SIZE = "settings.runbooks.terminal.font_size";
 const TERMINAL_GL = "settings.runbooks.terminal.gl";
 const TERMINAL_SHELL = "settings.runbooks.terminal.shell";
+const SCRIPT_INTERPRETERS = "settings.runbooks.script.interpreters";
 
 export class Settings {
   public static DEFAULT_FONT = "FiraCode";
@@ -63,5 +64,16 @@ export class Settings {
     }
 
     return await store.get(TERMINAL_SHELL);
+  }
+
+  public static async scriptInterpreters(): Promise<Array<{command: string; name: string}>> {
+    let store = await KVStore.open_default();
+    const interpreters = await store.get<Array<{command: string; name: string}>>(SCRIPT_INTERPRETERS);
+    return interpreters || [];
+  }
+
+  public static async setScriptInterpreters(interpreters: Array<{command: string; name: string}>): Promise<void> {
+    let store = await KVStore.open_default();
+    await store.set(SCRIPT_INTERPRETERS, interpreters);
   }
 }

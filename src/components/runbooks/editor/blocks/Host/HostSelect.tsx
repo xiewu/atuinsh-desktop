@@ -6,7 +6,7 @@ import { HomeIcon } from "lucide-react";
 
 // @ts-ignore
 import { createReactBlockSpec } from "@blocknote/react";
-import { insertOrUpdateBlock } from "@blocknote/core";
+
 import { useEffect } from "react";
 import EditorBus from "@/lib/buses/editor";
 import track_event from "@/tracking";
@@ -79,9 +79,15 @@ export const insertHostSelect = (schema: any) => (editor: typeof schema.BlockNot
   onItemClick: () => {
     track_event("runbooks.block.create", { type: "host-select" });
     
-    insertOrUpdateBlock(editor, {
-      type: "host-select",
-    });
+    editor.insertBlocks(
+      [
+        {
+          type: "host-select",
+        },
+      ],
+      editor.getTextCursorPosition().block.id,
+      "before",
+    );
   },
   icon: <HomeIcon size={18} />,
   group: "Network",

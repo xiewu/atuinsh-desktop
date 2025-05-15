@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Input, Tooltip, Button } from "@heroui/react";
 import { CloudOffIcon, LockIcon } from "lucide-react";
 import { createReactBlockSpec } from "@blocknote/react";
-import { insertOrUpdateBlock } from "@blocknote/core";
 import { invoke } from "@tauri-apps/api/core";
 import { useStore } from "@/state/store";
 import track_event from "@/tracking";
@@ -159,9 +158,15 @@ export const insertLocalVar = (schema: any) => (editor: typeof schema.BlockNoteE
   onItemClick: () => {
     track_event("runbooks.block.create", { type: "local-var" });
 
-    insertOrUpdateBlock(editor, {
-      type: "local-var",
-    });
+    editor.insertBlocks(
+      [
+        {
+          type: "local-var",
+        },
+      ],
+      editor.getTextCursorPosition().block.id,
+      "before",
+    );
   },
   icon: <LockIcon size={18} />,
   group: "Execute", // Match the group of regular var component

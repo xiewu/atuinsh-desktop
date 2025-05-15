@@ -2,7 +2,7 @@ import { DatabaseIcon } from "lucide-react";
 
 // @ts-ignore
 import { createReactBlockSpec } from "@blocknote/react";
-import { insertOrUpdateBlock } from "@blocknote/core";
+
 import { langs } from "@uiw/codemirror-extensions-langs";
 
 import { runQuery } from "./query";
@@ -142,13 +142,19 @@ export const insertPostgres = (schema: any) => (editor: typeof schema.BlockNoteE
     let postgresBlocks = editor.document.filter((block: any) => block.type === "postgres");
     let name = `PostgreSQL ${postgresBlocks.length + 1}`;
 
-    insertOrUpdateBlock(editor, {
-      type: "postgres",
-      // @ts-ignore
-      props: {
-        name: name,
-      },
-    });
+    editor.insertBlocks(
+      [
+        {
+          type: "postgres",
+          // @ts-ignore
+          props: {
+            name: name,
+          },
+        },
+      ],
+      editor.getTextCursorPosition().block.id,
+      "before",
+    );
   },
   icon: <DatabaseIcon size={18} />,
   group: "Database",

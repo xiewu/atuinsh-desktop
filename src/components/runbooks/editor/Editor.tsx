@@ -2,7 +2,7 @@ import "./index.css";
 
 import { Spinner } from "@heroui/react";
 
-import { filterSuggestionItems, insertOrUpdateBlock } from "@blocknote/core";
+import { filterSuggestionItems } from "@blocknote/core";
 
 import {
   SuggestionMenuController,
@@ -56,12 +56,18 @@ const insertTerminal = (editor: typeof schema.BlockNoteEditor) => ({
     let terminalBlocks = editor.document.filter((block) => block.type === "run");
     let name = `Terminal ${terminalBlocks.length + 1}`;
 
-    insertOrUpdateBlock(editor, {
-      type: "run",
-      props: {
-        name,
-      },
-    });
+    editor.insertBlocks(
+      [
+        {
+          type: "run",
+          props: {
+            name,
+          },
+        },
+      ],
+      editor.getTextCursorPosition().block.id,
+      "before",
+    );
   },
   icon: <CodeIcon size={18} />,
   aliases: ["terminal", "run"],
@@ -74,9 +80,15 @@ const insertDirectory = (editor: typeof schema.BlockNoteEditor) => ({
   onItemClick: () => {
     track_event("runbooks.block.create", { type: "directory" });
 
-    insertOrUpdateBlock(editor, {
-      type: "directory",
-    });
+    editor.insertBlocks(
+      [
+        {
+          type: "directory",
+        },
+      ],
+      editor.getTextCursorPosition().block.id,
+      "before",
+    );
   },
   icon: <FolderOpenIcon size={18} />,
   aliases: ["directory", "dir", "folder"],
@@ -88,9 +100,16 @@ const insertEnv = (editor: typeof schema.BlockNoteEditor) => ({
   subtext: "Set environment variable for all subsequent code blocks",
   onItemClick: () => {
     track_event("runbooks.block.create", { type: "env" });
-    insertOrUpdateBlock(editor, {
-      type: "env",
-    });
+
+    editor.insertBlocks(
+      [
+        {
+          type: "env",
+        },
+      ],
+      editor.getTextCursorPosition().block.id,
+      "before",
+    );
   },
   icon: <VariableIcon size={18} />,
   aliases: ["env", "environment", "variable"],
@@ -103,9 +122,15 @@ const insertVar = (editor: typeof schema.BlockNoteEditor) => ({
   onItemClick: () => {
     track_event("runbooks.block.create", { type: "var" });
 
-    insertOrUpdateBlock(editor, {
-      type: "var",
-    });
+    editor.insertBlocks(
+      [
+        {
+          type: "var",
+        },
+      ],
+      editor.getTextCursorPosition().block.id,
+      "before",
+    );
   },
   icon: <TextCursorInputIcon size={18} />,
   aliases: ["var", "template", "variable"],
@@ -118,9 +143,15 @@ const insertVarDisplay = (editor: typeof schema.BlockNoteEditor) => ({
   onItemClick: () => {
     track_event("runbooks.block.create", { type: "var_display" });
 
-    insertOrUpdateBlock(editor, {
-      type: "var_display",
-    });
+    editor.insertBlocks(
+      [
+        {
+          type: "var_display",
+        },
+      ],
+      editor.getTextCursorPosition().block.id,
+      "before",
+    );
   },
   icon: <EyeIcon size={18} />,
   aliases: ["show", "display", "view", "variable"],

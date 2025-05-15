@@ -2,7 +2,7 @@ import { DatabaseIcon } from "lucide-react";
 
 // @ts-ignore
 import { createReactBlockSpec } from "@blocknote/react";
-import { insertOrUpdateBlock } from "@blocknote/core";
+
 
 import { runQuery } from "./query";
 import SQL from "../common/SQL";
@@ -146,13 +146,19 @@ export const insertClickhouse = (schema: any) => (editor: typeof schema.BlockNot
     let clickhouseBlocks = editor.document.filter((block: any) => block.type === "clickhouse");
     let name = `Clickhouse ${clickhouseBlocks.length + 1}`;
 
-    insertOrUpdateBlock(editor, {
-      type: "clickhouse",
-      // @ts-ignore
-      props: {
-        name: name,
-      },
-    });
+    editor.insertBlocks(
+      [
+        {
+          type: "clickhouse",
+          // @ts-ignore
+          props: {
+            name: name,
+          },
+        },
+      ],
+      editor.getTextCursorPosition().block.id,
+      "before",
+    );
   },
   icon: <DatabaseIcon size={18} />,
   group: "Database",

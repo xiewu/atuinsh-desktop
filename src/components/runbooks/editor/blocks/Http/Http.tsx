@@ -7,7 +7,7 @@ import { langs } from "@uiw/codemirror-extensions-langs";
 
 // @ts-ignore
 import { createReactBlockSpec, useBlockNoteEditor } from "@blocknote/react";
-import { insertOrUpdateBlock } from "@blocknote/core";
+
 import PlayButton from "../common/PlayButton";
 import HttpResponse from "./HttpResponse";
 import HttpVerbDropdown from "./VerbDropdown";
@@ -346,13 +346,19 @@ export const insertHttp = (schema: any) => (editor: typeof schema.BlockNoteEdito
     let httpBlocks = editor.document.filter((block: any) => block.type === "http");
     let name = `HTTP ${httpBlocks.length + 1}`;
 
-    insertOrUpdateBlock(editor, {
-      type: "http",
-      // @ts-ignore
-      props: {
-        name: name,
-      },
-    });
+    editor.insertBlocks(
+      [
+        {
+          type: "http",
+          // @ts-ignore
+          props: {
+            name: name,
+          },
+        },
+      ],
+      editor.getTextCursorPosition().block.id,
+      "before",
+    );
   },
   icon: <GlobeIcon size={18} />,
   group: "Network",

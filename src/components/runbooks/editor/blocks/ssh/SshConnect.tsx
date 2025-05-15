@@ -6,7 +6,7 @@ import { GlobeIcon } from "lucide-react";
 
 // @ts-ignore
 import { createReactBlockSpec } from "@blocknote/react";
-import { insertOrUpdateBlock } from "@blocknote/core";
+
 import { sshConnect } from "./ssh";
 import EditorBus from "@/lib/buses/editor";
 import { useEffect } from "react";
@@ -105,9 +105,15 @@ export const insertSshConnect = (schema: any) => (editor: typeof schema.BlockNot
   onItemClick: () => {
     track_event("runbooks.block.create", { type: "ssh-connect" });
     
-    insertOrUpdateBlock(editor, {
-      type: "ssh-connect",
-    });
+    editor.insertBlocks(
+      [
+        {
+          type: "ssh-connect",
+        },
+      ],
+      editor.getTextCursorPosition().block.id,
+      "before",
+    );
   },
   icon: <GlobeIcon size={18} />,
   group: "Network",

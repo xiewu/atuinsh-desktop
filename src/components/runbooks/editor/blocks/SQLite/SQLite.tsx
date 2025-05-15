@@ -4,7 +4,7 @@ import "@glideapps/glide-data-grid/dist/index.css";
 
 // @ts-ignore
 import { createReactBlockSpec } from "@blocknote/react";
-import { insertOrUpdateBlock } from "@blocknote/core";
+
 
 import { runQuery } from "./query";
 import SQL from "../common/SQL";
@@ -142,13 +142,19 @@ export const insertSQLite = (schema: any) => (editor: typeof schema.BlockNoteEdi
     let sqliteBlocks = editor.document.filter((block: any) => block.type === "sqlite"); 
     let name = `SQLite ${sqliteBlocks.length + 1}`;
 
-    insertOrUpdateBlock(editor, {
-      type: "sqlite",
-      // @ts-ignore
-      props: {
-        name: name,
-      },
-    });
+    editor.insertBlocks(
+      [
+        {
+          type: "sqlite",
+          // @ts-ignore
+          props: {
+            name: name,
+          },
+        },
+      ],
+      editor.getTextCursorPosition().block.id,
+      "before",
+    );
   },
   icon: <DatabaseIcon size={18} />,
   group: "Database",

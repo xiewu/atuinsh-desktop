@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 
 // @ts-ignore
 import { createReactBlockSpec } from "@blocknote/react";
-import { insertOrUpdateBlock } from "@blocknote/core";
+
 import * as themes from "@uiw/codemirror-themes-all";
 import * as LanguageData from "@codemirror/language-data";
 import EditorBlockType from "@/lib/workflow/blocks/editor.ts";
@@ -277,13 +277,19 @@ export const insertEditor = (schema: any) => (editor: typeof schema.BlockNoteEdi
     let editorBlocks = editor.document.filter((block: any) => block.type === "editor");
     let name = `Editor ${editorBlocks.length + 1}`;
 
-    insertOrUpdateBlock(editor, {
-      type: "editor",
-      // @ts-ignore
-      props: {
-        name: name,
-      },
-    });
+    editor.insertBlocks(
+      [
+        {
+          type: "editor",
+          // @ts-ignore
+          props: {
+            name: name,
+          },
+        },
+      ],
+      editor.getTextCursorPosition().block.id,
+      "before",
+    );
   },
   icon: <CodeIcon size={18} />,
   group: "Misc",

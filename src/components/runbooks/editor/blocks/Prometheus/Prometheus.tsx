@@ -23,7 +23,7 @@ import { useInterval } from "usehooks-ts";
 import { createReactBlockSpec, useBlockNoteEditor } from "@blocknote/react";
 
 // @ts-ignore
-import { insertOrUpdateBlock } from "@blocknote/core";
+
 
 import { PromLineChart } from "./lineChart";
 import PromSettings, { PrometheusConfig } from "./promSettings";
@@ -420,13 +420,19 @@ export const insertPrometheus = (schema: any) => (editor: typeof schema.BlockNot
     let prometheusBlocks = editor.document.filter((block: any) => block.type === "prometheus");
     let name = `Prometheus ${prometheusBlocks.length + 1}`;
 
-    insertOrUpdateBlock(editor, {
-      type: "prometheus",
-      // @ts-ignore
-      props: {
-        name: name,
-      },
-    });
+    editor.insertBlocks(
+      [
+        {
+          type: "prometheus",
+          // @ts-ignore
+          props: {
+            name: name,
+          },
+        },
+      ],
+      editor.getTextCursorPosition().block.id,
+      "before",
+    );
   },
   icon: <LineChartIcon size={18} />,
   aliases: ["prom", "promql", "grafana"],

@@ -11,7 +11,7 @@ import {
 } from "@heroui/react";
 import { ListFilterIcon } from "lucide-react";
 import { createReactBlockSpec } from "@blocknote/react";
-import { insertOrUpdateBlock } from "@blocknote/core";
+
 import { invoke } from "@tauri-apps/api/core";
 import { useStore } from "@/state/store";
 import track_event from "@/tracking";
@@ -493,9 +493,15 @@ export const insertDropdown = (schema: any) => (editor: typeof schema.BlockNoteE
     onItemClick: () => {
         track_event("runbooks.block.create", { type: "dropdown" });
 
-        insertOrUpdateBlock(editor, {
-            type: "dropdown",
-        });
+        editor.insertBlocks(
+        [
+            {
+          type: "dropdown",
+        },
+      ],
+      editor.getTextCursorPosition().block.id,
+      "before",
+    );
     },
     icon: <ListFilterIcon size={18} />,
     group: "Execute", // Match the group of regular var component

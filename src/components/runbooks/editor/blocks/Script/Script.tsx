@@ -9,7 +9,7 @@ import PlayButton from "../common/PlayButton.tsx";
 import { FileTerminalIcon, Eye, EyeOff, TriangleAlertIcon } from "lucide-react";
 import Block from "../common/Block.tsx";
 import EditableHeading from "@/components/EditableHeading/index.tsx";
-import { insertOrUpdateBlock } from "@blocknote/core";
+
 import { uuidv7 } from "uuidv7";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 
@@ -622,13 +622,19 @@ export const insertScript = (schema: any) => (editor: typeof schema.BlockNoteEdi
     let scriptBlocks = editor.document.filter((block: any) => block.type === "script");
     let name = `Script ${scriptBlocks.length + 1}`;
 
-    insertOrUpdateBlock(editor, {
-      type: "script",
-      // @ts-ignore
-      props: {
-        name: name,
-      },
-    });
+    editor.insertBlocks(
+      [
+        {
+          type: "script",
+          // @ts-ignore
+          props: {
+            name: name,
+          },
+        },
+      ],
+      editor.getTextCursorPosition().block.id,
+      "before",
+    );
   },
   icon: <FileTerminalIcon size={18} />,
   group: "Execute",

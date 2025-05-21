@@ -51,7 +51,11 @@ export default class SocketManager extends Emittery {
 
   public onConnect(callback: (socket: Socket) => void) {
     if (this.isConnected()) {
-      callback(this.socket);
+      // Defer the callback to allow other handlers to be set up
+      // before handling the connection event.
+      setTimeout(() => {
+        callback(this.socket);
+      }, 0);
     }
 
     return this.on("connect", callback);

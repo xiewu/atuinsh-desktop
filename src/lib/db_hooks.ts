@@ -14,6 +14,7 @@ import {
   allLegacyWorkspaces,
   allWorkspaces,
   legacyWorkspaceById,
+  orgWorkspaces,
   userOwnedWorkspaces,
   workspaceById,
 } from "./queries/workspaces";
@@ -28,6 +29,8 @@ export type Action = "create" | "update" | "delete";
 export async function dbHook(kind: Model, action: Action, model: any) {
   invalidateQueryKeys(kind, action, model);
 
+  // TODO: these should only be fired by user action, not by server events
+  // So we'll need to move this out of db hooks
   if (kind === "runbook" && action === "delete") {
     model = model as Runbook;
     const op = new Operation({ operation: { type: "runbook_deleted", runbookId: model.id } });
@@ -41,6 +44,7 @@ export async function dbHook(kind: Model, action: Action, model: any) {
     });
     op.save();
 
+    // This, however, should remain in the db hook
     const runbooks = await Runbook.allFromWorkspace(model.get("id")!);
     const promises = runbooks.map(async (runbook) => {
       // post-delete runbook operations will delete remote runbook
@@ -62,11 +66,7 @@ export function invalidateQueryKeys(kind: Model, action: Action, model: any) {
   });
 }
 
-function getQueryKeys(
-  kind: Model,
-  action: Action,
-  model: any,
-): InvalidateQueryFilters<any, any, any, any>[] {
+function getQueryKeys(kind: Model, action: Action, model: any): InvalidateQueryFilters<any>[] {
   switch (kind) {
     case "runbook":
       return getRunbookQueryKeys(action, model as Runbook);
@@ -79,10 +79,7 @@ function getQueryKeys(
   }
 }
 
-function getRunbookQueryKeys(
-  action: Action,
-  model: Runbook,
-): InvalidateQueryFilters<any, any, any, any>[] {
+function getRunbookQueryKeys(action: Action, model: Runbook): InvalidateQueryFilters<any>[] {
   switch (action) {
     case "create":
       return [
@@ -104,6 +101,7 @@ function getRunbookQueryKeys(
       return [
         allRunbookIds(),
         allRunbooks(),
+        runbookById(model.id),
         runbooksByLegacyWorkspaceId(model.legacyWorkspaceId),
         allLegacyWorkspaces(),
         runbooksByWorkspaceId(model.workspaceId),
@@ -114,7 +112,7 @@ function getRunbookQueryKeys(
 function getLegacyWorkspaceQueryKeys(
   action: Action,
   model: LegacyWorkspace,
-): InvalidateQueryFilters<any, any, any, any>[] {
+): InvalidateQueryFilters<any>[] {
   switch (action) {
     case "create":
       return [allLegacyWorkspaces()];
@@ -125,24 +123,36 @@ function getLegacyWorkspaceQueryKeys(
   }
 }
 
-function getWorkspaceQueryKeys(
-  action: Action,
-  model: Workspace,
-): InvalidateQueryFilters<any, any, any, any>[] {
+function getWorkspaceQueryKeys(action: Action, model: Workspace): InvalidateQueryFilters<any>[] {
+  const isOrgWorkspace = !!model.get("orgId");
+
   switch (action) {
     case "create":
-      return [allWorkspaces(), userOwnedWorkspaces()];
+      if (isOrgWorkspace) {
+        return [allWorkspaces(), userOwnedWorkspaces()];
+      } else {
+        return [allWorkspaces(), orgWorkspaces(model.get("orgId")!)];
+      }
     case "update":
-      return [allWorkspaces(), userOwnedWorkspaces(), workspaceById(model.get("id")!)];
+      if (isOrgWorkspace) {
+        return [allWorkspaces(), userOwnedWorkspaces(), workspaceById(model.get("id")!)];
+      } else {
+        return [
+          allWorkspaces(),
+          orgWorkspaces(model.get("orgId")!),
+          workspaceById(model.get("id")!),
+        ];
+      }
     case "delete":
-      return [allWorkspaces(), userOwnedWorkspaces()];
+      if (isOrgWorkspace) {
+        return [allWorkspaces(), userOwnedWorkspaces()];
+      } else {
+        return [allWorkspaces(), orgWorkspaces(model.get("orgId")!)];
+      }
   }
 }
 
-function getSnapshotQueryKeys(
-  action: Action,
-  model: Snapshot,
-): InvalidateQueryFilters<any, any, any, any>[] {
+function getSnapshotQueryKeys(action: Action, model: Snapshot): InvalidateQueryFilters<any>[] {
   switch (action) {
     case "create":
       return [snapshotsByRunbook(model.runbook_id)];

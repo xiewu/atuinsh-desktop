@@ -5,8 +5,8 @@ import { NodeRendererProps } from "react-arborist";
 import { useStore } from "@/state/store";
 import { usePtyStore } from "@/state/ptyStore";
 import { useRef } from "react";
-import Runbook from "@/state/runbooks/runbook";
 import { RemoteRunbook } from "@/state/models";
+import { useRunbook } from "@/lib/useRunbook";
 
 export interface RunbookRowData {
   type: "runbook";
@@ -15,7 +15,7 @@ export interface RunbookRowData {
 }
 
 export interface RunbookTreeRowProps extends NodeRendererProps<RunbookRowData> {
-  runbook: Runbook;
+  runbookId: string;
   onContextMenu: (evt: React.MouseEvent<HTMLDivElement>, itemId: string) => void;
 }
 
@@ -25,6 +25,7 @@ export default function RunbookTreeRow(props: RunbookTreeRowProps) {
   const sidebarClickStyle = useStore((state) => state.sidebarClickStyle);
   const currentRunbookId = useStore((state) => state.currentRunbookId);
   const isActive = currentRunbookId === props.node.id;
+  const runbook = useRunbook(props.runbookId);
 
   let lastClick = useRef<number>(0);
 
@@ -79,8 +80,8 @@ export default function RunbookTreeRow(props: RunbookTreeRowProps) {
   let hubRunbookNotOwnedAndNoPermission = false;
   let RunbookIcon = BookTextIcon;
 
-  if (props.runbook && props.runbook.remoteInfo) {
-    const remoteInfo: RemoteRunbook = JSON.parse(props.runbook.remoteInfo);
+  if (runbook && runbook.remoteInfo) {
+    const remoteInfo: RemoteRunbook = JSON.parse(runbook.remoteInfo);
     hubRunbookOwnedByUser = usernameFromNwo(remoteInfo.nwo) === useStore.getState().user?.username;
     hubRunbookNotOwnedButHasPermission =
       !hubRunbookOwnedByUser && remoteInfo.permissions.includes("update_content");
@@ -141,11 +142,12 @@ export default function RunbookTreeRow(props: RunbookTreeRowProps) {
           </span>
           <span
             className={cn("font-normal", {
-              "font-semibold": props.runbook && !props.runbook.viewed_at,
-              "text-gray-900 dark:text-gray-100": props.runbook && !props.runbook.viewed_at,
+              "font-semibold": runbook && !runbook.viewed_at,
+              "text-gray-900 dark:text-gray-100": runbook && !runbook.viewed_at,
             })}
           >
-            {(props.runbook && props.runbook.name) || "Untitled"}
+            {!runbook && <span className="italic">Loading...</span>}
+            {runbook && (runbook.name || "Untitled")}
           </span>
         </h3>
         <div className="flex items-center">

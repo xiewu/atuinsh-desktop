@@ -38,6 +38,18 @@ export default class Logger {
     return [`%c[${this.name}]`, `color: ${this.color}`];
   }
 
+  disable() {
+    ["log", "warn", "error", "debug", "info"].forEach((method) => {
+      (this as any)[method] = () => {};
+    });
+  }
+
+  enable() {
+    ["log", "warn", "error", "debug", "info"].forEach((method) => {
+      (this as any)[method] = (console as any)[method].bind(console, ...this.header());
+    });
+  }
+
   log(..._args: any[]) {}
   warn(..._args: any[]) {}
   error(..._args: any[]) {}

@@ -26,6 +26,11 @@ export async function getWorkspaces(): Promise<ServerWorkspace[]> {
   return workspaces;
 }
 
+export async function getWorkspace(workspaceId: string): Promise<ServerWorkspace | null> {
+  const { workspace } = await get<{ workspace: ServerWorkspace }>(`/workspaces/${workspaceId}`);
+  return workspace;
+}
+
 export function createUserWorkspace(id: string, name: string) {
   return post("/workspaces", {
     type: "user",
@@ -60,7 +65,7 @@ type WorkspaceParams = {
 };
 
 export function updateWorkspace(workspaceId: string, params: WorkspaceParams) {
-  return post(`/workspaces/${workspaceId}`, { workspace: params });
+  return put(`/workspaces/${workspaceId}`, { workspace: params });
 }
 
 export type WorkspaceFolderOperation =

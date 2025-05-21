@@ -23,6 +23,12 @@ export class User {
   }
 }
 
+export interface UserOrg {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 export const DefaultUser: User = new User("Anonymous User", "anon", "An anonymous user", "");
 
 export interface HomeInfo {
@@ -135,6 +141,12 @@ export interface RemoteUser {
   username: string;
 }
 
+export interface RemoteOrg {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 interface RemoteSnapshot {
   id: string;
   tag: string;
@@ -149,6 +161,16 @@ interface RemoteCollaboration {
   user: RemoteUser;
 }
 
+type RemoteOwner =
+  | {
+      type: "user";
+      user: RemoteUser;
+    }
+  | {
+      type: "org";
+      org: RemoteOrg;
+    };
+
 export interface RemoteRunbook {
   id: string;
   name: string;
@@ -156,7 +178,7 @@ export interface RemoteRunbook {
   nwo: string;
   visibility: "public" | "private" | "unlisted";
   client_created: string;
-  user: RemoteUser;
+  owner: RemoteOwner;
   workspace_id: string;
   snapshots: RemoteSnapshot[];
   collaborations: RemoteCollaboration[];

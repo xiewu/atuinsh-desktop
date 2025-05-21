@@ -77,7 +77,7 @@ pub(crate) async fn create_main_window(app: &AppHandle) -> Result<(), String> {
 
     let mut query_elems: Vec<(&str, String)> = vec![
         ("os", get_os()),
-        ("devPrefix", dev_prefix.unwrap_or("dev".to_string())),
+        ("devPrefix", dev_prefix.clone().unwrap_or("dev".to_string())),
     ];
 
     if std::env::var("NO_SYNC").is_ok() {
@@ -92,8 +92,14 @@ pub(crate) async fn create_main_window(app: &AppHandle) -> Result<(), String> {
 
     let app_url = WebviewUrl::App(format!("index.html?{}", query_string).into());
 
+    let title = if dev_prefix.is_some() && dev_prefix.as_ref().unwrap() != "dev" {
+        format!("Atuin - {}", dev_prefix.unwrap())
+    } else {
+        "Atuin".to_string()
+    };
+
     let mut builder = WebviewWindowBuilder::new(app, "main", app_url)
-        .title("Atuin")
+        .title(title)
         .resizable(true)
         .fullscreen(false)
         .disable_drag_drop_handler()
@@ -114,6 +120,9 @@ pub(crate) async fn create_main_window(app: &AppHandle) -> Result<(), String> {
     };
 
     let window = builder.build().unwrap();
+    if std::env::var("DEVTOOLS").is_ok() {
+        window.open_devtools();
+    }
 
     // For some reason, setting the window positions directly results in different
     // results than passing the values into the builder options.

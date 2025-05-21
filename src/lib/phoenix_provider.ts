@@ -4,7 +4,7 @@ import * as awarenessProtocol from "y-protocols/awareness";
 import SocketManager, { WrappedChannel } from "../socket";
 import Logger from "@/lib/logger";
 import Emittery from "emittery";
-import SyncManager from "./sync/sync_manager";
+import WorkspaceSyncManager from "./sync/workspace_sync_manager";
 import { timeoutPromise } from "./utils";
 import { autobind } from "./decorators";
 
@@ -23,7 +23,7 @@ export type SyncType = "online" | "offline" | "timeout" | "error";
  * @emits `"synced", SyncType ("online" | "offline" | "timeout" | "error")`
  */
 export class PhoenixSynchronizer extends Emittery {
-  public static instances = 0;
+  public static instanceCount = 0;
 
   protected connected: boolean;
   protected _channel: WrappedChannel | null = null;
@@ -40,17 +40,23 @@ export class PhoenixSynchronizer extends Emittery {
 
   constructor(runbookId: string, doc: Y.Doc, requireLock: boolean = true, isProvider = false) {
     super();
-    PhoenixSynchronizer.instances++;
+
+    this.runbookId = runbookId;
+    this.doc = doc;
+    this.awareness = new awarenessProtocol.Awareness(this.doc);
+    this.requireLock = requireLock;
+
+    PhoenixSynchronizer.instanceCount++;
     if (isProvider) {
       this.logger = new Logger(
-        `PhoenixProvider (${runbookId}) - #${PhoenixSynchronizer.instances}`,
+        `PhoenixProvider (${runbookId}) - #${PhoenixSynchronizer.instanceCount}`,
         "blue",
         "cyan",
       );
       this.logger.debug("Creating new provider instance");
     } else {
       this.logger = new Logger(
-        `PhoenixSynchronizer (${runbookId}) - #${PhoenixSynchronizer.instances}`,
+        `PhoenixSynchronizer (${runbookId}) - #${PhoenixSynchronizer.instanceCount}`,
         "blue",
         "cyan",
       );
@@ -61,11 +67,6 @@ export class PhoenixSynchronizer extends Emittery {
     this.subscriptions.push(manager.onConnect(this.onSocketConnected));
     this.subscriptions.push(manager.onDisconnect(this.onSocketDisconnected));
     this.connected = manager.isConnected();
-
-    this.runbookId = runbookId;
-    this.doc = doc;
-    this.awareness = new awarenessProtocol.Awareness(this.doc);
-    this.requireLock = requireLock;
 
     setTimeout(() => this.init());
   }
@@ -85,9 +86,8 @@ export class PhoenixSynchronizer extends Emittery {
   init() {
     if (this.isShutdown) return;
 
-    if (this.connected) {
-      this.onSocketConnected();
-    } else {
+    if (!this.connected) {
+      // onSocketConnected will be called immediately if the socket is already connected
       this.logger.debug("Socket disconnected; starting in offline mode");
       this.startOffline();
     }
@@ -115,6 +115,13 @@ export class PhoenixSynchronizer extends Emittery {
         this.logger.error("Failed to join doc channel", JSON.stringify(err));
         this.logger.debug("Starting in offline mode");
         this.startOffline();
+
+        this.channel.nextJoin().then(() => {
+          if (!this.isShutdown && !this.isSyncing) {
+            this.logger.debug("Joined doc channel; resyncing");
+            this.resync();
+          }
+        });
       }
     } else {
       this.resync();
@@ -139,7 +146,7 @@ export class PhoenixSynchronizer extends Emittery {
     this.isSyncing = true;
     if (this.requireLock) {
       this.logger.debug("Acquiring sync lock...");
-      this.unlock = await SyncManager.syncMutex(this.runbookId).lock();
+      this.unlock = await WorkspaceSyncManager.syncMutex(this.runbookId).lock();
       if (this.isShutdown) {
         this.unlock();
         this.unlock = null;
@@ -170,7 +177,9 @@ export class PhoenixSynchronizer extends Emittery {
     }
   }
 
-  async doResync() {
+  private async doResync(): Promise<boolean> {
+    if (this.isShutdown) return false;
+
     try {
       await this.channel.ensureJoined();
     } catch (err: any) {
@@ -208,7 +217,7 @@ export class PhoenixSynchronizer extends Emittery {
 
     this.logger.debug("Shutting down");
     this.isShutdown = true;
-    PhoenixSynchronizer.instances--;
+    PhoenixSynchronizer.instanceCount--;
     if (this.unlock) {
       this.unlock();
     }
@@ -252,7 +261,14 @@ export default class PhoenixProvider extends PhoenixSynchronizer {
     this.scheduledEmitAfterSync = true;
     this.once("synced").then(() => {
       if (this.pendingUpdate) {
-        Y.applyUpdate(this.doc, this.pendingUpdate, this);
+        try {
+          Y.applyUpdate(this.doc, this.pendingUpdate, this);
+        } catch (err) {
+          this.logger.error("Failed to apply update", err);
+          this.resync();
+          this.emitAfterSync();
+          return;
+        }
         this.emit("remote_update");
       }
       this.pendingUpdate = null;
@@ -265,9 +281,14 @@ export default class PhoenixProvider extends PhoenixSynchronizer {
     if (origin === this || !this.channel) return;
 
     if (this.connected) {
-      this.channel.ensureJoined().then(() => {
-        this.channel.push("client_update", update.buffer);
-      });
+      this.channel
+        .ensureJoined()
+        .then(() => {
+          this.channel.push("client_update", update.buffer);
+        })
+        .catch((err) => {
+          console.error("FAILED to ensure joined", err);
+        });
     }
   }
 
@@ -299,13 +320,25 @@ export default class PhoenixProvider extends PhoenixSynchronizer {
       return;
     }
 
-    Y.applyUpdate(this.doc, payload, this);
+    try {
+      Y.applyUpdate(this.doc, payload, this);
+    } catch (err) {
+      this.logger.error("Failed to apply update", err);
+      this.resync();
+      return;
+    }
+
     this.emit("remote_update");
   }
 
   @autobind
   handleIncomingAwareness(payload: Uint8Array) {
-    awarenessProtocol.applyAwarenessUpdate(this.awareness, payload, this);
+    try {
+      awarenessProtocol.applyAwarenessUpdate(this.awareness, payload, this);
+    } catch (err: any) {
+      this.logger.error("Failed to apply awareness update", err);
+      this.resync();
+    }
   }
 
   @autobind

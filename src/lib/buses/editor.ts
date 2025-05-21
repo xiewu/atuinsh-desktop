@@ -11,12 +11,6 @@ export default class EditorBus extends Emittery {
   static get() {
     if (!EditorBus.instance) {
       EditorBus.instance = new EditorBus();
-
-      // If in dev mode, store the instance in the global window object for debugging
-      if (import.meta.env.DEV) {
-        // @ts-ignore
-        window.editorBus = EditorBus.instance;
-      }
     }
     return EditorBus.instance;
   }
@@ -33,32 +27,19 @@ export default class EditorBus extends Emittery {
     this.emit(`block_deleted:${type}`, props);
   }
 
-
-  subscribeBlockInserted(
-    type: string,
-    callback: (props: any) => void,
-  ) {
+  subscribeBlockInserted(type: string, callback: (props: any) => void) {
     return this.on(`block_inserted:${type}`, callback);
   }
 
-  unsubscribeBlockInserted(
-    type: string,
-    callback: (props: any) => void,
-  ) {
+  unsubscribeBlockInserted(type: string, callback: (props: any) => void) {
     this.off(`block_inserted:${type}`, callback);
   }
 
-  subscribeBlockDeleted(
-    type: string,
-    callback: (props: any) => void,
-  ) {
+  subscribeBlockDeleted(type: string, callback: (props: any) => void) {
     return this.on(`block_deleted:${type}`, callback);
   }
 
-  unsubscribeBlockDeleted(
-    type: string,
-    callback: (props: any) => void,
-  ) {
+  unsubscribeBlockDeleted(type: string, callback: (props: any) => void) {
     this.off(`block_deleted:${type}`, callback);
   }
 }
@@ -71,7 +52,7 @@ export const useBlockInserted = (type: string, callback: (event: any) => void) =
       unsubscribe();
     };
   }, [type, callback]);
-}
+};
 
 export const useBlockDeleted = (type: string, callback: (event: any) => void) => {
   useEffect(() => {
@@ -81,4 +62,4 @@ export const useBlockDeleted = (type: string, callback: (event: any) => void) =>
       unsubscribe();
     };
   }, [type, callback]);
-}   
+};

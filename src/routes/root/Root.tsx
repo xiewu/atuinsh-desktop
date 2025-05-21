@@ -35,7 +35,6 @@ import handleDeepLink from "./deep";
 import DesktopConnect from "@/components/DesktopConnect/DesktopConnect";
 import * as api from "@/api/api";
 import SocketManager from "@/socket";
-import AtuinEnv from "@/atuin_env";
 import List, { ListApi } from "@/components/runbooks/List/List";
 import Onboarding from "@/components/Onboarding/Onboarding";
 import { KVStore } from "@/state/kv";
@@ -57,38 +56,39 @@ import Operation, {
   deleteRunbook,
 } from "@/state/runbooks/operation";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
-import SyncManager from "@/lib/sync/sync_manager";
+import WorkspaceSyncManager from "@/lib/sync/workspace_sync_manager";
 import doWorkspaceFolderOp from "@/state/runbooks/workspace_folder_ops";
 import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
 import { SharedStateManager } from "@/lib/shared_state/manager";
 import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
 import { Rc } from "@binarymuse/ts-stdlib";
 import { TraversalOrder } from "@/lib/tree";
+import DevConsole from "@/lib/dev/dev_console";
 
 type MoveBundleDescendant =
   | {
-    type: "runbook";
-    id: string;
-    parentId: string;
-  }
+      type: "runbook";
+      id: string;
+      parentId: string;
+    }
   | {
-    type: "folder";
-    id: string;
-    name: string;
-    parentId: string;
-  };
+      type: "folder";
+      id: string;
+      name: string;
+      parentId: string;
+    };
 
 type MoveBundle =
   | {
-    type: "runbook";
-    id: string;
-  }
+      type: "runbook";
+      id: string;
+    }
   | {
-    type: "folder";
-    id: string;
-    name: string;
-    descendants: Array<MoveBundleDescendant>;
-  };
+      type: "folder";
+      id: string;
+      name: string;
+      descendants: Array<MoveBundleDescendant>;
+    };
 
 const runbookIndex = new RunbookIndexService();
 
@@ -112,6 +112,7 @@ function App() {
   const currentRunbookId = useStore((state: AtuinState) => state.currentRunbookId);
   const setSerialExecution = useStore((state: AtuinState) => state.setSerialExecution);
   const [runbookIdToDelete, setRunbookIdToDelete] = useState<string | null>(null);
+  const selectedOrg = useStore((state: AtuinState) => state.selectedOrg);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -140,13 +141,12 @@ function App() {
     (async () => {
       const unlisten = await onOpenUrl((urls) => {
         if (urls.length === 0) return;
-        handleDeepLink(navigate, urls[0], handleRunbookActivate, handleRunbookCreated);
+        handleDeepLink(urls[0], handleRunbookCreated);
       });
 
-      if (AtuinEnv.isDev) {
-        (window as any).handleDeepLink = (url: string) =>
-          handleDeepLink(navigate, url, handleRunbookActivate, handleRunbookCreated);
-      }
+      DevConsole.addAppObject("handleDeepLink", (url: string) =>
+        handleDeepLink(url, handleRunbookCreated),
+      );
 
       onOpenUrlListener.current = unlisten;
     })();
@@ -195,7 +195,11 @@ function App() {
     const workspace = new Workspace({
       name: "Untitled Workspace",
     });
-    console.log("createNewWorkspace", workspace);
+
+    if (selectedOrg) {
+      workspace.set("orgId", selectedOrg);
+    }
+
     await workspace.save();
 
     console.log("workspace saved", workspace);
@@ -205,9 +209,11 @@ function App() {
     navigate(`/runbooks`);
 
     const op = new Operation({
-      operation: createWorkspace(workspace.get("id")!, workspace.get("name")!, {
-        type: "user",
-      }),
+      operation: createWorkspace(
+        workspace.get("id")!,
+        workspace.get("name")!,
+        selectedOrg ? { type: "org", orgId: selectedOrg } : { type: "user" },
+      ),
     });
     await op.save();
 
@@ -224,7 +230,7 @@ function App() {
   }, []);
 
   useTauriEvent("start-sync", async () => {
-    await SyncManager.get(useStore).startSync();
+    await WorkspaceSyncManager.get(useStore).startSync();
   });
 
   useTauriEvent("import-runbook", async () => {
@@ -417,6 +423,9 @@ function App() {
   };
 
   const navigateToRunbook = async (runbookId: string | null) => {
+    // Set runbook ID synchronously so that the observer doesn't try to sync
+    setCurrentRunbookId(runbookId, SET_RUNBOOK_TAG);
+
     let runbook: Runbook | null = null;
     if (runbookId) {
       runbook = await Runbook.load(runbookId);
@@ -429,7 +438,6 @@ function App() {
     if (location.pathname !== "/runbooks") {
       navigate("/runbooks");
     }
-    setCurrentRunbookId(runbookId, SET_RUNBOOK_TAG);
     if (runbook) {
       setCurrentWorkspaceId(runbook.workspaceId);
       listRef.current?.scrollWorkspaceIntoView(runbook.workspaceId);
@@ -466,7 +474,67 @@ function App() {
     runbookId: string,
     workspaceId: string,
     parentFolderId: string | null,
+    activate: boolean = false,
   ) {
+    // NOTE [mkt]:
+    // This API call is made here instead of through the operation processor
+    // because we need to wait for the runbook to be created on the server
+    // before opening it; this is so the server observer doesn't create an
+    // observer for the runbook and cause a YJS sync conflict.
+    //
+    // Note that this requires `currentRunbookId` to be set synchronously,
+    // so that we create a PhoenixProvider via RunbookEditor,
+    // which is why we call `handleRunbookActivate` before updating
+    // the workspace folder (which would trigger the server observer).
+    const workspace = await Workspace.get(workspaceId);
+    // TODO: remove check for org once all runbooks are online by default
+    if (workspace && workspace.isOrgOwned()) {
+      const runbook = await Runbook.load(runbookId);
+      if (!runbook) {
+        new DialogBuilder()
+          .title("Could not load runbook")
+          .message("We were unable to load the runbook.")
+          .action({ label: "OK", value: "ok", variant: "flat" })
+          .build();
+        return;
+      }
+      try {
+        let startedSyncIndicator = false;
+        // TODO: use sync increment/decrement???
+        if (!useStore.getState().isSyncing) {
+          startedSyncIndicator = true;
+          useStore.getState().setIsSyncing(true);
+        }
+
+        if (startedSyncIndicator) {
+          useStore.getState().setIsSyncing(false);
+        }
+
+        await api.createRunbook(runbook, runbook.id, "private");
+      } catch (err) {
+        if (err instanceof api.HttpResponseError) {
+          new DialogBuilder()
+            .title("Failed to create Org runbook")
+            .message("The API request to create the runbook for the Org failed.")
+            .action({ label: "OK", value: "ok", variant: "flat" })
+            .build();
+        } else {
+          new DialogBuilder()
+            .title("Failed to create Org runbook")
+            .message("You may be offline, or the server may be down.")
+            .action({ label: "OK", value: "ok", variant: "flat" })
+            .build();
+        }
+        console.error(err);
+        runbook.delete();
+        return;
+      }
+    }
+
+    if (activate) {
+      handleRunbookActivate(runbookId);
+    }
+
     track_event("runbooks.create");
 
     doWorkspaceFolderOp(
@@ -504,7 +572,7 @@ function App() {
         .icon("error")
         .message(
           "You must have permissions to manage runbooks in both the source and destination workspaces " +
-          "in order to move items.",
+            "in order to move items.",
         )
         .action({
           label: "OK",
@@ -714,7 +782,7 @@ function App() {
           promptDeleteRunbook: handlePromptDeleteRunbook,
           runbookDeleted: handleRunbookDeleted,
           runbookCreated: handleRunbookCreated,
-          runbookMoved: () => { },
+          runbookMoved: () => {},
         }}
       >
         <CommandMenu index={runbookIndex} />

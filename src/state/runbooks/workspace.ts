@@ -45,8 +45,27 @@ const globalSpecs: GlobalSpec<WorkspaceAttrs> = {
 
 @Persistence<WorkspaceAttrs>(adapter, fieldSpecs, globalSpecs)
 export default class Workspace extends Model<WorkspaceAttrs> {
+  static async allOrgIds(): Promise<string[]> {
+    const set = new Set<string>();
+    const workspaces = await Workspace.all();
+    workspaces.forEach((w) => {
+      if (w.isOrgOwned()) {
+        set.add(w.get("orgId")!);
+      }
+    });
+    return Array.from(set);
+  }
+
   canManageRunbooks(): boolean {
     const permissions = this.get("permissions");
     return !permissions || permissions.includes("manage_runbooks");
+  }
+
+  isUserOwned(): boolean {
+    return this.get("orgId") === null;
+  }
+
+  isOrgOwned(): boolean {
+    return this.get("orgId") !== null;
   }
 }

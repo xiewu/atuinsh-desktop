@@ -8,9 +8,11 @@ import { Avatar, AvatarGroup, Button, Tooltip } from "@heroui/react";
 import { RemoteRunbook } from "@/state/models";
 import { BookTextIcon, PencilOffIcon, TrashIcon } from "lucide-react";
 import { PresenceUserInfo } from "@/lib/phoenix_provider";
+import { useQuery } from "@tanstack/react-query";
+import { workspaceById } from "@/lib/queries/workspaces";
+import { useStore } from "@/state/store";
 import PlayButton from "../editor/blocks/common/PlayButton";
 import BlockBus from "@/lib/workflow/block_bus";
-import { useStore } from "@/state/store";
 import { invoke } from "@tauri-apps/api/core";
 import track_event from "@/tracking";
 
@@ -38,6 +40,7 @@ export default function Topbar(props: TopbarProps) {
   let remoteRunbook = props.remoteRunbook;
   let serialExecution = useStore((state) => state.serialExecution);
   let setSerialExecution = useStore((state) => state.setSerialExecution);
+  let { data: workspace } = useQuery(workspaceById(runbook.workspaceId));
 
   let name: string;
   if (remoteRunbook) {
@@ -59,19 +62,31 @@ export default function Topbar(props: TopbarProps) {
   }
 
   const renderBarContents = () => {
+    let owner = remoteRunbook?.owner;
+
+    if (!owner && (remoteRunbook as any)?.user) {
+      owner = {
+        type: "user",
+        user: (remoteRunbook as any).user,
+      };
+    }
+
     return (
-      <div id="topbar" className="flex h-full w-full justify-between">
+      <div id="topbar" className="flex h-full w-full justify-between pr-4">
         <div id="avatar-name" className="flex min-w-0 md:max-w-full md:grow mr-2">
-          {remoteRunbook && (
+          {/* TODO: use org avatar for orgs once we have them */}
+          {remoteRunbook && owner?.type === "user" && (
             <Avatar
               size="sm"
               radius="sm"
-              name={remoteRunbook.user.username}
-              src={remoteRunbook.user.avatar_url}
+              name={owner.user.username}
+              src={owner.user.avatar_url}
               classNames={{ base: "inline-block mr-2 mt-1 min-w-[32px]" }}
             />
           )}
-          {!remoteRunbook && <BookTextIcon size={24} className="mt-2 mr-2 ml-1 min-w-[26px]" />}
+          {(!remoteRunbook || owner?.type === "org") && (
+            <BookTextIcon size={24} className="mt-2 mr-2 ml-1 min-w-[26px]" />
+          )}
           <div className="flex-col truncate shrink">
             <div className="hidden md:block mb-[-1px] whitespace-nowrap">{name}</div>
             <div className="hidden md:block text-gray-400 text-xs italic whitespace-nowrap">
@@ -141,15 +156,16 @@ export default function Topbar(props: TopbarProps) {
               />
             ))}
           </AvatarGroup>
-          <SharePopover
-            onShareToHub={props.onShareToHub}
-            onDeleteFromHub={props.onDeleteFromHub}
-            runbook={runbook}
-            remoteRunbook={props.remoteRunbook}
-            refreshRemoteRunbook={props.refreshRemoteRunbook}
-          />
+          {((!remoteRunbook && workspace?.isUserOwned()) || owner?.type === "user") && (
+            <SharePopover
+              onShareToHub={props.onShareToHub}
+              onDeleteFromHub={props.onDeleteFromHub}
+              runbook={runbook}
+              remoteRunbook={props.remoteRunbook}
+              refreshRemoteRunbook={props.refreshRemoteRunbook}
+            />
+          )}
         </div>
-
         <PlayButton
           className="mt-1 ml-2"
           isRunning={serialExecution === runbook.id}
@@ -176,7 +192,7 @@ export default function Topbar(props: TopbarProps) {
 
   return (
     <div className="flex w-full max-w-full overflow-hidden bg-gray-50 dark:bg-content1 h-[60px] min-h-[60px] flex-row border-b dark:border-default-300 px-2 justify-between pt-2">
-      {renderBarContents()}
+      {workspace && renderBarContents()}
     </div>
   );
 }

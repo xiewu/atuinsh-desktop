@@ -1,5 +1,5 @@
 import { me } from "@/api/api";
-import { DefaultUser, User } from "../models";
+import { DefaultUser, User, UserOrg } from "../models";
 import { StateCreator } from "zustand";
 import semver from "semver";
 import { None, Option } from "@/lib/utils";
@@ -38,6 +38,8 @@ function calculateConnectionState(
 
 export interface AtuinUserState {
   user: User;
+  userOrgs: UserOrg[];
+  selectedOrg: string | null;
   online: boolean;
   currentVersion: string;
   minimumVersion: Option<string>;
@@ -45,6 +47,7 @@ export interface AtuinUserState {
 
   isLoggedIn: () => boolean;
   refreshUser: () => Promise<void>;
+  setSelectedOrg: (orgId: string | null) => void;
 
   setOnline: (online: boolean) => void;
   setCurrentVersion: (version: string) => void;
@@ -52,7 +55,7 @@ export interface AtuinUserState {
   updateConnectionState: () => void;
 }
 
-export const persistUserKeys: (keyof AtuinUserState)[] = ["user"];
+export const persistUserKeys: (keyof AtuinUserState)[] = ["user", "userOrgs", "selectedOrg"];
 
 export const createUserState: StateCreator<AtuinUserState> = (
   set,
@@ -60,6 +63,8 @@ export const createUserState: StateCreator<AtuinUserState> = (
   _store,
 ): AtuinUserState => ({
   user: DefaultUser,
+  userOrgs: [],
+  selectedOrg: null,
   online: false,
   currentVersion: "",
   minimumVersion: None,
@@ -75,15 +80,25 @@ export const createUserState: StateCreator<AtuinUserState> = (
   },
   refreshUser: async () => {
     try {
-      let user = await me();
+      let resp = await me();
 
-      if (!user) {
-        set({ user: DefaultUser });
+      if (!resp) {
+        set({ user: DefaultUser, userOrgs: [], selectedOrg: null });
         return;
       }
 
+      const { user, orgs } = resp;
+
+      const { selectedOrg } = get();
+      let newSelectedOrg = selectedOrg;
+      if (!orgs.some((org) => org.id === selectedOrg)) {
+        newSelectedOrg = null;
+      }
+
       set({
-        user: new User(user.user.username, user.user.email, "", user.user.avatar_url),
+        user: new User(user.username, user.email, "", user.avatar_url),
+        userOrgs: orgs,
+        selectedOrg: newSelectedOrg,
       });
     } catch (err: any) {
       if (!err.code) {
@@ -91,6 +106,14 @@ export const createUserState: StateCreator<AtuinUserState> = (
       } else {
         set({ user: DefaultUser });
       }
+    }
+  },
+  setSelectedOrg: (orgId: string | null) => {
+    const orgs = get().userOrgs;
+    if (orgId === null || orgs.some((org) => org.id === orgId)) {
+      set(() => ({ selectedOrg: orgId }));
+    } else {
+      set(() => ({ selectedOrg: null }));
     }
   },
 

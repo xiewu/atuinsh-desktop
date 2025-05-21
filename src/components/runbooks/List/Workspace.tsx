@@ -11,8 +11,6 @@ import Operation, {
 } from "@/state/runbooks/operation";
 import { uuidv7 } from "uuidv7";
 import { NodeApi, TreeApi } from "react-arborist";
-import { useQuery } from "@tanstack/react-query";
-import { runbooksByWorkspaceId } from "@/lib/queries/runbooks";
 import Runbook from "@/state/runbooks/runbook";
 import { useStore } from "@/state/store";
 import { createFolderMenu, createRunbookMenu, createWorkspaceMenu } from "./menus";
@@ -82,14 +80,6 @@ function workspaceNameReducer(
 
 export default function WorkspaceComponent(props: WorkspaceProps) {
   const treeRef = useRef<TreeApi<TreeRowData> | null>(null);
-
-  const { data: runbooks } = useQuery(runbooksByWorkspaceId(props.workspace.get("id")!));
-  const runbooksById = useMemo(() => {
-    return runbooks?.reduce((acc, runbook) => {
-      acc[runbook.id] = runbook;
-      return acc;
-    }, {} as Record<string, Runbook>);
-  }, [runbooks]);
 
   const currentRunbookId = useStore((state) => state.currentRunbookId);
   const lastRunbookId = usePrevious(currentRunbookId);
@@ -340,7 +330,7 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
         dispatchWorkspaceName({ type: "start_rename", currentName: props.workspace.get("name")! });
       },
       onDeleteWorkspace: async () => {
-        const userWorkspaces = await Workspace.all({ orgId: null });
+        const userWorkspaces = await Workspace.all({ orgId: props.workspace.get("orgId") });
         if (userWorkspaces.length === 1) {
           new DialogBuilder()
             .title("Cannot Delete Last Workspace")
@@ -372,10 +362,6 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     menu.close();
   };
 
-  if (!runbooksById) {
-    return <div>Loading...</div>;
-  }
-
   return (
     <div
       className={cn("border rounded-md w-full", {
@@ -395,7 +381,12 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
       ) : (
         <div
           className="p-1 mb-2 bg-muted text-sm font-semibold whitespace-nowrap text-ellipsis overflow-x-hidden rounded-t-md"
-          onDoubleClick={() => dispatchWorkspaceName({ type: "start_rename", currentName: props.workspace.get("name")! })}
+          onDoubleClick={() =>
+            dispatchWorkspaceName({
+              type: "start_rename",
+              currentName: props.workspace.get("name")!,
+            })
+          }
         >
           {props.workspace.get("name")}
         </div>
@@ -404,7 +395,6 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
         onTreeApiReady={(api) => (treeRef.current = api)}
         data={arboristData as any}
         sortBy={props.sortBy}
-        runbooksById={runbooksById}
         selectedItemId={currentItemId}
         initialOpenState={folderState[props.workspace.get("id")!] || {}}
         onActivateItem={handleActivateItem}

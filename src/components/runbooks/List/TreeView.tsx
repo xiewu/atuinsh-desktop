@@ -3,7 +3,6 @@ import { NodeApi, NodeRendererProps, Tree, TreeApi } from "react-arborist";
 import useResizeObserver from "use-resize-observer";
 import RunbookTreeRow, { RunbookRowData, RunbookTreeRowProps } from "./TreeView/RunbookTreeRow";
 import FolderTreeRow, { FolderRowData, FolderTreeRowProps } from "./TreeView/FolderTreeRow";
-import Runbook from "@/state/runbooks/runbook";
 import { useDragDropManager } from "react-dnd";
 
 export type TreeRowData = FolderRowData | RunbookRowData;
@@ -33,7 +32,6 @@ interface TreeViewProps {
   data: TreeRowData[];
   sortBy: SortBy;
   selectedItemId: string | null;
-  runbooksById: Record<string, Runbook>;
   initialOpenState: Record<string, boolean>;
   onTreeApiReady: (treeApi: TreeApi<TreeRowData>) => void;
   onActivateItem: (itemId: string) => void;
@@ -107,12 +105,6 @@ export default function TreeView(props: TreeViewProps) {
     onContextMenuRef.current(evt, itemId);
   }, []);
 
-  const runbooksByIdRef = useRef(props.runbooksById);
-  useEffect(() => {
-    runbooksByIdRef.current = props.runbooksById;
-  }, [props.runbooksById]);
-  const getRunbookById = useCallback((id: string) => runbooksByIdRef.current[id], []);
-
   const TreeRow = useMemo(
     () => (innerProps: NodeRendererProps<FolderRowData | RunbookRowData>) => {
       if (innerProps.node.data.type === "folder") {
@@ -132,13 +124,13 @@ export default function TreeView(props: TreeViewProps) {
           tree: innerProps.tree as TreeApi<RunbookRowData>,
           dragHandle: innerProps.dragHandle,
           preview: innerProps.preview,
-          runbook: getRunbookById(innerProps.node.data.id),
+          runbookId: innerProps.node.data.id,
           onContextMenu,
         };
         return <RunbookTreeRow key={innerProps.node.data.id} {...runbookProps} />;
       }
     },
-    [getRunbookById, onContextMenu],
+    [onContextMenu],
   );
 
   async function handleRename({ id, name }: { id: string; name: string }) {

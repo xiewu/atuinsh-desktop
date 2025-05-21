@@ -11,6 +11,8 @@ import AsyncSingleton from "@/lib/async_singleton";
 import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
 import { SharedStateManager } from "@/lib/shared_state/manager";
 import { Rc } from "@binarymuse/ts-stdlib";
+import Workspace from "./workspace";
+import Runbook from "./runbook";
 const logger = new Logger("OperationProcessor", "DarkOliveGreen", "GreenYellow");
 
 function assertUnreachable(_x: never): never {
@@ -84,6 +86,12 @@ export function processOperation(op: Operation): Promise<boolean> {
   switch (details.type) {
     case "runbook_deleted": {
       return processRunbookDeleted(details.runbookId);
+    }
+    case "runbook_name_updated": {
+      return processRunbookNameUpdated(details.runbookId, details.newName);
+    }
+    case "upload_org_runbook": {
+      return processUploadOrgRunbook(details.runbookId);
     }
     case "snapshot_deleted": {
       return processSnapshotDeleted(details.snapshotId);
@@ -217,6 +225,41 @@ async function processRunbookDeleted(runbookId: string): Promise<boolean> {
   }
 }
 
+async function processRunbookNameUpdated(runbookId: string, newName: string): Promise<boolean> {
+  try {
+    await api.updateRunbookName(runbookId, newName);
+    return true;
+  } catch (err) {
+    if (err instanceof api.HttpResponseError) {
+      logger.error("Failed to update runbook name:", JSON.stringify(err.data));
+      return true;
+    } else {
+      // Offline
+      return false;
+    }
+  }
+}
+
+async function processUploadOrgRunbook(runbookId: string): Promise<boolean> {
+  try {
+    const runbook = await Runbook.load(runbookId);
+    if (!runbook) {
+      return false;
+    }
+
+    await api.createRunbook(runbook, runbook.id, "private");
+    return true;
+  } catch (err) {
+    if (err instanceof api.HttpResponseError) {
+      logger.error("Failed to upload org runbook:", JSON.stringify(err.data));
+      return false;
+    } else {
+      // Offline
+      return false;
+    }
+  }
+}
+
 async function processSnapshotDeleted(snapshotId: string): Promise<boolean> {
   await api.deleteSnapshot(snapshotId);
   return true;
@@ -240,6 +283,10 @@ async function processWorkspaceCreated(
   } catch (err) {
     if (err instanceof api.HttpResponseError) {
       logger.error("Failed to create workspace:", JSON.stringify(err.data));
+      if (workspaceOwner.type === "org") {
+        const workspace = await Workspace.get(workspaceId);
+        workspace?.del();
+      }
       return true;
     } else {
       // Appears as though we're offline

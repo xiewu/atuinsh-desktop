@@ -16,6 +16,7 @@ export default defineConfig(async () => ({
   // 2. set port to 1420 but fail over to 1421 if it's in use to support running
   // a second instance with `--config" "backend/tauri-second-instance.conf.json`
   server: {
+    hmr: false,
     port: 1420,
     strictPort: false,
     watch: {

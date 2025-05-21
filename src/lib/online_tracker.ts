@@ -5,7 +5,7 @@ import { useStore } from "@/state/store";
 import { clearTimeout, setTimeout } from "worker-timers";
 import { Some, None } from "./utils";
 
-const CHECK_TIMEOUT = 10_000;
+const CHECK_TIMEOUT = 15_000;
 
 let checkTimer: number | null = null;
 let online: boolean | null = null;

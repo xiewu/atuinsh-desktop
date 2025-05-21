@@ -21,6 +21,7 @@ import { User } from "@/state/models";
 import * as Y from "yjs";
 import * as awarenessProtocol from "y-protocols/awareness";
 import Dropdown from "./blocks/Dropdown/Dropdown";
+import DevConsole from "@/lib/dev/dev_console";
 
 // Our schema with block specs, which contain the configs and implementations for blocks
 // that we want our editor to use.
@@ -63,12 +64,7 @@ export function createBasicEditor(content: any) {
     initialContent: content,
   });
 
-  // save on the window if we're using dev mode
-  if (import.meta.env.DEV) {
-    // @ts-ignore
-    window.editor = editor;
-  }
-
+  DevConsole.addAppObject("editor", editor);
   return editor;
 }
 
@@ -96,12 +92,7 @@ export function createCollaborativeEditor(
     },
   });
 
-  // save on the window if we're using dev mode
-  if (import.meta.env.DEV) {
-    // @ts-ignore
-    window.editor = editor;
-  }
-
+  DevConsole.addAppObject("editor", editor);
   return editor;
 }
 

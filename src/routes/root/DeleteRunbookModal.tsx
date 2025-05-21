@@ -15,6 +15,7 @@ import { useContext, useEffect, useMemo, useReducer } from "react";
 import { None, Option, Some, usernameFromNwo } from "@/lib/utils";
 import { ConnectionState } from "@/state/store/user_state";
 import RunbookContext from "@/context/runbook_context";
+import Workspace from "@/state/runbooks/workspace";
 
 interface DeleteRunbookModalProps {
   runbookId: string;
@@ -22,11 +23,12 @@ interface DeleteRunbookModalProps {
   onRunbookDeleted: (workspaceId: string, runbookId: string) => void;
 }
 
-type Ownership = "local" | "none" | "owner" | "collaborator";
+type Ownership = "local" | "none" | "owner" | "collaborator" | "org";
 
 type DeleteState = {
   runbook: Runbook | null;
   remoteRunbook: Option<RemoteRunbook> | null;
+  workspace: Option<Workspace>;
   isMissingFromRemote: boolean;
   isDeleting: boolean;
 };
@@ -39,6 +41,10 @@ type Action =
   | {
       type: "set_remote_runbook";
       remoteRunbook: Option<RemoteRunbook> | null;
+    }
+  | {
+      type: "set_workspace";
+      workspace: Workspace | null;
     }
   | {
       type: "set_deleting";
@@ -57,6 +63,8 @@ function reducer(state: DeleteState, action: Action): DeleteState {
       return { ...state, remoteRunbook: action.remoteRunbook };
     case "set_runbook":
       return { ...state, runbook: action.runbook };
+    case "set_workspace":
+      return { ...state, workspace: Some(action.workspace) };
     case "set_missing":
       return { ...state, isMissingFromRemote: action.isMissingFromRemote };
   }
@@ -65,6 +73,7 @@ function reducer(state: DeleteState, action: Action): DeleteState {
 const INITIAL_STATE: DeleteState = {
   runbook: null,
   remoteRunbook: null,
+  workspace: None,
   isDeleting: false,
   isMissingFromRemote: false,
 };
@@ -81,8 +90,11 @@ export default function DeleteRunbookModal(props: DeleteRunbookModalProps) {
   const [deleteState, dispatch] = useReducer(reducer, INITIAL_STATE);
 
   const ownership: Ownership | null = useMemo(() => {
-    const { runbook, remoteRunbook } = deleteState;
+    const { runbook, remoteRunbook, workspace } = deleteState;
     if (!runbook || !remoteRunbook) return null;
+    if (workspace.isSome() && workspace.unwrap().get("orgId")) {
+      return "org";
+    }
 
     if (remoteRunbook.isNone()) {
       return "local";
@@ -98,7 +110,14 @@ export default function DeleteRunbookModal(props: DeleteRunbookModalProps) {
   }, [deleteState]);
 
   useEffect(() => {
-    Runbook.load(runbookId).then((runbook) => dispatch({ type: "set_runbook", runbook: runbook }));
+    Runbook.load(runbookId).then((runbook) => {
+      dispatch({ type: "set_runbook", runbook: runbook });
+      if (runbook) {
+        Workspace.get(runbook.workspaceId).then((workspace) => {
+          dispatch({ type: "set_workspace", workspace: workspace });
+        });
+      }
+    });
 
     return () => {
       dispatch({ type: "set_runbook", runbook: null });
@@ -191,7 +210,18 @@ export default function DeleteRunbookModal(props: DeleteRunbookModalProps) {
                 <li>Permanently delete this runbook from your machine</li>
                 <li>Permanently delete this runbook from Atuin Hub ({nwo.unwrap()})</li>
               </ul>
-              {connectionState !== ConnectionState.Offline && (
+              {connectionState !== ConnectionState.Online && (
+                <p>
+                  Since you are offline, this operation will be performed the next time you are
+                  online.
+                </p>
+              )}
+            </>
+          )}
+          {ownership === "org" && (
+            <>
+              <p>Deleting this runbook will permanently remove it from your organization.</p>
+              {connectionState !== ConnectionState.Online && (
                 <p>
                   Since you are offline, this operation will be performed the next time you are
                   online.
@@ -209,7 +239,7 @@ export default function DeleteRunbookModal(props: DeleteRunbookModalProps) {
                   {nwo.unwrap()})
                 </li>
               </ul>
-              {connectionState !== ConnectionState.Offline && (
+              {connectionState !== ConnectionState.Online && (
                 <p>
                   Since you are offline, this operation will be performed the next time you are
                   online.

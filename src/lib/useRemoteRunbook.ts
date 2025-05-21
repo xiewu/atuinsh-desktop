@@ -24,7 +24,7 @@ export default function useRemoteRunbook(
       runbook.remoteInfo = null;
       runbook.save();
     }
-  }, [runbook?.id, query.status]);
+  }, [runbook?.id, query.isSuccess, query.isFetched, query.data]);
 
   return [query.data, query.refetch];
 }

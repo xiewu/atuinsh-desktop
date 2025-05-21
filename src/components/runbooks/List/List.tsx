@@ -28,7 +28,7 @@ import { PendingInvitations } from "./PendingInvitations";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Menu } from "@tauri-apps/api/menu";
 import { SortBy } from "./TreeView";
-import { userOwnedWorkspaces } from "@/lib/queries/workspaces";
+import { orgWorkspaces, userOwnedWorkspaces } from "@/lib/queries/workspaces";
 import { default as WorkspaceComponent } from "./Workspace";
 import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
 import doWorkspaceSetup from "@/lib/workspace_setup";
@@ -55,7 +55,6 @@ interface NotesSidebarProps {
 
 const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRef<ListApi>) => {
   const isSyncing = useStore((state: AtuinState) => state.isSyncing);
-  const { data: workspaces } = useQuery(userOwnedWorkspaces());
   const [isSearchOpen, setSearchOpen] = useStore((store: AtuinState) => [
     store.searchOpen,
     store.setSearchOpen,
@@ -72,6 +71,13 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
   const sidebarOpen = useStore((state: AtuinState) => state.sidebarOpen);
   const elRef = useRef<HTMLDivElement>(null);
   const user = useStore((state: AtuinState) => state.user);
+  const userOrgs = useStore((state: AtuinState) => state.userOrgs);
+  const selectedOrg = useStore((state: AtuinState) => state.selectedOrg);
+  const setSelectedOrg = useStore((state: AtuinState) => state.setSelectedOrg);
+
+  const { data: workspaces } = useQuery(
+    selectedOrg ? orgWorkspaces(selectedOrg) : userOwnedWorkspaces(),
+  );
 
   const onResize = useCallback(
     (delta: number) => {
@@ -106,7 +112,6 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
         const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         try {
           const el = await getElPromise;
-          console.log(el);
           if (el) {
             // Check if element is completely outside the container
             const rect = el.getBoundingClientRect();
@@ -154,9 +159,7 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
 
     const rb = await Runbook.createUntitled(workspace, true);
 
-    runbookCreated(rb.id, workspaceId, parentFolderId);
-
-    activateRunbook(rb.id);
+    runbookCreated(rb.id, workspaceId, parentFolderId, true);
   };
 
   const handleImportRunbook = async (workspaceId: string | null, parentFolderId: string | null) => {
@@ -167,10 +170,6 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
   const handleOpenSearch = async () => {
     if (!isSearchOpen) setSearchOpen(true);
   };
-
-  // function handleSync() {
-  //   SyncManager.get(useStore).startSync();
-  // }
 
   async function handleOpenSortMenu() {
     const sortMenu = await Menu.new({
@@ -319,28 +318,35 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
                     "h-[56px] max-h-[56px] min-h-[56px]",
                   )}
                 >
-                  <h2 className="text-lg font-semibold flex items-center gap-2">
-                    {user.isLoggedIn() ? (
-                      <>
-                        {user.avatar_url && (
-                          <Avatar
-                            src={user.avatar_url}
-                            size="sm"
-                            radius="sm"
-                            classNames={{ base: "inline-block mr-2 mt min-w-[32px]" }}
-                            name={user.username}
-                          />
-                        )}
-                        {user.username}
-                      </>
-                    ) : (
-                      "Personal"
-                    )}
-                  </h2>
+                  {selectedOrg && (
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      {userOrgs.find((org) => org.id === selectedOrg)?.name}
+                    </h2>
+                  )}
+                  {!selectedOrg && (
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      {user.isLoggedIn() ? (
+                        <>
+                          {user.avatar_url && (
+                            <Avatar
+                              src={user.avatar_url}
+                              size="sm"
+                              radius="sm"
+                              classNames={{ base: "inline-block mr-2 mt min-w-[32px]" }}
+                              name={user.username}
+                            />
+                          )}
+                          {user.username}
+                        </>
+                      ) : (
+                        "Personal"
+                      )}
+                    </h2>
+                  )}
                   <ChevronDownIcon size={16} />
                 </div>
               </DropdownTrigger>
-              <DropdownMenu>
+              <DropdownMenu selectedKeys={selectedOrg || "personal"}>
                 <DropdownSection title="Choose an Organization">
                   <DropdownItem
                     key="personal"
@@ -355,9 +361,17 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
                         />
                       )
                     }
+                    onPress={() => setSelectedOrg(null)}
                   >
                     {user.isLoggedIn() ? <h3>{user.username} (Personal)</h3> : <h3>Personal</h3>}
                   </DropdownItem>
+                  <>
+                    {userOrgs.map((org) => (
+                      <DropdownItem key={org.id} onPress={() => setSelectedOrg(org.id)}>
+                        {org.name}
+                      </DropdownItem>
+                    ))}
+                  </>
                 </DropdownSection>
               </DropdownMenu>
             </Dropdown>

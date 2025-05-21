@@ -42,7 +42,7 @@ export default function Home() {
   const refreshCalendar = useStore((state: AtuinState) => state.refreshCalendar);
   const refreshRunbooks = useStore((state: AtuinState) => state.refreshRunbooks);
   const currentWorkspaceId = useStore((state: AtuinState) => state.currentWorkspaceId);
-  const { activateRunbook, runbookCreated } = useContext(RunbookContext);
+  const { runbookCreated } = useContext(RunbookContext);
 
   const [version, setVersion] = useState<string | null>(null);
 
@@ -98,9 +98,7 @@ export default function Home() {
                   if (!ws) return;
 
                   const rb = await Runbook.createUntitled(ws);
-                  runbookCreated(rb.id, ws.get("id")!, null);
-                  activateRunbook(rb.id);
-                  navigate("/runbooks");
+                  runbookCreated(rb.id, ws.get("id")!, null, true);
                 }}
               >
                 New runbook

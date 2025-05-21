@@ -10,7 +10,7 @@ export async function allRunbookIds(): Promise<string[]> {
 
 export async function getRunbookID(id: string): Promise<RemoteRunbook> {
   const { runbook } = await get<{ runbook: RemoteRunbook }>(
-    `/runbooks/${id}?include=user,snapshots,collaborations`,
+    `/runbooks/${id}?include=owner,snapshots,collaborations`,
   );
   return runbook;
 }
@@ -24,6 +24,7 @@ export function createRunbook(runbook: Runbook, slug: string, visibility: string
       version: 0,
       created: runbook.created,
       visibility: visibility,
+      workspace_id: runbook.workspaceId,
     },
   };
 
@@ -43,6 +44,16 @@ export function updateRunbook(runbook: Runbook, slug: string, visibility: string
   };
 
   return put(`/runbooks/${runbook.id}`, body);
+}
+
+export function updateRunbookName(id: string, name: string) {
+  const body = {
+    runbook: {
+      name: name,
+    },
+  };
+
+  return put(`/runbooks/${id}`, body);
 }
 
 export function deleteRunbook(id: string) {

@@ -20,8 +20,6 @@ export async function createNewRunbookMenu(
     items: buildWorkspaceItems(ws.workspace, ws.folder, actions),
   }));
 
-  console.log("wsitems", workspaceItems);
-
   const menu = await Menu.new({
     items: [
       {

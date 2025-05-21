@@ -1,4 +1,5 @@
 import AtuinEnv from "@/atuin_env";
+import DevConsole from "@/lib/dev/dev_console";
 import Mutex from "@/lib/std/mutex";
 import SocketManager from "@/socket";
 import { KVStore } from "@/state/kv";
@@ -42,14 +43,12 @@ const _savePassword = (service: string, user: string, password: string) =>
 const _deletePassword = (service: string, user: string) => getStorage().remove(service, user);
 
 // Convenience function for setting the hub credentials in development
-if (AtuinEnv.isDev) {
-  (window as any).setHubCredentials = async (username: string, key: string) => {
-    await _savePassword("sh.atuin.runbooks.api", username, key);
-    const kv = await KVStore.open_default();
-    await kv.set("username", username);
-    SocketManager.setApiToken(key);
-  };
-}
+DevConsole.addAppObject("setHubCredentials", async (username: string, key: string) => {
+  await _savePassword("sh.atuin.runbooks.api", username, key);
+  const kv = await KVStore.open_default();
+  await kv.set("username", username);
+  SocketManager.setApiToken(key);
+});
 
 let cachedHubApiToken: string | null = null;
 export async function setHubApiToken(username: string, token: string) {

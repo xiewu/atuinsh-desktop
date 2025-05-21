@@ -17,6 +17,7 @@ import RunbookEditor from "@/lib/runbook_editor";
 import Operation from "@/state/runbooks/operation";
 import { ConnectionState } from "@/state/store/user_state";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
+import AppBus from "@/lib/app/app_bus";
 
 function useMarkRunbookRead(runbook: Runbook | null, refreshRunbooks: () => void) {
   useEffect(() => {
@@ -63,6 +64,13 @@ export default function Runbooks() {
   const { data: snapshots, isFetching: snapshotsFetching } = useQuery(
     snapshotsByRunbook(currentRunbook?.id),
   );
+
+  useEffect(() => {
+    if (remoteRunbook && !remoteRunbook.owner) {
+      console.log("Refreshing remote runbook");
+      refreshRemoteRunbook();
+    }
+  }, [remoteRunbook]);
 
   const tags = useMemo(() => {
     let tags = (snapshots || []).map((snap) => ({ text: snap.tag, value: snap.tag })) || [];
@@ -227,6 +235,18 @@ export default function Runbooks() {
     refreshRemoteRunbook();
     updateEditorKey();
   }
+
+  useEffect(() => {
+    const unsub = AppBus.get().onResetEditor((rbId: string) => {
+      console.log("Resetting editor instance", rbId, currentRunbook?.id);
+      if (rbId == currentRunbook?.id) {
+        lastRunbookEditor.current?.resetEditor();
+        updateEditorKey();
+      }
+    });
+
+    return unsub;
+  }, [currentRunbook?.id]);
 
   function handleShowTagMenu() {
     if (serialExecution) {

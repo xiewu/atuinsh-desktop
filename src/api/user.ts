@@ -1,6 +1,12 @@
 import { RemoteUser } from "@/state/models";
 import { get } from "./api";
 
+interface UserOrgInfo {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 interface MeResponse {
   user: {
     id: string;
@@ -9,6 +15,7 @@ interface MeResponse {
     display_name: string;
     avatar_url: string;
   };
+  orgs: UserOrgInfo[];
 }
 
 export function me(token?: string): Promise<MeResponse> {

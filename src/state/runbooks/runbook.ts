@@ -33,7 +33,7 @@ export interface RunbookAttrs {
   id: string;
   name: string;
   content: string;
-  ydoc: Uint8Array | null;
+  _ydoc: Uint8Array | null;
   source: RunbookSource;
   sourceInfo: string | null;
   workspaceId: string;
@@ -48,7 +48,7 @@ export interface RunbookAttrs {
 
 export default class Runbook {
   id: string;
-  ydoc: Uint8Array | null;
+  private _ydoc: Uint8Array | null;
   source: RunbookSource;
   sourceInfo: string | null;
   remoteInfo: string | null;
@@ -64,6 +64,7 @@ export default class Runbook {
   private _name: string;
   private _content: string;
 
+  private _ydocChanged: boolean = false;
   private persisted: boolean = false;
 
   set name(value: string) {
@@ -88,13 +89,22 @@ export default class Runbook {
     return this._name;
   }
 
+  get ydoc() {
+    return this._ydoc;
+  }
+
+  set ydoc(value: Uint8Array | null) {
+    this._ydocChanged = true;
+    this._ydoc = value;
+  }
+
   constructor(attrs: RunbookAttrs, persisted: boolean = false) {
     this.id = attrs.id;
     this._name = attrs.name;
     this.source = attrs.source || "local";
     this.sourceInfo = attrs.sourceInfo;
     this._content = attrs.content;
-    this.ydoc = attrs.ydoc || null;
+    this._ydoc = attrs._ydoc || null;
     this.created = attrs.created;
     this.updated = attrs.updated;
     this.forkedFrom = attrs.forkedFrom;
@@ -124,7 +134,7 @@ export default class Runbook {
       source: "local",
       sourceInfo: null,
       content: "",
-      ydoc: null,
+      _ydoc: null,
       created: now,
       updated: now,
       workspaceId: workspace.get("id")!,
@@ -198,7 +208,7 @@ export default class Runbook {
       source: source,
       sourceInfo: sourceInfo,
       content: JSON.stringify(content),
-      ydoc: null,
+      _ydoc: null,
       created: new Date(obj.created),
       updated: new Date(),
       workspaceId: workspace.get("id")!,
@@ -225,22 +235,20 @@ export default class Runbook {
   public static async load(id: String): Promise<Runbook | null> {
     const db = await AtuinDB.load("runbooks");
 
-    let res = await logger.time(`Selecting runbook with ID ${id}`, async () =>
-      db.select<any[]>(
-        "select id, name, source, source_info, content, created, updated, workspace_id, " +
-          "legacy_workspace_id, forked_from, remote_info, viewed_at from runbooks where id = $1",
-        [id],
-      ),
+    let res = await db.select<any[]>(
+      "select id, name, source, source_info, content, created, updated, workspace_id, " +
+        "legacy_workspace_id, forked_from, remote_info, viewed_at from runbooks where id = $1",
+      [id],
     );
 
     if (res.length == 0) return null;
 
-    let rb = res[0];
+    let rbRow = res[0];
 
-    const doc: ArrayBuffer | null = await Runbook.loadYDocForRunbook(rb.id);
-    rb.ydoc = doc;
+    const doc: ArrayBuffer | null = await Runbook.loadYDocForRunbook(rbRow.id);
+    rbRow.ydoc = doc;
 
-    return Runbook.fromRow(rb);
+    return Runbook.fromRow(rbRow);
   }
 
   public static async updateAll(attrs: Partial<RunbookAttrs>) {
@@ -285,7 +293,7 @@ export default class Runbook {
         source: row.source || "local",
         sourceInfo: row.source_info,
         content: row.content || "[]",
-        ydoc: update,
+        _ydoc: update,
         created: new Date(row.created / 1000000),
         updated: new Date(row.updated / 1000000),
         workspaceId: row.workspace_id,
@@ -301,24 +309,18 @@ export default class Runbook {
   static async allInAllWorkspaces(): Promise<Runbook[]> {
     const db = await AtuinDB.load("runbooks");
 
-    let runbooks = await logger.time("Selecting all runbooks", async () => {
-      let res = await db.select<any[]>(
-        "select id, name, source, source_info, created, updated, workspace_id, legacy_workspace_id, forked_from, remote_info, viewed_at from runbooks " +
-          "order by updated desc",
-      );
+    let res = await db.select<any[]>(
+      "select id, name, source, source_info, created, updated, workspace_id, legacy_workspace_id, forked_from, remote_info, viewed_at from runbooks " +
+        "order by updated desc",
+    );
 
-      return res.map(Runbook.fromRow);
-    });
-
-    return runbooks;
+    return res.map(Runbook.fromRow);
   }
 
   static async allIdsInAllWorkspaces(): Promise<string[]> {
     const db = await AtuinDB.load("runbooks");
-    return logger.time("Selecting all runbook IDs", async () => {
-      const rows = await db.select<{ id: string }[]>("select id from runbooks order by id desc");
-      return rows.map((row) => row.id);
-    });
+    const rows = await db.select<{ id: string }[]>("select id from runbooks order by id desc");
+    return rows.map((row) => row.id);
   }
 
   // Default to scoping by workspace
@@ -327,39 +329,25 @@ export default class Runbook {
   static async all(workspaceId: string): Promise<Runbook[]> {
     const db = await AtuinDB.load("runbooks");
 
-    let runbooks = await logger.time(
-      `Selecting all runbooks for legacy workspace ${workspaceId}`,
-      async () => {
-        let res = await db.select<any[]>(
-          "select id, name, source, source_info, created, updated, workspace_id, legacy_workspace_id, forked_from, remote_info, viewed_at from runbooks " +
-            "where legacy_workspace_id = $1 or legacy_workspace_id is null order by updated desc",
-          [workspaceId],
-        );
-
-        return res.map(Runbook.fromRow);
-      },
+    let res = await db.select<any[]>(
+      "select id, name, source, source_info, created, updated, workspace_id, legacy_workspace_id, forked_from, remote_info, viewed_at from runbooks " +
+        "where legacy_workspace_id = $1 or legacy_workspace_id is null order by updated desc",
+      [workspaceId],
     );
 
-    return runbooks;
+    return res.map(Runbook.fromRow);
   }
 
   static async allFromWorkspace(workspaceId: string): Promise<Runbook[]> {
     const db = await AtuinDB.load("runbooks");
 
-    let runbooks = await logger.time(
-      `Selecting all runbooks for workspace ${workspaceId}`,
-      async () => {
-        let res = await db.select<any[]>(
-          "select id, name, source, source_info, created, updated, workspace_id, legacy_workspace_id, forked_from, remote_info, viewed_at from runbooks " +
-            "where workspace_id = $1 order by updated desc",
-          [workspaceId],
-        );
-
-        return res.map(Runbook.fromRow);
-      },
+    let res = await db.select<any[]>(
+      "select id, name, source, source_info, created, updated, workspace_id, legacy_workspace_id, forked_from, remote_info, viewed_at from runbooks " +
+        "where workspace_id = $1 order by updated desc",
+      [workspaceId],
     );
 
-    return runbooks;
+    return res.map(Runbook.fromRow);
   }
 
   static async withNullLegacyWorkspaces(): Promise<Runbook[]> {
@@ -380,10 +368,10 @@ export default class Runbook {
 
   public async save() {
     const db = await AtuinDB.load("runbooks");
+    logger.info("Saving runbook", this.id, this.name, this._ydoc);
 
-    logger.time(`Saving runbook ${this.id}`, async () => {
-      await db.execute(
-        `insert into runbooks(id, name, content, created, updated, workspace_id, legacy_workspace_id, source, source_info, forked_from, remote_info, viewed_at)
+    await db.execute(
+      `insert into runbooks(id, name, content, created, updated, workspace_id, legacy_workspace_id, source, source_info, forked_from, remote_info, viewed_at)
           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 
           on conflict(id) do update
@@ -399,27 +387,29 @@ export default class Runbook {
               remote_info=$11,
               viewed_at=$12`,
 
-        // getTime returns a timestamp as unix milliseconds
-        // we won't need or use the resolution here, but elsewhere Atuin stores timestamps in sqlite as nanoseconds since epoch
-        // let's do that across the board to avoid mistakes
-        [
-          this.id,
-          this._name,
-          this._content,
-          this.created.getTime() * 1000000,
-          this.updated.getTime() * 1000000,
-          this.workspaceId,
-          this.legacyWorkspaceId,
-          this.source,
-          this.sourceInfo,
-          this.forkedFrom,
-          this.remoteInfo,
-          this.viewed_at ? this.viewed_at.getTime() * 1000000 : null,
-        ],
-      );
+      // getTime returns a timestamp as unix milliseconds
+      // we won't need or use the resolution here, but elsewhere Atuin stores timestamps in sqlite as nanoseconds since epoch
+      // let's do that across the board to avoid mistakes
+      [
+        this.id,
+        this._name,
+        this._content,
+        this.created.getTime() * 1000000,
+        this.updated.getTime() * 1000000,
+        this.workspaceId,
+        this.legacyWorkspaceId,
+        this.source,
+        this.sourceInfo,
+        this.forkedFrom,
+        this.remoteInfo,
+        this.viewed_at ? this.viewed_at.getTime() * 1000000 : null,
+      ],
+    );
 
-      await Runbook.saveYDocForRunbook(this.id, this.ydoc);
-    });
+    if (this._ydocChanged) {
+      await Runbook.saveYDocForRunbook(this.id, this._ydoc);
+      this._ydocChanged = false;
+    }
 
     if (!this.persisted) {
       dbHook("runbook", "create", this);
@@ -434,17 +424,10 @@ export default class Runbook {
     await this.save();
   }
 
-  public static async loadYDocForRunbook(id: string) {
-    const update: ArrayBuffer | null = await logger.time(
-      `Loading Y.Doc for runbook ${id}...`,
-      async () => {
-        return await invoke("load_ydoc_for_runbook", {
-          runbookId: id,
-        });
-      },
-    );
-
-    return update;
+  public static async loadYDocForRunbook(id: string): Promise<ArrayBuffer | null> {
+    return await invoke<ArrayBuffer | null>("load_ydoc_for_runbook", {
+      runbookId: id,
+    });
   }
 
   public static async saveYDocForRunbook(id: string, update: ArrayBuffer | null) {
@@ -513,7 +496,7 @@ export default class Runbook {
         source: this.source,
         sourceInfo: this.sourceInfo,
         content: this.content,
-        ydoc: this.ydoc,
+        _ydoc: this._ydoc,
         created: this.created,
         updated: this.updated,
         workspaceId: this.workspaceId,

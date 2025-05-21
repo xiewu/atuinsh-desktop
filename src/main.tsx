@@ -8,11 +8,15 @@
   },
 };
 
+window.addEventListener("unhandledrejection", (event) => {
+  console.error("Unhandled rejection", event);
+});
+
 // import sentry before anything else
 import { init_tracking } from "./tracking";
 
 import { event } from "@tauri-apps/api";
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { createHashRouter, RouterProvider } from "react-router-dom";
 import { HeroUIProvider, ToastProvider } from "@heroui/react";
@@ -26,7 +30,7 @@ import History from "@/routes/history/History";
 import Stats from "@/routes/stats/Stats";
 import * as api from "./api/api";
 import SocketManager from "./socket";
-import SyncManager from "./lib/sync/sync_manager";
+import WorkspaceSyncManager from "./lib/sync/workspace_sync_manager";
 import { useStore } from "@/state/store";
 import ServerNotificationManager from "./server_notification_manager";
 import { trackOnlineStatus } from "./lib/online_tracker";
@@ -43,6 +47,14 @@ import { AtuinSharedStateAdapter } from "./lib/shared_state/adapter";
 import { startup as startupOperationProcessor } from "./state/runbooks/operation_processor";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
+import ServerObserver from "./lib/sync/server_observer";
+import DevConsole from "./lib/dev/dev_console";
+import SSHBus from "./lib/buses/ssh";
+import AppBus from "./lib/app/app_bus";
+import Runbook from "./state/runbooks/runbook";
+import Operation from "./state/runbooks/operation";
+import EditorBus from "./lib/buses/editor";
+import BlockBus from "./lib/workflow/block_bus";
 
 (async () => {
   try {
@@ -58,8 +70,52 @@ init_tracking();
 
 const socketManager = SocketManager.get();
 const notificationManager = ServerNotificationManager.get();
-const syncManager = SyncManager.get(useStore);
+const workspaceSyncManager = WorkspaceSyncManager.get(useStore);
 const queryClient = useStore.getState().queryClient;
+const serverObserver = new ServerObserver(useStore, notificationManager);
+
+const stateProxy = new Proxy(
+  {},
+  {
+    get(_target, prop, _receiver) {
+      const state = useStore.getState();
+      return Reflect.get(state, prop, state);
+    },
+    set() {
+      // Prevent direct state mutations
+      return false;
+    },
+    has(_target, prop) {
+      return prop in useStore.getState();
+    },
+    ownKeys() {
+      return Reflect.ownKeys(useStore.getState());
+    },
+    getOwnPropertyDescriptor(_target, prop) {
+      return Reflect.getOwnPropertyDescriptor(useStore.getState(), prop);
+    },
+  },
+);
+
+DevConsole.addAppObject("invoke", invoke)
+  .addAppObject("useStore", useStore)
+  .addAppObject("state", stateProxy) // app.state.user === app.useStore.getState().user
+  .addAppObject("api", api)
+  .addAppObject("serverObserver", serverObserver)
+  .addAppObject("socketManager", socketManager)
+  .addAppObject("notificationManager", notificationManager)
+  .addAppObject("workspaceSyncManager", workspaceSyncManager)
+  .addAppObject("queryClient", queryClient)
+  .addAppObject("AppBus", AppBus.get())
+  .addAppObject("SSHBus", SSHBus.get())
+  .addAppObject("EditorBus", EditorBus.get())
+  .addAppObject("BlockBus", BlockBus.get())
+  .addAppObject("SharedStateManager", SharedStateManager)
+  .addAppObject("models", {
+    Runbook,
+    Workspace,
+    Operation,
+  });
 
 event.listen("tauri://blur", () => {
   useStore.getState().setFocused(false);
@@ -69,7 +125,7 @@ event.listen("tauri://focus", () => {
   useStore.getState().setFocused(true);
 });
 
-setupServerEvents(useStore, notificationManager, syncManager);
+setupServerEvents(useStore, notificationManager);
 setupColorModes(useStore);
 
 trackOnlineStatus();
@@ -155,30 +211,28 @@ function Application() {
   }, []);
 
   return (
-    <React.StrictMode>
-      <DndProvider backend={HTML5Backend}>
-        <HeroUIProvider>
-          <ToastProvider placement="bottom-center" toastOffset={40} />
-          <QueryClientProvider client={queryClient}>
-            <main className="text-foreground bg-background overflow-hidden">
-              {AtuinEnv.isProd && globalOptions.customTitleBar && (
-                <div data-tauri-drag-region className="w-full min-h-8 z-10 border-b-1" />
-              )}
-              {AtuinEnv.isDev && globalOptions.customTitleBar && (
-                <div
-                  data-tauri-drag-region
-                  className="w-full min-h-8 z-10 border-b-1 bg-striped dark:bg-dark-striped bg-[length:7px_7px]"
-                />
-              )}
+    <DndProvider backend={HTML5Backend}>
+      <HeroUIProvider>
+        <ToastProvider placement="bottom-center" toastOffset={40} />
+        <QueryClientProvider client={queryClient}>
+          <main className="text-foreground bg-background overflow-hidden">
+            {AtuinEnv.isProd && globalOptions.customTitleBar && (
+              <div data-tauri-drag-region className="w-full min-h-8 z-10 border-b-1" />
+            )}
+            {AtuinEnv.isDev && globalOptions.customTitleBar && (
+              <div
+                data-tauri-drag-region
+                className="w-full min-h-8 z-10 border-b-1 bg-striped dark:bg-dark-striped bg-[length:7px_7px]"
+              />
+            )}
 
-              <div className="z-20 relative">
-                <RouterProvider router={router} />
-              </div>
-            </main>
-          </QueryClientProvider>
-        </HeroUIProvider>
-      </DndProvider>
-    </React.StrictMode>
+            <div className="z-20 relative">
+              <RouterProvider router={router} />
+            </div>
+          </main>
+        </QueryClientProvider>
+      </HeroUIProvider>
+    </DndProvider>
   );
 }
 

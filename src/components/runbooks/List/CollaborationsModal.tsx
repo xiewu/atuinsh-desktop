@@ -70,7 +70,7 @@ export default function CollaborationsModal(props: CollaborationsModalProps) {
         .sync()
         .then(async (result) => {
           if (result.action === "created") {
-            runbookCreated(collaboration.runbook.id, workspaceId, null);
+            runbookCreated(collaboration.runbook.id, workspaceId, null, false);
           }
         });
     },

@@ -30,10 +30,13 @@ async function createRunbookFromHub(id: string) {
 }
 
 const handleDeepLink = (
-  navigate: any,
   url: string,
-  activateRunbook: (runbookId: string | null) => void,
-  runbookCreated: (runbookId: string, workspaceId: string, parentFolderId: string | null) => void,
+  runbookCreated: (
+    runbookId: string,
+    workspaceId: string,
+    parentFolderId: string | null,
+    activate?: boolean,
+  ) => void,
 ): void | null => {
   const routes: Routes = {
     // Legacy "Open in desktop" from the hub
@@ -49,11 +52,9 @@ const handleDeepLink = (
             console.error("Unable to open runbook from hub");
             return;
           }
-          runbookCreated(runbook.id, runbook.workspaceId, null);
+          runbookCreated(runbook.id, runbook.workspaceId, null, true);
 
-          activateRunbook(result.runbookId);
           useStore.getState().refreshRunbooks();
-          navigate("/runbooks");
         } else {
           console.error("Unable to open runbook from hub");
         }
@@ -73,11 +74,9 @@ const handleDeepLink = (
           console.error("Unable to open runbook from hub");
           return;
         }
-        runbookCreated(runbook.id, runbook.workspaceId, null);
+        runbookCreated(runbook.id, runbook.workspaceId, null, true);
 
-        activateRunbook(result.runbookId);
         useStore.getState().refreshRunbooks();
-        navigate("/runbooks");
       } else {
         console.error("Unable to open runbook from hub");
       }

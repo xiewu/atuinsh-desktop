@@ -32,7 +32,6 @@ import { usePromise } from "@/lib/utils";
 import SocketManager from "@/socket";
 import handleDeepLink from "@/routes/root/deep";
 import * as api from "@/api/api";
-import { useNavigate } from "react-router-dom";
 
 async function loadFonts(): Promise<string[]> {
   const fonts = await invoke<string[]>("list_fonts");
@@ -414,7 +413,8 @@ const RunbookSettings = () => {
     Settings.runbookPrometheusUrl,
   );
 
-  if (fontLoading || glLoading || urlLoading || fontSizeLoading || shellLoading || !fonts) return <Spinner />;
+  if (fontLoading || glLoading || urlLoading || fontSizeLoading || shellLoading || !fonts)
+    return <Spinner />;
 
   return (
     <>
@@ -565,7 +565,6 @@ const AuthTokenModal = (props: AuthTokenModalProps) => {
 };
 
 const UserSettings = () => {
-  const navigate = useNavigate();
   const user = useStore((state) => state.user);
   const refreshUser = useStore((state) => state.refreshUser);
   const [modalOpen, setModalOpen] = useState(false);
@@ -581,12 +580,7 @@ const UserSettings = () => {
     const deepLink = `atuin://register-token/${token}`;
     // token submit deep link doesn't require a runbook activation,
     // so passing an empty function for simplicity
-    handleDeepLink(
-      navigate,
-      deepLink,
-      () => {},
-      () => {},
-    );
+    handleDeepLink(deepLink, () => {});
   }
 
   let content;

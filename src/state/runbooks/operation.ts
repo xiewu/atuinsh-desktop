@@ -7,10 +7,20 @@ import { processUnprocessedOperations } from "./operation_processor";
 import { ChangeRef } from "@/lib/shared_state/types";
 import { Folder } from "./workspace_folders";
 
-type RunbookOperations = {
-  type: "runbook_deleted";
-  runbookId: string;
-};
+type RunbookOperations =
+  | {
+      type: "runbook_deleted";
+      runbookId: string;
+    }
+  | {
+      type: "upload_org_runbook";
+      runbookId: string;
+    }
+  | {
+      type: "runbook_name_updated";
+      runbookId: string;
+      newName: string;
+    };
 
 type SnapshotOperations = {
   type: "snapshot_deleted";
@@ -157,6 +167,13 @@ export default class Operation extends Model<OperationAttrs> {
     await op.save();
     return op;
   }
+}
+
+export function uploadOrgRunbook(runbookId: string): OperationData {
+  return {
+    type: "upload_org_runbook",
+    runbookId,
+  };
 }
 
 export function updateFolderName(

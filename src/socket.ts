@@ -4,7 +4,7 @@ import Emittery from "emittery";
 const logger = new Logger("Socket");
 import { useStore } from "@/state/store";
 import AtuinEnv from "./atuin_env";
-import { timeoutPromise } from "./lib/utils";
+import Backoff from "./lib/backoff";
 
 export default class SocketManager extends Emittery {
   private static apiToken: string | null = null;
@@ -50,6 +50,10 @@ export default class SocketManager extends Emittery {
   }
 
   public onConnect(callback: (socket: Socket) => void) {
+    if (this.isConnected()) {
+      callback(this.socket);
+    }
+
     return this.on("connect", callback);
   }
 
@@ -123,10 +127,13 @@ export default class SocketManager extends Emittery {
 export class WrappedChannel<J = unknown> {
   private topic: string;
   private manager: SocketManager;
-  private emitter: Emittery;
+  private emitter: Emittery = new Emittery();
+  private internalEmitter: Emittery = new Emittery();
   private handlers: Map<string, { count: number; ref: number }> = new Map();
   private channelParams: object | undefined;
   private channel: Channel;
+  private joinFailed: boolean = false;
+  private joinBackoff: Backoff = new Backoff();
   private joinPromise: Promise<J> | null = null;
 
   constructor(manager: SocketManager, topic: string, channelParams?: object) {
@@ -139,35 +146,73 @@ export class WrappedChannel<J = unknown> {
     this.manager.onSocketChange(this.handleNewSocket.bind(this));
   }
 
+  public onJoin(callback: () => void) {
+    return this.internalEmitter.on("join", callback);
+  }
+
+  public nextJoin() {
+    return this.internalEmitter.once("join");
+  }
+
   // Internal method to join the channel;
   // consumers should use `ensureJoined` instead
-  private join(timeout: number = 10000): Promise<J> {
+  private async join(timeout: number = 10000): Promise<J> {
+    if (this.joinFailed) {
+      this.resetChannel();
+      await this.joinBackoff.next();
+    } else if (this.joinPromise) {
+      return this.joinPromise;
+    }
+
     const promise = new Promise<J>((resolve, reject) => {
       this.channel
         .join(timeout)
-        .receive("ok", resolve)
-        .receive("error", (resp) => {
+        .receive("ok", (resp: J) => {
+          this.joinBackoff.reset();
+          this.internalEmitter.emitSerial("join");
+          resolve(resp);
+        })
+        .receive("error", (resp: any) => {
+          this.joinFailed = true;
           this.channel.leave();
+          if (resp.can_retry) {
+            logger.debug("Retrying join...");
+            this.join(timeout);
+          }
           reject(resp);
         });
     });
 
     this.joinPromise = promise;
+
+    // This is a hack to prevent unhandled rejection errors
+    promise.catch(() => {});
+
     return promise;
   }
 
   public async ensureJoined(timeout: number = 10000): Promise<J> {
-    if (this.channel!.state === "joined" || this.channel!.state === "joining") {
-      const timeoutSym = Symbol("timeout");
-      const timeoutProm = timeoutPromise(timeout, timeoutSym);
-      const result = await Promise.race([this.joinPromise!, timeoutProm]);
-      if (result === timeoutSym) {
-        throw new Error("Timeout joining channel");
-      }
-      return result;
-    }
+    const channelState = this.channel!.state;
 
-    return await this.join(timeout);
+    switch (channelState) {
+      case "joined":
+        return this.joinPromise!;
+      case "joining":
+        return this.joinPromise!;
+      case "leaving":
+        return this.join(timeout);
+      case "closed":
+        return this.join(timeout);
+      case "errored":
+        return this.join(timeout);
+      default:
+        const exhaustiveCheck: never = channelState;
+        throw new Error(`Unhandled channel state: ${exhaustiveCheck}`);
+    }
+  }
+
+  private resetChannel() {
+    this.handleNewSocket(this.manager.getSocket());
   }
 
   public leave(timeout?: number) {
@@ -219,8 +264,10 @@ export class WrappedChannel<J = unknown> {
   }
 
   private handleNewSocket(socket: Socket) {
+    logger.debug(`Resetting channel ${this.topic}`);
     const oldChannel = this.channel;
     this.channel = socket.channel(this.topic, this.channelParams);
+    this.joinFailed = false;
 
     this.handlers.forEach(({ ref }, event) => {
       oldChannel.off(event, ref);

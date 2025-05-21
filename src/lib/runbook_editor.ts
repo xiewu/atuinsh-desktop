@@ -11,6 +11,7 @@ import {
 import { randomColor } from "./colors";
 import Logger from "./logger";
 import Snapshot from "@/state/runbooks/snapshot";
+import Operation from "@/state/runbooks/operation";
 
 const SAVE_DEBOUNCE = 1000;
 
@@ -178,12 +179,12 @@ export default class RunbookEditor {
     for (const block of blocks) {
       if (block.type == "heading" || block.type == "paragraph") {
         if (block.content.length == 0) continue;
-        // @ts-ignore
         if (block.content[0].text.length == 0) continue;
 
-        let name = block.content.filter((i: any) => i.type === "text").map((i: any) => i.text);
+        let name: string[] = block.content
+          .filter((i: any) => i.type === "text")
+          .map((i: any) => i.text);
 
-        // @ts-ignore
         return name.join(" ");
       }
     }
@@ -222,10 +223,10 @@ export default class RunbookEditor {
 
   async _save(runbookArg: Runbook | undefined, editorArg: BlockNoteEditor) {
     if (!runbookArg) return;
-    if (runbookArg?.id !== this.runbook.id) {
+    if (runbookArg.id !== this.runbook.id) {
       this.logger.warn(
         "Runbook from args not the same as runbook from container",
-        runbookArg?.id,
+        runbookArg.id,
         this.runbook.id,
       );
       return;
@@ -241,11 +242,25 @@ export default class RunbookEditor {
       track_event("runbooks.save", { total: num });
     });
 
+    const previousName = this.runbook.name;
     this.runbook.name = this.fetchName(editor.document);
     this.runbook.content = JSON.stringify(editor.document);
-    this.runbook.ydoc = Y.encodeStateAsUpdate(this.yDoc);
 
-    return this.runbook.save();
+    if (this.provider) {
+      this.runbook.ydoc = Y.encodeStateAsUpdate(this.provider.doc);
+    }
+
+    this.runbook.save();
+    if (previousName !== this.runbook.name) {
+      const op = new Operation({
+        operation: {
+          type: "runbook_name_updated",
+          runbookId: this.runbook.id,
+          newName: this.runbook.name,
+        },
+      });
+      op.save();
+    }
   }
 
   shutdown() {

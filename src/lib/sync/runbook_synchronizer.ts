@@ -1,6 +1,6 @@
 import { RemoteRunbook, User } from "@/state/models";
 import Logger from "../logger";
-import SyncManager from "./sync_manager";
+import WorkspaceSyncManager from "./workspace_sync_manager";
 import Runbook from "@/state/runbooks/runbook";
 import Snapshot from "@/state/runbooks/snapshot";
 import * as api from "@/api/api";
@@ -44,7 +44,7 @@ export default class RunbookSynchronizer {
 
   public async sync(attemptYjsSync: boolean = false): Promise<SyncResult> {
     this.logger.debug("Acquiring sync lock...");
-    const mutex = SyncManager.syncMutex(this.runbookId);
+    const mutex = WorkspaceSyncManager.syncMutex(this.runbookId);
     return mutex.runExclusive(async () => {
       this.logger.debug("Lock acquired");
       try {
@@ -110,25 +110,27 @@ export default class RunbookSynchronizer {
       }
 
       let created = false;
+      const workspaces = await Workspace.all();
+      const nonOrgWorkspaces = workspaces.filter((ws) => ws.get("orgId") === null);
+      // Prioritize the workspace from the remote runbook, if it exists locally.
+      // If it doesn't, use the workspace passed into the constructor (e.g. from collaborations).
+      // If that doesn't exist, just use the first workspace.
+      const workspace = Some(workspaces.find((ws) => ws.get("id")! === remoteRunbook.workspace_id))
+        .orElse(() => Some(workspaces.find((ws) => ws.get("id")! === this.workspaceId)))
+        .unwrapOr(nonOrgWorkspaces[0]);
+
       if (!runbook) {
         created = true;
-        // Create local runbook from remote runbook
-        const workspaces = await Workspace.all({ orgId: null });
-        // Prioritize the workspace from the remote runbook, if it exists locally.
-        // If it doesn't, use the workspace passed into the constructor (e.g. from collaborations).
-        // If that doesn't exist, just use the first workspace.
-        const workspace = Some(
-          workspaces.find((ws) => ws.get("id")! === remoteRunbook.workspace_id),
-        )
-          .orElse(() => Some(workspaces.find((ws) => ws.get("id")! === this.workspaceId)))
-          .unwrapOr(workspaces[0]);
-
         runbook = await Runbook.create(workspace, false);
         runbook.id = remoteRunbook.id;
         runbook.name = remoteRunbook.name;
         runbook.source = AtuinEnv.hubRunbookSource;
         runbook.sourceInfo = remoteRunbook.nwo;
         runbook.created = new Date(remoteRunbook.client_created);
+        runbook.workspaceId = workspace.get("id")!;
+      } else {
+        runbook.name = remoteRunbook.name;
+        runbook.sourceInfo = remoteRunbook.nwo;
         runbook.workspaceId = workspace.get("id")!;
       }
       runbook.remoteInfo = JSON.stringify(remoteRunbook);
@@ -202,6 +204,7 @@ export default class RunbookSynchronizer {
           this.logger.error("Failed to sync YJS document");
         } else {
           this.logger.debug("YJS sync completed with type:", syncType);
+          runbook.ydoc = Y.encodeStateAsUpdate(doc);
           const blocks = await ydocToBlocknote(doc);
           runbook.content = JSON.stringify(blocks);
         }
@@ -214,8 +217,9 @@ export default class RunbookSynchronizer {
   }
 
   public forceUnlockMutex() {
-    SyncManager.syncMutex(this.runbookId).forceUnlock();
+    WorkspaceSyncManager.syncMutex(this.runbookId).forceUnlock();
     this.provider?.shutdown();
+    this.provider = null;
   }
 
   public cancelSync() {

@@ -5,74 +5,68 @@ import { User } from "@/state/models";
 import { DateTime } from "luxon";
 import Runbook from "@/state/runbooks/runbook";
 import { autobind } from "../decorators";
-import SyncSet from "./sync_set";
 import * as api from "@/api/api";
 import { clearTimeout, setTimeout } from "worker-timers";
 import { processUnprocessedOperations } from "@/state/runbooks/operation_processor";
 import { ConnectionState } from "@/state/store/user_state";
 import Workspace from "@/state/runbooks/workspace";
 import { SharedStateManager } from "../shared_state/manager";
-import { AtuinSharedStateAdapter, OfflineSharedStateAdapter } from "../shared_state/adapter";
+import { OfflineSharedStateAdapter } from "../shared_state/adapter";
 import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
 import Operation, { createRunbook } from "@/state/runbooks/operation";
 import { getGlobalOptions } from "../global_options";
+import ServerNotificationManager from "@/server_notification_manager";
 
 type Store = typeof useStore;
 
 const SYNC_CHECK_INTERVAL = 10_000;
-const STUCK_SYNC_TIMEOUT = 15_000;
 const NORMAL_SYNC_INTERVAL_SECS = 10 * 60;
 const EARLY_SYNC_INTERVAL_SECS = 30;
 
 /**
- * Manages synchronization by watching online/offline state, timers, etc. and kicking off a sync
- * pass as necessary. Creates a single `Synchronizer` instance for each sync pass.
+ * Manages workspace synchronization.
  */
-export default class SyncManager {
+export default class WorkspaceSyncManager {
   private static syncMutexes: Map<string, Mutex> = new Map();
-  private static instance: SyncManager | null = null;
+  private static instance: WorkspaceSyncManager | null = null;
 
-  public static get(store: Store): SyncManager {
-    if (!SyncManager.instance) {
-      SyncManager.instance = new SyncManager(store);
+  public static get(store: Store): WorkspaceSyncManager {
+    if (!WorkspaceSyncManager.instance) {
+      WorkspaceSyncManager.instance = new WorkspaceSyncManager(store);
     }
 
-    return SyncManager.instance;
+    return WorkspaceSyncManager.instance;
   }
 
   private readonly logger: Logger = new Logger("SyncManager", "#ff33cc", "#ff6677");
   private store: Store;
+  private notifications: ServerNotificationManager;
   private handlers: Function[] = [];
-  private currentRunbookId: string | null = null;
-  private workspaceId: string;
-  private currentUser: User;
-  private syncSet: SyncSet | null = null;
   private syncing: boolean = false;
   private lastSync: DateTime | null = null;
   private startNextSyncEarly: boolean = false;
-  private priorityRunbookIds = new Set<string>();
   private connectionState: ConnectionState;
   private focused: boolean | null = null;
   private periodicSyncTimeout: number | null = null;
 
   private constructor(store: Store) {
     this.store = store;
+    this.notifications = ServerNotificationManager.get();
 
-    this.currentUser = store.getState().user;
-    this.workspaceId = store.getState().currentWorkspaceId;
     this.connectionState = store.getState().connectionState;
     this.handlers.push(
       this.store.subscribe((state) => state.connectionState, this.handleConnectionStateChange),
     );
     this.handlers.push(this.store.subscribe((state) => state.user, this.handleUserChange));
     this.handlers.push(
-      this.store.subscribe((state) => state.currentRunbookId, this.handleCurrentRunbookIdChange, {
+      this.store.subscribe((state) => state.focused, this.handleFocusedChange, {
         fireImmediately: true,
       }),
     );
+
     this.handlers.push(
-      this.store.subscribe((state) => state.focused, this.handleFocusedChange, {
-        fireImmediately: true,
+      this.notifications.onOrgEvent(() => {
+        this.startSync();
       }),
     );
 
@@ -86,13 +80,6 @@ export default class SyncManager {
       this.periodicSyncTimeout = null;
     }
 
-    if (this.isSyncStuck()) {
-      this.logger.error("Sync appears to be stuck; force killing");
-      await this.syncSet?.stop(true);
-      this.syncSet = null;
-      this.syncing = false;
-    }
-
     if (this.shouldSync()) {
       this.startSync();
     }
@@ -102,43 +89,18 @@ export default class SyncManager {
 
   public static syncMutex(runbookId: string) {
     let mutex: Mutex;
-    if (SyncManager.syncMutexes.has(runbookId)) {
-      mutex = SyncManager.syncMutexes.get(runbookId)!;
+    if (WorkspaceSyncManager.syncMutexes.has(runbookId)) {
+      mutex = WorkspaceSyncManager.syncMutexes.get(runbookId)!;
     } else {
       mutex = new Mutex();
-      SyncManager.syncMutexes.set(runbookId, mutex);
+      WorkspaceSyncManager.syncMutexes.set(runbookId, mutex);
     }
 
     mutex.once("free").then(() => {
-      SyncManager.syncMutexes.delete(runbookId);
+      WorkspaceSyncManager.syncMutexes.delete(runbookId);
     });
 
     return mutex;
-  }
-
-  isSyncStuck(): boolean {
-    if (!this.syncSet || !this.syncSet.isWorking()) return false;
-
-    const currentSyncTime = this.syncSet.currentSyncTimeMs();
-    return currentSyncTime !== undefined && currentSyncTime > STUCK_SYNC_TIMEOUT;
-  }
-
-  public runbookUpdated(runbookId: string) {
-    if (this.syncSet?.isWorking()) {
-      this.syncSet.addRunbook(runbookId);
-    } else {
-      this.startNextSyncEarly = true;
-      this.priorityRunbookIds.add(runbookId);
-    }
-  }
-
-  private async getRunbookIdsToSync() {
-    const serverIds: string[] = await api.allRunbookIds();
-    const localIds = await Runbook.allIdsInAllWorkspaces();
-    const priorityIds = Array.from(this.priorityRunbookIds);
-
-    // JS sets are ordered, so start with runbooks that have been updated on the server
-    return new Set([...priorityIds, ...serverIds, ...localIds]);
   }
 
   public async startSync() {
@@ -153,6 +115,7 @@ export default class SyncManager {
 
     try {
       this.store.getState().setIsSyncing(true);
+      await this.store.getState().refreshUser();
       // The operation processor may create server models, so it needs to run first.
       await processUnprocessedOperations();
       // `processUnprocessedOperations` will exit early if we're offline;
@@ -167,46 +130,13 @@ export default class SyncManager {
       // send local workspaces to the server because we use the
       // operation system for that.
       await this.syncWorkspaces();
-      const workspaceRunbookIds = await this.getRunbookIdsFromWorkspaces();
-      const localRunbookIds = new Set(await Runbook.allIdsInAllWorkspaces());
-      // Prioritize runbooks that exist in workspace folders but not locally
-      for (const runbookId of workspaceRunbookIds) {
-        if (!localRunbookIds.has(runbookId)) {
-          this.priorityRunbookIds.add(runbookId);
-        }
-      }
 
-      const ids = await this.getRunbookIdsToSync();
-      this.priorityRunbookIds.clear();
-      this.syncSet = new SyncSet(ids, this.workspaceId, this.currentUser);
-
-      this.syncSet.on("deleted", (runbookId: string) => {
-        this.store.getState().deleteRunbookFromCache(runbookId);
-      });
-      this.syncSet.on("created", () => {
-        this.store.getState().refreshRunbooks();
-      });
-      this.syncSet.setCurrentRunbookId(this.currentRunbookId);
-
-      for (const runbookId of workspaceRunbookIds) {
-        this.syncSet.addRunbook(runbookId);
-      }
-
-      if (this.connectionState !== ConnectionState.Online) {
-        this.logger.error("Syncing while offline; aborting");
-        return;
-      }
-
-      this.syncSet.start();
-      await this.syncSet.donePromise;
       this.lastSync = DateTime.now();
     } catch (err: any) {
       this.logger.error(`Synchronizer threw an error: ${err}`);
     } finally {
-      this.syncSet?.clearListeners();
       this.store.getState().setIsSyncing(false);
       this.store.getState().refreshRunbooks();
-      this.syncSet = null;
       this.syncing = false;
     }
   }
@@ -232,6 +162,14 @@ export default class SyncManager {
           permissions: workspace.permissions,
         });
         await ws.save();
+        if (workspace.owner.type === "org") {
+          this.notifications.emit("org_workspace_created", {
+            org_id: workspace.owner.id,
+            workspace_id: workspace.id,
+          });
+        } else {
+          this.notifications.emit("workspace_created", { id: workspace.id });
+        }
       }
     }
 
@@ -242,6 +180,14 @@ export default class SyncManager {
         localWorkspace.set("name", serverWorkspace.name);
         localWorkspace.set("permissions", serverWorkspace.permissions);
         await localWorkspace.save();
+        if (serverWorkspace.owner.type === "org") {
+          this.notifications.emit("org_workspace_updated", {
+            org_id: serverWorkspace.owner.id,
+            workspace_id: serverWorkspace.id,
+          });
+        } else {
+          this.notifications.emit("workspace_updated", { id: serverWorkspace.id });
+        }
       }
     }
 
@@ -249,6 +195,14 @@ export default class SyncManager {
       const workspace = localWorkspaces.find((w) => w.get("id")! === id);
       if (workspace) {
         await workspace.del();
+        if (workspace.get("orgId")) {
+          this.notifications.emit("org_workspace_deleted", {
+            org_id: workspace.get("orgId")!,
+            workspace_id: workspace.get("id")!,
+          });
+        } else {
+          this.notifications.emit("workspace_deleted", { id: workspace.get("id")! });
+        }
       }
     }
 
@@ -279,25 +233,6 @@ export default class SyncManager {
     }
   }
 
-  private async getRunbookIdsFromWorkspaces(): Promise<string[]> {
-    const workspaces = await Workspace.all();
-    const promises = workspaces.map(async (workspace) => {
-      const stateId = `workspace-folder:${workspace.get("id")}`;
-      const manager = SharedStateManager.getInstance<Folder>(
-        stateId,
-        new AtuinSharedStateAdapter<Folder>(stateId),
-      );
-      return manager.getDataOnce();
-    });
-
-    const workspaceFoldersData = await Promise.all(promises);
-
-    return workspaceFoldersData.flatMap((data) => {
-      const workspaceFolder = WorkspaceFolder.fromJS(data);
-      return workspaceFolder.getRunbooks();
-    });
-  }
-
   private shouldSync(): boolean {
     const syncInterval = this.startNextSyncEarly
       ? EARLY_SYNC_INTERVAL_SECS
@@ -321,22 +256,11 @@ export default class SyncManager {
 
     this.logger.info("Current user changed; resyncing all runbooks");
     if (this.syncing) {
-      await this.syncSet?.stop();
-      this.syncSet = null;
       this.syncing = false;
     }
 
     this.startNextSyncEarly = true;
     this.periodicSyncCheck();
-  }
-
-  @autobind
-  private handleCurrentRunbookIdChange(runbookId: string | null) {
-    this.currentRunbookId = runbookId;
-
-    if (this.syncSet) {
-      this.syncSet.setCurrentRunbookId(runbookId);
-    }
   }
 
   @autobind
@@ -359,13 +283,6 @@ export default class SyncManager {
       }
     } else {
       this.logger.debug("Connection to server lost");
-      if (this.syncSet) {
-        this.logger.debug("Stopping sync");
-        this.syncSet.stop().then(() => {
-          this.syncSet = null;
-          this.syncing = false;
-        });
-      }
     }
   }
 

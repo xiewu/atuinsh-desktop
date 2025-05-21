@@ -59,3 +59,13 @@ export function userOwnedWorkspaces() {
     },
   });
 }
+
+export function orgWorkspaces(orgId: string) {
+  return queryOptions({
+    ...localQuery,
+    queryKey: ["workspaces", "org", orgId],
+    queryFn: async () => {
+      return await Workspace.all({ orgId });
+    },
+  });
+}

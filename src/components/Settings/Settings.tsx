@@ -21,6 +21,7 @@ import {
   ModalFooter,
   ModalContent,
   Link,
+  useDisclosure,
 } from "@heroui/react";
 import { Settings } from "@/state/settings";
 import { KVStore } from "@/state/kv";
@@ -526,6 +527,8 @@ const RunbookSettings = () => {
 
 type AuthTokenModalProps = {
   onSubmit: (token: string) => void;
+  onClose: () => void;
+  open: boolean;
 };
 
 const AuthTokenModal = (props: AuthTokenModalProps) => {
@@ -538,7 +541,7 @@ const AuthTokenModal = (props: AuthTokenModalProps) => {
   }, [token]);
 
   return (
-    <Modal isOpen={true} size="lg">
+    <Modal isOpen={props.open} onClose={() => props.onClose()} size="lg">
       <ModalContent>
         <ModalHeader>Log in via auth token</ModalHeader>
         <ModalBody>
@@ -567,7 +570,7 @@ const AuthTokenModal = (props: AuthTokenModalProps) => {
 const UserSettings = () => {
   const user = useStore((state) => state.user);
   const refreshUser = useStore((state) => state.refreshUser);
-  const [modalOpen, setModalOpen] = useState(false);
+  const { isOpen: modalOpen, onOpen: openModal, onClose: closeModal } = useDisclosure();
 
   async function logOut() {
     await api.clearHubApiToken();
@@ -576,7 +579,7 @@ const UserSettings = () => {
   }
 
   function handleTokenSubmit(token: string) {
-    setModalOpen(false);
+    closeModal();
     const deepLink = `atuin://register-token/${token}`;
     // token submit deep link doesn't require a runbook activation,
     // so passing an empty function for simplicity
@@ -599,7 +602,7 @@ const UserSettings = () => {
           </Button>
           or
           <Button
-            onPress={() => setModalOpen(true)}
+            onPress={() => openModal()}
             color="primary"
             variant="flat"
             className="grow"
@@ -640,7 +643,7 @@ const UserSettings = () => {
       <CardBody>
         <h2 className="text-xl font-semibold">User</h2>
         <div className="flex flex-col gap-4">{content}</div>
-        {modalOpen && <AuthTokenModal onSubmit={handleTokenSubmit} />}
+        {modalOpen && <AuthTokenModal onSubmit={handleTokenSubmit} onClose={closeModal} open={modalOpen} />}
       </CardBody>
     </Card>
   );

@@ -24,7 +24,6 @@ import { createReactBlockSpec, useBlockNoteEditor } from "@blocknote/react";
 
 // @ts-ignore
 
-
 import { PromLineChart } from "./lineChart";
 import PromSettings, { PrometheusConfig } from "./promSettings";
 import { Settings } from "@/state/settings";
@@ -39,6 +38,7 @@ import Block from "../common/Block";
 import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus";
 import BlockBus from "@/lib/workflow/block_bus";
 import track_event from "@/tracking";
+import useCodemirrorTheme from "@/lib/hooks/useCodemirrorTheme";
 
 interface PromProps {
   setName: (name: string) => void;
@@ -108,7 +108,6 @@ const Prometheus = ({
   setDependency,
 }: PromProps) => {
   let editor = useBlockNoteEditor();
-  const colorMode = useStore((state) => state.functionalColorMode);
   const currentRunbookId = useStore((state) => state.currentRunbookId);
 
   const [value, setValue] = useState<string>(prometheus.query);
@@ -125,20 +124,27 @@ const Prometheus = ({
   const [error, setError] = useState<string | null>(null);
   const { canRun } = useDependencyState(prometheus, isRunning);
 
-  const runQuery = useCallback(async (val: any) => {
-    if (!promClient) return;
+  const runQuery = useCallback(
+    async (val: any) => {
+      if (!promClient) return;
 
-    const start = new Date().getTime() - timeFrame.seconds * 1000;
-    const end = new Date();
-    const step = calculateStepSize(timeFrame.seconds);
+      const start = new Date().getTime() - timeFrame.seconds * 1000;
+      const end = new Date();
+      const step = calculateStepSize(timeFrame.seconds);
 
-    let templated = await templateString(prometheus.id, val, editor.document, currentRunbookId);
+      let templated = await templateString(prometheus.id, val, editor.document, currentRunbookId);
       let begin = new Date().getTime() * 1000000;
       const res = await promClient.rangeQuery(templated, start, end, step);
       let finish = new Date().getTime() * 1000000;
 
       let logResponse = {};
-      await logExecution(prometheus, prometheus.typeName, begin, finish, JSON.stringify(logResponse));
+      await logExecution(
+        prometheus,
+        prometheus.typeName,
+        begin,
+        finish,
+        JSON.stringify(logResponse),
+      );
       BlockBus.get().blockFinished(prometheus);
 
       const series = res.result;
@@ -159,7 +165,9 @@ const Prometheus = ({
       });
 
       setData(data);
-  }, [promClient, prometheus.id, editor.document]);
+    },
+    [promClient, prometheus.id, editor.document],
+  );
 
   useBlockBusRunSubscription(prometheus.id, () => runQuery(prometheus.query));
 
@@ -221,6 +229,8 @@ const Prometheus = ({
     prometheus.autoRefresh ? 5000 : null,
   );
 
+  const themeObj = useCodemirrorTheme();
+
   return (
     <Block
       block={prometheus}
@@ -234,7 +244,8 @@ const Prometheus = ({
           <div className="w-full !max-w-full !outline-none overflow-none flex flex-row gap-2">
             <PlayButton
               disabled={!canRun}
-              eventName="runbooks.block.execute" eventProps={{type: "prometheus"}}
+              eventName="runbooks.block.execute"
+              eventProps={{ type: "prometheus" }}
               onPlay={async () => {
                 try {
                   setIsRunning(true);
@@ -260,19 +271,24 @@ const Prometheus = ({
               extensions={promExtension ? [promExtension.asExtension()] : []}
               basicSetup={true}
               editable={isEditable}
-              theme={colorMode === "dark" ? "dark" : "light"}
+              theme={themeObj}
             />
           </div>
         </>
       }
     >
       <div className="min-h-64 overflow-x-scroll">
-        {!prometheusUrl ? <ErrorCard error="No Prometheus endpoint set" /> : 
-         !promClient ? <Spinner /> :
-         error ? <ErrorCard error={error} /> :
-         <PromLineChart data={data} config={config} />}
+        {!prometheusUrl ? (
+          <ErrorCard error="No Prometheus endpoint set" />
+        ) : !promClient ? (
+          <Spinner />
+        ) : error ? (
+          <ErrorCard error={error} />
+        ) : (
+          <PromLineChart data={data} config={config} />
+        )}
       </div>
-      
+
       <div className="flex justify-between p-3 border-t">
         <div className="flex-row content-center items-center justify-center">
           <ButtonGroup className="mr-2">
@@ -384,7 +400,7 @@ export default createReactBlockSpec(
           props: { ...block.props, dependency: dependency.serialize() },
         });
       };
-      
+
       let dependency = DependencySpec.deserialize(block.props.dependency);
       let prometheus = new PrometheusBlockType(
         block.id,
@@ -393,7 +409,7 @@ export default createReactBlockSpec(
         block.props.query,
         block.props.endpoint,
         block.props.period,
-        block.props.autoRefresh
+        block.props.autoRefresh,
       );
 
       return (

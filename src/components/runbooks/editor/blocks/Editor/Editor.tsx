@@ -3,7 +3,6 @@ import { useEffect, useState, useMemo } from "react";
 // @ts-ignore
 import { createReactBlockSpec } from "@blocknote/react";
 
-import * as themes from "@uiw/codemirror-themes-all";
 import * as LanguageData from "@codemirror/language-data";
 import EditorBlockType from "@/lib/workflow/blocks/editor.ts";
 import track_event from "@/tracking";
@@ -27,8 +26,8 @@ import EditableHeading from "@/components/EditableHeading/index.tsx";
 // Note that the languagedata package handles the dynamic loading of languages. This is different,
 // as by importing it we have already loaded it. Not really a big deal for our use case.
 import { hcl } from "codemirror-lang-hcl";
-import { useStore } from "@/state/store.ts";
 import { DependencySpec } from "@/lib/workflow/dependency.ts";
+import useCodemirrorTheme from "@/lib/hooks/useCodemirrorTheme.ts";
 
 interface LanguageLoader {
   name: string;
@@ -81,7 +80,6 @@ const EditorBlock = ({
   setName,
   editor,
 }: CodeBlockProps) => {
-  const colorMode = useStore((state) => state.functionalColorMode);
   const languages: LanguageLoader[] = useMemo(() => languageLoaders(), []);
 
   const [extension, setExtension] = useState<Extension | null>(null);
@@ -115,13 +113,7 @@ const EditorBlock = ({
     })();
   }, [language]);
 
-  const lightModeEditorTheme = useStore((state) => state.lightModeEditorTheme);
-  const darkModeEditorTheme = useStore((state) => state.darkModeEditorTheme);
-  const theme = useMemo(() => {
-    return colorMode === "dark" ? darkModeEditorTheme : lightModeEditorTheme;
-  }, [colorMode, lightModeEditorTheme, darkModeEditorTheme]);
-
-  const themeObj = (themes as any)[theme];
+  const themeObj = useCodemirrorTheme();
 
   return (
     <Block
@@ -273,7 +265,7 @@ export const insertEditor = (schema: any) => (editor: typeof schema.BlockNoteEdi
   title: "Editor",
   onItemClick: () => {
     track_event("runbooks.block.create", { type: "editor" });
-    
+
     let editorBlocks = editor.document.filter((block: any) => block.type === "editor");
     let name = `Editor ${editorBlocks.length + 1}`;
 

@@ -21,6 +21,7 @@ import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency";
 import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus";
 import BlockBus from "@/lib/workflow/block_bus";
 import track_event from "@/tracking";
+import useCodemirrorTheme from "@/lib/hooks/useCodemirrorTheme";
 
 type HttpHeaders = { [key: string]: string };
 
@@ -83,7 +84,6 @@ const Http = ({
   setDependency,
 }: HttpProps) => {
   let editor = useBlockNoteEditor();
-  const colorMode = useStore((state) => state.functionalColorMode);
   const currentRunbookId = useStore((state) => state.currentRunbookId);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [response, setResponse] = useState<any | null>(null);
@@ -107,8 +107,9 @@ const Http = ({
   const onPlay = useCallback(async () => {
     setIsRunning(true);
     const startTime = Date.now() * 1000000; // Convert to nanoseconds
-    
-    let template = async (input: string) => await templateString(http.id, input, editor.document, currentRunbookId);
+
+    let template = async (input: string) =>
+      await templateString(http.id, input, editor.document, currentRunbookId);
 
     let tUrl = await template(http.url);
     let tBody = await template(body);
@@ -126,54 +127,50 @@ const Http = ({
       }
 
       let res = await makeHttpRequest(tUrl, http.verb, tBody, tHeaders);
-      
+
       setResponse(res);
       setError(null);
-      
+
       // Log the execution without including the response body
       const endTime = Date.now() * 1000000; // Convert to nanoseconds
-      
+
       // Create a sanitized response object without the body data
       const logResponse = {
         status: res.status,
         statusText: res.statusText,
         headers: res.headers,
         duration: res.duration,
-        time: res.time
+        time: res.time,
       };
-      
-      await logExecution(
-        http,
-        http.typeName,
-        startTime,
-        endTime,
-        JSON.stringify(logResponse)
-      );
+
+      await logExecution(http, http.typeName, startTime, endTime, JSON.stringify(logResponse));
       BlockBus.get().blockFinished(http);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       console.error("Request failed:", errorMessage);
       setResponse(null);
       setError(err);
-      
+
       // Log the error without including request/response bodies
       const endTime = Date.now() * 1000000; // Convert to nanoseconds
-      
+
       await logExecution(
         http,
         http.typeName,
         startTime,
         endTime,
-        JSON.stringify({ error: errorMessage })
+        JSON.stringify({ error: errorMessage }),
       );
       BlockBus.get().blockFinished(http);
     }
-    
+
     setIsRunning(false);
     formatJSON();
   }, [http, editor.document, currentRunbookId, body, http.headers, http.url, http.verb]);
 
   useBlockBusRunSubscription(http.id, onPlay);
+
+  const themeObj = useCodemirrorTheme();
 
   return (
     <Block
@@ -186,14 +183,19 @@ const Http = ({
       header={
         <div className="flex flex-row items-center gap-2 w-full" ref={elementRef}>
           <PlayButton
-            eventName="runbooks.block.execute" eventProps={{type: "http"}}
+            eventName="runbooks.block.execute"
+            eventProps={{ type: "http" }}
             isRunning={isRunning}
             onPlay={onPlay}
             cancellable={false}
             disabled={!canRun}
           />
 
-          <HttpVerbDropdown selectedVerb={http.verb} onVerbChange={setVerb} disabled={!isEditable} />
+          <HttpVerbDropdown
+            selectedVerb={http.verb}
+            onVerbChange={setVerb}
+            disabled={!isEditable}
+          />
 
           <Input
             placeholder="http://localhost:8080/hello/world"
@@ -235,7 +237,12 @@ const Http = ({
         <Tab key="headers" title="Headers">
           <RequestHeaders pairs={http.headers} setPairs={setHeaders} disabled={!isEditable} />
         </Tab>
-        <Tab key="body" title="Body" isDisabled={http.verb === HttpVerb.GET} className="overflow-scroll">
+        <Tab
+          key="body"
+          title="Body"
+          isDisabled={http.verb === HttpVerb.GET}
+          className="overflow-scroll"
+        >
           <CodeMirror
             placeholder={"Request Body (JSON)"}
             className="!pt-0 max-w-full border border-gray-300 rounded flex-grow text-sm max-h-96"
@@ -246,7 +253,7 @@ const Http = ({
             basicSetup={true}
             extensions={[langs.json()]}
             editable={isEditable}
-            theme={colorMode === "dark" ? "dark" : "light"}
+            theme={themeObj}
           />
         </Tab>
       </Tabs>
@@ -318,7 +325,7 @@ export default createReactBlockSpec(
         dependency,
         block.props.url,
         block.props.verb as HttpVerb,
-        JSON.parse(block.props.headers)
+        JSON.parse(block.props.headers),
       );
 
       return (
@@ -335,14 +342,14 @@ export default createReactBlockSpec(
         />
       );
     },
-  }
+  },
 );
 
 export const insertHttp = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
   title: "HTTP",
   onItemClick: () => {
     track_event("runbooks.block.create", { type: "http" });
-    
+
     let httpBlocks = editor.document.filter((block: any) => block.type === "http");
     let name = `HTTP ${httpBlocks.length + 1}`;
 

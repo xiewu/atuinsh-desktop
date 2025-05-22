@@ -45,6 +45,7 @@ import { logExecution } from "@/lib/exec_log";
 import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency";
 import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus";
 import BlockBus from "@/lib/workflow/block_bus";
+import useCodemirrorTheme from "@/lib/hooks/useCodemirrorTheme";
 
 interface SQLProps {
   id: string;
@@ -103,7 +104,6 @@ const SQL = ({
   extensions = [],
 }: SQLProps) => {
   let editor = useBlockNoteEditor();
-  const colorMode = useStore((state) => state.functionalColorMode);
   const [isRunning, setIsRunning] = useState<boolean>(false);
 
   const [results, setResults] = useState<QueryResult | null>(null);
@@ -113,6 +113,8 @@ const SQL = ({
   const [currentRunbookId] = useStore((store: AtuinState) => [store.currentRunbookId]);
   const { canRun } = useDependencyState(block, isRunning);
   const elementRef = useRef<HTMLDivElement>(null);
+
+  const themeObj = useCodemirrorTheme();
 
   const handlePlay = useCallback(async () => {
     console.log("sql handlePlay called");
@@ -280,7 +282,8 @@ const SQL = ({
           <div className="flex flex-row gap-2 w-full" ref={elementRef}>
             <PlayButton
               disabled={!canRun}
-              eventName="runbooks.block.execute" eventProps={{type: sqlType}}
+              eventName="runbooks.block.execute"
+              eventProps={{ type: sqlType }}
               isRunning={isRunning}
               onPlay={handlePlay}
               cancellable={false}
@@ -295,7 +298,7 @@ const SQL = ({
               value={query}
               onChange={setQuery}
               editable={isEditable}
-              theme={colorMode === "dark" ? "dark" : "light"}
+              theme={themeObj}
               maxHeight="100vh"
             />
           </div>
@@ -350,8 +353,8 @@ const SQL = ({
       }
     >
       {(results || error) && (
-        <SQLResults 
-          results={results} 
+        <SQLResults
+          results={results}
           error={error}
           dismiss={() => {
             setResults(null);

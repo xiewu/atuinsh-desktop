@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Input, Tooltip, Button } from "@heroui/react";
+import { Input, Button } from "@heroui/react";
 import { CloudOffIcon, LockIcon } from "lucide-react";
 import { createReactBlockSpec } from "@blocknote/react";
 import { invoke } from "@tauri-apps/api/core";
@@ -33,6 +33,14 @@ const LocalVar = ({ name = "", onNameUpdate, isEditable }: LocalVarProps) => {
         .catch(console.error);
     }
   }, [name, currentRunbookId]);
+
+  const [hasNameError, setHasNameError] = useState(false);
+
+  // Check for invalid variable name characters (only allow alphanumeric and underscore)
+  useEffect(() => {
+    const validNamePattern = /^[a-zA-Z0-9_]*$/;
+    setHasNameError(!validNamePattern.test(name));
+  }, [name]);
 
   const handleKeyChange = (e: React.FormEvent<HTMLInputElement>) => {
     const newName = e.currentTarget.value;
@@ -75,33 +83,27 @@ const LocalVar = ({ name = "", onNameUpdate, isEditable }: LocalVarProps) => {
   };
 
   return (
-    <Tooltip
-      content="Private variable - value is only stored on your device and not synced with others"
-      delay={1000}
-      className="outline-none"
-    >
-      <div className="flex flex-row items-center space-x-3 w-full bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-slate-800 dark:to-purple-950 rounded-lg p-3 border border-purple-200 dark:border-purple-900 shadow-sm hover:shadow-md transition-all duration-200">
+    <div className="flex flex-row items-center space-x-3 w-full bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-slate-800 dark:to-purple-950 rounded-lg p-3 border border-purple-200 dark:border-purple-900 shadow-sm hover:shadow-md transition-all duration-200">
         <div className="flex items-center">
           <Button isIconOnly variant="light" className="bg-purple-100 dark:bg-purple-800 text-purple-600 dark:text-purple-300">
             <CloudOffIcon className="h-4 w-4" />
           </Button>
         </div>
 
-        <div className="flex-1">
-          <Input
-            placeholder="Name (shared)"
-            value={name}
-            onChange={handleKeyChange}
-            autoComplete="off"
-            autoCapitalize="off"
-            autoCorrect="off"
-            spellCheck="false"
-            className="flex-1 border-purple-200 dark:border-purple-800 focus:ring-purple-500"
-            disabled={!isEditable}
-          />
-        </div>
+            <Input
+              placeholder="Name (shared)"
+              value={name}
+              onChange={handleKeyChange}
+              autoComplete="off"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck="false"
+              className={`flex-1 ${hasNameError ? 'border-red-400 dark:border-red-400 focus:ring-red-500' : 'border-purple-200 dark:border-purple-800 focus:ring-purple-500'}`}
+              disabled={!isEditable}
+              isInvalid={hasNameError}
+              errorMessage={"Variable names can only contain letters, numbers, and underscores"}
+            />
 
-        <div className="flex-1">
           <Input
             placeholder="Value (private and ephemeral - only stored on your device)"
             value={localValue}
@@ -114,9 +116,7 @@ const LocalVar = ({ name = "", onNameUpdate, isEditable }: LocalVarProps) => {
             disabled={!isEditable}
             type="password"
           />
-        </div>
       </div>
-    </Tooltip>
   );
 };
 

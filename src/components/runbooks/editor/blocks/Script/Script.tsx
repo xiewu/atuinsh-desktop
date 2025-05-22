@@ -116,16 +116,22 @@ const ScriptBlock = ({
 
   // Class name for SSH indicator styling based on connection status
   const blockBorderClass = useMemo(() => {
+    // Check output variable name first
+    const hasOutputVarError = script.outputVariable && !/^[a-zA-Z0-9_]*$/.test(script.outputVariable);
+    if (hasOutputVarError) {
+      return "border-1 border-red-400 shadow-[0_0_10px_rgba(239,68,68,0.4)] rounded-lg transition-all duration-300";
+    }
+    
     if (shellMissing) {
-      return "border-2 border-red-400 shadow-[0_0_10px_rgba(239,68,68,0.4)] rounded-md transition-all duration-300";
+      return "border-1 border-red-400 shadow-[0_0_10px_rgba(239,68,68,0.4)] rounded-lg transition-all duration-300";
     }
 
     if (sshParent) {
-      return "border-2 border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.4)] rounded-md transition-all duration-300";
+      return "border-1 border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.4)] rounded-lg transition-all duration-300";
     }
 
-    return "";
-  }, [sshParent, shellMissing]);
+    return "border-1";
+  }, [sshParent, shellMissing, script.outputVariable]);
 
   // For the shell warning message in the top right
   const topRightWarning = useMemo(() => {
@@ -387,6 +393,7 @@ const ScriptBlock = ({
     return true;
   }, [handlePlay, handleStop, isRunning]);
 
+  // Border styling and validation handled in the blockBorderClass useMemo
   return (
     <Block
       hasDependency
@@ -412,18 +419,20 @@ const ScriptBlock = ({
             </h1>
 
             <div className="flex flex-row items-center gap-2" ref={elementRef}>
-              <Input
-                size="sm"
-                variant="flat"
-                className="max-w-[250px]"
-                placeholder="Output variable"
-                autoComplete="off"
-                autoCapitalize="off"
-                autoCorrect="off"
-                spellCheck="false"
-                value={script.outputVariable}
-                onValueChange={(val) => setOutputVariable(val)}
-              />
+                  <Input
+                    size="sm"
+                    variant="flat"
+                    className={`max-w-[250px] ${script.outputVariable && !/^[a-zA-Z0-9_]*$/.test(script.outputVariable) ? 'border-red-400 dark:border-red-400 focus:ring-red-500' : ''}`}
+                    placeholder="Output variable"
+                    autoComplete="off"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck="false"
+                    value={script.outputVariable}
+                    onValueChange={(val) => setOutputVariable(val)}
+                    isInvalid={!!script.outputVariable && !/^[a-zA-Z0-9_]*$/.test(script.outputVariable)}
+                    errorMessage={"Variable names can only contain letters, numbers, and underscores"}
+                  />
 
               <InterpreterSelector
                 interpreter={script.interpreter}

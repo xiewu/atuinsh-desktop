@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, Key } from "react";
 import {
-    Input, Tooltip, Button, Select, SelectItem,
+    Input, Button, Select, SelectItem,
     Modal,
     ModalContent,
     ModalHeader,
@@ -298,6 +298,14 @@ const Dropdown = ({ editor, id, name = "", options = "", value = "", optionsType
         })();
     }, [selected]);
 
+    const [hasNameError, setHasNameError] = useState(false);
+
+    // Check for invalid variable name characters (only allow alphanumeric and underscore)
+    useEffect(() => {
+        const validNamePattern = /^[a-zA-Z0-9_]*$/;
+        setHasNameError(!validNamePattern.test(name));
+    }, [name]);
+
     const handleKeyChange = (e: React.FormEvent<HTMLInputElement>) => {
         const newName = e.currentTarget.value;
 
@@ -326,31 +334,28 @@ const Dropdown = ({ editor, id, name = "", options = "", value = "", optionsType
 
     return (
         <>
-            <Tooltip
-                content="Select a value from a list of options, and store it in a variable"
-                delay={1000}
-                className="outline-none"
-            >
-                <div className="flex flex-row items-center space-x-3 w-full bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-slate-800 dark:to-cyan-950 rounded-lg p-3 border border-blue-200 dark:border-blue-900 shadow-sm hover:shadow-md transition-all duration-200">
+            <div className="flex flex-row items-center space-x-3 w-full bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-slate-800 dark:to-cyan-950 rounded-lg p-3 border border-blue-200 dark:border-blue-900 shadow-sm hover:shadow-md transition-all duration-200">
                     <div className="flex items-center">
                         <Button isIconOnly variant="light" className="bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-300" onPress={onOpen}>
                             <ListFilterIcon className="h-4 w-4" />
                         </Button>
                     </div>
 
-                    <div className="flex-1">
-                        <Input
-                            placeholder="Output variable name"
-                            value={name}
-                            onChange={handleKeyChange}
-                            style={{ fontFamily: "monospace" }}
-                            autoComplete="off"
-                            autoCapitalize="off"
-                            autoCorrect="off"
-                            spellCheck="false"
-                            className="flex-1 border-blue-200 dark:border-blue-800"
-                            disabled={!isEditable}
-                        />
+                    <div className="flex-1 flex flex-col justify-center">
+                            <Input
+                                placeholder="Output variable name"
+                                value={name}
+                                onChange={handleKeyChange}
+                                style={{ fontFamily: "monospace" }}
+                                autoComplete="off"
+                                autoCapitalize="off"
+                                autoCorrect="off"
+                                spellCheck="false"
+                                className={`flex-1 ${hasNameError ? 'border-red-400 dark:border-red-400 focus:ring-red-500' : 'border-blue-200 dark:border-blue-800'}`}
+                                disabled={!isEditable}
+                                isInvalid={hasNameError}
+                                errorMessage={"Variable names can only contain letters, numbers, and underscores"}
+                            />
                     </div>
 
                     <div className="flex-1">
@@ -374,7 +379,6 @@ const Dropdown = ({ editor, id, name = "", options = "", value = "", optionsType
                         </Select>
                     </div>
                 </div>
-            </Tooltip>
             {isOpen && (
                 <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="xl">
                     <ModalContent>

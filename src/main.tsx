@@ -14,6 +14,7 @@ window.addEventListener("unhandledrejection", (event) => {
 
 // import sentry before anything else
 import { init_tracking } from "./tracking";
+import track_event from "./tracking";
 
 import { event } from "@tauri-apps/api";
 import { useEffect } from "react";
@@ -119,10 +120,16 @@ DevConsole.addAppObject("invoke", invoke)
 
 event.listen("tauri://blur", () => {
   useStore.getState().setFocused(false);
+  track_event("app.blur");
 });
 
 event.listen("tauri://focus", () => {
   useStore.getState().setFocused(true);
+  track_event("app.focus");
+});
+
+event.listen("tauri://close-requested", () => {
+  track_event("app.close");
 });
 
 setupServerEvents(useStore, notificationManager);

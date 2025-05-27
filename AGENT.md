@@ -38,6 +38,15 @@ Prioritize clear, maintainable code with minimal comments and proper error handl
 - Backend: Tauri + Rust
 - Tests: Vitest for frontend, cargo test for backend
 
+## Tracking & Analytics
+- **Implementation**: src/tracking.ts with PostHog + Sentry integration
+- **Privacy-first**: No PII in analytics events, only event names and non-identifying properties
+- **User state**: Subscribe to useStore user changes for login/logout detection
+- **App lifecycle**: Tauri window events (focus/blur/close) tracked in src/main.tsx
+- **Anonymous users**: Use system UUID for user journeys without creating identified profiles
+- **Events tracked**: app.start/focus/blur/close, user.login/logout/register, runbook operations
+- **Opt-out**: Respects usage_tracking setting in KVStore
+
 ## Runbook Editor System
 
 ### Block Architecture

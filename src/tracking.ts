@@ -37,19 +37,38 @@ export const init_tracking = async () => {
       autocapture: false,
     });
 
-    useStore.subscribe(store => store.user, (user, lastUser) => {
-      if (!user || user.is(lastUser)) return;
-      if (user.isLoggedIn()) {
-        Sentry.setUser({
-          username: user.username,
-          email: user.email || "",
-        });
-      } else {
-        Sentry.setUser(null);
-      }
-    })
+    useStore.subscribe(
+      (store) => store.user,
+      (user, lastUser) => {
+        if (user && user.is(lastUser)) return;
+        
+        const isLoggedIn = user && user.isLoggedIn();
+        const wasLoggedIn = lastUser && lastUser.isLoggedIn();
+        
+        if (isLoggedIn && !wasLoggedIn) {
+          // User just logged in
+          track_event("user.login");
+
+          // Only set user context for Sentry (error tracking)
+          Sentry.setUser({
+            username: user.username,
+            email: user.email || "",
+          });
+        } else if (!isLoggedIn && wasLoggedIn) {
+          // User just logged out
+          track_event("user.logout");
+
+          Sentry.setUser(null);
+        }
+      },
+    );
 
     posthog.identify(system_id);
+
+    // Track app start
+    track_event("app.start", {
+      version: appVersion,
+    });
   } else {
     console.log("User opted out of tracking");
   }

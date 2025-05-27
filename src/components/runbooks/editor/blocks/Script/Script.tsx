@@ -368,7 +368,7 @@ const ScriptBlock = ({
     let connectionBlock = findFirstParentOfType(editor, script.id, ["ssh-connect", "host-select"]);
 
     // Use SSH cancel for SSH blocks
-    if (connectionBlock && connectionBlock.type === "ssh-connect") {
+    if (connectionBlock && connectionBlock.type === "ssh-connect" && channelRef.current) {
       await invoke("ssh_exec_cancel", { channel: channelRef.current });
     } else {
       // For Host blocks or no connection block, use local process termination

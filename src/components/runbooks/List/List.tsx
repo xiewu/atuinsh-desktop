@@ -37,6 +37,8 @@ import { createNewRunbookMenu, createRootMenu } from "./menus";
 import { SharedStateManager } from "@/lib/shared_state/manager";
 import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
 import VerticalDragHandle from "./VerticalDragHandle";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
 
 export type ListApi = {
   scrollWorkspaceIntoView: (workspaceId: string) => void;
@@ -414,12 +416,13 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
             </div>
           </div>
           <div
-            className="p-1 flex-grow overflow-y-scroll overscroll-none cursor-default"
-            onContextMenu={handleBaseContextMenu}
+            className="p-1 flex-grow overflow-y-scroll cursor-default"
+             onContextMenu={handleBaseContextMenu}
           >
-            {workspaces && (
-              <div className="flex flex-col gap-2">
-                {workspaces.map((workspace) => {
+            <DndProvider backend={HTML5Backend}>
+              {workspaces && (
+                <div className="flex flex-col gap-2">
+                  {workspaces.map((workspace) => {
                   return (
                     <div
                       className="w-[98%] m-auto"
@@ -448,6 +451,7 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
                 })}
               </div>
             )}
+            </DndProvider>
           </div>
         </>
       )}

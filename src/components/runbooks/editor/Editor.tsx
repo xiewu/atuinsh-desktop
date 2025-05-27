@@ -45,6 +45,11 @@ import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert";
 import track_event from "@/tracking";
 import { insertDropdown } from "./blocks/Dropdown/Dropdown";
 
+// Fix for react-dnd interference with BlockNote drag-and-drop
+// React-dnd wraps dataTransfer in a proxy that blocks access during drag operations
+// We capture the original data during dragstart and resynthesize clean drop events
+let originalDragData: any = null;
+
 // Slash menu item to insert an Alert block
 const insertTerminal = (editor: typeof schema.BlockNoteEditor) => ({
   title: "Terminal",
@@ -217,6 +222,59 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
         fontSize: `${fontSize}px`,
         fontFamily: fontFamily,
       }}
+      onDragStart={(e) => {
+        // Capture original drag data before react-dnd can wrap it
+        originalDragData = {
+          effectAllowed: e.dataTransfer.effectAllowed,
+          types: Array.from(e.dataTransfer.types),
+          data: {},
+        };
+
+        e.dataTransfer.types.forEach((type) => {
+          try {
+            originalDragData.data[type] = e.dataTransfer.getData(type);
+          } catch (err) {
+            // Some types may not be readable during dragstart
+          }
+        });
+      }}
+      onDrop={(e) => {
+        if (!originalDragData) {
+          return;
+        }
+
+        const view = editor._tiptapEditor.view;
+
+        if (!view || !originalDragData.data["blocknote/html"]) {
+          return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Create clean DataTransfer with preserved data
+        const cleanDataTransfer = new DataTransfer();
+        Object.keys(originalDragData.data).forEach((type) => {
+          cleanDataTransfer.setData(type, originalDragData.data[type]);
+        });
+
+        // Create fresh drop event with clean DataTransfer
+        const syntheticEvent = new DragEvent("drop", {
+          bubbles: false,
+          cancelable: true,
+          clientX: e.clientX,
+          clientY: e.clientY,
+          dataTransfer: cleanDataTransfer,
+        });
+
+        // Mark as synthetic to prevent recursion
+        (syntheticEvent as any).synthetic = true;
+
+        view.dispatchEvent(syntheticEvent);
+
+        originalDragData = null;
+      }}
+      onDragOver={(e) => e.preventDefault()}
       onClick={(e) => {
         // Only return if clicking inside editor content, not modals/inputs
         if (
@@ -257,6 +315,9 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
         }}
         theme={colorMode === "dark" ? "dark" : "light"}
         editable={editable}
+        onDragStart={(e) => {
+          console.log("onDragStart", e);
+        }}
       >
         <SuggestionMenuController
           triggerCharacter={"/"}

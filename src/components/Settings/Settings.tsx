@@ -33,6 +33,7 @@ import { usePromise } from "@/lib/utils";
 import SocketManager from "@/socket";
 import handleDeepLink from "@/routes/root/deep";
 import * as api from "@/api/api";
+import InterpreterSelector from "@/components/runbooks/editor/blocks/common/InterpreterSelector";
 
 async function loadFonts(): Promise<string[]> {
   const fonts = await invoke<string[]>("list_fonts");
@@ -407,6 +408,12 @@ const RunbookSettings = () => {
     Settings.terminalShell,
     Settings.terminalShell,
   );
+  const [scriptShell, setScriptShell, scriptShellLoading] = useSettingsState(
+    "script_shell",
+    "",
+    Settings.scriptShell,
+    Settings.scriptShell,
+  );
   const [prometheusUrl, setPrometheusUrl, urlLoading] = useSettingsState(
     "prometheus_url",
     "http://localhost:9090",
@@ -414,7 +421,7 @@ const RunbookSettings = () => {
     Settings.runbookPrometheusUrl,
   );
 
-  if (fontLoading || glLoading || urlLoading || fontSizeLoading || shellLoading || !fonts)
+  if (fontLoading || glLoading || urlLoading || fontSizeLoading || shellLoading || scriptShellLoading || !fonts)
     return <Spinner />;
 
   return (
@@ -461,7 +468,25 @@ const RunbookSettings = () => {
       <Card shadow="sm">
         <CardBody className="flex flex-col gap-4">
           <h2 className="text-xl font-semibold">Script</h2>
-          <p className="text-sm text-default-500">Add custom script interpreters for use in script blocks</p>
+          <p className="text-sm text-default-500">Configure default settings for script blocks</p>
+          
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-sm font-medium">Default shell</label>
+                <p className="text-xs text-default-500">Default shell interpreter for new script blocks</p>
+              </div>
+              <InterpreterSelector
+                interpreter={scriptShell || "zsh"}
+                onInterpreterChange={setScriptShell}
+                size="sm"
+                variant="flat"
+              />
+            </div>
+          </div>
+          
+          <div className="border-t pt-4">
+            <p className="text-sm text-default-500 mb-3">Add custom script interpreters for use in script blocks</p></div>
           
           <div className="flex flex-col gap-3">
             {scriptInterpreters.map((interpreter) => (

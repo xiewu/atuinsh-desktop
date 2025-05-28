@@ -75,16 +75,20 @@ const InterpreterSelector: React.FC<InterpreterSelectorProps> = ({
     setIsCustom(!isInterpreterSupported);
   }, [interpreter, scriptInterpreters, supportedShells]);
 
-  // Load script interpreters from settings
-  useEffect(() => {
-    Settings.scriptInterpreters()
-      .then(interpreters => {
-        setScriptInterpreters(interpreters);
-      })
-      .catch(error => {
-        console.error("Failed to load script interpreters:", error);
-      });
+  // Function to load script interpreters from settings
+  const loadScriptInterpreters = useCallback(async () => {
+    try {
+      const interpreters = await Settings.scriptInterpreters();
+      setScriptInterpreters(interpreters);
+    } catch (error) {
+      console.error("Failed to load script interpreters:", error);
+    }
   }, []);
+
+  // Load script interpreters from settings on mount
+  useEffect(() => {
+    loadScriptInterpreters();
+  }, [loadScriptInterpreters]);
 
   // Check which shells are installed
   useEffect(() => {
@@ -180,6 +184,12 @@ const InterpreterSelector: React.FC<InterpreterSelectorProps> = ({
               base: "min-w-[180px]"
             }}
             selectedKeys={[interpreter]}
+            onOpenChange={(isOpen) => {
+              if (isOpen) {
+                // Refresh interpreters when dropdown opens
+                loadScriptInterpreters();
+              }
+            }}
             onSelectionChange={(e) => {
               if (!e.currentKey) return;
               const key = e.currentKey as string;

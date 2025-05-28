@@ -10,6 +10,7 @@
 - Tauri commands: `pnpm run tauri`
 
 ## Code Style Guidelines
+- **Branches**: Use format `<username>/<issue-id>/short-description` (e.g., `ellie/ATU-194/script-default-shell`)
 - **Commits**: Follow conventional commits (feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)
   - Use concise, single-line commit messages
   - Format: `type(scope): brief description` (e.g., `feat(terminal): add custom shell selection`)

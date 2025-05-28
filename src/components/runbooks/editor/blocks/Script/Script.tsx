@@ -36,6 +36,7 @@ import { useBlockInserted } from "@/lib/buses/editor.ts";
 import track_event from "@/tracking";
 import { invoke } from "@tauri-apps/api/core";
 import InterpreterSelector, { buildInterpreterCommand, supportedShells } from "../common/InterpreterSelector.tsx";
+import { Settings } from "@/state/settings.ts";
 
 interface ScriptBlockProps {
   onChange: (val: string) => void;
@@ -624,12 +625,16 @@ export default createReactBlockSpec(
 
 export const insertScript = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
   title: "Script",
-  subtext: "Non-interactive script (bash)",
-  onItemClick: () => {
+  subtext: "Non-interactive script",
+  onItemClick: async () => {
     track_event("runbooks.block.create", { type: "script" });
 
     let scriptBlocks = editor.document.filter((block: any) => block.type === "script");
     let name = `Script ${scriptBlocks.length + 1}`;
+
+    // Get default shell from settings
+    const defaultShell = await Settings.scriptShell();
+    const interpreter = defaultShell || "zsh";
 
     editor.insertBlocks(
       [
@@ -638,6 +643,7 @@ export const insertScript = (schema: any) => (editor: typeof schema.BlockNoteEdi
           // @ts-ignore
           props: {
             name: name,
+            interpreter: interpreter,
           },
         },
       ],

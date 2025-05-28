@@ -6,6 +6,8 @@ import { KVStore } from "./state/kv";
 import AtuinEnv from "./atuin_env";
 import { useStore } from "./state/store";
 
+let platformInfo: string | null = null;
+
 export const init_tracking = async () => {
   // don't need to spam sentry with my dumbass mistakes
   if (AtuinEnv.isDev) return;
@@ -14,6 +16,14 @@ export const init_tracking = async () => {
   let db = await KVStore.open_default();
   let track = await db.get<boolean>("usage_tracking");
   let system_id = await db.systemId();
+
+  // Get platform info once and cache it
+  try {
+    platformInfo = await invoke<string>("get_platform_info");
+  } catch (e) {
+    console.warn("Failed to get platform info:", e);
+    platformInfo = "unknown";
+  }
 
 
   // In this case, the user has not yet finished the onboarding flow!
@@ -80,9 +90,15 @@ export const init_tracking = async () => {
 
 export default function track_event(event: string, properties: any = {}) {
   if (AtuinEnv.isDev) {
-    console.log(`[dev] track_event: ${event} -> ${JSON.stringify(properties)}`);
+    console.log(`[dev] track_event: ${event} -> ${JSON.stringify({ ...properties, platform: platformInfo })}`);
     return;
   }
 
-  posthog.capture(event, properties || {});
+  // Always include platform info in every event
+  const eventProperties = {
+    ...properties,
+    platform: platformInfo,
+  };
+
+  posthog.capture(event, eventProperties);
 }

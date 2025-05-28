@@ -305,6 +305,36 @@ async fn get_app_version(app: AppHandle) -> Result<String, String> {
     Ok(version)
 }
 
+#[tauri::command]
+async fn get_platform_info() -> Result<String, String> {
+    let base_os = if cfg!(target_os = "macos") {
+        "macos".to_string()
+    } else if cfg!(target_os = "windows") {
+        "windows".to_string()
+    } else if cfg!(target_os = "linux") {
+        // Try to get more detailed Linux distro info
+        std::fs::read_to_string("/etc/os-release")
+            .ok()
+            .and_then(|contents| {
+                contents
+                    .lines()
+                    .find(|line| line.starts_with("ID="))
+                    .map(|id_line| {
+                        let distro = id_line
+                            .strip_prefix("ID=")
+                            .unwrap_or("linux")
+                            .trim_matches('"');
+                        format!("linux-{}", distro)
+                    })
+            })
+            .unwrap_or_else(|| "linux".to_string())
+    } else {
+        "unknown".to_string()
+    };
+
+    Ok(base_os)
+}
+
 fn backup_databases(app: &App) -> tauri::Result<()> {
     let version = app.package_info().version.to_string();
     // This seems like the wrong directory to use, but it's what the SQL plugin uses so ¯\_(ツ)_/¯
@@ -399,6 +429,7 @@ fn main() {
             history_calendar,
             cli_settings,
             get_app_version,
+            get_platform_info,
             run::pty::pty_open,
             run::pty::pty_write,
             run::pty::pty_resize,

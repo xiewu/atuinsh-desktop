@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
 import { KVStore } from "@/state/kv";
 import AccountModal from "../Account/AccountModal";
+import { init_tracking } from "@/tracking";
 
 const FeatureCard = ({ title, description }: any) => (
   <Card>
@@ -32,7 +33,6 @@ const Onboarding = () => {
   } = useDisclosure();
 
   const [trackingOptIn, setTrackingOptIn] = useState(true);
-  const [restartNeeded, setRestartNeeded] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
 
   useEffect(() => {
@@ -56,6 +56,9 @@ const Onboarding = () => {
         onOpenChange={onOnboardingOpenChange}
         className="w-full select-none"
         size="2xl"
+        onClose={async ()=>{
+          await init_tracking();
+        }}
       >
         <ModalContent className="w-full">
           {(onClose) => (
@@ -129,10 +132,6 @@ const Onboarding = () => {
                         (async () => {
                           let db = await KVStore.open_default();
                           await db.set("usage_tracking", value);
-
-                          // Regardless, restart. While we could remove all hooks when tracking is disabled, it's safer
-                          // to just restart the app and never initialize the hooks at all.
-                          setRestartNeeded(true);
                         })();
 
                         setTrackingOptIn(value);
@@ -165,7 +164,7 @@ const Onboarding = () => {
           )}
         </ModalContent>
       </Modal>
-      <AccountModal close={() => setShowAccountModal(false)} isOpen={showAccountModal} restartNeeded={restartNeeded} />
+      <AccountModal close={() => setShowAccountModal(false)} isOpen={showAccountModal} />
     </>
   );
 };

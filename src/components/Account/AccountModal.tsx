@@ -1,8 +1,6 @@
 import { Modal, ModalContent, Button, Card, CardBody } from "@heroui/react";
 import { open } from "@tauri-apps/plugin-shell";
 import * as api from "@/api/api";
-import { ask } from "@tauri-apps/plugin-dialog";
-import { relaunch } from "@tauri-apps/plugin-process";
 import { KVStore } from "@/state/kv";
 
 const completeOnboarding = async () => {
@@ -10,23 +8,10 @@ const completeOnboarding = async () => {
   await db.set("onboarding_complete", true);
 };
 
-const AccountModal = ({close, isOpen, restartNeeded}: {close: () => void, isOpen: boolean, restartNeeded: boolean}) => {
+const AccountModal = ({close, isOpen}: {close: () => void, isOpen: boolean}) => {
   const handleClose = async () => {
     close();
     await completeOnboarding();
-
-    if (restartNeeded) {
-      const yes = await ask(
-        "To apply your changes, Atuin needs to restart. This won't take long!",
-        {
-          title: "Restart now?",
-          kind: "info",
-          okLabel: "Restart now",
-          cancelLabel: "I'll do it later",
-        },
-      );
-      if (yes) relaunch();
-    }
   }
 
   return (

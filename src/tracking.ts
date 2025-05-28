@@ -16,10 +16,12 @@ export const init_tracking = async () => {
   let system_id = await db.systemId();
 
 
-  // Default to true, opt-out
+  // In this case, the user has not yet finished the onboarding flow!
+  // We should not track them as they might be about to opt-out
+  // init_tracking is normally called asap, but it is also called from the onboarding 
   if (track === null) {
-    track = true;
-    await db.set("usage_tracking", true);
+    console.log("User has not finished onboarding");
+    return;
   }
 
   if (track) {
@@ -69,6 +71,8 @@ export const init_tracking = async () => {
     track_event("app.start", {
       version: appVersion,
     });
+
+    console.log("User opted in to tracking");
   } else {
     console.log("User opted out of tracking");
   }

@@ -242,6 +242,11 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
         if (!originalDragData) {
           return;
         }
+        
+        // This is only the case if the user is dragging a block from the sidebar
+        if ((e.target as Element).matches(".bn-editor")) {
+          return;
+        }
 
         const view = editor._tiptapEditor.view;
 

@@ -10,13 +10,14 @@
 - Tauri commands: `pnpm run tauri`
 
 ## Code Style Guidelines
-- **Branches**: Use format `<username>/<issue-id>/short-description` (e.g., `ellie/ATU-194/script-default-shell`)
+- **Branches**: ALWAYS create a branch before making changes. NEVER commit directly to main. Use format `<username>/<issue-id>/short-description` (e.g., `ellie/ATU-194/script-default-shell`)
 - **Commits**: Follow conventional commits (feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)
   - Use concise, single-line commit messages
   - Format: `type(scope): brief description` (e.g., `feat(terminal): add custom shell selection`)
   - Split different features or fixes into separate commits
   - Keep changes focused and atomic
 - **Comments**: Avoid redundant comments; only add WHY not WHAT
+- **Issue Management**: Never add comments to Linear issues, only update status when requested
 - **Rust**: Use Rust 1.84, async/await pattern with proper error handling via eyre/thiserror
 - **TypeScript**: Use TypeScript for frontend with React components
 - **Styling**: Use Tailwind CSS with shadcn components

@@ -36,6 +36,7 @@ const TerminalComponent = ({
   setExitCode,
   setCommandDuration,
   editor,
+  isFullscreen = false,
 }: any) => {
   const terminalRef = useRef(null);
   const { terminalData, isReady } = usePersistentTerminal(pty);
@@ -63,7 +64,14 @@ const TerminalComponent = ({
     const windowResize = () => {
       if (!terminalData || !terminalData.fitAddon) return;
 
-      terminalData.fitAddon.fit();
+      // Add a small delay to ensure the DOM has updated
+      setTimeout(() => {
+        terminalData.fitAddon.fit();
+        let proposedDimensions = terminalData.fitAddon.proposeDimensions();
+        if (proposedDimensions) {
+          terminalData.terminal.resize(proposedDimensions.cols + 2, proposedDimensions.rows);
+        }
+      }, 100);
     };
 
     // terminal object needs attaching to a ref to a div
@@ -78,7 +86,7 @@ const TerminalComponent = ({
         terminalRef.current.appendChild(terminalData.terminal.element);
       }
 
-      terminalData.fitAddon.fit();
+      windowResize();
       setIsAttached(true);
 
       window.addEventListener("resize", windowResize);
@@ -106,9 +114,23 @@ const TerminalComponent = ({
     };
   }, [terminalData, isReady]);
 
+
   if (!isReady) return null;
 
-  return <div className="!max-w-full min-w-0 overflow-hidden rounded-lg" ref={terminalRef} />;
+  return (
+    <div
+      className={`overflow-hidden ${isFullscreen ? "h-full rounded-md" : "rounded-lg h-[400px]"}`}
+      style={{
+        width: "100%",
+        minWidth: 0,
+        display: "block",
+        boxSizing: "border-box",
+        margin: 0,
+        padding: 0,
+      }}
+      ref={terminalRef}
+    />
+  );
 };
 
 export default TerminalComponent;

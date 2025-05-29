@@ -13,12 +13,12 @@ import { useBlockNoteEditor } from "@blocknote/react";
 
 import "@xterm/xterm/css/xterm.css";
 import { AtuinState, useStore } from "@/state/store.ts";
-import { addToast, Chip, Spinner, Tooltip } from "@heroui/react";
-import { cn, formatDuration } from "@/lib/utils.ts";
+import { addToast, Button, Chip, Spinner, Tooltip } from "@heroui/react";
+import { formatDuration } from "@/lib/utils.ts";
 import { usePtyStore } from "@/state/ptyStore.ts";
 import track_event from "@/tracking.ts";
 import PlayButton from "../common/PlayButton.tsx";
-import { Clock, Eye, EyeOff } from "lucide-react";
+import { Clock, Eye, EyeOff, Maximize2, Minimize2 } from "lucide-react";
 import Block from "../common/Block.tsx";
 import EditableHeading from "@/components/EditableHeading/index.tsx";
 import { findFirstParentOfType, findAllParentsOfType } from "../exec.ts";
@@ -80,6 +80,7 @@ const RunBlock = ({
   const [commandStart, setCommandStart] = useState<number | null>(null);
   const [parentBlock, setParentBlock] = useState<BlockType | null>(null);
   const elementRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   const unsubscribeNameChanged = useRef<(() => void) | null>(null);
   const unsubscribeDependencyChanged = useRef<(() => void) | null>(null);
@@ -355,6 +356,24 @@ const RunBlock = ({
   useBlockBusRunSubscription(terminal.id, handlePlay);
   useBlockBusStopSubscription(terminal.id, handleStop);
 
+  // Handle ESC key to exit fullscreen and prevent body scroll
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+
+    if (isFullscreen) {
+      document.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.removeEventListener("keydown", handleKeyDown);
+        document.body.style.overflow = "auto";
+      };
+    }
+  }, [isFullscreen]);
+
   return (
     <Block
       className={sshBorderClass}
@@ -365,7 +384,7 @@ const RunBlock = ({
       setName={setName}
       inlineHeader
       setDependency={setDependency}
-      hideChild={!terminal.outputVisible}
+      hideChild={(!terminal.outputVisible || !isRunning)}
       header={
         <>
           <div className="flex flex-row justify-between w-full">
@@ -398,6 +417,15 @@ const RunBlock = ({
                   className="p-2 hover:bg-default-100 rounded-md"
                 >
                   {terminal.outputVisible ? <Eye size={20} /> : <EyeOff size={20} />}
+                </button>
+              </Tooltip>
+              <Tooltip content={isFullscreen ? "Exit fullscreen" : "Open in fullscreen"}>
+                <button
+                  onClick={() => setIsFullscreen(!isFullscreen)}
+                  className="p-2 hover:bg-default-100 rounded-md"
+                  disabled={!terminal.outputVisible || !isRunning}
+                >
+                  {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
                 </button>
               </Tooltip>
             </div>
@@ -433,22 +461,83 @@ const RunBlock = ({
         </>
       }
     >
-      {pty && (
-        <div
-          className={cn(`overflow-hidden transition-all duration-300 ease-in-out min-w-0 hidden`, {
-            block: terminal.outputVisible && isRunning,
-          })}
+      {terminal.outputVisible && (
+        <>
+          {!isFullscreen && pty && isRunning && (
+            <div className="overflow-hidden transition-all duration-300 ease-in-out min-w-0 max-h-[400px]">
+              <Terminal
+                block_id={terminal.id}
+                pty={pty.pid}
+                script={terminal.code}
+                runScript={firstOpen}
+                setCommandRunning={setCommandRunning}
+                setExitCode={setExitCode}
+                setCommandDuration={setCommandDuration}
+                editor={editor}
+              />
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Fullscreen Terminal Modal */}
+      {isFullscreen && pty && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md z-[9999]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsFullscreen(false);
+            }
+          }}
         >
-          <Terminal
-            block_id={terminal.id}
-            pty={pty.pid}
-            script={terminal.code}
-            runScript={firstOpen}
-            setCommandRunning={setCommandRunning}
-            setExitCode={setExitCode}
-            setCommandDuration={setCommandDuration}
-            editor={editor}
-          />
+          <div className="h-full bg-background overflow-hidden rounded-lg shadow-2xl flex flex-col">
+            {/* Fullscreen Terminal Header */}
+            <div 
+              data-tauri-drag-region
+              className="flex justify-between items-center w-full border-default-200/50 bg-content1/95 backdrop-blur-sm flex-shrink-0"
+            >
+              <div data-tauri-drag-region className="flex items-center gap-3 ml-16 w-full justify-between">
+                <span className="text-sm text-default-700">
+                  {terminal.name || "Terminal"}
+                </span>
+                {isRunning && commandRunning && <Spinner size="sm" />}
+                {isRunning && commandDuration && (
+                  <Chip
+                    variant="flat"
+                    size="sm"
+                    className="pl-3 py-2"
+                    startContent={<Clock size={14} />}
+                    color={exitCode == 0 ? "success" : "danger"}
+                  >
+                    {formatDuration(commandDuration)}
+                  </Chip>
+                )}
+              </div>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="flat"
+                onPress={() => setIsFullscreen(false)}
+              >
+                <Minimize2 size={18} />
+              </Button>
+            </div>
+            
+            {/* Fullscreen Terminal Content */}
+            <div className="bg-black min-h-0 flex-1 overflow-hidden">
+              <Terminal
+                block_id={terminal.id}
+                pty={pty.pid}
+                script={terminal.code}
+                runScript={false}
+                setCommandRunning={setCommandRunning}
+                setExitCode={setExitCode}
+                setCommandDuration={setCommandDuration}
+                editor={editor}
+                isFullscreen={true}
+              />
+            </div>
+          </div>
         </div>
       )}
     </Block>

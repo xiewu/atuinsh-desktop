@@ -271,6 +271,8 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
     menu.close();
   }
 
+  const org = userOrgs.find((org) => org.id === selectedOrg);
+
   return (
     <div
       className={cn([
@@ -322,7 +324,16 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
                 >
                   {selectedOrg && (
                     <h2 className="text-lg font-semibold flex items-center gap-2">
-                      {userOrgs.find((org) => org.id === selectedOrg)?.name}
+                      {org?.avatar_url && (
+                        <Avatar
+                          src={org.avatar_url}
+                          size="sm"
+                          radius="sm"
+                          classNames={{ base: "inline-block mr-2 min-w-[32px]" }}
+                          name={org.name}
+                        />
+                      )}
+                      {org?.name}
                     </h2>
                   )}
                   {!selectedOrg && (
@@ -334,7 +345,7 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
                               src={user.avatar_url}
                               size="sm"
                               radius="sm"
-                              classNames={{ base: "inline-block mr-2 mt min-w-[32px]" }}
+                              classNames={{ base: "inline-block mr-2 min-w-[32px]" }}
                               name={user.username}
                             />
                           )}
@@ -358,7 +369,7 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
                           src={user.avatar_url}
                           size="sm"
                           radius="sm"
-                          classNames={{ base: "inline-block mr-2 mt min-w-[32px]" }}
+                          classNames={{ base: "inline-block mr-2 min-w-[32px]" }}
                           name={user.username}
                         />
                       )
@@ -369,7 +380,21 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
                   </DropdownItem>
                   <>
                     {userOrgs.map((org) => (
-                      <DropdownItem key={org.id} onPress={() => setSelectedOrg(org.id)}>
+                      <DropdownItem
+                        key={org.id}
+                        onPress={() => setSelectedOrg(org.id)}
+                        startContent={
+                          org.avatar_url && (
+                            <Avatar
+                              src={org.avatar_url}
+                              size="sm"
+                              radius="sm"
+                              classNames={{ base: "inline-block mr-2 min-w-[32px]" }}
+                              name={org.name}
+                            />
+                          )
+                        }
+                      >
                         {org.name}
                       </DropdownItem>
                     ))}
@@ -417,40 +442,40 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
           </div>
           <div
             className="p-1 flex-grow overflow-y-scroll cursor-default"
-             onContextMenu={handleBaseContextMenu}
+            onContextMenu={handleBaseContextMenu}
           >
             <DndProvider backend={HTML5Backend}>
               {workspaces && (
                 <div className="flex flex-col gap-2">
                   {workspaces.map((workspace) => {
-                  return (
-                    <div
-                      className="w-[98%] m-auto"
-                      onClick={() => setFocusedWorkspaceId(workspace.get("id")!)}
-                      key={workspace.get("id")!}
-                      id={`workspace-el-${workspace.get("id")!}`}
-                    >
-                      <WorkspaceComponent
-                        workspace={workspace}
-                        focused={focusedWorkspaceId === workspace.get("id")}
-                        sortBy={sortBy}
-                        currentRunbookId={currentRunbookId}
-                        onActivateRunbook={activateRunbook}
-                        onStartCreateRunbook={(
-                          workspaceId: string,
-                          parentFolderId: string | null,
-                        ) => handleNewRunbook(workspaceId, parentFolderId)}
-                        onStartCreateWorkspace={props.onStartCreateWorkspace}
-                        onStartDeleteRunbook={(_workspaceId: string, runbookId: string) =>
-                          promptDeleteRunbook(runbookId)
-                        }
-                        onStartMoveItemsToWorkspace={handleMoveItemsToWorkspace}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    return (
+                      <div
+                        className="w-[98%] m-auto"
+                        onClick={() => setFocusedWorkspaceId(workspace.get("id")!)}
+                        key={workspace.get("id")!}
+                        id={`workspace-el-${workspace.get("id")!}`}
+                      >
+                        <WorkspaceComponent
+                          workspace={workspace}
+                          focused={focusedWorkspaceId === workspace.get("id")}
+                          sortBy={sortBy}
+                          currentRunbookId={currentRunbookId}
+                          onActivateRunbook={activateRunbook}
+                          onStartCreateRunbook={(
+                            workspaceId: string,
+                            parentFolderId: string | null,
+                          ) => handleNewRunbook(workspaceId, parentFolderId)}
+                          onStartCreateWorkspace={props.onStartCreateWorkspace}
+                          onStartDeleteRunbook={(_workspaceId: string, runbookId: string) =>
+                            promptDeleteRunbook(runbookId)
+                          }
+                          onStartMoveItemsToWorkspace={handleMoveItemsToWorkspace}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </DndProvider>
           </div>
         </>

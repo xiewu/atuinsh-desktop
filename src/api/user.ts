@@ -5,6 +5,7 @@ interface UserOrgInfo {
   id: string;
   name: string;
   slug: string;
+  avatar_url: string | null;
 }
 
 interface MeResponse {

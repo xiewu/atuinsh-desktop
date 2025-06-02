@@ -84,9 +84,16 @@ export default function Topbar(props: TopbarProps) {
               classNames={{ base: "inline-block mr-2 mt-1 min-w-[32px]" }}
             />
           )}
-          {(!remoteRunbook || owner?.type === "org") && (
-            <BookTextIcon size={24} className="mt-2 mr-2 ml-1 min-w-[26px]" />
+          {remoteRunbook && owner?.type === "org" && (
+            <Avatar
+              size="sm"
+              radius="sm"
+              name={owner.org.name}
+              src={owner.org.avatar_url || undefined}
+              classNames={{ base: "inline-block mr-2 mt-1 min-w-[32px]" }}
+            />
           )}
+          {!remoteRunbook && <BookTextIcon size={24} className="mt-2 mr-2 ml-1 min-w-[26px]" />}
           <div className="flex-col truncate shrink">
             <div className="hidden md:block mb-[-1px] whitespace-nowrap">{name}</div>
             <div className="hidden md:block text-gray-400 text-xs italic whitespace-nowrap">

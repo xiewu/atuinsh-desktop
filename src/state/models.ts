@@ -27,6 +27,7 @@ export interface UserOrg {
   id: string;
   name: string;
   slug: string;
+  avatar_url: string | null;
 }
 
 export const DefaultUser: User = new User("Anonymous User", "anon", "An anonymous user", "");
@@ -145,6 +146,7 @@ export interface RemoteOrg {
   id: string;
   name: string;
   slug: string;
+  avatar_url: string | null;
 }
 
 interface RemoteSnapshot {

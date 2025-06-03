@@ -147,8 +147,8 @@ importers:
         specifier: 2.2.0
         version: 2.2.0
       '@tauri-apps/plugin-updater':
-        specifier: 2.2.0
-        version: 2.2.0
+        specifier: 2.7.1
+        version: 2.7.1
       '@types/lodash.debounce':
         specifier: ^4.0.9
         version: 4.0.9
@@ -2888,8 +2888,8 @@ packages:
   '@tauri-apps/plugin-sql@2.2.0':
     resolution: {integrity: sha512-yGdybpaMENe/p6lTXslvDHYNNvD9qB7palaBBF5fJHdYSkwd3vrLiYU9dFfLwUAwnsBylND55EiivWsjhazejA==}
 
-  '@tauri-apps/plugin-updater@2.2.0':
-    resolution: {integrity: sha512-YL9X+B3LBciPscjVKc5OrR9oG3B2QJ2RVE5+E2UQ0WRXn5Ge3c6IurhKVAjWjmT0IEJz8XCughREVnWpk6ndwg==}
+  '@tauri-apps/plugin-updater@2.7.1':
+    resolution: {integrity: sha512-1OPqEY/z7NDVSeTEMIhD2ss/vXWdpfZ5Th2Mk0KtPR/RA6FKuOTDGZQhxoyYBk0pcZJ+nNZUbl/IujDCLBApjA==}
 
   '@tiptap/core@2.12.0':
     resolution: {integrity: sha512-3qX8oGVKFFZzQ0vit+ZolR6AJIATBzmEmjAA0llFhWk4vf3v64p1YcXcJsOBsr5scizJu5L6RYWEFatFwqckRg==}
@@ -9178,7 +9178,7 @@ snapshots:
     dependencies:
       '@tauri-apps/api': 2.5.0
 
-  '@tauri-apps/plugin-updater@2.2.0':
+  '@tauri-apps/plugin-updater@2.7.1':
     dependencies:
       '@tauri-apps/api': 2.5.0
 

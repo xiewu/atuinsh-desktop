@@ -1,16 +1,13 @@
-import { useState } from "react";
 import {
   Card,
   CardBody,
   CardHeader,
-  Tabs,
-  Tab,
   Chip,
   Tooltip,
   Divider,
   Button,
 } from "@heroui/react";
-import { Clock, CheckCircle, AlertCircle, Info, WifiOff, TrashIcon } from "lucide-react";
+import { Clock, CheckCircle, AlertCircle, Info, WifiOff, TrashIcon, Copy } from "lucide-react";
 import JsonView from "@uiw/react-json-view";
 
 import "./style.css";
@@ -28,7 +25,6 @@ const renderBody = (body: string, headers: any) => {
           displayDataTypes={false}
           displayObjectSize={false}
           enableClipboard={false}
-          collapsed={1}
         />
       );
     } catch (error) {
@@ -39,7 +35,13 @@ const renderBody = (body: string, headers: any) => {
 };
 
 const HttpResponse = ({ response, error, dismiss }: any) => {
-  const [activeTab, setActiveTab] = useState<any>("body");
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+    }
+  };
 
   if (error) {
     return (
@@ -119,20 +121,26 @@ const HttpResponse = ({ response, error, dismiss }: any) => {
         </div>
       </CardHeader>
       <Divider />
-      <CardBody className="p-0">
-        <Tabs
-          aria-label="Response tabs"
-          selectedKey={activeTab}
-          onSelectionChange={setActiveTab}
-          className="p-4"
-          variant="underlined"
-        >
-          <Tab key="body" title="Body" className="p-0">
-            <div className="mt-4 p-4 bg-default-50 rounded-lg overflow-auto max-h-96">
-              {renderBody(data, headers)}
-            </div>
-          </Tab>
-          <Tab key="headers" title="Headers" className="p-0">
+      <CardBody className="p-4 space-y-4">
+        {/* Response Headers Section */}
+        <div>
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-sm font-semibold text-default-700">Response Headers</h3>
+            <Button
+              variant="light"
+              size="sm"
+              isIconOnly
+              onClick={() => {
+                const headersText = headerEntries
+                  .map(([key, value]) => `${key}: ${value}`)
+                  .join('\n');
+                copyToClipboard(headersText);
+              }}
+            >
+              <Copy size={14} />
+            </Button>
+          </div>
+          <div className="bg-default-50 rounded-lg p-3">
             <ResultTable
               results={headerEntries}
               width={"100%"}
@@ -149,8 +157,26 @@ const HttpResponse = ({ response, error, dismiss }: any) => {
                 },
               ]}
             />
-          </Tab>
-        </Tabs>
+          </div>
+        </div>
+
+        {/* Response Body Section */}
+        <div>
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-sm font-semibold text-default-700">Response Body</h3>
+            <Button
+              variant="light"
+              size="sm"
+              isIconOnly
+              onClick={() => copyToClipboard(data)}
+            >
+              <Copy size={14} />
+            </Button>
+          </div>
+          <div className="bg-default-50 rounded-lg p-4 overflow-auto max-h-96">
+            {renderBody(data, headers)}
+          </div>
+        </div>
       </CardBody>
     </Card>
   );

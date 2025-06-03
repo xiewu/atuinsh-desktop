@@ -109,7 +109,7 @@ export default class ServerObserver {
         this.userSyncTimer = Some(
           setTimeout(() => {
             this.maybeRefreshUser();
-          }, USER_SYNC_INTERVAL) as unknown as number,
+          }, USER_SYNC_INTERVAL),
         );
       });
   }

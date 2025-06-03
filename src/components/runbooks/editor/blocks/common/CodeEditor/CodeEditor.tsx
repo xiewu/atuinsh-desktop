@@ -19,6 +19,7 @@ interface CodeEditorProps {
   theme: string;
   keyMap?: KeyMap[];
   onChange: (code: string) => void;
+  onFocus?: () => void;
 }
 
 export const TabAutoComplete: KeyMap = { key: "Tab", run: acceptCompletion };
@@ -31,6 +32,7 @@ export default function CodeEditor({
   language,
   theme,
   keyMap,
+  onFocus,
 }: CodeEditorProps) {
   let editorLanguage = useMemo(() => {
     // Do the best we can with the interpreter name - get the language
@@ -88,6 +90,7 @@ export default function CodeEditor({
       onChange={(val) => {
         onChange(val);
       }}
+      onFocus={onFocus}
       extensions={editorExtensions}
       basicSetup={false}
       indentWithTab={false}

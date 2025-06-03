@@ -6,6 +6,8 @@ import { createReactBlockSpec } from "@blocknote/react";
 import * as LanguageData from "@codemirror/language-data";
 import EditorBlockType from "@/lib/workflow/blocks/editor.ts";
 import track_event from "@/tracking";
+import { invoke } from "@tauri-apps/api/core";
+import { useStore } from "@/state/store";
 
 import CodeMirror, { Extension } from "@uiw/react-codemirror";
 
@@ -65,9 +67,12 @@ interface CodeBlockProps {
 
   onChange: (val: string) => void;
   onLanguageChange: (val: string) => void;
+  onVariableNameChange: (val: string) => void;
   code: string;
   language: string;
+  variableName: string;
   isEditable: boolean;
+  onCodeMirrorFocus?: () => void;
 }
 
 const EditorBlock = ({
@@ -75,10 +80,13 @@ const EditorBlock = ({
   code,
   language,
   onLanguageChange,
+  onVariableNameChange,
+  variableName,
   isEditable,
   name,
   setName,
   editor,
+  onCodeMirrorFocus,
 }: CodeBlockProps) => {
   const languages: LanguageLoader[] = useMemo(() => languageLoaders(), []);
 
@@ -124,58 +132,70 @@ const EditorBlock = ({
       setName={setName}
       inlineHeader
       header={
-        <div className="flex flex-row justify-between w-full">
-          <EditableHeading initialText={name} onTextChange={setName} />
-          <Dropdown
-            isOpen={isOpen}
-            onOpenChange={(open) => setIsOpen(open)}
-            isDisabled={!isEditable}
-          >
-            <DropdownTrigger>
-              <Button
-                variant="flat"
+        <div className="flex flex-col gap-2 w-full">
+          <div className="flex flex-row justify-between w-full">
+            <EditableHeading initialText={name} onTextChange={setName} />
+            <div className="flex flex-row gap-2 items-center">
+              <Input
                 size="sm"
-                className="capitalize"
-                endContent={<ChevronDownIcon size={16} />}
+                placeholder="Variable"
+                value={variableName}
+                onChange={(e) => onVariableNameChange(e.target.value)}
+                disabled={!isEditable}
+                className="font-mono text-xs"
+              />
+              <Dropdown
+                isOpen={isOpen}
+                onOpenChange={(open) => setIsOpen(open)}
+                isDisabled={!isEditable}
               >
-                {selected ? selected.name : "Select a language"}
-              </Button>
-            </DropdownTrigger>
-            <DropdownMenu
-              aria-label="Scrollable dropdown"
-              className="max-h-[300px] overflow-y-auto"
-              items={filteredItems}
-              topContent={
-                <Input
-                  autoFocus
-                  autoComplete="off"
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  spellCheck="false"
-                  type="text"
-                  placeholder="Filter languages..."
-                  value={filterText}
-                  onChange={(e) => setFilterText(e.target.value)}
-                  className="w-full"
-                  onClick={(e) => e.stopPropagation()}
-                  disabled={!isEditable}
-                />
-              }
-            >
-              {(item) => (
-                <DropdownItem
-                  key={item.name}
-                  onPress={() => {
-                    setSelected(item);
-                    setFilterText("");
-                    setIsOpen(false);
-                  }}
+                <DropdownTrigger>
+                  <Button
+                    variant="flat"
+                    size="sm"
+                    className="capitalize"
+                    endContent={<ChevronDownIcon size={16} />}
+                  >
+                    {selected ? selected.name : "Select a language"}
+                  </Button>
+                </DropdownTrigger>
+                <DropdownMenu
+                  aria-label="Scrollable dropdown"
+                  className="max-h-[300px] overflow-y-auto"
+                  items={filteredItems}
+                  topContent={
+                    <Input
+                      autoFocus
+                      autoComplete="off"
+                      autoCapitalize="off"
+                      autoCorrect="off"
+                      spellCheck="false"
+                      type="text"
+                      placeholder="Filter languages..."
+                      value={filterText}
+                      onChange={(e) => setFilterText(e.target.value)}
+                      className="w-full"
+                      onClick={(e) => e.stopPropagation()}
+                      disabled={!isEditable}
+                    />
+                  }
                 >
-                  {item.name}
-                </DropdownItem>
-              )}
-            </DropdownMenu>
-          </Dropdown>
+                  {(item) => (
+                    <DropdownItem
+                      key={item.name}
+                      onPress={() => {
+                        setSelected(item);
+                        setFilterText("");
+                        setIsOpen(false);
+                      }}
+                    >
+                      {item.name}
+                    </DropdownItem>
+                  )}
+                </DropdownMenu>
+              </Dropdown>
+            </div>
+          </div>
         </div>
       }
     >
@@ -187,6 +207,7 @@ const EditorBlock = ({
         onChange={(val) => {
           onChange(val);
         }}
+        onFocus={onCodeMirrorFocus}
         extensions={extension ? [extension] : []}
         basicSetup={true}
         theme={themeObj}
@@ -202,23 +223,47 @@ export default createReactBlockSpec(
       name: { default: "Editor" },
       code: { default: "" },
       language: { default: "" },
+      variableName: { default: "" },
     },
     content: "none",
   },
   {
     // @ts-ignore
     render: ({ block, editor, code, type }) => {
+      const { currentRunbookId } = useStore();
+
+      const handleCodeMirrorFocus = () => {
+        // Ensure BlockNote knows which block contains the focused CodeMirror
+        editor.setTextCursorPosition(block.id, "start");
+      };
+
       const onCodeChange = (val: string) => {
         editor.updateBlock(block, {
           // @ts-ignore
           props: { ...block.props, code: val },
         });
+
+        // Store in template variable if variable name is specified
+        if (block.props.variableName && currentRunbookId) {
+          invoke("set_template_var", {
+            runbook: currentRunbookId,
+            name: block.props.variableName,
+            value: val,
+          }).catch(console.error);
+        }
       };
 
       const onLanguageChange = (val: string) => {
         editor.updateBlock(block, {
           // @ts-ignore
           props: { ...block.props, language: val },
+        });
+      };
+
+      const onVariableNameChange = (val: string) => {
+        editor.updateBlock(block, {
+          // @ts-ignore
+          props: { ...block.props, variableName: val },
         });
       };
 
@@ -245,9 +290,12 @@ export default createReactBlockSpec(
           setName={setName}
           onChange={onCodeChange}
           onLanguageChange={onLanguageChange}
+          onVariableNameChange={onVariableNameChange}
           code={block.props.code}
           language={block.props.language}
+          variableName={block.props.variableName}
           isEditable={editor.isEditable}
+          onCodeMirrorFocus={handleCodeMirrorFocus}
         />
       );
     },

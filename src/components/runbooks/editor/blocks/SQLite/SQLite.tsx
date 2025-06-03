@@ -23,6 +23,7 @@ interface SQLiteProps {
   setName: (name: string) => void;
   setCollapseQuery: (collapseQuery: boolean) => void;
   setDependency: (dependency: DependencySpec) => void;
+  onCodeMirrorFocus?: () => void;
 }
 
 const SQLite = ({
@@ -35,6 +36,7 @@ const SQLite = ({
   collapseQuery,
   setCollapseQuery,
   setDependency,
+  onCodeMirrorFocus,
 }: SQLiteProps) => {
 
   return (
@@ -55,6 +57,7 @@ const SQLite = ({
       collapseQuery={collapseQuery}
       setCollapseQuery={setCollapseQuery}
       setDependency={setDependency}
+      onCodeMirrorFocus={onCodeMirrorFocus}
     />
   );
 };
@@ -75,6 +78,11 @@ export default createReactBlockSpec(
   {
     // @ts-ignore
     render: ({ block, editor, code, type }) => {
+      const handleCodeMirrorFocus = () => {
+        // Ensure BlockNote knows which block contains the focused CodeMirror
+        editor.setTextCursorPosition(block.id, "start");
+      };
+
       const setQuery = (query: string) => {
         editor.updateBlock(block, {
           // @ts-ignore
@@ -128,6 +136,7 @@ export default createReactBlockSpec(
           isEditable={editor.isEditable}
           collapseQuery={block.props.collapseQuery}
           setCollapseQuery={setCollapseQuery}
+          onCodeMirrorFocus={handleCodeMirrorFocus}
         />
       );
     },

@@ -7,6 +7,8 @@ const TERMINAL_GL = "settings.runbooks.terminal.gl";
 const TERMINAL_SHELL = "settings.runbooks.terminal.shell";
 const SCRIPT_SHELL = "settings.runbooks.script.shell";
 const SCRIPT_INTERPRETERS = "settings.runbooks.script.interpreters";
+const AI_ENABLED = "settings.ai.enabled";
+const AI_API_KEY = "settings.ai.api_key";
 
 export class Settings {
   public static DEFAULT_FONT = "FiraCode";
@@ -87,5 +89,27 @@ export class Settings {
   public static async setScriptInterpreters(interpreters: Array<{command: string; name: string}>): Promise<void> {
     let store = await KVStore.open_default();
     await store.set(SCRIPT_INTERPRETERS, interpreters);
+  }
+
+  public static async aiEnabled(val: boolean | null = null): Promise<boolean> {
+    let store = await KVStore.open_default();
+
+    if (val !== null) {
+      await store.set(AI_ENABLED, val);
+      return val;
+    }
+
+    return (await store.get(AI_ENABLED)) || false;
+  }
+
+  public static async aiApiKey(val: string | null = null): Promise<string | null> {
+    let store = await KVStore.open_default();
+
+    if (val || val === "") {
+      await store.set(AI_API_KEY, val);
+      return val;
+    }
+
+    return await store.get(AI_API_KEY);
   }
 }

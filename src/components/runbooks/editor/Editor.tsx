@@ -19,6 +19,11 @@ import "@blocknote/mantine/style.css";
 
 import { CodeIcon, FolderOpenIcon, VariableIcon, TextCursorInputIcon, EyeIcon } from "lucide-react";
 
+import { AIGeneratePopup } from "./AIGeneratePopup";
+import AIPopup from "./ui/AIPopup";
+import { isAIEnabled } from "@/lib/ai/block_generator";
+import { SparklesIcon } from "lucide-react";
+
 import { insertSQLite } from "@/components/runbooks/editor/blocks/SQLite/SQLite";
 import { insertPostgres } from "@/components/runbooks/editor/blocks/Postgres/Postgres";
 import { insertClickhouse } from "@/components/runbooks/editor/blocks/Clickhouse/Clickhouse";
@@ -38,12 +43,13 @@ import { schema } from "./create_editor";
 import RunbookEditor from "@/lib/runbook_editor";
 import { useStore } from "@/state/store";
 import { usePromise } from "@/lib/utils";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import BlockBus from "@/lib/workflow/block_bus";
 import { invoke } from "@tauri-apps/api/core";
 import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert";
 import track_event from "@/tracking";
 import { insertDropdown } from "./blocks/Dropdown/Dropdown";
+
 
 // Fix for react-dnd interference with BlockNote drag-and-drop
 // React-dnd wraps dataTransfer in a proxy that blocks access during drag operations
@@ -163,6 +169,49 @@ const insertVarDisplay = (editor: typeof schema.BlockNoteEditor) => ({
   group: "Execute",
 });
 
+// Calculate popup position relative to a block
+const calculatePopupPosition = (editor: any, blockId?: string): { x: number; y: number } => {
+  try {
+    // Get the current cursor position if no blockId provided
+    const targetBlockId = blockId || editor.getTextCursorPosition().block.id;
+    
+    // Get the DOM element for the target block
+    const blockElement = editor.domElement?.querySelector(`[data-id="${targetBlockId}"]`);
+    
+    if (blockElement && editor.domElement) {
+      const blockRect = blockElement.getBoundingClientRect();
+      const editorRect = editor.domElement.getBoundingClientRect();
+      
+      // Calculate position relative to the editor container
+      const relativeX = blockRect.left - editorRect.left + 20;
+      const relativeY = blockRect.top - editorRect.top + 10;
+      
+      return { x: relativeX, y: relativeY };
+    } else {
+      // Fallback: position near top-left of editor
+      return { x: 50, y: 50 };
+    }
+  } catch (error) {
+    console.warn("Could not calculate popup position, using fallback:", error);
+    // Fallback to center if APIs fail
+    return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  }
+};
+
+// AI Generate function
+const insertAIGenerate = (editor: any, showAIPopup: (position: { x: number; y: number }) => void) => ({
+  title: "AI Generate",
+  subtext: "Generate blocks from a natural language prompt (or press ⌘K)",
+  onItemClick: () => {
+    track_event("runbooks.ai.slash_menu_popup");
+    const position = calculatePopupPosition(editor);
+    showAIPopup(position);
+  },
+  icon: <SparklesIcon size={18} />,
+  aliases: ["ai", "generate", "prompt"],
+  group: "AI",
+});
+
 type EditorProps = {
   runbook: Runbook | null;
   editable: boolean;
@@ -175,6 +224,64 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
   const fontSize = useStore((state) => state.fontSize);
   const fontFamily = useStore((state) => state.fontFamily);
   const serialExecuteRef = useRef<(() => void) | null>(null);
+  const [aiPopupVisible, setAiPopupVisible] = useState(false);
+  const [aiPopupPosition, setAiPopupPosition] = useState({ x: 0, y: 0 });
+  const [aiEnabledState, setAiEnabledState] = useState(false);
+  const [isAIEditPopupOpen, setIsAIEditPopupOpen] = useState(false);
+  const [currentEditBlock, setCurrentEditBlock] = useState<any>(null);
+  const [aiEditPopupPosition, setAiEditPopupPosition] = useState({ x: 0, y: 0 });
+
+  // Check AI enabled status
+  useEffect(() => {
+    isAIEnabled().then(setAiEnabledState);
+  }, []);
+
+  const showAIPopup = useCallback((position: { x: number; y: number }) => {
+    setAiPopupPosition(position);
+    setAiPopupVisible(true);
+  }, []);
+
+  const closeAIPopup = useCallback(() => {
+    setAiPopupVisible(false);
+  }, []);
+
+  const getEditorContext = useCallback(async () => {
+    if (!editor) return undefined;
+    
+    try {
+      // Get current document blocks
+      const blocks = editor.document;
+      
+      // Get cursor position (current block)
+      const textCursorPosition = editor.getTextCursorPosition();
+      const currentBlockId = textCursorPosition.block.id;
+      
+      // Find current block index
+      const currentBlockIndex = blocks.findIndex(block => block.id === currentBlockId);
+      
+      return {
+        blocks,
+        currentBlockId,
+        currentBlockIndex: currentBlockIndex >= 0 ? currentBlockIndex : 0
+      };
+    } catch (error) {
+      console.warn("Could not get editor context:", error);
+      return undefined;
+    }
+  }, [editor]);
+
+  const handleAIGenerate = useCallback((blocks: any[]) => {
+    if (!editor) return;
+
+    const currentPosition = editor.getTextCursorPosition();
+    
+    editor.insertBlocks(
+      blocks,
+      currentPosition.block.id,
+      "after"
+    );
+    closeAIPopup();
+  }, [editor, closeAIPopup]);
 
   const serialExecuteCallback = useCallback(async () => {
     if (!editor || !runbook) {
@@ -188,6 +295,8 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
     console.log(workflow);
     await invoke("workflow_serial", { id: runbook.id, workflow });
   }, [editor, runbook]);
+
+
 
   useEffect(() => {
     if (!editor || !runbook || serialExecuteRef.current) {
@@ -206,6 +315,51 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
     };
   }, [editor, runbook]);
 
+  // Add keyboard shortcut for AI popup (Cmd+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey && e.key === 'k') {
+        e.preventDefault();
+        
+        if (!editor) return;
+        
+        try {
+          // Get the current cursor position in the editor
+          const cursorPosition = editor.getTextCursorPosition();
+          const currentBlock = cursorPosition.block;
+          
+          // Check if we're in an empty paragraph (for generation) or specific block (for editing)
+          const isEmptyParagraph = currentBlock.type === "paragraph" && 
+            (!currentBlock.content || currentBlock.content.length === 0);
+          
+          if (isEmptyParagraph) {
+            // Generate new blocks mode
+            track_event("runbooks.ai.keyboard_shortcut");
+            const position = calculatePopupPosition(editor, currentBlock.id);
+            showAIPopup(position);
+          } else {
+            // Edit existing block mode
+            track_event("runbooks.ai.edit_block", { blockType: currentBlock.type });
+            const position = calculatePopupPosition(editor, currentBlock.id);
+            setAiEditPopupPosition(position);
+            setIsAIEditPopupOpen(true);
+            setCurrentEditBlock(currentBlock);
+          }
+        } catch (error) {
+          console.warn("Could not get cursor position for Cmd+K, using fallback:", error);
+          // Fallback to center if APIs fail
+          showAIPopup({ x: 250, y: 100 });
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [editor, showAIPopup]);
+
   if (!editor || !runbook) {
     return (
       <div className="flex w-full h-full flex-col justify-center items-center">
@@ -217,7 +371,7 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
   // Renders the editor instance.
   return (
     <div
-      className="overflow-y-scroll editor flex-grow pt-3"
+      className="overflow-y-scroll editor flex-grow pt-3 relative"
       style={{
         fontSize: `${fontSize}px`,
         fontFamily: fontFamily,
@@ -242,7 +396,7 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
         if (!originalDragData) {
           return;
         }
-        
+
         // This is only the case if the user is dragging a block from the sidebar
         if ((e.target as Element).matches(".bn-editor")) {
           return;
@@ -313,6 +467,7 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
       <BlockNoteView
         editor={editor}
         slashMenu={false}
+        formattingToolbar={false}
         className="pb-[200px]"
         sideMenu={false}
         onChange={() => {
@@ -330,6 +485,9 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
             filterSuggestionItems(
               [
                 ...getDefaultReactSlashMenuItems(editor),
+                // AI group (only if enabled)
+                ...(aiEnabledState ? [insertAIGenerate(editor, showAIPopup)] : []),
+
                 // Execute group
                 insertTerminal(editor as any),
                 insertEnv(editor as any),
@@ -375,7 +533,31 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
             ></SideMenu>
           )}
         />
+
       </BlockNoteView>
+      
+      {/* AI popup positioned relative to editor container (only if AI is enabled) */}
+      {aiEnabledState && (
+        <AIGeneratePopup
+          isVisible={aiPopupVisible}
+          position={aiPopupPosition}
+          onGenerate={handleAIGenerate}
+          onClose={closeAIPopup}
+          getEditorContext={getEditorContext}
+        />
+      )}
+      
+      {/* AI edit popup for modifying existing blocks */}
+      {aiEnabledState && (
+        <AIPopup
+          isOpen={isAIEditPopupOpen}
+          onClose={() => setIsAIEditPopupOpen(false)}
+          editor={editor}
+          currentBlock={currentEditBlock}
+          position={aiEditPopupPosition}
+          getEditorContext={getEditorContext}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import CodeEditor from "@/components/runbooks/editor/blocks/Editor/Editor";
 import { BlockNoteEditor, BlockNoteSchema, defaultBlockSpecs } from "@blocknote/core";
+import { en } from "@blocknote/core/locales";
 import Run from "./blocks/Run";
 import Directory from "./blocks/Directory";
 import Env from "./blocks/Env";
@@ -89,6 +90,9 @@ export function createCollaborativeEditor(
         name: user.username || "Anonymous",
         color: presenceColor,
       },
+    },
+    dictionary: {
+      ...en,
     },
   });
 

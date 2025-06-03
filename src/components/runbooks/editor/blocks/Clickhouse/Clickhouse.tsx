@@ -21,6 +21,7 @@ interface SQLProps {
   setName: (name: string) => void;
   setCollapseQuery: (collapseQuery: boolean) => void;
   setDependency: (dependency: DependencySpec) => void;
+  onCodeMirrorFocus?: () => void;
 }
 
 const Clickhouse = ({
@@ -33,6 +34,7 @@ const Clickhouse = ({
   collapseQuery,
   setCollapseQuery,
   setDependency,
+  onCodeMirrorFocus,
 }: SQLProps) => {
   return (
     <SQL
@@ -52,6 +54,7 @@ const Clickhouse = ({
       collapseQuery={collapseQuery}
       setCollapseQuery={setCollapseQuery}
       setDependency={setDependency}
+      onCodeMirrorFocus={onCodeMirrorFocus}
     />
   );
 };
@@ -72,6 +75,11 @@ export default createReactBlockSpec(
   {
     // @ts-ignore
     render: ({ block, editor, code, type }) => {
+      const handleCodeMirrorFocus = () => {
+        // Ensure BlockNote knows which block contains the focused CodeMirror
+        editor.setTextCursorPosition(block.id, "start");
+      };
+
       const setQuery = (query: string) => {
         editor.updateBlock(block, {
           // @ts-ignore
@@ -132,6 +140,7 @@ export default createReactBlockSpec(
           collapseQuery={block.props.collapseQuery}
           setCollapseQuery={setCollapseQuery}
           setDependency={setDependency}
+          onCodeMirrorFocus={handleCodeMirrorFocus}
         />
       );
     },

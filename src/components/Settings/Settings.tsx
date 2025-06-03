@@ -592,6 +592,50 @@ const AuthTokenModal = (props: AuthTokenModalProps) => {
   );
 };
 
+const AISettings = () => {
+  const [aiEnabled, setAiEnabled, enabledLoading] = useSettingsState(
+    "ai_enabled",
+    false,
+    Settings.aiEnabled,
+    Settings.aiEnabled,
+  );
+  const [aiApiKey, setAiApiKey, keyLoading] = useSettingsState(
+    "ai_api_key",
+    "",
+    Settings.aiApiKey,
+    Settings.aiApiKey,
+  );
+
+  if (enabledLoading || keyLoading) return <Spinner />;
+
+  return (
+    <Card shadow="sm">
+      <CardBody className="flex flex-col gap-4">
+        <h2 className="text-xl font-semibold">AI Integration</h2>
+        <p className="text-sm text-default-500">Configure AI-powered runbook generation</p>
+        
+        <SettingSwitch
+          label="Enable AI features"
+          isSelected={aiEnabled}
+          onValueChange={setAiEnabled}
+          description="Enable AI-powered runbook generation and assistance"
+        />
+        
+        {aiEnabled && (
+          <SettingInput
+            type="password"
+            label="Anthropic API Key"
+            value={aiApiKey || ""}
+            onChange={setAiApiKey}
+            placeholder="sk-ant-api03-..."
+            description="Your Anthropic API key for Claude models"
+          />
+        )}
+      </CardBody>
+    </Card>
+  );
+};
+
 const UserSettings = () => {
   const user = useStore((state) => state.user);
   const refreshUser = useStore((state) => state.refreshUser);
@@ -687,6 +731,7 @@ const SettingsPanel = () => {
       <div className="flex flex-col gap-4">
         <GeneralSettings />
         <RunbookSettings />
+        <AISettings />
         <UserSettings />
       </div>
     </div>

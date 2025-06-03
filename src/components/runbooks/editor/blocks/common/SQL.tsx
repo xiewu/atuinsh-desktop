@@ -68,6 +68,7 @@ interface SQLProps {
   setAutoRefresh: (autoRefresh: number) => void;
   setName: (name: string) => void;
   setDependency: (dependency: DependencySpec) => void;
+  onCodeMirrorFocus?: () => void;
 }
 
 const autoRefreshChoices = [
@@ -102,6 +103,7 @@ const SQL = ({
   runQuery,
   sqlType,
   extensions = [],
+  onCodeMirrorFocus,
 }: SQLProps) => {
   let editor = useBlockNoteEditor();
   const [isRunning, setIsRunning] = useState<boolean>(false);
@@ -300,6 +302,7 @@ const SQL = ({
               editable={isEditable}
               theme={themeObj}
               maxHeight="100vh"
+              onFocus={onCodeMirrorFocus}
             />
           </div>
         </>

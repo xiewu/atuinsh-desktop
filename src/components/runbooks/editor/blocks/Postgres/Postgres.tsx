@@ -23,6 +23,7 @@ interface SQLProps {
   setAutoRefresh: (autoRefresh: number) => void;
   setName: (name: string) => void;
   setDependency: (dependency: DependencySpec) => void;
+  onCodeMirrorFocus?: () => void;
 }
 
 const Postgres = ({
@@ -35,6 +36,7 @@ const Postgres = ({
   collapseQuery,
   setCollapseQuery,
   setDependency,
+  onCodeMirrorFocus,
 }: SQLProps) => {
   return (
     <SQL
@@ -55,6 +57,7 @@ const Postgres = ({
       collapseQuery={collapseQuery}
       setCollapseQuery={setCollapseQuery}
       setDependency={setDependency}
+      onCodeMirrorFocus={onCodeMirrorFocus}
     />
   );
 };
@@ -75,6 +78,11 @@ export default createReactBlockSpec(
   {
     // @ts-ignore
     render: ({ block, editor, code, type }) => {
+      const handleCodeMirrorFocus = () => {
+        // Ensure BlockNote knows which block contains the focused CodeMirror
+        editor.setTextCursorPosition(block.id, "start");
+      };
+
       const setQuery = (query: string) => {
         editor.updateBlock(block, {
           // @ts-ignore
@@ -128,6 +136,7 @@ export default createReactBlockSpec(
           collapseQuery={block.props.collapseQuery}
           setCollapseQuery={setCollapseQuery}
           setDependency={setDependency}
+          onCodeMirrorFocus={handleCodeMirrorFocus}
         />
       );
     },

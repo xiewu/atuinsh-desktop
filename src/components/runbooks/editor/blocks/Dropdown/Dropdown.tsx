@@ -37,6 +37,7 @@ interface DropdownProps {
     onValueUpdate: (value: string) => void;
     onOptionsTypeChange: (optionsType: string) => void;
     onInterpreterChange: (interpreter: string) => void;
+    onCodeMirrorFocus?: () => void;
 }
 
 const FixedTab = ({ options, onOptionsUpdate }: { options: string, onOptionsUpdate: (options: string) => void }) => {
@@ -125,9 +126,10 @@ interface CommandTabProps {
     onOptionsUpdate: (options: string) => void;
     interpreter: string;
     onInterpreterChange: (interpreter: string) => void;
+    onCodeMirrorFocus?: () => void;
 }
 
-const CommandTab = ({ options, onOptionsUpdate, interpreter, onInterpreterChange }: CommandTabProps) => {
+const CommandTab = ({ options, onOptionsUpdate, interpreter, onInterpreterChange, onCodeMirrorFocus }: CommandTabProps) => {
     const colorMode = useStore((state) => state.functionalColorMode);
     const lightModeEditorTheme = useStore((state) => state.lightModeEditorTheme);
     const darkModeEditorTheme = useStore((state) => state.darkModeEditorTheme);
@@ -155,6 +157,7 @@ const CommandTab = ({ options, onOptionsUpdate, interpreter, onInterpreterChange
                     language={interpreter || "bash"}
                     theme={theme}
                     onChange={onOptionsUpdate}
+                    onFocus={onCodeMirrorFocus}
                     keyMap={[TabAutoComplete]}
                 />
             </div>
@@ -162,7 +165,7 @@ const CommandTab = ({ options, onOptionsUpdate, interpreter, onInterpreterChange
     );
 }
 
-const Dropdown = ({ editor, id, name = "", options = "", value = "", optionsType = "fixed", interpreter = "bash", onNameUpdate, onOptionsUpdate, onValueUpdate, onOptionsTypeChange, onInterpreterChange, isEditable }: DropdownProps) => {
+const Dropdown = ({ editor, id, name = "", options = "", value = "", optionsType = "fixed", interpreter = "bash", onNameUpdate, onOptionsUpdate, onValueUpdate, onOptionsTypeChange, onInterpreterChange, isEditable, onCodeMirrorFocus }: DropdownProps) => {
     const currentRunbookId = useStore((store) => store.currentRunbookId);
     const [selected, setSelected] = useState(value);
     const { isOpen, onOpen, onOpenChange } = useDisclosure();
@@ -400,6 +403,7 @@ const Dropdown = ({ editor, id, name = "", options = "", value = "", optionsType
                                             onOptionsUpdate={onOptionsUpdate}
                                             interpreter={interpreter}
                                             onInterpreterChange={onInterpreterChange}
+                                            onCodeMirrorFocus={onCodeMirrorFocus}
                                         />
                                     </Tab>
                                 </Tabs>
@@ -428,6 +432,11 @@ export default createReactBlockSpec(
     {
         // @ts-ignore
         render: ({ block, editor }) => {
+            const handleCodeMirrorFocus = () => {
+                // Ensure BlockNote knows which block contains the focused CodeMirror
+                editor.setTextCursorPosition(block.id, "start");
+            };
+
             const onNameUpdate = (name: string): void => {
                 editor.updateBlock(block, {
                     // @ts-ignore
@@ -484,6 +493,7 @@ export default createReactBlockSpec(
                     onOptionsTypeChange={onOptionsTypeChange}
                     onInterpreterChange={onInterpreterChange}
                     isEditable={editor.isEditable}
+                    onCodeMirrorFocus={handleCodeMirrorFocus}
                 />
             );
         },

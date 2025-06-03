@@ -49,6 +49,7 @@ interface RunBlockProps {
   isEditable: boolean;
   setOutputVisible: (visible: boolean) => void;
   setDependency: (dependency: DependencySpec) => void;
+  onCodeMirrorFocus?: () => void;
 
   terminal: TerminalBlock;
 }
@@ -62,6 +63,7 @@ const RunBlock = ({
   setOutputVisible,
   terminal,
   setDependency,
+  onCodeMirrorFocus,
 }: RunBlockProps) => {
   let editor = useBlockNoteEditor();
   const colorMode = useStore((state) => state.functionalColorMode);
@@ -449,6 +451,7 @@ const RunBlock = ({
               isEditable={isEditable}
               language="bash"
               theme={theme}
+              onFocus={onCodeMirrorFocus}
               keyMap={[
                 TabAutoComplete,
                 {
@@ -565,6 +568,11 @@ export default createReactBlockSpec(
   {
     // @ts-ignore
     render: ({ block, editor, code, type }) => {
+      const handleCodeMirrorFocus = () => {
+        // Ensure BlockNote knows which block contains the focused CodeMirror
+        editor.setTextCursorPosition(block.id, "start");
+      };
+
       const onInputChange = (val: string) => {
         editor.updateBlock(block, {
           // @ts-ignore
@@ -624,6 +632,7 @@ export default createReactBlockSpec(
           setOutputVisible={setOutputVisible}
           terminal={terminal}
           setDependency={setDependency}
+          onCodeMirrorFocus={handleCodeMirrorFocus}
         />
       );
     },

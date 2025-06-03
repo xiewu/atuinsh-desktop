@@ -22,21 +22,19 @@ const Env = ({ name = "", value = "", onUpdate, isEditable }: EnvProps) => {
   };
 
   return (
-    <div className="flex flex-row items-center space-x-2 w-full ">
-      <div className="flex flex-1 flex-row gap-2 ">
-          <Tooltip
-            content="Set an environment variable for all subsequent code blocks"
-            delay={1000}
-            className="outline-none"
-          >
-        <div className="">
-            <Button isIconOnly isDisabled variant="light">
-              <VariableIcon />
-            </Button>
+    <Tooltip
+      content="Set an environment variable for all subsequent code blocks"
+      delay={1000}
+      className="outline-none"
+    >
+      <div className="flex flex-row items-center space-x-3 w-full bg-gradient-to-r from-green-50 to-emerald-50 dark:from-slate-800 dark:to-green-950 rounded-lg p-3 border border-green-200 dark:border-green-900 shadow-sm hover:shadow-md transition-all duration-200">
+        <div className="flex items-center">
+          <Button isIconOnly variant="light" className="bg-green-100 dark:bg-green-800 text-green-600 dark:text-green-300">
+            <VariableIcon className="h-4 w-4" />
+          </Button>
         </div>
-          </Tooltip>
 
-        <div className="flex-grow">
+        <div className="flex-1">
           <Input
             placeholder="Name"
             value={name}
@@ -45,26 +43,26 @@ const Env = ({ name = "", value = "", onUpdate, isEditable }: EnvProps) => {
             autoCapitalize="off"
             autoCorrect="off"
             spellCheck="false"
-            className="flex-1"
+            className="flex-1 border-green-200 dark:border-green-800 focus:ring-green-500"
+            disabled={!isEditable}
+          />
+        </div>
+
+        <div className="flex-1">
+          <Input
+            placeholder="Value"
+            value={value}
+            onChange={handleValueChange}
+            autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck="false"
+            className="flex-1 border-green-200 dark:border-green-800 focus:ring-green-500"
             disabled={!isEditable}
           />
         </div>
       </div>
-
-      <div className="flex-1">
-        <Input
-          placeholder="Value"
-          value={value}
-          onChange={handleValueChange}
-          autoComplete="off"
-          autoCapitalize="off"
-          autoCorrect="off"
-          spellCheck="false"
-          className="flex-1"
-          disabled={!isEditable}
-        />
-      </div>
-    </div>
+    </Tooltip>
   );
 };
 

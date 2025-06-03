@@ -31,43 +31,44 @@ const SshConnect = ({ userHost, onUserHostChange, isEditable }: SshConnectProps)
   }, [userHost]);
 
   return (
-    <div className="w-full !max-w-full !outline-none overflow-none">
-      <Tooltip
-        content="Ensure we are connected to an SSH server and make it the current connection"
-        delay={1000}
-      >
-        <div className="flex flex-row">
-          <div className="mr-2">
-            <Tooltip content="Manually connect (otherwise we will try to connect automatically when needed)">
-              <Button
-                isIconOnly
-                variant="light"
-                onPress={async () => {
-                  sshConnect(userHost);
-                }}
-              >
-                <GlobeIcon />
-              </Button>
-            </Tooltip>
-          </div>
-
-          <div className="w-full">
-            <Input
-              placeholder="root@localhost:22"
-              value={userHost}
-              autoComplete="off"
-              autoCapitalize="off"
-              autoCorrect="off"
-              spellCheck="false"
-              onValueChange={(val) => {
-                onUserHostChange(val);
+    <Tooltip
+      content="Ensure we are connected to an SSH server and make it the current connection"
+      delay={1000}
+      className="outline-none"
+    >
+      <div className="flex flex-row items-center space-x-3 w-full bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-slate-900 rounded-lg p-3 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-200">
+        <div className="flex items-center">
+          <Tooltip content="Manually connect (otherwise we will try to connect automatically when needed)">
+            <Button
+              isIconOnly
+              variant="light"
+              className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+              onPress={async () => {
+                sshConnect(userHost);
               }}
-              disabled={!isEditable}
-            />
-          </div>
+            >
+              <GlobeIcon className="h-4 w-4" />
+            </Button>
+          </Tooltip>
         </div>
-      </Tooltip>
-    </div>
+
+        <div className="flex-1">
+          <Input
+            placeholder="root@localhost:22"
+            value={userHost}
+            autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck="false"
+            className="flex-1 border-slate-200 dark:border-slate-700 focus:ring-slate-500"
+            onValueChange={(val) => {
+              onUserHostChange(val);
+            }}
+            disabled={!isEditable}
+          />
+        </div>
+      </div>
+    </Tooltip>
   );
 };
 

@@ -28,28 +28,29 @@ const HostSelect = ({ }: HostSelectProps) => {
   }, []);
 
   return (
-    <div className="w-full !max-w-full !outline-none overflow-none">
-      <Tooltip
-        content="Specifies that commands run on the local machine"
-        delay={1000}
-      >
-        <div className="flex flex-row items-center w-full">
-          <div className="mr-2">
-            <HomeIcon size={18} />
-          </div>
-          
-          <div className="flex-grow">
-            <Button 
-              variant="flat"
-              className="text-sm w-full justify-start"
-              disabled={true} // Always disabled since we only support localhost
-            >
-              localhost
-            </Button>
-          </div>
+    <Tooltip
+      content="Specifies that commands run on the local machine"
+      delay={1000}
+      className="outline-none"
+    >
+      <div className="flex flex-row items-center space-x-3 w-full bg-gradient-to-r from-amber-50 to-orange-50 dark:from-slate-800 dark:to-amber-950 rounded-lg p-3 border border-amber-200 dark:border-amber-900 shadow-sm hover:shadow-md transition-all duration-200">
+        <div className="flex items-center">
+          <Button isIconOnly variant="light" className="bg-amber-100 dark:bg-amber-800 text-amber-600 dark:text-amber-300">
+            <HomeIcon className="h-4 w-4" />
+          </Button>
         </div>
-      </Tooltip>
-    </div>
+        
+        <div className="flex-1">
+          <Button 
+            variant="flat"
+            className="text-sm w-full justify-start border-amber-200 dark:border-amber-800"
+            disabled={true} // Always disabled since we only support localhost
+          >
+            localhost
+          </Button>
+        </div>
+      </div>
+    </Tooltip>
   );
 };
 

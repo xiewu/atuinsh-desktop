@@ -29,3 +29,6 @@ gen
 
 # Generated tauri configs
 /backend/tauri-port-*.conf.json
+
+# Sentry Config File
+.env.sentry-build-plugin

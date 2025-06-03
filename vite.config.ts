@@ -1,10 +1,21 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tsconfigPaths from "vite-tsconfig-paths";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
-  plugins: [react(), tsconfigPaths()],
+  plugins: [
+    react(),
+    tsconfigPaths(),
+    sentryVitePlugin({
+      /* @ts-ignore */
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      org: "atuin",
+      project: "desktop-frontend",
+      telemetry: false,
+    }),
+  ],
   build: {
     sourcemap: true,
   },

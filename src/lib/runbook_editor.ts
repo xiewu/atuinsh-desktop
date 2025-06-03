@@ -206,7 +206,7 @@ export default class RunbookEditor {
       this.saveTimer = null;
       this.saveArgs = null;
       this._save(runbook, editor);
-    }, SAVE_DEBOUNCE);
+    }, SAVE_DEBOUNCE) as unknown as number;
   }
 
   flushSave() {

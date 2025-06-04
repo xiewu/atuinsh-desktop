@@ -84,9 +84,7 @@ export const init_tracking = async () => {
     posthog.identify(system_id);
 
     // Track app start
-    track_event("app.start", {
-      version: appVersion,
-    });
+    track_event("app.start");
 
     console.log("User opted in to tracking");
   } else {
@@ -102,10 +100,13 @@ export default async function track_event(event: string, properties: any = {}) {
     return;
   }
 
+  const appVersion = await invoke<string>("get_app_version");
+
   // Always include platform info in every event
   const eventProperties = {
     ...properties,
     platform: platformInfo,
+    version: appVersion,
   };
 
   const { default: posthog } = await import("posthog-js");

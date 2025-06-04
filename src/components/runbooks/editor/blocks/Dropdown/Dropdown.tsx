@@ -20,6 +20,18 @@ import { templateString } from "@/state/templates";
 import CodeEditor, { TabAutoComplete } from "../common/CodeEditor/CodeEditor.tsx";
 import InterpreterSelector, { buildInterpreterCommand } from "../common/InterpreterSelector";
 
+// Helper to parse and display option nicely
+const parseOption = (option: string) => {
+    const trimmed = option.trim();
+    const colonIndex = trimmed.indexOf(':');
+    if (colonIndex > 0 && colonIndex < trimmed.length - 1) {
+        const label = trimmed.substring(0, colonIndex).trim();  // what we display
+        const value = trimmed.substring(colonIndex + 1).trim();    // what we store as value
+        return { value, label, hasKeyValue: true };
+    }
+    return { value: trimmed, label: trimmed, hasKeyValue: false };
+};
+
 type DropdownOptions = "fixed" | "variable" | "command";
 
 interface DropdownProps {
@@ -64,11 +76,17 @@ const FixedTab = ({ options, onOptionsUpdate }: { options: string, onOptionsUpda
         setOptionsList(updatedOptions);
         onOptionsUpdate(updatedOptions.join(', '));
     };
+
+
     return (
         <div className="space-y-4">
+            <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                Add options as simple values or label:value pairs (e.g., "User Friendly Name:horrible-uuid-value")
+            </div>
+            
             <div className="flex space-x-2">
                 <Input
-                    placeholder="Add new option"
+                    placeholder="Simple value or display label:value"
                     value={newOption}
                     onChange={(e) => setNewOption(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && addOption()}
@@ -83,20 +101,32 @@ const FixedTab = ({ options, onOptionsUpdate }: { options: string, onOptionsUpda
                         No options added yet
                     </div>
                 ) : (
-                    optionsList.map((option, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-md">
-                            <span>{option}</span>
-                            <Button
-                                isIconOnly
-                                size="sm"
-                                variant="light"
-                                color="danger"
-                                onPress={() => removeOption(index)}
-                            >
-                                ×
-                            </Button>
-                        </div>
-                    ))
+                    optionsList.map((option, index) => {
+                        const parsed = parseOption(option);
+                        return (
+                            <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-md">
+                                <div className="flex-1">
+                                    {parsed.hasKeyValue ? (
+                                        <div>
+                                            <div className="font-medium">{parsed.label}</div>
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">→ stores: {parsed.value}</div>
+                                        </div>
+                                    ) : (
+                                        <span>{parsed.label}</span>
+                                    )}
+                                </div>
+                                <Button
+                                    isIconOnly
+                                    size="sm"
+                                    variant="light"
+                                    color="danger"
+                                    onPress={() => removeOption(index)}
+                                >
+                                    ×
+                                </Button>
+                            </div>
+                        );
+                    })
                 )}
             </div>
         </div>
@@ -106,6 +136,9 @@ const FixedTab = ({ options, onOptionsUpdate }: { options: string, onOptionsUpda
 const VariableTab = ({ options, onOptionsUpdate }: { options: string, onOptionsUpdate: (options: string) => void }) => {
     return (
         <div className="space-y-4 py-4">
+            <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                Variable should contain newline or comma-separated values. Supports label:value pairs (e.g., "Display Name:id123")
+            </div>
             <Input 
                 placeholder="Variable name" 
                 value={options} 
@@ -139,7 +172,7 @@ const CommandTab = ({ options, onOptionsUpdate, interpreter, onInterpreterChange
     return (
         <div className="space-y-4 py-4">
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Enter a shell command that will return a list of options
+                    Enter a shell command that will return a list of options. Supports label:value pairs (e.g., "User Friendly Name:horrible-uuid-value")
                 </div>
             <div className="flex justify-between items-center mb-4">
                 <InterpreterSelector 
@@ -173,9 +206,10 @@ const Dropdown = ({ editor, id, name = "", options = "", value = "", optionsType
     useEffect(() => {
         // Only validate fixed options - variable options are handled separately
         if (optionsType === "fixed") {
-            const o = options.split(",").map((option) => { return option.trim() });
+            const parsedOptions = splitLines(options);
+            const validValues = parsedOptions.map(opt => opt.value);
 
-            if (!o.includes(value)) {
+            if (!validValues.includes(value)) {
                 onValueUpdate("");
                 setSelected("");
             }
@@ -183,7 +217,7 @@ const Dropdown = ({ editor, id, name = "", options = "", value = "", optionsType
     }, [value, options, optionsType, onValueUpdate]);
 
     // Store variable options separately
-    const [variableOptions, setVariableOptions] = useState<{ label: string, key: string }[]>([]);
+    const [variableOptions, setVariableOptions] = useState<{ label: string, value: string }[]>([]);
 
     // Create a split lines helper function outside the effect
     const splitLines = (value: string) => {
@@ -194,10 +228,7 @@ const Dropdown = ({ editor, id, name = "", options = "", value = "", optionsType
             lines = value.split(",");
         }
 
-        const opts = lines.map(opt => ({
-            label: opt.trim(),
-            key: opt.trim()
-        }));
+        const opts = lines.map(parseOption);
 
         return opts;
     };
@@ -284,7 +315,7 @@ const Dropdown = ({ editor, id, name = "", options = "", value = "", optionsType
     // Compute options based on type
     const renderOptions = useMemo(() => {
         if (optionsType === "fixed") {
-            return options.split(",").map((option) => { return { label: option.trim(), key: option.trim() } });
+            return splitLines(options);
         } else if (optionsType === "variable" || optionsType === "command") {
             return variableOptions;
         }
@@ -367,9 +398,10 @@ const Dropdown = ({ editor, id, name = "", options = "", value = "", optionsType
                             items={renderOptions}
                             selectedKeys={[selected]}
                             selectionMode="single"
-                            onChange={(e) => {
-                                setSelected(e.target.value);
-                                onValueUpdate(e.target.value);
+                            onSelectionChange={(keys) => {
+                                const selectedKey = Array.from(keys)[0] as string;
+                                setSelected(selectedKey);
+                                onValueUpdate(selectedKey); // Store the KEY, not the label
                             }}
                             onOpenChange={(isOpen) => {
                                 // Refresh options when dropdown is opened
@@ -378,7 +410,7 @@ const Dropdown = ({ editor, id, name = "", options = "", value = "", optionsType
                                 }
                             }}
                         >
-                            {(option) => <SelectItem key={option.key}>{option.label}</SelectItem>}
+                            {(option) => <SelectItem key={option.value}>{option.label}</SelectItem>}
                         </Select>
                     </div>
                 </div>

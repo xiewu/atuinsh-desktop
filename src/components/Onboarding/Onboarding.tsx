@@ -36,8 +36,18 @@ const Onboarding = () => {
   const [showAccountModal, setShowAccountModal] = useState(false);
 
   useEffect(() => {
+    // On first mount, if there is no tracking in the kv, we should set it to true in order to match the above default.
+    (async () => {
+      let db = await KVStore.open_default();
+      let track = await db.get<boolean>("usage_tracking");
+      if (track === null) {
+        await db.set("usage_tracking", true);
+      }
+    })();
+
     onOnboardingOpen();
   }, []);
+
 
   const close = async (onClose: any) => {
     onClose();

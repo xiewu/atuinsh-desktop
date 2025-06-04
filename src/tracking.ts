@@ -11,6 +11,7 @@ export const init_tracking = async () => {
 
   let db = await KVStore.open_default();
   let track = await db.get<boolean>("usage_tracking");
+  let onboarding_complete = await db.get<boolean>("onboarding_complete");
   let system_id = await db.systemId();
 
   // Get platform info once and cache it
@@ -19,6 +20,14 @@ export const init_tracking = async () => {
   } catch (e) {
     console.warn("Failed to get platform info:", e);
     platformInfo = "unknown";
+  }
+
+  // fixing my fuck up!
+  // 1. if tracking is null, BUT we have finished onboarding, we should set it to true
+  // 2. if the user had opted out during onboarding, then we would have written false to the kv
+  if (track === null && onboarding_complete) {
+    track = true;
+    await db.set("usage_tracking", true);
   }
 
   // In this case, the user has not yet finished the onboarding flow!

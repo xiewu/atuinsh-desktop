@@ -1,0 +1,227 @@
+#!/usr/bin/env node
+
+/**
+ * Script to check that Tauri plugin versions are synchronized between
+ * JavaScript (package.json) and Rust (backend/Cargo.toml) dependencies.
+ */
+
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const EXPECTED_DIFFERENCES = {
+  // Plugins that are expected to only exist in Rust (no JS counterpart)
+  rustOnly: ["plugin-single-instance"],
+  // Plugins that are expected to only exist in JavaScript (no Rust counterpart)
+  jsOnly: [
+    // Add any JS-only plugins here if needed
+  ],
+};
+
+// Colors for console output
+const colors = {
+  red: "\x1b[31m",
+  green: "\x1b[32m",
+  yellow: "\x1b[33m",
+  blue: "\x1b[34m",
+  reset: "\x1b[0m",
+  bold: "\x1b[1m",
+};
+
+function log(color, message) {
+  console.log(`${colors[color]}${message}${colors.reset}`);
+}
+
+function parsePackageJson() {
+  const packagePath = path.join(process.cwd(), "package.json");
+  if (!fs.existsSync(packagePath)) {
+    throw new Error("package.json not found");
+  }
+
+  const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+  const tauriPlugins = {};
+
+  // Extract @tauri-apps/plugin-* dependencies
+  const allDeps = { ...packageJson.dependencies, ...packageJson.devDependencies };
+
+  for (const [name, version] of Object.entries(allDeps)) {
+    if (name.startsWith("@tauri-apps/plugin-")) {
+      // Convert @tauri-apps/plugin-foo to plugin-foo
+      const pluginName = name.replace("@tauri-apps/", "");
+      tauriPlugins[pluginName] = version;
+    }
+  }
+
+  return tauriPlugins;
+}
+
+function parseCargoToml() {
+  const cargoPath = path.join(process.cwd(), "backend", "Cargo.toml");
+  if (!fs.existsSync(cargoPath)) {
+    throw new Error("backend/Cargo.toml not found");
+  }
+
+  const cargoContent = fs.readFileSync(cargoPath, "utf8");
+  const tauriPlugins = {};
+
+  // Parse tauri-plugin-* dependencies
+  // This handles both simple format: tauri-plugin-foo = "1.0.0"
+  // And complex format: tauri-plugin-foo = { version = "1.0.0", features = [...] }
+  const lines = cargoContent.split("\n");
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+
+    // Match simple format: tauri-plugin-foo = "1.0.0"
+    const simpleMatch = trimmedLine.match(/^tauri-(plugin-[\w-]+)\s*=\s*"([^"]+)"/);
+    if (simpleMatch) {
+      tauriPlugins[simpleMatch[1]] = simpleMatch[2];
+      continue;
+    }
+
+    // Match complex format: tauri-plugin-foo = { version = "1.0.0", ... }
+    const complexMatch = trimmedLine.match(
+      /^tauri-(plugin-[\w-]+)\s*=\s*{[^}]*version\s*=\s*"([^"]+)"/,
+    );
+    if (complexMatch) {
+      tauriPlugins[complexMatch[1]] = complexMatch[2];
+      continue;
+    }
+
+    // Match section format: [dependencies.tauri-plugin-foo]
+    const sectionMatch = trimmedLine.match(/^\[dependencies\.tauri-(plugin-[\w-]+)\]$/);
+    if (sectionMatch) {
+      // Look for version in subsequent lines
+      const pluginName = sectionMatch[1];
+      const lineIndex = lines.indexOf(line);
+
+      for (let i = lineIndex + 1; i < lines.length && i < lineIndex + 10; i++) {
+        const nextLine = lines[i].trim();
+        if (nextLine.startsWith("[")) break; // Hit next section
+
+        const versionMatch = nextLine.match(/^version\s*=\s*"([^"]+)"/);
+        if (versionMatch) {
+          tauriPlugins[pluginName] = versionMatch[1];
+          break;
+        }
+      }
+    }
+  }
+
+  return tauriPlugins;
+}
+
+function compareVersions(jsPlugins, rustPlugins) {
+  const mismatches = [];
+  const jsOnly = [];
+  const rustOnly = [];
+
+  // Find all unique plugin names
+  const allPlugins = new Set([...Object.keys(jsPlugins), ...Object.keys(rustPlugins)]);
+
+  for (const plugin of allPlugins) {
+    const jsVersion = jsPlugins[plugin];
+    const rustVersion = rustPlugins[plugin];
+
+    if (jsVersion && rustVersion) {
+      if (jsVersion !== rustVersion) {
+        mismatches.push({
+          plugin,
+          jsVersion,
+          rustVersion,
+        });
+      }
+    } else if (jsVersion && !rustVersion) {
+      if (!EXPECTED_DIFFERENCES.jsOnly.includes(plugin)) {
+        jsOnly.push({ plugin, version: jsVersion });
+      }
+    } else if (!jsVersion && rustVersion) {
+      if (!EXPECTED_DIFFERENCES.rustOnly.includes(plugin)) {
+        rustOnly.push({ plugin, version: rustVersion });
+      }
+    }
+  }
+
+  return { mismatches, jsOnly, rustOnly };
+}
+
+function main() {
+  try {
+    log("blue", "🔍 Checking Tauri plugin version synchronization...\n");
+
+    const jsPlugins = parsePackageJson();
+    const rustPlugins = parseCargoToml();
+
+    log("blue", "JavaScript plugins found:");
+    for (const [plugin, version] of Object.entries(jsPlugins)) {
+      console.log(`  ${plugin}: ${version}`);
+    }
+
+    log("blue", "\nRust plugins found:");
+    for (const [plugin, version] of Object.entries(rustPlugins)) {
+      console.log(`  ${plugin}: ${version}`);
+    }
+
+    // Show expected differences
+    if (EXPECTED_DIFFERENCES.rustOnly.length > 0 || EXPECTED_DIFFERENCES.jsOnly.length > 0) {
+      log("blue", "\nExpected differences (ignored):");
+      if (EXPECTED_DIFFERENCES.rustOnly.length > 0) {
+        console.log(`  Rust-only: ${EXPECTED_DIFFERENCES.rustOnly.join(", ")}`);
+      }
+      if (EXPECTED_DIFFERENCES.jsOnly.length > 0) {
+        console.log(`  JS-only: ${EXPECTED_DIFFERENCES.jsOnly.join(", ")}`);
+      }
+    }
+
+    const { mismatches, jsOnly, rustOnly } = compareVersions(jsPlugins, rustPlugins);
+
+    let hasErrors = false;
+
+    if (mismatches.length > 0) {
+      hasErrors = true;
+      log("red", "\n❌ Version mismatches found:");
+      for (const { plugin, jsVersion, rustVersion } of mismatches) {
+        log("red", `  ${plugin}:`);
+        log("red", `    JavaScript: ${jsVersion}`);
+        log("red", `    Rust:       ${rustVersion}`);
+      }
+    }
+
+    if (jsOnly.length > 0) {
+      hasErrors = true;
+      log("yellow", "\n⚠️  Unexpected JavaScript-only plugins (missing Rust dependency):");
+      for (const { plugin, version } of jsOnly) {
+        log("yellow", `  ${plugin}: ${version}`);
+      }
+    }
+
+    if (rustOnly.length > 0) {
+      hasErrors = true;
+      log("yellow", "\n⚠️  Unexpected Rust-only plugins (missing JavaScript dependency):");
+      for (const { plugin, version } of rustOnly) {
+        log("yellow", `  ${plugin}: ${version}`);
+      }
+    }
+
+    if (!hasErrors) {
+      log("green", "\n✅ All Tauri plugin versions are synchronized!");
+      process.exit(0);
+    } else {
+      log(
+        "red",
+        "\n💥 Version synchronization issues detected. Please update the mismatched versions.",
+      );
+      process.exit(1);
+    }
+  } catch (error) {
+    log("red", `\n❌ Error: ${error.message}`);
+    process.exit(1);
+  }
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main();
+}

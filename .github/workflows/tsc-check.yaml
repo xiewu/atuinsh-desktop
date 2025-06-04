@@ -1,6 +1,6 @@
 name: "tsc-check"
 
-on: 
+on:
   pull_request:
   push:
     branches: [main]
@@ -24,5 +24,7 @@ jobs:
           version: latest
       - name: Install Dependencies
         run: pnpm install
+      - name: Check Tauri Plugin Versions
+        run: node script/check-tauri-versions
       - name: TypeScript Check
         run: ./node_modules/.bin/tsc --noEmit

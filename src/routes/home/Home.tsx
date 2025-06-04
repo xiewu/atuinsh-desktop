@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 
 import { AtuinState, useStore } from "@/state/store";
 import { getVersion } from "@tauri-apps/api/app";
@@ -14,8 +14,9 @@ import { allRunbooks } from "@/lib/queries/runbooks";
 import Runbook from "@/state/runbooks/runbook";
 import RunbookContext from "@/context/runbook_context";
 import Workspace from "@/state/runbooks/workspace";
-import ActivityGraph from "@/components/ActivityGraph/ActivityGraph";
-import TopChart from "@/components/TopCommands/TopCommands";
+
+const ActivityGraph = React.lazy(() => import("@/components/ActivityGraph/ActivityGraph"));
+const TopChart = React.lazy(() => import("@/components/TopCommands/TopCommands"));
 
 function StatCard({ name, stat }: any) {
   return (

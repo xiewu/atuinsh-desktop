@@ -17,18 +17,13 @@ import { init_tracking } from "./tracking";
 import track_event from "./tracking";
 
 import { event } from "@tauri-apps/api";
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { createHashRouter, RouterProvider } from "react-router-dom";
 import { HeroUIProvider, ToastProvider } from "@heroui/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import "./styles.css";
 
-import Root from "@/routes/root/Root";
-import Home from "@/routes/home/Home";
-import Runbooks from "@/routes/runbooks/Runbooks";
-import History from "@/routes/history/History";
-import Stats from "@/routes/stats/Stats";
 import * as api from "./api/api";
 import SocketManager from "./socket";
 import WorkspaceSyncManager from "./lib/sync/workspace_sync_manager";
@@ -38,7 +33,6 @@ import { trackOnlineStatus } from "./lib/online_tracker";
 import AtuinEnv from "./atuin_env";
 import { setupColorModes } from "./lib/color_modes";
 import { setupServerEvents } from "./lib/server_events";
-import SettingsPanel from "./components/Settings/Settings";
 import { invoke } from "@tauri-apps/api/core";
 import debounce from "lodash.debounce";
 import { getGlobalOptions } from "./lib/global_options";
@@ -141,34 +135,41 @@ trackOnlineStatus();
 socketManager.onConnect(() => trackOnlineStatus());
 socketManager.onDisconnect(() => trackOnlineStatus());
 
+const LazyRoot = React.lazy(() => import("@/routes/root/Root"));
+const LazyHome = React.lazy(() => import("@/routes/home/Home"));
+const LazyRunbooks = React.lazy(() => import("@/routes/runbooks/Runbooks"));
+const LazyHistory = React.lazy(() => import("@/routes/history/History"));
+const LazyStats = React.lazy(() => import("@/routes/stats/Stats"));
+const LazySettingsPanel = React.lazy(() => import("@/components/Settings/Settings"));
+
 const router = createHashRouter([
   {
     path: "/",
-    element: <Root />,
+    element: <LazyRoot />,
     children: [
       {
         index: true,
-        element: <Home />,
+        element: <LazyHome />,
       },
 
       {
         path: "runbooks",
-        element: <Runbooks />,
+        element: <LazyRunbooks />,
       },
 
       {
         path: "history",
-        element: <History />,
+        element: <LazyHistory />,
       },
 
       {
         path: "stats",
-        element: <Stats />,
+        element: <LazyStats />,
       },
 
       {
         path: "settings",
-        element: <SettingsPanel />,
+        element: <LazySettingsPanel />,
       },
     ],
   },

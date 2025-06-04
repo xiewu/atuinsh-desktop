@@ -1,7 +1,4 @@
-import * as Sentry from "@sentry/react";
-import posthog from "posthog-js";
 import { invoke } from "@tauri-apps/api/core";
-
 import { KVStore } from "./state/kv";
 import AtuinEnv from "./atuin_env";
 import { useStore } from "./state/store";
@@ -11,7 +8,6 @@ let platformInfo: string | null = null;
 export const init_tracking = async () => {
   // don't need to spam sentry with my dumbass mistakes
   if (AtuinEnv.isDev) return;
-
 
   let db = await KVStore.open_default();
   let track = await db.get<boolean>("usage_tracking");
@@ -25,10 +21,9 @@ export const init_tracking = async () => {
     platformInfo = "unknown";
   }
 
-
   // In this case, the user has not yet finished the onboarding flow!
   // We should not track them as they might be about to opt-out
-  // init_tracking is normally called asap, but it is also called from the onboarding 
+  // init_tracking is normally called asap, but it is also called from the onboarding
   if (track === null) {
     console.log("User has not finished onboarding");
     return;
@@ -37,12 +32,14 @@ export const init_tracking = async () => {
   if (track) {
     const appVersion = await invoke<string>("get_app_version");
 
+    const { default: Sentry } = await import("@sentry/react");
     Sentry.init({
       dsn: "https://ac8c00adf29c329694a0b105e1981ca3@o4507730431442944.ingest.us.sentry.io/4507741947232256",
       environment: "production",
       release: appVersion,
     });
 
+    const { default: posthog } = await import("posthog-js");
     posthog.init("phc_EOWZsUljQ4HdvlGgoVAhhjktfDDDqYf4lKxzZ1wDkJv", {
       api_host: "https://us.i.posthog.com",
       person_profiles: "identified_only", // or 'always' to create profiles for anonymous users as well
@@ -53,10 +50,10 @@ export const init_tracking = async () => {
       (store) => store.user,
       (user, lastUser) => {
         if (user && user.is(lastUser)) return;
-        
+
         const isLoggedIn = user && user.isLoggedIn();
         const wasLoggedIn = lastUser && lastUser.isLoggedIn();
-        
+
         if (isLoggedIn && !wasLoggedIn) {
           // User just logged in
           track_event("user.login");
@@ -88,9 +85,11 @@ export const init_tracking = async () => {
   }
 };
 
-export default function track_event(event: string, properties: any = {}) {
+export default async function track_event(event: string, properties: any = {}) {
   if (AtuinEnv.isDev) {
-    console.log(`[dev] track_event: ${event} -> ${JSON.stringify({ ...properties, platform: platformInfo })}`);
+    console.log(
+      `[dev] track_event: ${event} -> ${JSON.stringify({ ...properties, platform: platformInfo })}`,
+    );
     return;
   }
 
@@ -100,5 +99,6 @@ export default function track_event(event: string, properties: any = {}) {
     platform: platformInfo,
   };
 
+  const { default: posthog } = await import("posthog-js");
   posthog.capture(event, eventProperties);
 }

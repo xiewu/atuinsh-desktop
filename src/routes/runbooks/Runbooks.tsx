@@ -1,11 +1,9 @@
 import * as Sentry from "@sentry/react";
-import Editor from "@/components/runbooks/editor/Editor";
-import Topbar from "@/components/runbooks/TopBar/TopBar";
 import useRemoteRunbook from "@/lib/useRemoteRunbook";
 import { usePtyStore } from "@/state/ptyStore";
 import { useStore } from "@/state/store";
 import Snapshot from "@/state/runbooks/snapshot";
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useMemory } from "@/lib/utils";
 import { useCurrentRunbook } from "@/lib/useRunbook";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -18,6 +16,9 @@ import Operation from "@/state/runbooks/operation";
 import { ConnectionState } from "@/state/store/user_state";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
 import AppBus from "@/lib/app/app_bus";
+
+const Editor = React.lazy(() => import("@/components/runbooks/editor/Editor"));
+const Topbar = React.lazy(() => import("@/components/runbooks/TopBar/TopBar"));
 
 function useMarkRunbookRead(runbook: Runbook | null, refreshRunbooks: () => void) {
   useEffect(() => {

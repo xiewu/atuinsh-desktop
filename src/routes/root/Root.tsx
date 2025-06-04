@@ -7,8 +7,6 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 
 import icon from "@/assets/icon.svg";
-import CommandMenu from "@/components/CommandMenu/CommandMenu";
-import Sidebar, { SidebarItem } from "@/components/Sidebar";
 import { checkForAppUpdates } from "@/updater";
 import {
   addToast,
@@ -26,30 +24,24 @@ import {
   User,
 } from "@heroui/react";
 import { UnlistenFn } from "@tauri-apps/api/event";
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { isAppleDevice } from "@react-aria/utils";
 import { useTauriEvent } from "@/lib/tauri";
 import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 
 import handleDeepLink from "./deep";
-import DesktopConnect from "@/components/DesktopConnect/DesktopConnect";
 import * as api from "@/api/api";
 import SocketManager from "@/socket";
-import List, { ListApi } from "@/components/runbooks/List/List";
-import Onboarding from "@/components/Onboarding/Onboarding";
+import type { ListApi } from "@/components/runbooks/List/List";
 import { KVStore } from "@/state/kv";
 import Runbook from "@/state/runbooks/runbook";
-import RunbookSearchIndex from "@/components/CommandMenu/RunbookSearchIndex";
 import RunbookIndexService from "@/state/runbooks/search";
-import UpdateNotifier from "./UpdateNotifier";
 import { PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
-import DialogManager from "@/components/Dialogs/DialogManager";
 import Workspace from "@/state/runbooks/workspace";
 import track_event from "@/tracking";
 import { invoke } from "@tauri-apps/api/core";
 import RunbookContext from "@/context/runbook_context";
 import { SET_RUNBOOK_TAG } from "@/state/store/runbook_state";
-import DeleteRunbookModal from "./DeleteRunbookModal";
 import Operation, {
   createRunbook,
   createWorkspace,
@@ -64,6 +56,16 @@ import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
 import { Rc } from "@binarymuse/ts-stdlib";
 import { TraversalOrder } from "@/lib/tree";
 import DevConsole from "@/lib/dev/dev_console";
+import Sidebar, { SidebarItem } from "@/components/Sidebar";
+
+const Onboarding = React.lazy(() => import("@/components/Onboarding/Onboarding"));
+const UpdateNotifier = React.lazy(() => import("./UpdateNotifier"));
+const CommandMenu = React.lazy(() => import("@/components/CommandMenu/CommandMenu"));
+const DialogManager = React.lazy(() => import("@/components/Dialogs/DialogManager"));
+const DesktopConnect = React.lazy(() => import("@/components/DesktopConnect/DesktopConnect"));
+const DeleteRunbookModal = React.lazy(() => import("./DeleteRunbookModal"));
+const RunbookSearchIndex = React.lazy(() => import("@/components/CommandMenu/RunbookSearchIndex"));
+const List = React.lazy(() => import("@/components/runbooks/List/List"));
 
 type MoveBundleDescendant =
   | {

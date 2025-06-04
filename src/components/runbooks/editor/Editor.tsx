@@ -43,11 +43,12 @@ import { schema } from "./create_editor";
 import RunbookEditor from "@/lib/runbook_editor";
 import { useStore } from "@/state/store";
 import { usePromise } from "@/lib/utils";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import BlockBus from "@/lib/workflow/block_bus";
 import { invoke } from "@tauri-apps/api/core";
 import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert";
 import track_event from "@/tracking";
+import { saveScrollPosition, restoreScrollPosition, getScrollPosition } from "@/utils/scroll-position";
 import { insertDropdown } from "./blocks/Dropdown/Dropdown";
 
 
@@ -224,12 +225,14 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
   const fontSize = useStore((state) => state.fontSize);
   const fontFamily = useStore((state) => state.fontFamily);
   const serialExecuteRef = useRef<(() => void) | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [aiPopupVisible, setAiPopupVisible] = useState(false);
   const [aiPopupPosition, setAiPopupPosition] = useState({ x: 0, y: 0 });
   const [aiEnabledState, setAiEnabledState] = useState(false);
   const [isAIEditPopupOpen, setIsAIEditPopupOpen] = useState(false);
   const [currentEditBlock, setCurrentEditBlock] = useState<any>(null);
   const [aiEditPopupPosition, setAiEditPopupPosition] = useState({ x: 0, y: 0 });
+  const [isVisible, setIsVisible] = useState(true);
 
   // Check AI enabled status
   useEffect(() => {
@@ -360,6 +363,41 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
     };
   }, [editor, showAIPopup]);
 
+  // Handle visibility and scroll restoration when runbook changes
+  useLayoutEffect(() => {
+    if (!runbook?.id) return;
+    
+    const savedPosition = getScrollPosition(runbook.id);
+    if (savedPosition > 0) {
+      // Hide temporarily while we restore position
+      setIsVisible(false);
+      
+      requestAnimationFrame(() => {
+        if (scrollContainerRef.current) {
+          restoreScrollPosition(scrollContainerRef.current, runbook.id);
+          setIsVisible(true);
+        }
+      });
+    }
+  }, [runbook?.id]);
+
+  // Debounced scroll handler
+  const timeoutRef = useRef<number | null>(null);
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    if (!runbook?.id) return;
+    
+    const target = e.currentTarget;
+    
+    // Debounce to avoid excessive localStorage writes
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = window.setTimeout(() => {
+      console.log("saving scroll position for runbook", runbook.id);
+      saveScrollPosition(runbook.id, target.scrollTop);
+    }, 100);
+  }, [runbook?.id]);
+
   if (!editor || !runbook) {
     return (
       <div className="flex w-full h-full flex-col justify-center items-center">
@@ -371,11 +409,14 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
   // Renders the editor instance.
   return (
     <div
+      ref={scrollContainerRef}
       className="overflow-y-scroll editor flex-grow pt-3 relative"
       style={{
         fontSize: `${fontSize}px`,
         fontFamily: fontFamily,
+        visibility: isVisible ? 'visible' : 'hidden',
       }}
+      onScroll={handleScroll}
       onDragStart={(e) => {
         // Capture original drag data before react-dnd can wrap it
         originalDragData = {

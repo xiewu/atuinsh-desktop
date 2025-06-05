@@ -2,6 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { KVStore } from "./state/kv";
 import AtuinEnv from "./atuin_env";
 import { useStore } from "./state/store";
+import * as Sentry from "@sentry/react";
+import posthog from "posthog-js";
 
 let platformInfo: string | null = null;
 
@@ -39,16 +41,20 @@ export const init_tracking = async () => {
   }
 
   if (track) {
-    const appVersion = await invoke<string>("get_app_version");
+    let appVersion: string | null = null;
 
-    const { default: Sentry } = await import("@sentry/react");
+    try {
+      appVersion = await invoke<string>("get_app_version");
+    } catch (e) {
+      console.error("Failed to get app version:", e);
+    }
+
     Sentry.init({
       dsn: "https://ac8c00adf29c329694a0b105e1981ca3@o4507730431442944.ingest.us.sentry.io/4507741947232256",
       environment: "production",
-      release: appVersion,
+      release: appVersion || "unknown",
     });
 
-    const { default: posthog } = await import("posthog-js");
     posthog.init("phc_EOWZsUljQ4HdvlGgoVAhhjktfDDDqYf4lKxzZ1wDkJv", {
       api_host: "https://us.i.posthog.com",
       person_profiles: "identified_only", // or 'always' to create profiles for anonymous users as well
@@ -100,7 +106,13 @@ export default async function track_event(event: string, properties: any = {}) {
     return;
   }
 
-  const appVersion = await invoke<string>("get_app_version");
+  let appVersion: string | null = null;
+
+  try {
+    appVersion = await invoke<string>("get_app_version");
+  } catch (e) {
+    console.error("Failed to get app version:", e);
+  }
 
   // Always include platform info in every event
   const eventProperties = {

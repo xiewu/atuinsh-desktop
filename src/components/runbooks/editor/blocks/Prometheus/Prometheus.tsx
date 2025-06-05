@@ -27,18 +27,18 @@ import { createReactBlockSpec, useBlockNoteEditor } from "@blocknote/react";
 import { PromLineChart } from "./lineChart";
 import PromSettings, { PrometheusConfig } from "./promSettings";
 import { Settings } from "@/state/settings";
-import ErrorCard from "../common/ErrorCard";
-import PlayButton from "../common/PlayButton";
 import { templateString } from "@/state/templates";
 import { useStore } from "@/state/store";
 import { logExecution } from "@/lib/exec_log";
 import { PrometheusBlock as PrometheusBlockType } from "@/lib/workflow/blocks/prometheus";
 import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency";
-import Block from "../common/Block";
 import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus";
 import BlockBus from "@/lib/workflow/block_bus";
 import track_event from "@/tracking";
 import useCodemirrorTheme from "@/lib/hooks/useCodemirrorTheme";
+import ErrorCard from "@/lib/blocks/common/ErrorCard";
+import PlayButton from "@/lib/blocks/common/PlayButton";
+import Block from "@/lib/blocks/common/Block";
 
 interface PromProps {
   setName: (name: string) => void;

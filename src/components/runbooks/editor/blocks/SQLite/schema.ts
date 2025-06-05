@@ -1,5 +1,5 @@
+import { TableSchema } from "@/lib/blocks/common/database";
 import Database from "@tauri-apps/plugin-sql";
-import { TableSchema } from "../common/database";
 
 export const sqliteSchema = async (
   database: Database,

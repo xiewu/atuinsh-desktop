@@ -7,7 +7,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { invoke } from "@tauri-apps/api/core";
 import { platform } from "@tauri-apps/plugin-os";
-import Terminal from "./terminal.tsx";
 
 import { useBlockNoteEditor } from "@blocknote/react";
 
@@ -17,19 +16,15 @@ import { addToast, Button, Chip, Spinner, Tooltip } from "@heroui/react";
 import { formatDuration } from "@/lib/utils.ts";
 import { usePtyStore } from "@/state/ptyStore.ts";
 import track_event from "@/tracking.ts";
-import PlayButton from "../common/PlayButton.tsx";
 import { Clock, Eye, EyeOff, Maximize2, Minimize2 } from "lucide-react";
-import Block from "../common/Block.tsx";
 import EditableHeading from "@/components/EditableHeading/index.tsx";
-import { findFirstParentOfType, findAllParentsOfType } from "../exec.ts";
 import { templateString } from "@/state/templates.ts";
 import CodeEditor, { TabAutoComplete } from "../common/CodeEditor/CodeEditor.tsx";
 import { Command } from "@codemirror/view";
-import { TerminalBlock } from "@/lib/workflow/blocks/terminal.ts";
+import { TerminalBlock } from "./schema.ts";
 import { logExecution } from "@/lib/exec_log.ts";
 import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency.ts";
 import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert.ts";
-import { default as BlockType } from "@/lib/workflow/blocks/block.ts";
 import BlockBus from "@/lib/workflow/block_bus.ts";
 import {
   useBlockBusRunSubscription,
@@ -38,6 +33,11 @@ import {
 import { uuidv7 } from "uuidv7";
 import { useBlockDeleted, useBlockInserted } from "@/lib/buses/editor.ts";
 import { Settings } from "@/state/settings";
+import Terminal from "./components/terminal.tsx";
+import { findAllParentsOfType, findFirstParentOfType } from "../exec.ts";
+import Block from "../common/Block.tsx";
+import { default as BlockType } from "@/lib/workflow/blocks/block.ts";
+import PlayButton from "../common/PlayButton.tsx";
 
 interface RunBlockProps {
   onChange: (val: string) => void;
@@ -54,7 +54,7 @@ interface RunBlockProps {
   terminal: TerminalBlock;
 }
 
-const RunBlock = ({
+export const RunBlock = ({
   onChange,
   setName,
   isEditable,
@@ -546,102 +546,3 @@ const RunBlock = ({
     </Block>
   );
 };
-
-export default createReactBlockSpec(
-  {
-    type: "run",
-    propSchema: {
-      type: {
-        default: "bash",
-      },
-      name: { default: "" },
-      code: { default: "" },
-      pty: { default: "" },
-      global: { default: false },
-      outputVisible: {
-        default: true,
-      },
-      dependency: { default: "{}" },
-    },
-    content: "none",
-  },
-  {
-    // @ts-ignore
-    render: ({ block, editor, code, type }) => {
-      const handleCodeMirrorFocus = () => {
-        // Ensure BlockNote knows which block contains the focused CodeMirror
-        editor.setTextCursorPosition(block.id, "start");
-      };
-
-      const onInputChange = (val: string) => {
-        editor.updateBlock(block, {
-          // @ts-ignore
-          props: { ...block.props, code: val },
-        });
-      };
-
-      const onRun = (pty: string) => {
-        editor.updateBlock(block, {
-          // @ts-ignore
-          props: { ...block.props, pty: pty },
-        });
-      };
-
-      const onStop = (_pty: string) => {
-        editor?.updateBlock(block, {
-          props: { ...block.props, pty: "" },
-        });
-      };
-
-      const setName = (name: string) => {
-        editor.updateBlock(block, {
-          props: { ...block.props, name: name },
-        });
-      };
-
-      const setOutputVisible = (visible: boolean) => {
-        editor.updateBlock(block, {
-          props: { ...block.props, outputVisible: visible },
-        });
-      };
-
-      const setDependency = (dependency: DependencySpec) => {
-        editor.updateBlock(block, {
-          props: { ...block.props, dependency: dependency.serialize() },
-        });
-      };
-
-      let dependency = DependencySpec.deserialize(block.props.dependency);
-      let terminal = new TerminalBlock(
-        block.id,
-        block.props.name,
-        dependency,
-        block.props.code,
-        block.props.outputVisible,
-      );
-
-      return (
-        <RunBlock
-          setName={setName}
-          onChange={onInputChange}
-          type={block.props.type}
-          pty={block.props.pty}
-          isEditable={editor.isEditable}
-          onRun={onRun}
-          onStop={onStop}
-          setOutputVisible={setOutputVisible}
-          terminal={terminal}
-          setDependency={setDependency}
-          onCodeMirrorFocus={handleCodeMirrorFocus}
-        />
-      );
-    },
-    toExternalHTML: ({ block }) => {
-      return (
-        <pre lang="beep boop">
-          <code lang="bash">{block?.props?.code}</code>
-        </pre>
-      );
-    },
-  },
-);

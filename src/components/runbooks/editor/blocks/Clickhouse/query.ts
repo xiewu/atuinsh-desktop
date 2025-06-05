@@ -1,4 +1,4 @@
-import { QueryResult } from "../common/database";
+import { QueryResult } from "@/lib/blocks/common/database";
 import { createClient, ClickHouseClient } from "@clickhouse/client-web";
 
 const runSelect = async (

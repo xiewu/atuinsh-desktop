@@ -1,12 +1,12 @@
 import {  expect, test } from "vitest";
-import { TerminalBlock } from "./terminal";
 import { ScriptBlock } from "./script";
 import { convertBlocknoteToAtuin } from "./convert";
 import { ClickhouseBlock } from "./clickhouse";
-import { HttpBlock } from "./http";
+import { HttpBlock } from "@/lib/blocks/http/schema";
 import { PrometheusBlock } from "./prometheus";
 import { SQLiteBlock } from "./sqlite";
 import { PostgresBlock } from "./postgres";
+import { TerminalBlock } from "@/lib/blocks/terminal";
 
 test("TerminalBlock can be created from blocknote", () => {
     let bnb = {

@@ -1,6 +1,7 @@
 import { generateText } from "ai";
 import { createModel } from "./provider";
 import { Settings } from "@/state/settings";
+import { HTTP_LLM_PROMPT as HTTP_LLM_PROMPT } from "@/lib/blocks/http/schema";
 
 export interface EditBlockRequest {
   prompt: string;
@@ -17,6 +18,9 @@ export interface EditBlockResponse {
   updatedBlock: any;
   explanation?: string;
 }
+
+// Helper to get HTTP LLM prompt from new structure
+const getHttpLLMPrompt = () => HTTP_LLM_PROMPT;
 
 const getSystemPromptForBlockType = (blockType: string) => {
   const basePrompt = `You are an expert at editing runbook blocks. You will be given a block and a modification request.
@@ -75,12 +79,7 @@ The response should be a JSON object with:
 - Common requests: optimize for ClickHouse, add proper aggregations, use dynamic values
 - Example: {"type": "clickhouse", "props": {"code": "SELECT count() FROM events WHERE tenant_id = {{ var.tenant_id }}", "outputVariable": "event_count"}, "id": "original-id"}`,
 
-    http: `For 'http' blocks (HTTP requests):
-- Focus on 'url', 'method', 'headers', 'body' properties
-- Can reference template variables in URL, headers, body: {{ var.variable_name }}
-- Can store response in variables using 'outputVariable' prop
-- Common requests: add auth headers, change method, update endpoints, use dynamic values
-- Example: {"type": "http", "props": {"url": "{{ var.api_base }}/users/{{ var.user_id }}", "headers": {"Authorization": "Bearer {{ var.token }}"}, "outputVariable": "api_response"}, "id": "original-id"}`,
+    http: getHttpLLMPrompt(),
 
     prometheus: `For 'prometheus' blocks (PromQL queries):
 - Focus on the 'code' property which contains the PromQL

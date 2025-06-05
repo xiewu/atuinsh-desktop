@@ -11,10 +11,10 @@ import { PresenceUserInfo } from "@/lib/phoenix_provider";
 import { useQuery } from "@tanstack/react-query";
 import { workspaceById } from "@/lib/queries/workspaces";
 import { useStore } from "@/state/store";
-import PlayButton from "../editor/blocks/common/PlayButton";
 import BlockBus from "@/lib/workflow/block_bus";
 import { invoke } from "@tauri-apps/api/core";
 import track_event from "@/tracking";
+import PlayButton from "@/lib/blocks/common/PlayButton";
 
 type TopbarProps = {
   runbook: Runbook;

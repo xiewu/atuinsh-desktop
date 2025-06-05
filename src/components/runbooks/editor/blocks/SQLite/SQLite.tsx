@@ -7,10 +7,10 @@ import { createReactBlockSpec } from "@blocknote/react";
 
 
 import { runQuery } from "./query";
-import SQL from "../common/SQL";
 import { SQLiteBlock } from "@/lib/workflow/blocks/sqlite";
 import { DependencySpec } from "@/lib/workflow/dependency";
 import track_event from "@/tracking";
+import SQL from "@/lib/blocks/common/SQL";
 
 interface SQLiteProps {
   isEditable: boolean;

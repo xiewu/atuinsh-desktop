@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import { QueryResult } from "../common/database";
+import { QueryResult } from "@/lib/blocks/common/database";
 
 export const runQuery = async (
   uri: string,

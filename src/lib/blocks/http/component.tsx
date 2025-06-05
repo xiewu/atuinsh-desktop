@@ -6,24 +6,21 @@ import CodeMirror from "@uiw/react-codemirror";
 import { langs } from "@uiw/codemirror-extensions-langs";
 
 // @ts-ignore
-import { createReactBlockSpec, useBlockNoteEditor } from "@blocknote/react";
+import { useBlockNoteEditor } from "@blocknote/react";
 
-import PlayButton from "../common/PlayButton";
-import HttpResponse from "./HttpResponse";
-import HttpVerbDropdown from "./VerbDropdown";
-import RequestHeaders from "./RequestHeaders";
-import Block from "../common/Block";
+import HttpResponse from "./components/HttpResponse";
+import HttpVerbDropdown from "./components/VerbDropdown";
+import RequestHeaders from "./components/RequestHeaders";
 import { templateString } from "@/state/templates";
 import { useStore } from "@/state/store";
 import { logExecution } from "@/lib/exec_log";
-import { HttpBlock as HttpBlockType, HttpVerb } from "@/lib/workflow/blocks/http";
+import { HttpBlock as HttpBlockType, HttpVerb, HttpHeaders } from "./schema";
 import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency";
 import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus";
 import BlockBus from "@/lib/workflow/block_bus";
-import track_event from "@/tracking";
 import useCodemirrorTheme from "@/lib/hooks/useCodemirrorTheme";
-
-type HttpHeaders = { [key: string]: string };
+import PlayButton from "../common/PlayButton";
+import Block from "../common/Block";
 
 interface HttpProps {
   http: HttpBlockType;
@@ -72,7 +69,7 @@ async function makeHttpRequest(
   }
 }
 
-const Http = ({
+export const Http = ({
   http,
   setName,
   body,
@@ -261,112 +258,4 @@ const Http = ({
   );
 };
 
-export default createReactBlockSpec(
-  {
-    type: "http",
-    propSchema: {
-      name: { default: "HTTP" },
-      url: { default: "" },
-      verb: { default: "GET" },
-      body: { default: "" },
-      headers: { default: "{}" },
-      dependency: { default: "{}" },
-    },
-    content: "none",
-  },
-  {
-    // @ts-ignore
-    render: ({ block, editor, code, type }) => {
-      const setUrl = (url: string) => {
-        editor.updateBlock(block, {
-          // @ts-ignore
-          props: { ...block.props, url: url },
-        });
-      };
-
-      const setVerb = (verb: HttpVerb) => {
-        editor.updateBlock(block, {
-          // @ts-ignore
-          props: { ...block.props, verb: verb },
-        });
-      };
-
-      const setBody = (body: string) => {
-        editor.updateBlock(block, {
-          // @ts-ignore
-          props: { ...block.props, body: body },
-        });
-      };
-
-      const setName = (name: string) => {
-        editor.updateBlock(block, {
-          // @ts-ignore
-          props: { ...block.props, name },
-        });
-      };
-
-      const setHeaders = (headers: HttpHeaders) => {
-        editor.updateBlock(block, {
-          // @ts-ignore
-          props: { ...block.props, headers: JSON.stringify(headers) },
-        });
-      };
-
-      const setDependency = (dependency: DependencySpec) => {
-        editor.updateBlock(block, {
-          props: { ...block.props, dependency: dependency.serialize() },
-        });
-      };
-
-      let dependency = DependencySpec.deserialize(block.props.dependency);
-      let blockType = new HttpBlockType(
-        block.id,
-        block.props.name,
-        dependency,
-        block.props.url,
-        block.props.verb as HttpVerb,
-        JSON.parse(block.props.headers),
-      );
-
-      return (
-        <Http
-          http={blockType}
-          setDependency={setDependency}
-          body={block.props.body || ""}
-          isEditable={editor.isEditable}
-          setUrl={setUrl}
-          setVerb={setVerb}
-          setBody={setBody}
-          setName={setName}
-          setHeaders={setHeaders}
-        />
-      );
-    },
-  },
-);
-
-export const insertHttp = (schema: any) => (editor: typeof schema.BlockNoteEditor) => ({
-  title: "HTTP",
-  onItemClick: () => {
-    track_event("runbooks.block.create", { type: "http" });
-
-    let httpBlocks = editor.document.filter((block: any) => block.type === "http");
-    let name = `HTTP ${httpBlocks.length + 1}`;
-
-    editor.insertBlocks(
-      [
-        {
-          type: "http",
-          // @ts-ignore
-          props: {
-            name: name,
-          },
-        },
-      ],
-      editor.getTextCursorPosition().block.id,
-      "before",
-    );
-  },
-  icon: <GlobeIcon size={18} />,
-  group: "Network",
-});
+// Pure React component - BlockNote integration moved to spec.ts

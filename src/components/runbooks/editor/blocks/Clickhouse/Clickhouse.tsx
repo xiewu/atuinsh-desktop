@@ -5,10 +5,10 @@ import { createReactBlockSpec } from "@blocknote/react";
 
 
 import { runQuery } from "./query";
-import SQL from "../common/SQL";
 import { ClickhouseBlock } from "@/lib/workflow/blocks/clickhouse";
 import { DependencySpec } from "@/lib/workflow/dependency";
 import track_event from "@/tracking";
+import SQL from "@/lib/blocks/common/SQL";
 
 interface SQLProps {
   isEditable: boolean;

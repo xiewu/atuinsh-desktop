@@ -1,5 +1,5 @@
-import { DependencySpec } from "../dependency";
-import Block from "./block";
+import { DependencySpec } from "../../workflow/dependency";
+import Block from "../../workflow/blocks/block";
 
 export enum HttpVerb {
     GET = "GET",
@@ -70,4 +70,26 @@ export interface HttpResponse {
     headers: { [key: string]: string };
     duration: number;
     time: Date;
-} 
+}
+
+// LLM prompt for AI editing
+export const HTTP_LLM_PROMPT = `For 'http' blocks (HTTP requests):
+- Focus on 'url', 'method', 'headers', 'body' properties
+- Can reference template variables in URL, headers, body: {{ var.variable_name }}
+- Can store response in variables using 'outputVariable' prop
+- Common requests: add auth headers, change method, update endpoints, use dynamic values
+- Example: {"type": "http", "props": {"url": "{{ var.api_base }}/users/{{ var.user_id }}", "headers": {"Authorization": "Bearer {{ var.token }}"}, "outputVariable": "api_response"}, "id": "original-id"}`;
+
+// BlockNote schema properties
+export const HTTP_BLOCK_SCHEMA = {
+    type: "http",
+    propSchema: {
+        name: { default: "HTTP" },
+        url: { default: "" },
+        verb: { default: "GET" },
+        body: { default: "" },
+        headers: { default: "{}" },
+        dependency: { default: "{}" },
+    },
+    content: "none",
+} as const;

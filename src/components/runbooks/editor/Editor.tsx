@@ -17,7 +17,7 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 
-import { CodeIcon, FolderOpenIcon, VariableIcon, TextCursorInputIcon, EyeIcon } from "lucide-react";
+import { FolderOpenIcon, VariableIcon, TextCursorInputIcon, EyeIcon } from "lucide-react";
 
 import { AIGeneratePopup } from "./AIGeneratePopup";
 import AIPopup from "./ui/AIPopup";
@@ -35,7 +35,7 @@ import { insertHostSelect } from "@/components/runbooks/editor/blocks/Host";
 import { insertLocalVar } from "@/components/runbooks/editor/blocks/LocalVar";
 
 import Runbook from "@/state/runbooks/runbook";
-import { insertHttp } from "./blocks/Http/Http";
+import { insertHttp } from "@/lib/blocks/http";
 import { uuidv7 } from "uuidv7";
 import { DuplicateBlockItem } from "./ui/DuplicateBlockItem";
 
@@ -50,6 +50,7 @@ import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert";
 import track_event from "@/tracking";
 import { saveScrollPosition, restoreScrollPosition, getScrollPosition } from "@/utils/scroll-position";
 import { insertDropdown } from "./blocks/Dropdown/Dropdown";
+import { insertTerminal } from "@/lib/blocks/terminal";
 
 
 // Fix for react-dnd interference with BlockNote drag-and-drop
@@ -57,34 +58,6 @@ import { insertDropdown } from "./blocks/Dropdown/Dropdown";
 // We capture the original data during dragstart and resynthesize clean drop events
 let originalDragData: any = null;
 
-// Slash menu item to insert an Alert block
-const insertTerminal = (editor: typeof schema.BlockNoteEditor) => ({
-  title: "Terminal",
-  subtext: "Interactive terminal",
-  onItemClick: () => {
-    track_event("runbooks.block.create", { type: "run" });
-
-    // Count the number of terminal blocks
-    let terminalBlocks = editor.document.filter((block) => block.type === "run");
-    let name = `Terminal ${terminalBlocks.length + 1}`;
-
-    editor.insertBlocks(
-      [
-        {
-          type: "run",
-          props: {
-            name,
-          },
-        },
-      ],
-      editor.getTextCursorPosition().block.id,
-      "before",
-    );
-  },
-  icon: <CodeIcon size={18} />,
-  aliases: ["terminal", "run"],
-  group: "Execute",
-});
 
 const insertDirectory = (editor: typeof schema.BlockNoteEditor) => ({
   title: "Directory",

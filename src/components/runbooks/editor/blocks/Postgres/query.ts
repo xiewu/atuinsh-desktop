@@ -1,5 +1,5 @@
+import { QueryResult } from "@/lib/blocks/common/database";
 import { invoke } from "@tauri-apps/api/core";
-import { QueryResult } from "../common/database";
 
 export const runQuery = async (
   uri: string,

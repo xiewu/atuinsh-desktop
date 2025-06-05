@@ -1,0 +1,117 @@
+import { TERMINAL_BLOCK_SCHEMA, TerminalBlock } from "@/lib/blocks/terminal";
+import { DependencySpec } from "@/lib/workflow/dependency";
+import { createReactBlockSpec } from "@blocknote/react";
+import { RunBlock } from "./component";
+import track_event from "@/tracking";
+import { CodeIcon } from "lucide-react";
+
+export default createReactBlockSpec(
+    TERMINAL_BLOCK_SCHEMA,
+    {
+      // @ts-ignore
+      render: ({ block, editor, code, type }) => {
+        const handleCodeMirrorFocus = () => {
+          // Ensure BlockNote knows which block contains the focused CodeMirror
+          editor.setTextCursorPosition(block.id, "start");
+        };
+  
+        const onInputChange = (val: string) => {
+          editor.updateBlock(block, {
+            // @ts-ignore
+            props: { ...block.props, code: val },
+          });
+        };
+  
+        const onRun = (pty: string) => {
+          editor.updateBlock(block, {
+            // @ts-ignore
+            props: { ...block.props, pty: pty },
+          });
+        };
+  
+        const onStop = (_pty: string) => {
+          editor?.updateBlock(block, {
+            props: { ...block.props, pty: "" },
+          });
+        };
+  
+        const setName = (name: string) => {
+          editor.updateBlock(block, {
+            props: { ...block.props, name: name },
+          });
+        };
+  
+        const setOutputVisible = (visible: boolean) => {
+          editor.updateBlock(block, {
+            props: { ...block.props, outputVisible: visible },
+          });
+        };
+  
+        const setDependency = (dependency: DependencySpec) => {
+          editor.updateBlock(block, {
+            props: { ...block.props, dependency: dependency.serialize() },
+          });
+        };
+  
+        let dependency = DependencySpec.deserialize(block.props.dependency);
+        let terminal = new TerminalBlock(
+          block.id,
+          block.props.name,
+          dependency,
+          block.props.code,
+          block.props.outputVisible,
+        );
+  
+        return (
+          <RunBlock
+            setName={setName}
+            onChange={onInputChange}
+            type={block.props.type}
+            pty={block.props.pty}
+            isEditable={editor.isEditable}
+            onRun={onRun}
+            onStop={onStop}
+            setOutputVisible={setOutputVisible}
+            terminal={terminal}
+            setDependency={setDependency}
+            onCodeMirrorFocus={handleCodeMirrorFocus}
+          />
+        );
+      },
+      toExternalHTML: ({ block }) => {
+        return (
+          <pre lang="beep boop">
+            <code lang="bash">{block?.props?.code}</code>
+          </pre>
+        );
+      },
+    },
+  );
+
+export const insertTerminal = (editor: any) => ({
+  title: "Terminal",
+  subtext: "Interactive terminal",
+  onItemClick: () => {
+    track_event("runbooks.block.create", { type: "run" });
+
+    // Count the number of terminal blocks
+    let terminalBlocks = editor.document.filter((block: any) => block.type === "run");
+    let name = `Terminal ${terminalBlocks.length + 1}`;
+
+    editor.insertBlocks(
+      [
+        {
+          type: "run",
+          props: {
+            name,
+          },
+        },
+      ],
+      editor.getTextCursorPosition().block.id,
+      "before",
+    );
+  },
+  icon: <CodeIcon size={18} />,
+  aliases: ["terminal", "run"],
+  group: "Execute",
+});

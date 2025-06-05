@@ -1,7 +1,6 @@
 import CodeEditor from "@/components/runbooks/editor/blocks/Editor/Editor";
 import { BlockNoteEditor, BlockNoteSchema, defaultBlockSpecs } from "@blocknote/core";
 import { en } from "@blocknote/core/locales";
-import Run from "./blocks/Run";
 import Directory from "./blocks/Directory";
 import Env from "./blocks/Env";
 import Var from "./blocks/Var";
@@ -11,7 +10,7 @@ import Prometheus from "./blocks/Prometheus/Prometheus";
 import SQLite from "./blocks/SQLite/SQLite";
 import Postgres from "./blocks/Postgres/Postgres";
 import Clickhouse from "./blocks/Clickhouse/Clickhouse";
-import Http from "./blocks/Http/Http";
+import { HttpBlockSpec } from "@/lib/blocks/http";
 import Script from "./blocks/Script/Script";
 import SshConnect from "./blocks/ssh/SshConnect";
 import HostSelect from "./blocks/Host";
@@ -23,6 +22,7 @@ import * as Y from "yjs";
 import * as awarenessProtocol from "y-protocols/awareness";
 import Dropdown from "./blocks/Dropdown/Dropdown";
 import DevConsole from "@/lib/dev/dev_console";
+import { TerminalBlockSpec } from "@/lib/blocks/terminal";
 
 // Our schema with block specs, which contain the configs and implementations for blocks
 // that we want our editor to use.
@@ -32,7 +32,7 @@ export const schema = BlockNoteSchema.create({
     ...defaultBlockSpecs,
 
     // Execution
-    run: Run,
+    run: TerminalBlockSpec,
     script: Script,
     directory: Directory,
     env: Env,
@@ -50,7 +50,7 @@ export const schema = BlockNoteSchema.create({
     clickhouse: Clickhouse,
 
     // Network
-    http: Http,
+    http: HttpBlockSpec,
     "ssh-connect": SshConnect,
     "host-select": HostSelect,
 

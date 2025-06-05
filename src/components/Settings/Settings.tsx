@@ -33,7 +33,7 @@ import { usePromise } from "@/lib/utils";
 import SocketManager from "@/socket";
 import handleDeepLink from "@/routes/root/deep";
 import * as api from "@/api/api";
-import InterpreterSelector from "@/components/runbooks/editor/blocks/common/InterpreterSelector";
+import InterpreterSelector from "@/lib/blocks/common/InterpreterSelector";
 
 async function loadFonts(): Promise<string[]> {
   const fonts = await invoke<string[]>("list_fonts");

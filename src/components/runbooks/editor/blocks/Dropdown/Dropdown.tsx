@@ -15,10 +15,10 @@ import { createReactBlockSpec } from "@blocknote/react";
 import { invoke } from "@tauri-apps/api/core";
 import { useStore } from "@/state/store";
 import track_event from "@/tracking";
-import { findAllParentsOfType, findFirstParentOfType } from "../exec";
+import { findAllParentsOfType, findFirstParentOfType } from "@/lib/blocks/exec.ts";
 import { templateString } from "@/state/templates";
-import CodeEditor, { TabAutoComplete } from "../common/CodeEditor/CodeEditor.tsx";
-import InterpreterSelector, { buildInterpreterCommand } from "../common/InterpreterSelector";
+import CodeEditor, { TabAutoComplete } from "@/lib/blocks/common/CodeEditor/CodeEditor.tsx";
+import InterpreterSelector, { buildInterpreterCommand } from "@/lib/blocks/common/InterpreterSelector.tsx";
 
 // Helper to parse and display option nicely
 const parseOption = (option: string) => {

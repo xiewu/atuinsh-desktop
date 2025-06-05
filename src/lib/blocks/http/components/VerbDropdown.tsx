@@ -7,15 +7,7 @@ import {
   Button,
 } from "@heroui/react";
 import { ChevronDown } from "lucide-react";
-
-enum HttpVerb {
-  GET = "GET",
-  POST = "POST",
-  PUT = "PUT",
-  DELETE = "DELETE",
-  PATCH = "PATCH",
-  HEAD = "HEAD",
-}
+import { HttpVerb } from "../schema";
 
 interface HttpVerbDropdownProps {
   selectedVerb: HttpVerb;

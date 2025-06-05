@@ -10,8 +10,8 @@ import {
 import { Clock, CheckCircle, AlertCircle, Info, WifiOff, TrashIcon, Copy } from "lucide-react";
 import JsonView from "@uiw/react-json-view";
 
-import "./style.css";
-import ResultTable from "../common/ResultTable";
+import "../style.css";
+import ResultTable from "../../common/ResultTable";
 
 const renderBody = (body: string, headers: any) => {
   let contentType = headers["content-type"];

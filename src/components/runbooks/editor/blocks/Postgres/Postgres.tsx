@@ -7,10 +7,10 @@ import { langs } from "@uiw/codemirror-extensions-langs";
 
 import { runQuery } from "./query";
 
-import SQL from "../common/SQL";
 import { PostgresBlock } from "@/lib/workflow/blocks/postgres";
 import { DependencySpec } from "@/lib/workflow/dependency";
 import track_event from "@/tracking";
+import SQL from "@/lib/blocks/common/SQL";
 
 interface SQLProps {
   isEditable: boolean;

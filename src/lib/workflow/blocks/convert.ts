@@ -1,12 +1,12 @@
 import Block from "./block";
 
-import { TerminalBlock } from "./terminal";
 import { ScriptBlock } from "./script";
 import { SQLiteBlock } from "./sqlite";
 import { ClickhouseBlock } from "./clickhouse";
 import { PostgresBlock } from "./postgres";
-import { HttpBlock } from "./http";
+import { HttpBlock } from "@/lib/blocks/http/schema";
 import { PrometheusBlock } from "./prometheus";
+import { TerminalBlock } from "@/lib/blocks/terminal/schema";
 
 export function blocksBefore(currentId: string,blocks: any[]): Block[]{
     const index = blocks.findIndex((b) => b.id === currentId);

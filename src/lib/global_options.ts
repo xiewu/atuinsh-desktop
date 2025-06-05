@@ -1,4 +1,4 @@
-type OperatingSystem = "macos" | "windows" | "linux";
+type OperatingSystem = "macos" | "windows" | "linux" | "testenv";
 
 type GlobalOptions = {
   os: OperatingSystem;
@@ -8,6 +8,16 @@ type GlobalOptions = {
 };
 
 export function getGlobalOptions(): GlobalOptions {
+  // If we're running a test, we don't have the window object
+  if (typeof window === "undefined") {
+    return {
+      os: "testenv",
+      customTitleBar: true,
+      devPrefix: "dev",
+      noSync: true,
+    };
+  }
+
   const params = new URLSearchParams(window.location.search);
 
   return {

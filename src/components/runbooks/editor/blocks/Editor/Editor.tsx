@@ -12,7 +12,6 @@ import { useStore } from "@/state/store";
 import CodeMirror, { Extension } from "@uiw/react-codemirror";
 
 import "@xterm/xterm/css/xterm.css";
-import Block from "../common/Block.tsx";
 import { ChevronDownIcon, CodeIcon } from "lucide-react";
 import {
   Dropdown,
@@ -30,6 +29,7 @@ import EditableHeading from "@/components/EditableHeading/index.tsx";
 import { hcl } from "codemirror-lang-hcl";
 import { DependencySpec } from "@/lib/workflow/dependency.ts";
 import useCodemirrorTheme from "@/lib/hooks/useCodemirrorTheme.ts";
+import Block from "@/lib/blocks/common/Block";
 
 interface LanguageLoader {
   name: string;

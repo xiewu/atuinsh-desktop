@@ -9,6 +9,7 @@ import LocalVar from "./blocks/LocalVar";
 import Prometheus from "./blocks/Prometheus/Prometheus";
 import SQLite from "./blocks/SQLite/SQLite";
 import Postgres from "./blocks/Postgres/Postgres";
+import MySQL from "./blocks/MySQL/MySQL";
 import Clickhouse from "./blocks/Clickhouse/Clickhouse";
 import { HttpBlockSpec } from "@/lib/blocks/http";
 import Script from "./blocks/Script/Script";
@@ -47,6 +48,7 @@ export const schema = BlockNoteSchema.create({
     // Databases
     sqlite: SQLite,
     postgres: Postgres,
+    mysql: MySQL,
     clickhouse: Clickhouse,
 
     // Network

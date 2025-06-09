@@ -1,6 +1,7 @@
 pub(crate) mod clickhouse;
 pub(crate) mod editor;
 pub(crate) mod http;
+pub(crate) mod mysql;
 pub(crate) mod postgres;
 pub(crate) mod prometheus;
 pub(crate) mod script;
@@ -20,6 +21,7 @@ pub(crate) enum Block {
     Http(http::Http),
     Prometheus(prometheus::Prometheus),
     Clickhouse(clickhouse::Clickhouse),
+    Mysql(mysql::Mysql),
 
     #[serde(rename = "sqlite")]
     SQLite(sqlite::SQLite),
@@ -35,6 +37,7 @@ impl Block {
             Block::Http(http) => http.id,
             Block::Prometheus(prometheus) => prometheus.id,
             Block::Clickhouse(clickhouse) => clickhouse.id,
+            Block::Mysql(mysql) => mysql.id,
         }
     }
 
@@ -48,6 +51,7 @@ impl Block {
             Block::Http(http) => http.name.clone(),
             Block::Prometheus(prometheus) => prometheus.name.clone(),
             Block::Clickhouse(clickhouse) => clickhouse.name.clone(),
+            Block::Mysql(mysql) => mysql.name.clone(),
         }
     }
 }

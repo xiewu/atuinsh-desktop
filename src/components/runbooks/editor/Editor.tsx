@@ -26,6 +26,7 @@ import { SparklesIcon } from "lucide-react";
 
 import { insertSQLite } from "@/components/runbooks/editor/blocks/SQLite/SQLite";
 import { insertPostgres } from "@/components/runbooks/editor/blocks/Postgres/Postgres";
+import { insertMySQL } from "@/components/runbooks/editor/blocks/MySQL/MySQL";
 import { insertClickhouse } from "@/components/runbooks/editor/blocks/Clickhouse/Clickhouse";
 import { insertScript } from "@/components/runbooks/editor/blocks/Script/Script";
 import { insertPrometheus } from "@/components/runbooks/editor/blocks/Prometheus/Prometheus";
@@ -518,6 +519,7 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
                 // Database group
                 insertSQLite(schema)(editor),
                 insertPostgres(schema)(editor),
+                insertMySQL(schema)(editor),
                 insertClickhouse(schema)(editor),
 
                 // Network group

@@ -53,7 +53,7 @@ interface SQLProps {
   placeholder?: string;
   collapseQuery: boolean;
   extensions?: Extension[];
-  sqlType: "sqlite" | "postgres" | "clickhouse"; // explicit SQL type: 'sqlite', 'postgres', 'clickhouse'
+  sqlType: "sqlite" | "postgres" | "mysql" | "clickhouse"; // explicit SQL type: 'sqlite', 'postgres', 'mysql', 'clickhouse'
   isEditable: boolean;
   block: any;
 

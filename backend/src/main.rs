@@ -478,6 +478,8 @@ fn main() {
             commands::stats::command_stats,
             commands::template::set_template_var,
             commands::template::get_template_var,
+            commands::mysql::mysql_query,
+            commands::mysql::mysql_execute,
             shared_state::get_shared_state_document,
             shared_state::push_optimistic_update,
             shared_state::update_shared_state_document,

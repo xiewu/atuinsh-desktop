@@ -347,11 +347,20 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
       setIsVisible(false);
       
       requestAnimationFrame(() => {
-        if (scrollContainerRef.current) {
-          restoreScrollPosition(scrollContainerRef.current, runbook.id);
+        try {
+          if (scrollContainerRef.current) {
+            restoreScrollPosition(scrollContainerRef.current, runbook.id);
+          }
+        } catch (error) {
+          console.warn("Failed to restore scroll position:", error);
+        } finally {
+          // Always restore visibility regardless of scroll restoration success
           setIsVisible(true);
         }
       });
+    } else {
+      // Ensure visibility is set when no scroll position to restore
+      setIsVisible(true);
     }
   }, [runbook?.id]);
 

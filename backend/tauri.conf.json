@@ -13,6 +13,7 @@
   },
   "bundle": {
     "active": true,
+    "category": "DeveloperTool",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -20,8 +21,33 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "targets": "all",
-    "createUpdaterArtifacts": true
+    "targets": ["deb", "rpm", "dmg", "app"],
+    "createUpdaterArtifacts": true,
+    "linux": {
+      "deb": {
+        "desktopTemplate": "AtuinDesktop.desktop"
+      },
+      "rpm": {
+        "desktopTemplate": "AtuinDesktop.desktop"
+      }
+    },
+    "macOS": {
+      "dmg": {
+        "background": "icons/dmg-bg.png",
+        "appPosition": {
+          "x": 140,
+          "y": 185
+        },
+        "applicationFolderPosition": {
+          "x": 520,
+          "y": 185
+        },
+        "windowSize": {
+          "height": 400,
+          "width": 660
+        }
+      }
+    }
   },
   "identifier": "sh.atuin.app",
   "plugins": {

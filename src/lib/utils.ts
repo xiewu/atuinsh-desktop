@@ -5,7 +5,6 @@ import type { ClassValue } from "clsx";
 import clsx from "clsx";
 import { useEffect, useRef, useState } from "react";
 import { extendTailwindMerge } from "tailwind-merge";
-import { clearTimeout, setTimeout } from "worker-timers";
 
 export type { Option } from "@binarymuse/ts-stdlib";
 export { None, Some } from "@binarymuse/ts-stdlib";
@@ -121,7 +120,7 @@ export function useDebounce(
   timeout: number,
   initialValue = false,
 ): [boolean, () => void, () => void] {
-  const ref = useRef<number | null>(null);
+  const ref = useRef<Timeout | null>(null);
   const [debounced, setDebouced] = useState<boolean>(initialValue);
 
   function resetDebounce() {

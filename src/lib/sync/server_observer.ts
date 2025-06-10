@@ -26,7 +26,7 @@ export default class ServerObserver {
   private subscriptions: Array<() => void> = [];
   private orgObservers: Map<string, OrgObserver> = new Map();
   private personalOrgObserver: Option<PersonalOrgObserver> = None;
-  private userSyncTimer: Option<number> = None;
+  private userSyncTimer: Option<Timeout> = None;
   private lastUserSync: Option<DateTime> = None;
 
   constructor(store: AtuinStore, notifications: ServerNotificationManager) {
@@ -109,7 +109,7 @@ export default class ServerObserver {
         this.userSyncTimer = Some(
           setTimeout(() => {
             this.maybeRefreshUser();
-          }, USER_SYNC_INTERVAL) as unknown as number,
+          }, USER_SYNC_INTERVAL),
         );
       });
   }

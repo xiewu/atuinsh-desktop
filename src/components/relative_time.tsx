@@ -1,6 +1,5 @@
 import { DateTime } from "luxon";
 import { useEffect, useState } from "react";
-import { clearInterval, setInterval } from "worker-timers";
 
 type RelativeTimeProps = {
   time: DateTime;

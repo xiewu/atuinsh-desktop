@@ -6,7 +6,6 @@ import { DateTime } from "luxon";
 import Runbook from "@/state/runbooks/runbook";
 import { autobind } from "../decorators";
 import * as api from "@/api/api";
-import { clearTimeout, setTimeout } from "worker-timers";
 import { processUnprocessedOperations } from "@/state/runbooks/operation_processor";
 import { ConnectionState } from "@/state/store/user_state";
 import Workspace from "@/state/runbooks/workspace";
@@ -47,7 +46,7 @@ export default class WorkspaceSyncManager {
   private startNextSyncEarly: boolean = false;
   private connectionState: ConnectionState;
   private focused: boolean | null = null;
-  private periodicSyncTimeout: number | null = null;
+  private periodicSyncTimeout: Timeout | null = null;
 
   private constructor(store: Store) {
     this.store = store;

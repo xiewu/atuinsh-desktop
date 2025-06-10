@@ -116,11 +116,13 @@ export default class RunbookEditor {
       if (this.selectedTag && this.selectedTag !== "latest") {
         const snapshot = await Snapshot.findByRunbookIdAndTag(this.runbook.id, this.selectedTag);
         if (!snapshot) {
-          throw new Error(`Could not find snapshot based on tag: ${this.selectedTag}`);
+          // Fallback to latest if snapshot not found
+          this.selectedTag = "latest";
+        } else {
+          const editor = createBasicEditor(JSON.parse(snapshot.content));
+          resolve(editor as any as BlockNoteEditor);
+          return;
         }
-        const editor = createBasicEditor(JSON.parse(snapshot.content));
-        resolve(editor as any as BlockNoteEditor);
-        return;
       }
 
       const presenceColor = randomColor();

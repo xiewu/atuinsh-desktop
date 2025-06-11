@@ -114,6 +114,7 @@ const SQL = ({
 
   const [error, setError] = useState<string | null>(null);
   const [currentRunbookId] = useStore((store: AtuinState) => [store.currentRunbookId]);
+  const colorMode = useStore((state) => state.functionalColorMode);
   const { canRun } = useDependencyState(block, isRunning);
   const elementRef = useRef<HTMLDivElement>(null);
 
@@ -361,6 +362,7 @@ const SQL = ({
         <SQLResults
           results={results}
           error={error}
+          colorMode={colorMode}
           dismiss={() => {
             setResults(null);
             setError(null);

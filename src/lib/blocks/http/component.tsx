@@ -83,6 +83,7 @@ export const Http = ({
 }: HttpProps) => {
   let editor = useBlockNoteEditor();
   const currentRunbookId = useStore((state) => state.currentRunbookId);
+  const colorMode = useStore((state) => state.functionalColorMode);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [response, setResponse] = useState<any | null>(null);
   const [error, setError] = useState<any | null>(null);
@@ -219,6 +220,7 @@ export const Http = ({
           <HttpResponse
             response={response}
             error={error}
+            colorMode={colorMode}
             dismiss={() => {
               setResponse(null);
               setError(null);

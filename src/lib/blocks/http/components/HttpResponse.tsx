@@ -1,27 +1,24 @@
-import {
-  Card,
-  CardBody,
-  CardHeader,
-  Chip,
-  Tooltip,
-  Divider,
-  Button,
-} from "@heroui/react";
+import { Card, CardBody, CardHeader, Chip, Tooltip, Divider, Button } from "@heroui/react";
 import { Clock, CheckCircle, AlertCircle, Info, WifiOff, TrashIcon, Copy } from "lucide-react";
 import JsonView from "@uiw/react-json-view";
+import { githubLightTheme } from "@uiw/react-json-view/githubLight";
+import { githubDarkTheme } from "@uiw/react-json-view/githubDark";
 
 import "../style.css";
 import ResultTable from "../../common/ResultTable";
 
-const renderBody = (body: string, headers: any) => {
+const renderBody = (body: string, headers: any, colorMode: "dark" | "light") => {
   let contentType = headers["content-type"];
   if (contentType && contentType.includes("application/json")) {
     try {
       const jsonData = typeof body === "string" ? JSON.parse(body) : body;
+      const style = colorMode === "dark" ? githubDarkTheme : githubLightTheme;
+      style["backgroundColor"] = "transparent";
+      style["userSelect"] = "text";
       return (
         <JsonView
           value={jsonData}
-          style={{ backgroundColor: "transparent", userSelect: "text" }}
+          style={style}
           displayDataTypes={false}
           displayObjectSize={false}
           enableClipboard={false}
@@ -34,12 +31,12 @@ const renderBody = (body: string, headers: any) => {
   return <pre className="whitespace-pre-wrap break-words text-sm select-text">{body}</pre>;
 };
 
-const HttpResponse = ({ response, error, dismiss }: any) => {
+const HttpResponse = ({ response, error, dismiss, colorMode }: any) => {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
     } catch (err) {
-      console.error('Failed to copy to clipboard:', err);
+      console.error("Failed to copy to clipboard:", err);
     }
   };
 
@@ -133,7 +130,7 @@ const HttpResponse = ({ response, error, dismiss }: any) => {
               onClick={() => {
                 const headersText = headerEntries
                   .map(([key, value]) => `${key}: ${value}`)
-                  .join('\n');
+                  .join("\n");
                 copyToClipboard(headersText);
               }}
             >
@@ -144,6 +141,7 @@ const HttpResponse = ({ response, error, dismiss }: any) => {
             <ResultTable
               results={headerEntries}
               width={"100%"}
+              colorMode={colorMode}
               columns={[
                 {
                   id: "Header",
@@ -164,17 +162,12 @@ const HttpResponse = ({ response, error, dismiss }: any) => {
         <div>
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-sm font-semibold text-default-700">Response Body</h3>
-            <Button
-              variant="light"
-              size="sm"
-              isIconOnly
-              onClick={() => copyToClipboard(data)}
-            >
+            <Button variant="light" size="sm" isIconOnly onClick={() => copyToClipboard(data)}>
               <Copy size={14} />
             </Button>
           </div>
           <div className="bg-default-50 rounded-lg p-4 overflow-auto max-h-96">
-            {renderBody(data, headers)}
+            {renderBody(data, headers, colorMode)}
           </div>
         </div>
       </CardBody>

@@ -3,23 +3,17 @@ import { QueryResult } from "./database";
 import ResultTable from "./ResultTable";
 import { GridColumn } from "@glideapps/glide-data-grid";
 import { Card, CardBody, CardHeader, Chip, Tooltip, Button, Divider } from "@heroui/react";
-import {
-  CheckCircle,
-  CircleXIcon,
-  Clock,
-  HardDriveIcon,
-  Rows4Icon,
-  TrashIcon
-} from "lucide-react";
+import { CheckCircle, CircleXIcon, Clock, HardDriveIcon, Rows4Icon, TrashIcon } from "lucide-react";
 import { formatBytes } from "@/lib/utils";
 
 interface SQLProps {
   error: any;
   results: QueryResult | null;
+  colorMode: "dark" | "light";
   dismiss?: () => void;
 }
 
-const SQLResults = ({ results, error, dismiss }: SQLProps) => {
+const SQLResults = ({ results, error, dismiss, colorMode }: SQLProps) => {
   const [columns, setColumns] = useState<GridColumn[] | null>(null);
 
   useEffect(() => {
@@ -55,9 +49,7 @@ const SQLResults = ({ results, error, dismiss }: SQLProps) => {
             >
               Error
             </Chip>
-            <span className="text-danger-700 font-semibold">
-              Database error
-            </span>
+            <span className="text-danger-700 font-semibold">Database error</span>
           </div>
         </CardHeader>
         <CardBody className="p-4">
@@ -91,13 +83,11 @@ const SQLResults = ({ results, error, dismiss }: SQLProps) => {
           </Chip>
           {results.rows?.length || 0 > 0 ? (
             <span className="text-success-700 font-semibold">
-              {results.rows!.length.toLocaleString()}{" "}
-              {results.rows!.length == 1 ? "row" : "rows"} returned
+              {results.rows!.length.toLocaleString()} {results.rows!.length == 1 ? "row" : "rows"}{" "}
+              returned
             </span>
           ) : (
-            <span className="text-default-700 font-semibold">
-              Query successful
-            </span>
+            <span className="text-default-700 font-semibold">Query successful</span>
           )}
         </div>
         <div className="flex items-center gap-4">
@@ -107,8 +97,7 @@ const SQLResults = ({ results, error, dismiss }: SQLProps) => {
                 <Rows4Icon size={14} />
 
                 <span className="text-sm select-text">
-                  {results.rowsRead?.toLocaleString()}{" "}
-                  {results.rowsRead > 1 ? "rows" : "row"}
+                  {results.rowsRead?.toLocaleString()} {results.rowsRead > 1 ? "rows" : "row"}
                 </span>
               </div>
             </Tooltip>
@@ -119,9 +108,7 @@ const SQLResults = ({ results, error, dismiss }: SQLProps) => {
               <div className="flex items-center gap-1 text-default-500">
                 <HardDriveIcon size={14} />
 
-                <span className="text-sm select-text">
-                  {formatBytes(results.bytesRead)}
-                </span>
+                <span className="text-sm select-text">{formatBytes(results.bytesRead)}</span>
               </div>
             </Tooltip>
           )}
@@ -142,9 +129,7 @@ const SQLResults = ({ results, error, dismiss }: SQLProps) => {
       </CardHeader>
       <Divider />
       <CardBody className="p-0">
-        {error && (
-          <div className="bg-red-100 text-red-600 p-2 rounded">{error}</div>
-        )}
+        {error && <div className="bg-red-100 text-red-600 p-2 rounded">{error}</div>}
 
         {results && columns && (
           <div className="h-64 w-full">
@@ -153,6 +138,7 @@ const SQLResults = ({ results, error, dismiss }: SQLProps) => {
               columns={columns}
               results={results.rows || []}
               setColumns={setColumns}
+              colorMode={colorMode}
             />
           </div>
         )}

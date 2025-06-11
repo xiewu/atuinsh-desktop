@@ -5,7 +5,6 @@ import "@glideapps/glide-data-grid/dist/index.css";
 // @ts-ignore
 import { createReactBlockSpec } from "@blocknote/react";
 
-
 import { runQuery } from "./query";
 import { SQLiteBlock } from "@/lib/workflow/blocks/sqlite";
 import { DependencySpec } from "@/lib/workflow/dependency";
@@ -38,7 +37,6 @@ const SQLite = ({
   setDependency,
   onCodeMirrorFocus,
 }: SQLiteProps) => {
-
   return (
     <SQL
       block={sqlite}
@@ -58,6 +56,7 @@ const SQLite = ({
       setCollapseQuery={setCollapseQuery}
       setDependency={setDependency}
       onCodeMirrorFocus={onCodeMirrorFocus}
+      placeholder="/path/to/database.db"
     />
   );
 };
@@ -123,7 +122,14 @@ export default createReactBlockSpec(
       };
 
       let dependency = DependencySpec.deserialize(block.props.dependency);
-      let sqlite = new SQLiteBlock(block.id, block.props.name, dependency, block.props.query, block.props.uri, block.props.autoRefresh);
+      let sqlite = new SQLiteBlock(
+        block.id,
+        block.props.name,
+        dependency,
+        block.props.query,
+        block.props.uri,
+        block.props.autoRefresh,
+      );
 
       return (
         <SQLite
@@ -148,7 +154,7 @@ export const insertSQLite = (schema: any) => (editor: typeof schema.BlockNoteEdi
   onItemClick: () => {
     track_event("runbooks.block.create", { type: "sqlite" });
 
-    let sqliteBlocks = editor.document.filter((block: any) => block.type === "sqlite"); 
+    let sqliteBlocks = editor.document.filter((block: any) => block.type === "sqlite");
     let name = `SQLite ${sqliteBlocks.length + 1}`;
 
     editor.insertBlocks(

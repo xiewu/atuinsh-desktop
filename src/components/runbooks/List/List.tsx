@@ -39,6 +39,7 @@ import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
 import VerticalDragHandle from "./VerticalDragHandle";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
+import track_event from "@/tracking";
 
 export type ListApi = {
   scrollWorkspaceIntoView: (workspaceId: string) => void;
@@ -374,7 +375,10 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
                         />
                       )
                     }
-                    onPress={() => setSelectedOrg(null)}
+                    onPress={() => {
+                      setSelectedOrg(null);
+                      track_event("org.switch", { to: "personal" });
+                    }}
                   >
                     {user.isLoggedIn() ? <h3>{user.username} (Personal)</h3> : <h3>Personal</h3>}
                   </DropdownItem>
@@ -382,7 +386,10 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
                     {userOrgs.map((org) => (
                       <DropdownItem
                         key={org.id}
-                        onPress={() => setSelectedOrg(org.id)}
+                        onPress={() => {
+                          setSelectedOrg(org.id);
+                          track_event("org.switch", { to: "org" });
+                        }}
                         startContent={
                           org.avatar_url && (
                             <Avatar

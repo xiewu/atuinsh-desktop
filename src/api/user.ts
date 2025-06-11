@@ -1,5 +1,5 @@
 import { RemoteUser } from "@/state/models";
-import { get } from "./api";
+import { get, post } from "./api";
 
 interface UserOrgInfo {
   id: string;
@@ -28,4 +28,8 @@ export async function searchUsers(query: string) {
 
   const { users } = await get<{ users: RemoteUser[] }>(`/users?query=${query}`);
   return users;
+}
+
+export async function inviteFriends(emails: string[]) {
+  return post("/users/invite", { emails });
 }

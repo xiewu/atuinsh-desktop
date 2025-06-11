@@ -36,7 +36,7 @@ import type { ListApi } from "@/components/runbooks/List/List";
 import { KVStore } from "@/state/kv";
 import Runbook from "@/state/runbooks/runbook";
 import RunbookIndexService from "@/state/runbooks/search";
-import { PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
+import { MailPlusIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
 import Workspace from "@/state/runbooks/workspace";
 import track_event from "@/tracking";
 import { invoke } from "@tauri-apps/api/core";
@@ -58,6 +58,7 @@ import { TraversalOrder } from "@/lib/tree";
 import DevConsole from "@/lib/dev/dev_console";
 import Sidebar, { SidebarItem } from "@/components/Sidebar";
 import { getGlobalOptions } from "@/lib/global_options";
+import InviteFriendsModal from "./InviteFriendsModal";
 
 const Onboarding = React.lazy(() => import("@/components/Onboarding/Onboarding"));
 const UpdateNotifier = React.lazy(() => import("./UpdateNotifier"));
@@ -111,6 +112,7 @@ function App() {
   const setCurrentRunbookId = useStore((state: AtuinState) => state.setCurrentRunbookId);
   const colorMode = useStore((state: AtuinState) => state.functionalColorMode);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showInviteFriends, setShowInviteFriends] = useState(false);
   const serialExecution = useStore((state: AtuinState) => state.serialExecution);
   const currentRunbookId = useStore((state: AtuinState) => state.currentRunbookId);
   const setSerialExecution = useStore((state: AtuinState) => state.setSerialExecution);
@@ -841,7 +843,20 @@ function App() {
 
             <Spacer y={2} />
 
-            <div className="flex items-center gap-3 px-3">
+            <div className="flex flex-col items-center gap-4 px-3">
+              {isLoggedIn() && (
+                <Tooltip content="Invite friends and colleagues to try Atuin Desktop">
+                  <Button
+                    isIconOnly
+                    variant="light"
+                    size="lg"
+                    onPress={() => setShowInviteFriends(true)}
+                  >
+                    <MailPlusIcon className="w-6 h-6" size={24} />
+                  </Button>
+                </Tooltip>
+              )}
+
               <Dropdown showArrow placement="right-start">
                 <DropdownTrigger>
                   <Button disableRipple isIconOnly radius="full" variant="light">
@@ -942,6 +957,10 @@ function App() {
 
           {showDesktopConnect && <DesktopConnect />}
           {showOnboarding && <Onboarding />}
+          <InviteFriendsModal
+            isOpen={showInviteFriends}
+            onClose={() => setShowInviteFriends(false)}
+          />
         </div>
 
         <DialogManager />

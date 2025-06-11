@@ -36,6 +36,7 @@ import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus";
 import BlockBus from "@/lib/workflow/block_bus";
 import track_event from "@/tracking";
 import useCodemirrorTheme from "@/lib/hooks/useCodemirrorTheme";
+import { useCodeMirrorValue } from "@/lib/hooks/useCodeMirrorValue";
 import ErrorCard from "@/lib/blocks/common/ErrorCard";
 import PlayButton from "@/lib/blocks/common/PlayButton";
 import Block from "@/lib/blocks/common/Block";
@@ -230,6 +231,10 @@ const Prometheus = ({
   );
 
   const themeObj = useCodemirrorTheme();
+  const codeMirrorValue = useCodeMirrorValue(value, (val) => {
+    setValue(val);
+    setQuery(val);
+  });
 
   return (
     <Block
@@ -263,11 +268,8 @@ const Prometheus = ({
             <CodeMirror
               placeholder={"Write your query here..."}
               className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
-              value={value}
-              onChange={(val) => {
-                setValue(val);
-                setQuery(val);
-              }}
+              value={codeMirrorValue.value}
+              onChange={codeMirrorValue.onChange}
               extensions={promExtension ? [promExtension.asExtension()] : []}
               basicSetup={true}
               editable={isEditable}

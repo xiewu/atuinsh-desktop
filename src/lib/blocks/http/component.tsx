@@ -19,6 +19,7 @@ import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency";
 import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus";
 import BlockBus from "@/lib/workflow/block_bus";
 import useCodemirrorTheme from "@/lib/hooks/useCodemirrorTheme";
+import { useCodeMirrorValue } from "@/lib/hooks/useCodeMirrorValue";
 import PlayButton from "../common/PlayButton";
 import Block from "../common/Block";
 
@@ -168,6 +169,7 @@ export const Http = ({
   useBlockBusRunSubscription(http.id, onPlay);
 
   const themeObj = useCodemirrorTheme();
+  const codeMirrorValue = useCodeMirrorValue(body, setBody);
 
   return (
     <Block
@@ -243,10 +245,8 @@ export const Http = ({
           <CodeMirror
             placeholder={"Request Body (JSON)"}
             className="!pt-0 max-w-full border border-gray-300 rounded flex-grow text-sm max-h-96"
-            value={body}
-            onChange={(val) => {
-              setBody(val);
-            }}
+            value={codeMirrorValue.value}
+            onChange={codeMirrorValue.onChange}
             basicSetup={true}
             extensions={[langs.json()]}
             editable={isEditable}

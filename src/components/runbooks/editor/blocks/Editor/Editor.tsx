@@ -29,6 +29,7 @@ import EditableHeading from "@/components/EditableHeading/index.tsx";
 import { hcl } from "codemirror-lang-hcl";
 import { DependencySpec } from "@/lib/workflow/dependency.ts";
 import useCodemirrorTheme from "@/lib/hooks/useCodemirrorTheme.ts";
+import { useCodeMirrorValue } from "@/lib/hooks/useCodeMirrorValue";
 import Block from "@/lib/blocks/common/Block";
 
 interface LanguageLoader {
@@ -89,6 +90,8 @@ const EditorBlock = ({
   onCodeMirrorFocus,
 }: CodeBlockProps) => {
   const languages: LanguageLoader[] = useMemo(() => languageLoaders(), []);
+  
+  const codeMirrorValue = useCodeMirrorValue(code, onChange);
 
   const [extension, setExtension] = useState<Extension | null>(null);
   const [selected, setSelected] = useState<any | null>(
@@ -202,11 +205,9 @@ const EditorBlock = ({
       <CodeMirror
         className="!pt-0 max-w-full border border-gray-300 rounded flex-grow max-h-1/2 overflow-scroll"
         placeholder={"Write some code..."}
-        value={code}
+        value={codeMirrorValue.value}
         readOnly={!isEditable}
-        onChange={(val) => {
-          onChange(val);
-        }}
+        onChange={codeMirrorValue.onChange}
         onFocus={onCodeMirrorFocus}
         extensions={extension ? [extension] : []}
         basicSetup={true}

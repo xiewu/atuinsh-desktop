@@ -4,6 +4,7 @@ import { langs } from "@uiw/codemirror-extensions-langs";
 import { extensions } from "./extensions";
 import { useMemo } from "react";
 import { acceptCompletion } from "@codemirror/autocomplete";
+import { useCodeMirrorValue } from "@/lib/hooks/useCodeMirrorValue";
 
 interface KeyMap {
   key?: string;
@@ -71,6 +72,7 @@ export default function CodeEditor({
 
   const customKeymap = Prec.highest(keymap.of(keyMap || [TabAutoComplete]));
   const themeObj = (themes as any)[theme];
+  const codeMirrorValue = useCodeMirrorValue(code, onChange);
 
   let editorExtensions: any[] = useMemo(() => {
     const ext = [...extensions(), customKeymap];
@@ -85,11 +87,9 @@ export default function CodeEditor({
       id={id}
       placeholder={"Write your code here..."}
       className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
-      value={code}
+      value={codeMirrorValue.value}
       editable={isEditable}
-      onChange={(val) => {
-        onChange(val);
-      }}
+      onChange={codeMirrorValue.onChange}
       onFocus={onFocus}
       extensions={editorExtensions}
       basicSetup={false}

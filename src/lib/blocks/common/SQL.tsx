@@ -46,6 +46,7 @@ import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency";
 import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus";
 import BlockBus from "@/lib/workflow/block_bus";
 import useCodemirrorTheme from "@/lib/hooks/useCodemirrorTheme";
+import { useCodeMirrorValue } from "@/lib/hooks/useCodeMirrorValue";
 
 interface SQLProps {
   id: string;
@@ -117,6 +118,7 @@ const SQL = ({
   const elementRef = useRef<HTMLDivElement>(null);
 
   const themeObj = useCodemirrorTheme();
+  const codeMirrorValue = useCodeMirrorValue(query, setQuery);
 
   const handlePlay = useCallback(async () => {
     console.log("sql handlePlay called");
@@ -297,8 +299,8 @@ const SQL = ({
               })}
               basicSetup={true}
               extensions={[...extensions]}
-              value={query}
-              onChange={setQuery}
+              value={codeMirrorValue.value}
+              onChange={codeMirrorValue.onChange}
               editable={isEditable}
               theme={themeObj}
               maxHeight="100vh"

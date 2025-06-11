@@ -442,7 +442,7 @@ dependencies = [
 
 [[package]]
 name = "atuin-desktop"
-version = "0.0.76"
+version = "0.0.77"
 dependencies = [
  "async-ssh2-lite",
  "async-trait",

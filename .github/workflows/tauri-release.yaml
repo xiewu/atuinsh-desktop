@@ -107,12 +107,16 @@ jobs:
               dir=$(dirname "$file")
               filename=$(basename "$file")
 
+              echo "Processing file: $filename"
               new_filename=$(echo "$filename" | sed 's/Atuin Desktop/Atuin_Desktop/g')
+              echo "New filename: $new_filename"
 
               if [[ "$filename" != "$new_filename" ]]; then
                 new_path="$dir/$new_filename"
                 echo "Renaming: $file -> $new_path"
                 mv "$file" "$new_path"
+              else
+                echo "No rename needed for: $filename"
               fi
             fi
           done

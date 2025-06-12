@@ -59,6 +59,7 @@ import DevConsole from "@/lib/dev/dev_console";
 import Sidebar, { SidebarItem } from "@/components/Sidebar";
 import { getGlobalOptions } from "@/lib/global_options";
 import InviteFriendsModal from "./InviteFriendsModal";
+import AtuinEnv from "@/atuin_env";
 
 const Onboarding = React.lazy(() => import("@/components/Onboarding/Onboarding"));
 const UpdateNotifier = React.lazy(() => import("./UpdateNotifier"));
@@ -395,7 +396,7 @@ function App() {
         <DropdownItem
           key="login"
           description="Sign in to Atuin Hub"
-          onPress={() => open(`${api.endpoint()}/settings/desktop-connect`)}
+          onPress={() => open(AtuinEnv.url("/settings/desktop-connect"))}
         >
           Log in
         </DropdownItem>

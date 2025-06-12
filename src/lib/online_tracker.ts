@@ -1,8 +1,8 @@
 import { fetch } from "@tauri-apps/plugin-http";
 import { onlineManager } from "@tanstack/react-query";
-import { endpoint } from "../api/api";
 import { useStore } from "@/state/store";
 import { Some, None } from "./utils";
+import AtuinEnv from "@/atuin_env";
 
 const CHECK_TIMEOUT = 15_000;
 
@@ -23,7 +23,7 @@ export async function trackOnlineStatus() {
   }
 
   try {
-    const response = await fetch(`${endpoint()}/up`);
+    const response = await fetch(AtuinEnv.url("/up"));
     let minVersion = response.headers.get("atuin-min-desktop-version");
     let currentMinVersion = useStore.getState().minimumVersion;
 

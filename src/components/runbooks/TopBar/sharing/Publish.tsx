@@ -1,4 +1,3 @@
-import { endpoint } from "@/api/api";
 import { slugify, capitalize } from "@/lib/utils";
 import { RemoteRunbook } from "@/state/models";
 import Runbook, { RunbookVisibility } from "@/state/runbooks/runbook";
@@ -16,6 +15,7 @@ import {
 import { open } from "@tauri-apps/plugin-shell";
 import { TrashIcon } from "lucide-react";
 import CollaborationManager from "./CollaborationManager";
+import AtuinEnv from "@/atuin_env";
 
 interface PublishProps {
   mode: "publish" | "edit";
@@ -35,7 +35,7 @@ interface PublishProps {
 export default function Publish(props: PublishProps) {
   const username = useStore((state) => state.user.username);
   const publishMode = props.mode === "publish";
-  const runbookUrl = `${endpoint()}/${props.remoteRunbook?.nwo}`;
+  const runbookUrl = AtuinEnv.url(`/${props.remoteRunbook?.nwo}`);
 
   const dataHasChanged =
     props.visibility !== props.remoteRunbook?.visibility ||

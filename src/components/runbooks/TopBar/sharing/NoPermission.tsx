@@ -1,14 +1,14 @@
 import { open } from "@tauri-apps/plugin-shell";
-import { endpoint } from "@/api/api";
 import { RemoteRunbook } from "@/state/models";
 import { Card, CardBody, CardHeader } from "@heroui/react";
+import AtuinEnv from "@/atuin_env";
 
 interface NoPermissionProps {
   remoteRunbook: RemoteRunbook;
 }
 
 export default function NoPermission(props: NoPermissionProps) {
-  const runbookUrl = `${endpoint()}/${props.remoteRunbook?.nwo}`;
+  const runbookUrl = AtuinEnv.url(`/${props.remoteRunbook?.nwo}`);
 
   function handleLinkClick(e: React.MouseEvent<HTMLAnchorElement>) {
     e.preventDefault();

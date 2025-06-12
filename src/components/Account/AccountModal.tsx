@@ -1,18 +1,18 @@
 import { Modal, ModalContent, Button, Card, CardBody } from "@heroui/react";
 import { open } from "@tauri-apps/plugin-shell";
-import * as api from "@/api/api";
 import { KVStore } from "@/state/kv";
+import AtuinEnv from "@/atuin_env";
 
 const completeOnboarding = async () => {
   let db = await KVStore.open_default();
   await db.set("onboarding_complete", true);
 };
 
-const AccountModal = ({close, isOpen}: {close: () => void, isOpen: boolean}) => {
+const AccountModal = ({ close, isOpen }: { close: () => void; isOpen: boolean }) => {
   const handleClose = async () => {
     close();
     await completeOnboarding();
-  }
+  };
 
   return (
     <Modal
@@ -28,7 +28,7 @@ const AccountModal = ({close, isOpen}: {close: () => void, isOpen: boolean}) => 
           <div className="p-4 space-y-4">
             <h1 className="text-3xl font-bold text-center">Create your Atuin Hub Account</h1>
             <Card>
-              <CardBody >
+              <CardBody>
                 <h2 className="text-xl font-semibold mb-2">Why sign up?</h2>
                 <ul className="text-gray-700 space-y-1 list-disc pl-4 pt-2">
                   <li>Sync your runbooks across devices</li>
@@ -43,7 +43,7 @@ const AccountModal = ({close, isOpen}: {close: () => void, isOpen: boolean}) => 
                 className="w-full text-lg font-semibold"
                 onPress={() => {
                   handleClose();
-                  open(`${api.endpoint()}/settings/desktop-connect`);
+                  open(AtuinEnv.url("/settings/desktop-connect"));
                 }}
               >
                 Connect with Hub
@@ -66,4 +66,4 @@ const AccountModal = ({close, isOpen}: {close: () => void, isOpen: boolean}) => 
   );
 };
 
-export default AccountModal; 
+export default AccountModal;

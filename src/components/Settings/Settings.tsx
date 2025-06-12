@@ -34,6 +34,7 @@ import SocketManager from "@/socket";
 import handleDeepLink from "@/routes/root/deep";
 import * as api from "@/api/api";
 import InterpreterSelector from "@/lib/blocks/common/InterpreterSelector";
+import AtuinEnv from "@/atuin_env";
 
 async function loadFonts(): Promise<string[]> {
   const fonts = await invoke<string[]>("list_fonts");
@@ -349,38 +350,43 @@ const GeneralSettings = () => {
 
 const RunbookSettings = () => {
   const fonts = usePromise(loadFonts());
-  const [scriptInterpreters, setScriptInterpreters] = useState<Array<{command: string; name: string}>>([]);
-  const [newInterpreterName, setNewInterpreterName] = useState('');
-  const [newInterpreterCommand, setNewInterpreterCommand] = useState('');
+  const [scriptInterpreters, setScriptInterpreters] = useState<
+    Array<{ command: string; name: string }>
+  >([]);
+  const [newInterpreterName, setNewInterpreterName] = useState("");
+  const [newInterpreterCommand, setNewInterpreterCommand] = useState("");
 
   // Load script interpreters
   useEffect(() => {
-    Settings.scriptInterpreters().then(interpreters => {
+    Settings.scriptInterpreters().then((interpreters) => {
       setScriptInterpreters(interpreters);
     });
   }, []);
 
   // Save script interpreters
-  const saveScriptInterpreters = (interpreters: Array<{command: string; name: string}>) => {
+  const saveScriptInterpreters = (interpreters: Array<{ command: string; name: string }>) => {
     setScriptInterpreters(interpreters);
     Settings.setScriptInterpreters(interpreters);
   };
 
   const addScriptInterpreter = () => {
     if (!newInterpreterCommand || !newInterpreterName) return;
-    
-    const newInterpreters = [...scriptInterpreters, { 
-      name: newInterpreterName,
-      command: newInterpreterCommand 
-    }];
-    
+
+    const newInterpreters = [
+      ...scriptInterpreters,
+      {
+        name: newInterpreterName,
+        command: newInterpreterCommand,
+      },
+    ];
+
     saveScriptInterpreters(newInterpreters);
-    setNewInterpreterCommand('');
-    setNewInterpreterName('');
+    setNewInterpreterCommand("");
+    setNewInterpreterName("");
   };
 
   const removeScriptInterpreter = (command: string) => {
-    const newInterpreters = scriptInterpreters.filter(i => i.command !== command);
+    const newInterpreters = scriptInterpreters.filter((i) => i.command !== command);
     saveScriptInterpreters(newInterpreters);
   };
 
@@ -421,7 +427,15 @@ const RunbookSettings = () => {
     Settings.runbookPrometheusUrl,
   );
 
-  if (fontLoading || glLoading || urlLoading || fontSizeLoading || shellLoading || scriptShellLoading || !fonts)
+  if (
+    fontLoading ||
+    glLoading ||
+    urlLoading ||
+    fontSizeLoading ||
+    shellLoading ||
+    scriptShellLoading ||
+    !fonts
+  )
     return <Spinner />;
 
   return (
@@ -469,12 +483,14 @@ const RunbookSettings = () => {
         <CardBody className="flex flex-col gap-4">
           <h2 className="text-xl font-semibold">Script</h2>
           <p className="text-sm text-default-500">Configure default settings for script blocks</p>
-          
+
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <div>
                 <label className="text-sm font-medium">Default shell</label>
-                <p className="text-xs text-default-500">Default shell interpreter for new script blocks</p>
+                <p className="text-xs text-default-500">
+                  Default shell interpreter for new script blocks
+                </p>
               </div>
               <InterpreterSelector
                 interpreter={scriptShell || "zsh"}
@@ -484,13 +500,19 @@ const RunbookSettings = () => {
               />
             </div>
           </div>
-          
+
           <div className="border-t pt-4">
-            <p className="text-sm text-default-500 mb-3">Add custom script interpreters for use in script blocks</p></div>
-          
+            <p className="text-sm text-default-500 mb-3">
+              Add custom script interpreters for use in script blocks
+            </p>
+          </div>
+
           <div className="flex flex-col gap-3">
             {scriptInterpreters.map((interpreter) => (
-              <div key={interpreter.command} className="flex items-center justify-between p-2 border rounded-md">
+              <div
+                key={interpreter.command}
+                className="flex items-center justify-between p-2 border rounded-md"
+              >
                 <div>
                   <div className="font-medium">{interpreter.name}</div>
                   <div className="text-small text-default-500">{interpreter.command}</div>
@@ -613,14 +635,14 @@ const AISettings = () => {
       <CardBody className="flex flex-col gap-4">
         <h2 className="text-xl font-semibold">AI Integration</h2>
         <p className="text-sm text-default-500">Configure AI-powered runbook generation</p>
-        
+
         <SettingSwitch
           label="Enable AI features"
           isSelected={aiEnabled}
           onValueChange={setAiEnabled}
           description="Enable AI-powered runbook generation and assistance"
         />
-        
+
         {aiEnabled && (
           <SettingInput
             type="password"
@@ -662,7 +684,7 @@ const UserSettings = () => {
         <p>You are not logged in.</p>
         <div className="flex flex-row gap-2 items-center">
           <Button
-            onPress={() => open(`${api.endpoint()}/settings/desktop-connect`)}
+            onPress={() => open(AtuinEnv.url("/settings/desktop-connect"))}
             color="success"
             variant="flat"
             className="grow"
@@ -670,12 +692,7 @@ const UserSettings = () => {
             Log in via Atuin Hub
           </Button>
           or
-          <Button
-            onPress={() => openModal()}
-            color="primary"
-            variant="flat"
-            className="grow"
-          >
+          <Button onPress={() => openModal()} color="primary" variant="flat" className="grow">
             Log in via auth token
           </Button>
         </div>
@@ -690,9 +707,9 @@ const UserSettings = () => {
           description={
             <Link
               isExternal
-              href={`${api.endpoint()}/${user.username}`}
+              href={AtuinEnv.url(`/${user.username}`)}
               onPress={() => {
-                open(`${api.endpoint()}/${user.username}`);
+                open(AtuinEnv.url(`/${user.username}`));
               }}
             >
               {user.username}
@@ -712,7 +729,9 @@ const UserSettings = () => {
       <CardBody>
         <h2 className="text-xl font-semibold">User</h2>
         <div className="flex flex-col gap-4">{content}</div>
-        {modalOpen && <AuthTokenModal onSubmit={handleTokenSubmit} onClose={closeModal} open={modalOpen} />}
+        {modalOpen && (
+          <AuthTokenModal onSubmit={handleTokenSubmit} onClose={closeModal} open={modalOpen} />
+        )}
       </CardBody>
     </Card>
   );

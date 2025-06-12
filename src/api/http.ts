@@ -7,10 +7,6 @@ import { fetch } from "@tauri-apps/plugin-http";
 
 const globalOptions = getGlobalOptions();
 
-export function endpoint() {
-  return `${AtuinEnv.httpProtocol}://${AtuinEnv.hubDomain}`;
-}
-
 export class HttpResponseError extends Error {
   code: number;
   data: object | string;
@@ -77,7 +73,7 @@ async function makeRequest<T>(
 
   const start = performance.now();
   logger.debug("Starting request");
-  const resp = await fetch(`${endpoint()}/api${path}`, opts);
+  const resp = await fetch(AtuinEnv.url(`/api${path}`), opts);
   const end = performance.now();
   const delta = Math.floor(end - start); // dammit javascript
   logger.debug(`${resp.status} (${delta}ms)`);

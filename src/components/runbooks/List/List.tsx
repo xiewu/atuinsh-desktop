@@ -11,7 +11,15 @@ import {
   Avatar,
   DropdownSection,
 } from "@heroui/react";
-import { ArrowUpDownIcon, ChevronDownIcon, FileSearchIcon, Plus } from "lucide-react";
+import {
+  ArrowUpDownIcon,
+  ChevronDownIcon,
+  ExternalLinkIcon,
+  FileSearchIcon,
+  Plus,
+  PlusIcon,
+  UsersIcon,
+} from "lucide-react";
 import Runbook from "@/state/runbooks/runbook";
 import { AtuinState, useStore } from "@/state/store";
 import {
@@ -40,6 +48,8 @@ import VerticalDragHandle from "./VerticalDragHandle";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import track_event from "@/tracking";
+import { open } from "@tauri-apps/plugin-shell";
+import AtuinEnv from "@/atuin_env";
 
 export type ListApi = {
   scrollWorkspaceIntoView: (workspaceId: string) => void;
@@ -172,6 +182,18 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
 
   const handleOpenSearch = async () => {
     if (!isSearchOpen) setSearchOpen(true);
+  };
+
+  const handleBrowseToOwner = (owner: string) => {
+    open(AtuinEnv.url(`/${owner}`));
+  };
+
+  const handleCreateOrg = async () => {
+    open(AtuinEnv.url(`/${user.username}?tab=orgs`));
+  };
+
+  const handleManageOrgMemberships = async () => {
+    open(AtuinEnv.url(`/${user.username}?tab=orgs`));
   };
 
   async function handleOpenSortMenu() {
@@ -375,6 +397,19 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
                         />
                       )
                     }
+                    endContent={
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="light"
+                        onPress={() => handleBrowseToOwner(user.username)}
+                      >
+                        <ExternalLinkIcon
+                          size={18}
+                          className="ml-2 text-gray-500 dark:text-gray-400"
+                        />
+                      </Button>
+                    }
                     onPress={() => {
                       setSelectedOrg(null);
                       track_event("org.switch", { to: "personal" });
@@ -401,12 +436,43 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
                             />
                           )
                         }
+                        endContent={
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="light"
+                            onPress={() => handleBrowseToOwner(org.slug)}
+                          >
+                            <ExternalLinkIcon
+                              size={18}
+                              className="ml-2 text-gray-500 dark:text-gray-400"
+                            />
+                          </Button>
+                        }
                       >
                         {org.name}
                       </DropdownItem>
                     ))}
                   </>
                 </DropdownSection>
+                {user.isLoggedIn() ? (
+                  <DropdownSection title="Management">
+                    <DropdownItem
+                      key="create-org"
+                      onPress={handleCreateOrg}
+                      startContent={<PlusIcon size={18} className="mx-1" />}
+                    >
+                      Create an Organization
+                    </DropdownItem>
+                    <DropdownItem
+                      key="manage-org-memberships"
+                      onPress={handleManageOrgMemberships}
+                      startContent={<UsersIcon size={18} className="mx-1" />}
+                    >
+                      Manage Memberships
+                    </DropdownItem>
+                  </DropdownSection>
+                ) : null}
               </DropdownMenu>
             </Dropdown>
 

@@ -1,4 +1,5 @@
 import * as api from "@/api/api";
+import AtuinEnv from "@/atuin_env";
 import RunbookContext from "@/context/runbook_context";
 import { allWorkspaces } from "@/lib/queries/workspaces";
 import RunbookSynchronizer from "@/lib/sync/runbook_synchronizer";
@@ -107,7 +108,7 @@ export default function CollaborationsModal(props: CollaborationsModalProps) {
   }
 
   function collabRunbookUrl(collab: Collaboration) {
-    return `${api.endpoint()}/${collab.runbook.owner}/${collab.runbook.slug}`;
+    return AtuinEnv.url(`/${collab.runbook.owner}/${collab.runbook.slug}`);
   }
 
   function openRunbookLink(evt: React.MouseEvent<HTMLAnchorElement, MouseEvent>) {

@@ -37,8 +37,8 @@ jobs:
             args: "--target aarch64-apple-darwin"
           - platform: "macos-13" # for Intel based macs.
             args: "--target x86_64-apple-darwin"
-          - platform: 'depot-ubuntu-22.04-4'
-            args: ''
+          - platform: "depot-ubuntu-22.04-4"
+            args: ""
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -80,6 +80,7 @@ jobs:
         run: pnpm install # change this to npm or pnpm depending on which one you use.
 
       - uses: tauri-apps/tauri-action@v0
+        id: tauri-action
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -92,6 +93,29 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=4096"
         with:
           args: ${{ matrix.args }}
+
+      - name: Rename Linux files
+        if: matrix.platform == 'depot-ubuntu-22.04-4'
+        run: |
+          # Get the artifact paths from tauri-action output
+          echo "Artifact paths: ${{ steps.tauri-action.outputs.artifactPaths }}"
+
+          # Rename .deb and .rpm files to remove spaces
+          for file in ${{ steps.tauri-action.outputs.artifactPaths }}; do
+            if [[ "$file" == *.deb ]] || [[ "$file" == *.rpm ]]; then
+              # Extract directory and filename
+              dir=$(dirname "$file")
+              filename=$(basename "$file")
+
+              new_filename=$(echo "$filename" | sed 's/Atuin Desktop/Atuin_Desktop/g')
+
+              if [[ "$filename" != "$new_filename" ]]; then
+                new_path="$dir/$new_filename"
+                echo "Renaming: $file -> $new_path"
+                mv "$file" "$new_path"
+              fi
+            fi
+          done
 
       - name: upload assets
         uses: crabnebula-dev/cloud-release@v0.1.0

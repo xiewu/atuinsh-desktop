@@ -1,6 +1,5 @@
 use eyre::Result;
 use sqlx::{QueryBuilder, Row, Sqlite, SqlitePool};
-use tauri::AppHandle;
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
@@ -38,13 +37,13 @@ pub struct SharedStateHandle {
 }
 
 impl SharedStateHandle {
-    pub async fn new(app: AppHandle) -> Self {
+    pub async fn new(db_pool: SqlitePool) -> Self {
         let (sender, receiver) = mpsc::channel(8);
 
         let (ready_sender, ready_receiver) = oneshot::channel();
 
-        tauri::async_runtime::spawn(async {
-            let mut actor = SharedState::new(app, receiver)
+        tauri::async_runtime::spawn(async move {
+            let mut actor = SharedState::new(db_pool, receiver)
                 .await
                 .expect("Failed to create shared state");
             actor.run(ready_sender).await;
@@ -141,9 +140,10 @@ pub struct SharedState {
 }
 
 impl SharedState {
-    pub async fn new(app: AppHandle, receiver: mpsc::Receiver<SharedStateMessage>) -> Result<Self> {
-        let pool = crate::sqlite::get_pool(&app, "shared_state").await?;
-
+    pub async fn new(
+        pool: SqlitePool,
+        receiver: mpsc::Receiver<SharedStateMessage>,
+    ) -> Result<Self> {
         sqlx::migrate!("./migrations/shared_state")
             .run(&pool)
             .await?;

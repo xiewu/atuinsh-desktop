@@ -1,15 +1,14 @@
 use serde::{de::DeserializeOwned, Serialize};
 use sqlx::{Row, SqlitePool};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 pub(crate) async fn get<T: DeserializeOwned>(
-    app: &AppHandle,
+    db: &SqlitePool,
     key: &str,
 ) -> Result<Option<T>, String> {
-    let db = open_db(app).await?;
     let res = sqlx::query("select value from kv where key = $1")
         .bind(key)
-        .fetch_optional(&db)
+        .fetch_optional(db)
         .await
         .map_err(|e| e.to_string());
 
@@ -25,22 +24,17 @@ pub(crate) async fn get<T: DeserializeOwned>(
     }
 }
 
-pub(crate) async fn set<T: Serialize>(app: &AppHandle, key: &str, value: &T) -> Result<(), String> {
-    let db = open_db(app).await?;
+pub(crate) async fn set<T: Serialize>(db: &SqlitePool, key: &str, value: &T) -> Result<(), String> {
     sqlx::query("insert or replace into kv(key, value) values($1, $2)")
         .bind(key)
         .bind(serde_json::to_string(value).map_err(|e| e.to_string())?)
-        .execute(&db)
+        .execute(db)
         .await
         .map(|_| ())
         .map_err(|e| e.to_string())
 }
 
-async fn open_db(app: &AppHandle) -> Result<SqlitePool, String> {
-    let db = crate::sqlite::connect("kv.db", app).await?;
-    sqlx::query("CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT)")
-        .execute(&db)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(db)
+pub(crate) async fn open_db(app: &AppHandle) -> eyre::Result<SqlitePool> {
+    let state = app.state::<crate::state::AtuinState>();
+    state.db_instances.get_pool("kv").await
 }

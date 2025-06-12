@@ -24,6 +24,7 @@ use crate::{
         },
     },
     shared_state::SharedStateHandle,
+    sqlite::DbInstances,
 };
 
 pub(crate) struct AtuinState {
@@ -38,6 +39,7 @@ pub(crate) struct AtuinState {
     pty_store: Mutex<Option<PtyStoreHandle>>,
     exec_log: Mutex<Option<ExecLogHandle>>,
     ssh_pool: Mutex<Option<SshPoolHandle>>,
+    pub db_instances: DbInstances,
 
     // Shared state
     shared_state: Mutex<Option<SharedStateHandle>>,
@@ -78,6 +80,7 @@ impl AtuinState {
             pty_store: Mutex::new(None),
             exec_log: Mutex::new(None),
             ssh_pool: Mutex::new(None),
+            db_instances: DbInstances::new(app_path.clone(), dev_prefix.clone()),
             shared_state: Mutex::new(None),
             executor: Mutex::new(None),
             event_sender: Mutex::new(None),
@@ -89,12 +92,14 @@ impl AtuinState {
             app_path,
         }
     }
-    pub async fn init(&self, app: &AppHandle) {
+    pub async fn init(&self, app: &AppHandle) -> Result<()> {
         let path = if let Some(ref prefix) = self.dev_prefix {
             self.app_path.join(format!("{}_exec_log.db", prefix))
         } else {
             self.app_path.join("exec_log.db")
         };
+
+        self.db_instances.init().await?;
 
         // For some reason we cannot spawn the exec log task before the state is managed. Annoying.
         let exec_log = ExecLogHandle::new(path).expect("Failed to boot exec log");
@@ -106,7 +111,8 @@ impl AtuinState {
         let ssh_pool = SshPoolHandle::new();
         self.ssh_pool.lock().unwrap().replace(ssh_pool);
 
-        let shared_state = SharedStateHandle::new(app.clone()).await;
+        let shared_state =
+            SharedStateHandle::new(self.db_instances.get_pool("shared_state").await?).await;
         self.shared_state.lock().unwrap().replace(shared_state);
 
         // New receivers are created by calling .subscribe() on the sender
@@ -170,6 +176,8 @@ impl AtuinState {
 
         self.executor.lock().unwrap().replace(executor);
         self.event_sender.lock().unwrap().replace(event_sender);
+
+        Ok(())
     }
 
     pub async fn shutdown(&self) -> Result<()> {
@@ -178,6 +186,8 @@ impl AtuinState {
         if let Some(shared_state) = shared_state {
             shared_state.shutdown().await?;
         }
+
+        self.db_instances.shutdown().await?;
 
         Ok(())
     }

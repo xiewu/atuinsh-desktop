@@ -196,9 +196,11 @@ pub(crate) async fn show_window(app: AppHandle) -> Result<(), String> {
 }
 
 async fn save_window_state(app: &AppHandle, state: WindowState) -> Result<(), String> {
-    kv::set(app, "window_state_u32", &state).await
+    let db = kv::open_db(app).await.map_err(|e| e.to_string())?;
+    kv::set(&db, "window_state_u32", &state).await
 }
 
 async fn load_window_state(app: &AppHandle) -> Result<Option<WindowState>, String> {
-    kv::get(app, "window_state_u32").await
+    let db = kv::open_db(app).await.map_err(|e| e.to_string())?;
+    kv::get(&db, "window_state_u32").await
 }

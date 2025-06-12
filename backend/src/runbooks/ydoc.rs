@@ -1,13 +1,18 @@
 use sqlx::Row;
 use tauri::ipc::{InvokeBody, Request, Response};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 #[tauri::command]
 pub async fn save_ydoc_for_runbook(app: AppHandle, request: Request<'_>) -> Result<(), String> {
     if let InvokeBody::Raw(data) = request.body() {
         let runbook_id = request.headers().get("id").unwrap().to_str().unwrap();
 
-        let db = crate::sqlite::connect("runbooks.db", &app).await?;
+        let state = app.state::<crate::state::AtuinState>();
+        let db = state
+            .db_instances
+            .get_pool("runbooks")
+            .await
+            .map_err(|e| e.to_string())?;
 
         sqlx::query("update runbooks set ydoc = ?1 where id = ?2")
             .bind(data)
@@ -24,7 +29,12 @@ pub async fn save_ydoc_for_runbook(app: AppHandle, request: Request<'_>) -> Resu
 
 #[tauri::command]
 pub async fn load_ydoc_for_runbook(app: AppHandle, runbook_id: &str) -> Result<Response, String> {
-    let db = crate::sqlite::connect("runbooks.db", &app).await?;
+    let state = app.state::<crate::state::AtuinState>();
+    let db = state
+        .db_instances
+        .get_pool("runbooks")
+        .await
+        .map_err(|e| e.to_string())?;
 
     let result = sqlx::query("select ydoc from runbooks where id = ?1")
         .bind(runbook_id)

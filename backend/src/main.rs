@@ -379,7 +379,8 @@ fn show_window(app: &AppHandle) {
 }
 
 async fn apply_runbooks_migrations(app: &AppHandle) -> eyre::Result<()> {
-    let pool = crate::sqlite::get_pool(app, "runbooks").await?;
+    let state = app.state::<crate::state::AtuinState>();
+    let pool = state.db_instances.get_pool("runbooks").await?;
     sqlx::migrate!("./migrations/runbooks").run(&pool).await?;
 
     Ok(())
@@ -503,7 +504,8 @@ fn main() {
                 handle
                     .state::<state::AtuinState>()
                     .init(&handle_clone)
-                    .await;
+                    .await
+                    .expect("Failed to initialize application state");
             });
 
             let handle_clone = handle.clone();

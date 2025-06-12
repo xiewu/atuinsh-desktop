@@ -15,7 +15,7 @@ import { createReactBlockSpec } from "@blocknote/react";
 import { invoke } from "@tauri-apps/api/core";
 import { useStore } from "@/state/store";
 import track_event from "@/tracking";
-import { findAllParentsOfType, findFirstParentOfType } from "@/lib/blocks/exec.ts";
+import { findAllParentsOfType, getCurrentDirectory } from "@/lib/blocks/exec.ts";
 import { templateString } from "@/state/templates";
 import CodeEditor, { TabAutoComplete } from "@/lib/blocks/common/CodeEditor/CodeEditor.tsx";
 import InterpreterSelector, { buildInterpreterCommand } from "@/lib/blocks/common/InterpreterSelector.tsx";
@@ -252,7 +252,7 @@ const Dropdown = ({ editor, id, name = "", options = "", value = "", optionsType
                 setVariableOptions([]);
             }
         } else if (optionsType === "command") {
-            let cwd = findFirstParentOfType(editor, id, "directory");
+            let cwd = await getCurrentDirectory(editor, id, currentRunbookId);
             let vars = findAllParentsOfType(editor, id, "env");
             let env: { [key: string]: string } = {};
 
@@ -289,7 +289,7 @@ const Dropdown = ({ editor, id, name = "", options = "", value = "", optionsType
                     interpreter: interpreterCommand,
                     command: commandString,
                     env: env,
-                    cwd: cwd?.props.path || "~",
+                    cwd: cwd,
                 });
                 
                 if (value) {

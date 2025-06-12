@@ -34,7 +34,7 @@ import { uuidv7 } from "uuidv7";
 import { useBlockDeleted, useBlockInserted } from "@/lib/buses/editor.ts";
 import { Settings } from "@/state/settings";
 import Terminal from "./components/terminal.tsx";
-import { findAllParentsOfType, findFirstParentOfType } from "../exec.ts";
+import { findAllParentsOfType, findFirstParentOfType, getCurrentDirectory } from "../exec.ts";
 import Block from "../common/Block.tsx";
 import { default as BlockType } from "@/lib/workflow/blocks/block.ts";
 import PlayButton from "../common/PlayButton.tsx";
@@ -164,13 +164,7 @@ export const RunBlock = ({
   }, [pty, currentRunbookId, terminal.id, terminals, cleanupPtyTerm, onStop]);
 
   const openPty = async (): Promise<string> => {
-    let cwd = findFirstParentOfType(editor, terminal.id, "directory");
-
-    if (cwd) {
-      cwd = cwd.props.path;
-    } else {
-      cwd = "~";
-    }
+    let cwd = await getCurrentDirectory(editor, terminal.id, currentRunbookId);
 
     let vars = findAllParentsOfType(editor, terminal.id, "env");
     let env: { [key: string]: string } = {};

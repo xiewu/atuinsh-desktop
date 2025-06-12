@@ -15,7 +15,7 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import "@xterm/xterm/css/xterm.css";
-import { findAllParentsOfType, findFirstParentOfType } from "@/lib/blocks/exec.ts";
+import { findAllParentsOfType, findFirstParentOfType, getCurrentDirectory } from "@/lib/blocks/exec.ts";
 import { templateString } from "@/state/templates.ts";
 import { Command } from "@codemirror/view";
 import { ScriptBlock as ScriptBlockType } from "@/lib/workflow/blocks/script.ts";
@@ -268,14 +268,8 @@ const ScriptBlock = ({
       terminal.write(event.payload + "\r\n");
     });
 
-    let cwd = findFirstParentOfType(editor, script.id, "directory");
+    let cwd = await getCurrentDirectory(editor, script.id, currentRunbookId);
     let connectionBlock = findFirstParentOfType(editor, script.id, ["ssh-connect", "host-select"]);
-
-    if (cwd) {
-      cwd = cwd.props.path || "~";
-    } else {
-      cwd = "~";
-    }
 
     let vars = findAllParentsOfType(editor, script.id, "env");
     let env: { [key: string]: string } = {};

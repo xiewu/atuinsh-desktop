@@ -1,6 +1,8 @@
 // Helpers to make writing blocks easier
 // Called "exec", as these are all helpers for executing commands
 
+import { templateString } from "@/state/templates";
+
 /**
  * Find the first parent block of a specific type or types
  * @param editor The editor instance
@@ -37,4 +39,22 @@ export const findAllParentsOfType = (editor: any, id: string, type: string): any
   }
 
   return blocks;
+};
+
+/**
+ * Calculate the current working directory for a block by finding its parent directory block
+ * @param editor The editor instance
+ * @param blockId The ID of the current block
+ * @param runbookId The current runbook ID (for templating)
+ * @returns Promise<string> The templated directory path, or "~" if no directory parent found
+ */
+export const getCurrentDirectory = async (editor: any, blockId: string, runbookId: string | null): Promise<string> => {
+  const directoryBlock = findFirstParentOfType(editor, blockId, "directory");
+  
+  if (directoryBlock) {
+    const rawPath = directoryBlock.props.path || "~";
+    return (await templateString(blockId, rawPath, editor.document, runbookId)).trim();
+  }
+  
+  return "~";
 };

@@ -12,6 +12,7 @@ import Postgres from "./blocks/Postgres/Postgres";
 import MySQL from "./blocks/MySQL/MySQL";
 import Clickhouse from "./blocks/Clickhouse/Clickhouse";
 import { HttpBlockSpec } from "@/lib/blocks/http";
+import { LocalDirectoryBlockSpec } from "@/lib/blocks/localdirectory";
 import Script from "./blocks/Script/Script";
 import SshConnect from "./blocks/ssh/SshConnect";
 import HostSelect from "./blocks/Host";
@@ -36,6 +37,7 @@ export const schema = BlockNoteSchema.create({
     run: TerminalBlockSpec,
     script: Script,
     directory: Directory,
+    "local-directory": LocalDirectoryBlockSpec,
     env: Env,
     var: Var,
     var_display: VarDisplay,

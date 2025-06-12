@@ -52,6 +52,7 @@ import track_event from "@/tracking";
 import { saveScrollPosition, restoreScrollPosition, getScrollPosition } from "@/utils/scroll-position";
 import { insertDropdown } from "./blocks/Dropdown/Dropdown";
 import { insertTerminal } from "@/lib/blocks/terminal";
+import { insertLocalDirectory } from "@/lib/blocks/localdirectory";
 
 
 // Fix for react-dnd interference with BlockNote drag-and-drop
@@ -62,7 +63,7 @@ let originalDragData: any = null;
 
 const insertDirectory = (editor: typeof schema.BlockNoteEditor) => ({
   title: "Directory",
-  subtext: "Set runbook directory",
+  subtext: "Set current working directory (synced)",
   onItemClick: () => {
     track_event("runbooks.block.create", { type: "directory" });
 
@@ -520,6 +521,7 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
                 insertLocalVar(schema)(editor),
                 insertScript(schema)(editor),
                 insertDirectory(editor as any),
+                insertLocalDirectory(editor as any),
                 insertDropdown(schema)(editor),
 
                 // Monitoring group

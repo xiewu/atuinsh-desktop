@@ -2,6 +2,7 @@
 // Called "exec", as these are all helpers for executing commands
 
 import { templateString } from "@/state/templates";
+import { KVStore } from "@/state/kv";
 
 /**
  * Find the first parent block of a specific type or types
@@ -49,11 +50,28 @@ export const findAllParentsOfType = (editor: any, id: string, type: string): any
  * @returns Promise<string> The templated directory path, or "~" if no directory parent found
  */
 export const getCurrentDirectory = async (editor: any, blockId: string, runbookId: string | null): Promise<string> => {
-  const directoryBlock = findFirstParentOfType(editor, blockId, "directory");
+  // Check for both directory and local-directory blocks
+  const directoryBlock = findFirstParentOfType(editor, blockId, ["directory", "local-directory"]);
   
   if (directoryBlock) {
-    const rawPath = directoryBlock.props.path || "~";
-    return (await templateString(blockId, rawPath, editor.document, runbookId)).trim();
+    if (directoryBlock.type === "directory") {
+      // Traditional directory block - uses props.path
+      const rawPath = directoryBlock.props.path || "~";
+      return (await templateString(blockId, rawPath, editor.document, runbookId)).trim();
+    } else if (directoryBlock.type === "local-directory") {
+      // Local directory block - get path from KV store
+      try {
+        const kvStore = await KVStore.open_default();
+        const storedPath = await kvStore.get<string>(`block.${directoryBlock.id}.path`);
+        
+        if (storedPath) {
+          // Apply templating to local directory path as well
+          return (await templateString(blockId, storedPath, editor.document, runbookId)).trim();
+        }
+      } catch (error) {
+        console.error("Failed to get path from KV store:", error);
+      }
+    }
   }
   
   return "~";

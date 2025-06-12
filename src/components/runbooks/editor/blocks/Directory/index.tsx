@@ -31,25 +31,26 @@ const Directory = ({ path, onInputChange, isEditable }: DirectoryProps) => {
   return (
     <div className="w-full !max-w-full !outline-none overflow-none">
       <Tooltip
-        content="Change working directory for all subsequent code blocks"
+        content="Change working directory for all subsequent code blocks (shared with collaborators)"
         delay={1000}
       >
-        <div className="flex flex-row">
-          <div className="mr-2">
-            <Button
-              isIconOnly
-              variant="flat"
+        <div className="flex flex-row items-center space-x-3 w-full bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-slate-800 dark:to-blue-950 rounded-lg p-3 border border-blue-200 dark:border-blue-900 shadow-sm hover:shadow-md transition-all duration-200">
+          <div className="flex items-center">
+            <Button 
+              isIconOnly 
+              variant="light" 
+              className="bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-300"
               aria-label="Select folder"
               onPress={selectFolder}
               disabled={!isEditable}
             >
-              <FolderInputIcon />
+              <FolderInputIcon className="h-4 w-4" />
             </Button>
           </div>
 
-          <div className="w-full">
+          <div className="flex-1">
             <Input
-              placeholder="~"
+              placeholder="~ (working directory shared with collaborators)"
               value={value}
               autoComplete="off"
               autoCapitalize="off"
@@ -60,6 +61,7 @@ const Directory = ({ path, onInputChange, isEditable }: DirectoryProps) => {
                 onInputChange(val);
               }}
               disabled={!isEditable}
+              className="flex-1 border-blue-200 dark:border-blue-800 focus:ring-blue-500"
             />
           </div>
         </div>

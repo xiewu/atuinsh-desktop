@@ -28,15 +28,16 @@ export const findFirstParentOfType = (editor: any, id: string, types: string | s
   return lastOfType;
 };
 
-export const findAllParentsOfType = (editor: any, id: string, type: string): any[] => {
+export const findAllParentsOfType = (editor: any, id: string, types: string | string[]): any[] => {
   const document = editor.document;
+  const typeArray = Array.isArray(types) ? types : [types];
   let blocks: any[] = [];
 
   // Iterate through ALL of the blocks.
   for (let i = 0; i < document.length; i++) {
     if (document[i].id == id) return blocks;
 
-    if (document[i].type == type) blocks.push(document[i]);
+    if (typeArray.includes(document[i].type)) blocks.push(document[i]);
   }
 
   return blocks;
@@ -50,29 +51,50 @@ export const findAllParentsOfType = (editor: any, id: string, type: string): any
  * @returns Promise<string> The templated directory path, or "~" if no directory parent found
  */
 export const getCurrentDirectory = async (editor: any, blockId: string, runbookId: string | null): Promise<string> => {
-  // Check for both directory and local-directory blocks
-  const directoryBlock = findFirstParentOfType(editor, blockId, ["directory", "local-directory"]);
-  
-  if (directoryBlock) {
-    if (directoryBlock.type === "directory") {
-      // Traditional directory block - uses props.path
-      const rawPath = directoryBlock.props.path || "~";
-      return (await templateString(blockId, rawPath, editor.document, runbookId)).trim();
-    } else if (directoryBlock.type === "local-directory") {
-      // Local directory block - get path from KV store
-      try {
-        const kvStore = await KVStore.open_default();
-        const storedPath = await kvStore.get<string>(`block.${directoryBlock.id}.path`);
-        
-        if (storedPath) {
-          // Apply templating to local directory path as well
-          return (await templateString(blockId, storedPath, editor.document, runbookId)).trim();
-        }
-      } catch (error) {
-        console.error("Failed to get path from KV store:", error);
+
+  const resolvePath = async (block: any) => {
+    if (block.type === "directory") {
+      return (await templateString(blockId, block.props.path || "~", editor.document, runbookId)).trim();
+    } else if (block.type === "local-directory") {
+      const kvStore = await KVStore.open_default();
+      const storedPath = await kvStore.get<string>(`block.${block.id}.path`);
+
+      if (storedPath) {
+        return (await templateString(blockId, storedPath, editor.document, runbookId)).trim();
       }
     }
+    return "~";
+  };
+
+  // Check for both directory and local-directory blocks
+  const directoryBlocks = findAllParentsOfType(editor, blockId, ["directory", "local-directory"]);
+
+  if (directoryBlocks.length == 0) {
+    return "~";
   }
-  
-  return "~";
+
+  const lastParent= directoryBlocks[directoryBlocks.length - 1];
+
+  // First, handle the case where the LAST block is an absolute path. IE, it starts with a /
+  const path = await resolvePath(lastParent);
+
+  if (path.startsWith("/") || path.startsWith("~")) {
+    return path;
+  }
+
+  let paths = [path];
+
+  // If the last parent is a relative path, then we need to keep iterating up the list until we find an absolute path
+  // All blocks we find along the way should be included
+  for (let i = directoryBlocks.length - 2; i >= 0; i--) {
+    const block = directoryBlocks[i];
+    const path = await resolvePath(block);
+    paths = [path, ...paths];
+
+    if (path.startsWith("/") || path.startsWith("~")) {
+      break;
+    }
+  }
+
+  return paths.join("/");
 };

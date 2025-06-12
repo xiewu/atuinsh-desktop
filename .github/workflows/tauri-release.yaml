@@ -100,8 +100,13 @@ jobs:
           # Get the artifact paths from tauri-action output
           echo "Artifact paths: ${{ steps.tauri-action.outputs.artifactPaths }}"
 
+          # Remove brackets and read into array
+          paths_str=$(echo "${{ steps.tauri-action.outputs.artifactPaths }}" | sed 's/^\[//;s/\]$//')
+          IFS=',' read -ra paths <<< "$paths_str"
+
           # Rename .deb and .rpm files to remove spaces
-          for file in ${{ steps.tauri-action.outputs.artifactPaths }}; do
+          for file in "${paths[@]}"; do
+            echo "Checking file: $file"
             if [[ "$file" == *.deb ]] || [[ "$file" == *.rpm ]]; then
               # Extract directory and filename
               dir=$(dirname "$file")

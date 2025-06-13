@@ -236,7 +236,7 @@ const SQL = ({
           <div className="flex flex-row gap-2 w-full items-center">
             <MaskedInput
               size="sm"
-              maskRegex={/(?<=:\/\/)([^@]+)(?=@)/}
+              maskRegex={/(?<=:\/\/).*(?=@[^@]*$)/}
               placeholder={placeholder || "protocol://user:password@host:port/db"}
               label="URI"
               isRequired

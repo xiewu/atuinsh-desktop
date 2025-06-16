@@ -25,6 +25,7 @@ import * as awarenessProtocol from "y-protocols/awareness";
 import Dropdown from "./blocks/Dropdown/Dropdown";
 import DevConsole from "@/lib/dev/dev_console";
 import { TerminalBlockSpec } from "@/lib/blocks/terminal";
+import { KubernetesBlockSpec } from "@/lib/blocks/kubernetes";
 
 // Our schema with block specs, which contain the configs and implementations for blocks
 // that we want our editor to use.
@@ -35,6 +36,7 @@ export const schema = BlockNoteSchema.create({
 
     // Execution
     run: TerminalBlockSpec,
+    "kubernetes-get": KubernetesBlockSpec,
     script: Script,
     directory: Directory,
     "local-directory": LocalDirectoryBlockSpec,

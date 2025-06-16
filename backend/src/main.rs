@@ -481,6 +481,7 @@ fn main() {
             commands::template::get_template_var,
             commands::mysql::mysql_query,
             commands::mysql::mysql_execute,
+            commands::kubernetes::kubernetes_get_execute,
             shared_state::get_shared_state_document,
             shared_state::push_optimistic_update,
             shared_state::update_shared_state_document,

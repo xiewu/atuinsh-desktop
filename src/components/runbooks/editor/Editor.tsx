@@ -52,6 +52,7 @@ import track_event from "@/tracking";
 import { saveScrollPosition, restoreScrollPosition, getScrollPosition } from "@/utils/scroll-position";
 import { insertDropdown } from "./blocks/Dropdown/Dropdown";
 import { insertTerminal } from "@/lib/blocks/terminal";
+import { insertKubernetes } from "@/lib/blocks/kubernetes";
 import { insertLocalDirectory } from "@/lib/blocks/localdirectory";
 
 
@@ -515,6 +516,7 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
 
                 // Execute group
                 insertTerminal(editor as any),
+                insertKubernetes(editor as any),
                 insertEnv(editor as any),
                 insertVar(editor as any),
                 insertVarDisplay(editor as any),

@@ -26,7 +26,7 @@ export const runQuery = async (
 
   let db = await Database.load(uri);
 
-  const firstWord = query.split(" ").filter((word) => word.trim() !== "")[0].toLowerCase();
+  const firstWord = query.trim().split(/\s+/)[0].toLowerCase();
 
   if (firstWord === "select") {
     let start = performance.now();

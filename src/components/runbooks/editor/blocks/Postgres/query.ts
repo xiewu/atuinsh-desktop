@@ -20,7 +20,7 @@ export const runQuery = async (
 
   // Determine if we run a select or an execute, based on if the first word is select or not
 
-  const firstWord = query.split(" ").filter((word) => word.trim() !== "")[0].toLowerCase();
+  const firstWord = query.trim().split(/\s+/)[0].toLowerCase();
 
   if (firstWord === "select") {
     let start = performance.now();

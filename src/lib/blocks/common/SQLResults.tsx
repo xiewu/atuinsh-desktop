@@ -3,7 +3,7 @@ import { QueryResult } from "./database";
 import ResultTable from "./ResultTable";
 import { GridColumn } from "@glideapps/glide-data-grid";
 import { Card, CardBody, CardHeader, Chip, Tooltip, Button, Divider } from "@heroui/react";
-import { CheckCircle, CircleXIcon, Clock, HardDriveIcon, Rows4Icon, TrashIcon } from "lucide-react";
+import { CheckCircle, CircleXIcon, Clock, HardDriveIcon, Rows4Icon } from "lucide-react";
 import { formatBytes } from "@/lib/utils";
 
 interface SQLProps {
@@ -38,7 +38,7 @@ const SQLResults = ({ results, error, dismiss, colorMode }: SQLProps) => {
           <div className="flex items-center gap-3">
             {dismiss && (
               <Button variant="flat" isIconOnly onClick={dismiss} size="sm">
-                <TrashIcon size={16} />
+                <CircleXIcon size={16} />
               </Button>
             )}
             <Chip
@@ -70,7 +70,7 @@ const SQLResults = ({ results, error, dismiss, colorMode }: SQLProps) => {
         <div className="flex items-center gap-3">
           {dismiss && (
             <Button variant="flat" isIconOnly onClick={dismiss} size="sm">
-              <TrashIcon size={16} />
+              <CircleXIcon size={16} />
             </Button>
           )}
           <Chip

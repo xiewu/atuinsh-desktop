@@ -34,6 +34,7 @@ import { insertEditor } from "@/components/runbooks/editor/blocks/Editor/Editor"
 import { insertSshConnect } from "@/components/runbooks/editor/blocks/ssh/SshConnect";
 import { insertHostSelect } from "@/components/runbooks/editor/blocks/Host";
 import { insertLocalVar } from "@/components/runbooks/editor/blocks/LocalVar";
+import { getRunbookLinkMenuItems } from "./components/RunbookLinkMenu";
 
 import Runbook from "@/state/runbooks/runbook";
 import { insertHttp } from "@/lib/blocks/http";
@@ -546,6 +547,15 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
               query,
             )
           }
+        />
+
+        {/* Runbook link suggestion menu triggered by "!" */}
+        <SuggestionMenuController
+          triggerCharacter={"!"}
+          minQueryLength={1}
+          getItems={async (query) => {
+            return getRunbookLinkMenuItems(editor, query);
+          }}
         />
 
         <SideMenuController

@@ -1,5 +1,5 @@
 import CodeEditor from "@/components/runbooks/editor/blocks/Editor/Editor";
-import { BlockNoteEditor, BlockNoteSchema, defaultBlockSpecs } from "@blocknote/core";
+import { BlockNoteEditor, BlockNoteSchema, defaultBlockSpecs, defaultInlineContentSpecs } from "@blocknote/core";
 import { en } from "@blocknote/core/locales";
 import Directory from "./blocks/Directory";
 import Env from "./blocks/Env";
@@ -26,6 +26,7 @@ import Dropdown from "./blocks/Dropdown/Dropdown";
 import DevConsole from "@/lib/dev/dev_console";
 import { TerminalBlockSpec } from "@/lib/blocks/terminal";
 import { KubernetesBlockSpec } from "@/lib/blocks/kubernetes";
+import { RunbookLink } from "./inline/RunbookLink";
 
 // Our schema with block specs, which contain the configs and implementations for blocks
 // that we want our editor to use.
@@ -62,6 +63,12 @@ export const schema = BlockNoteSchema.create({
 
     // Misc
     editor: CodeEditor,
+  },
+  inlineContentSpecs: {
+    // Adds all default inline content.
+    ...defaultInlineContentSpecs,
+    // Adds runbook link inline content.
+    "runbook-link": RunbookLink,
   },
 });
 

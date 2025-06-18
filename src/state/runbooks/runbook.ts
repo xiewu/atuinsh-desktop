@@ -350,6 +350,26 @@ export default class Runbook {
     return res.map(Runbook.fromRow);
   }
 
+  static async allFromOrg(orgId: string | null): Promise<Runbook[]> {
+    const db = await AtuinDB.load("runbooks");
+
+    let query = `
+      select r.id, r.name, r.source, r.source_info, r.created, r.updated, r.workspace_id, r.legacy_workspace_id, r.forked_from, r.remote_info, r.viewed_at 
+      from runbooks r 
+      join workspaces w on r.workspace_id = w.id 
+    `;
+
+    if (orgId) {
+      query += ` where w.org_id = $1 `;
+    }
+
+    query += ` order by r.updated desc`;
+
+    let res = await db.select<any[]>(query, [orgId]);
+
+    return res.map(Runbook.fromRow);
+  }
+
   static async withNullLegacyWorkspaces(): Promise<Runbook[]> {
     const db = await AtuinDB.load("runbooks");
 

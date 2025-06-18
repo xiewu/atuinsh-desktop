@@ -17,10 +17,11 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 
-import { FolderOpenIcon, VariableIcon, TextCursorInputIcon, EyeIcon } from "lucide-react";
+import { FolderOpenIcon, VariableIcon, TextCursorInputIcon, EyeIcon, LinkIcon } from "lucide-react";
 
 import { AIGeneratePopup } from "./AIGeneratePopup";
 import AIPopup from "./ui/AIPopup";
+import { RunbookLinkPopup } from "./ui/RunbookLinkPopup";
 import { isAIEnabled } from "@/lib/ai/block_generator";
 import { SparklesIcon } from "lucide-react";
 
@@ -34,7 +35,6 @@ import { insertEditor } from "@/components/runbooks/editor/blocks/Editor/Editor"
 import { insertSshConnect } from "@/components/runbooks/editor/blocks/ssh/SshConnect";
 import { insertHostSelect } from "@/components/runbooks/editor/blocks/Host";
 import { insertLocalVar } from "@/components/runbooks/editor/blocks/LocalVar";
-import { getRunbookLinkMenuItems } from "./components/RunbookLinkMenu";
 
 import Runbook from "@/state/runbooks/runbook";
 import { insertHttp } from "@/lib/blocks/http";
@@ -55,6 +55,7 @@ import { insertDropdown } from "./blocks/Dropdown/Dropdown";
 import { insertTerminal } from "@/lib/blocks/terminal";
 import { insertKubernetes } from "@/lib/blocks/kubernetes";
 import { insertLocalDirectory } from "@/lib/blocks/localdirectory";
+import { calculateAIPopupPosition, calculateLinkPopupPosition } from "./utils/popupPositioning";
 
 
 // Fix for react-dnd interference with BlockNote drag-and-drop
@@ -147,34 +148,22 @@ const insertVarDisplay = (editor: typeof schema.BlockNoteEditor) => ({
   group: "Execute",
 });
 
-// Calculate popup position relative to a block
-const calculatePopupPosition = (editor: any, blockId?: string): { x: number; y: number } => {
-  try {
-    // Get the current cursor position if no blockId provided
-    const targetBlockId = blockId || editor.getTextCursorPosition().block.id;
+const insertRunbookLink = (editor: typeof schema.BlockNoteEditor, showRunbookLinkPopup: (position: { x: number; y: number }) => void) => ({
+  title: "Runbook Link",
+  subtext: "Link to another runbook",
+  onItemClick: () => {
+    track_event("runbooks.block.create", { type: "runbook_link" });
     
-    // Get the DOM element for the target block
-    const blockElement = editor.domElement?.querySelector(`[data-id="${targetBlockId}"]`);
-    
-    if (blockElement && editor.domElement) {
-      const blockRect = blockElement.getBoundingClientRect();
-      const editorRect = editor.domElement.getBoundingClientRect();
-      
-      // Calculate position relative to the editor container
-      const relativeX = blockRect.left - editorRect.left + 20;
-      const relativeY = blockRect.top - editorRect.top + 10;
-      
-      return { x: relativeX, y: relativeY };
-    } else {
-      // Fallback: position near top-left of editor
-      return { x: 50, y: 50 };
-    }
-  } catch (error) {
-    console.warn("Could not calculate popup position, using fallback:", error);
-    // Fallback to center if APIs fail
-    return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-  }
-};
+    // Show the runbook link popup
+    const position = calculateLinkPopupPosition(editor);
+    showRunbookLinkPopup(position);
+  },
+  icon: <LinkIcon size={18} />,
+  aliases: ["link", "runbook", "reference"],
+  group: "Content",
+});
+
+
 
 // AI Generate function
 const insertAIGenerate = (editor: any, showAIPopup: (position: { x: number; y: number }) => void) => ({
@@ -182,7 +171,7 @@ const insertAIGenerate = (editor: any, showAIPopup: (position: { x: number; y: n
   subtext: "Generate blocks from a natural language prompt (or press ⌘K)",
   onItemClick: () => {
     track_event("runbooks.ai.slash_menu_popup");
-    const position = calculatePopupPosition(editor);
+    const position = calculateAIPopupPosition(editor);
     showAIPopup(position);
   },
   icon: <SparklesIcon size={18} />,
@@ -210,6 +199,8 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
   const [currentEditBlock, setCurrentEditBlock] = useState<any>(null);
   const [aiEditPopupPosition, setAiEditPopupPosition] = useState({ x: 0, y: 0 });
   const [isVisible, setIsVisible] = useState(true);
+  const [runbookLinkPopupVisible, setRunbookLinkPopupVisible] = useState(false);
+  const [runbookLinkPopupPosition, setRunbookLinkPopupPosition] = useState({ x: 0, y: 0 });
 
   // Check AI enabled status
   useEffect(() => {
@@ -224,6 +215,37 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
   const closeAIPopup = useCallback(() => {
     setAiPopupVisible(false);
   }, []);
+
+  const showRunbookLinkPopup = useCallback((position: { x: number; y: number }) => {
+    setRunbookLinkPopupPosition(position);
+    setRunbookLinkPopupVisible(true);
+  }, []);
+
+  const closeRunbookLinkPopup = useCallback(() => {
+    setRunbookLinkPopupVisible(false);
+  }, []);
+
+  const handleRunbookLinkSelect = useCallback((runbookId: string, runbookName: string) => {
+    if (!editor) return;
+    
+    editor.insertInlineContent([
+      {
+        type: "runbook-link",
+        props: {
+          runbookId,
+          runbookName,
+        },
+      } as any,
+      " ", // add a space after the link
+    ]);
+    
+    closeRunbookLinkPopup();
+    
+    // Focus back to the editor and position cursor after the inserted link
+    setTimeout(() => {
+      editor.focus();
+    }, 10);
+  }, [editor, closeRunbookLinkPopup]);
 
   const getEditorContext = useCallback(async () => {
     if (!editor) return undefined;
@@ -295,9 +317,10 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
     };
   }, [editor, runbook]);
 
-  // Add keyboard shortcut for AI popup (Cmd+K)
+  // Add keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd+K for AI popup
       if (e.metaKey && e.key === 'k') {
         e.preventDefault();
         
@@ -315,12 +338,12 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
           if (isEmptyParagraph) {
             // Generate new blocks mode
             track_event("runbooks.ai.keyboard_shortcut");
-            const position = calculatePopupPosition(editor, currentBlock.id);
+            const position = calculateAIPopupPosition(editor, currentBlock.id);
             showAIPopup(position);
           } else {
             // Edit existing block mode
             track_event("runbooks.ai.edit_block", { blockType: currentBlock.type });
-            const position = calculatePopupPosition(editor, currentBlock.id);
+            const position = calculateAIPopupPosition(editor, currentBlock.id);
             setAiEditPopupPosition(position);
             setIsAIEditPopupOpen(true);
             setCurrentEditBlock(currentBlock);
@@ -331,6 +354,8 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
           showAIPopup({ x: 250, y: 100 });
         }
       }
+      
+
     };
 
     document.addEventListener('keydown', handleKeyDown);
@@ -338,7 +363,7 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [editor, showAIPopup]);
+  }, [editor, showAIPopup, showRunbookLinkPopup]);
 
   // Handle visibility and scroll restoration when runbook changes
   useLayoutEffect(() => {
@@ -527,6 +552,9 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
                 insertLocalDirectory(editor as any),
                 insertDropdown(schema)(editor),
 
+                // Content group
+                insertRunbookLink(editor as any, showRunbookLinkPopup),
+
                 // Monitoring group
                 insertPrometheus(schema)(editor),
 
@@ -547,15 +575,6 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
               query,
             )
           }
-        />
-
-        {/* Runbook link suggestion menu triggered by "!" */}
-        <SuggestionMenuController
-          triggerCharacter={"!"}
-          minQueryLength={1}
-          getItems={async (query) => {
-            return getRunbookLinkMenuItems(editor, query);
-          }}
         />
 
         <SideMenuController
@@ -597,6 +616,14 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
           getEditorContext={getEditorContext}
         />
       )}
+      
+      {/* Runbook link popup */}
+      <RunbookLinkPopup
+        isVisible={runbookLinkPopupVisible}
+        position={runbookLinkPopupPosition}
+        onSelect={handleRunbookLinkSelect}
+        onClose={closeRunbookLinkPopup}
+      />
     </div>
   );
 }

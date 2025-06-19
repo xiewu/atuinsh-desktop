@@ -57,7 +57,6 @@ import { Rc } from "@binarymuse/ts-stdlib";
 import { TraversalOrder } from "@/lib/tree";
 import DevConsole from "@/lib/dev/dev_console";
 import Sidebar, { SidebarItem } from "@/components/Sidebar";
-import { getGlobalOptions } from "@/lib/global_options";
 import InviteFriendsModal from "./InviteFriendsModal";
 import AtuinEnv from "@/atuin_env";
 
@@ -182,16 +181,6 @@ function App() {
   }, []);
 
   async function doUpdateCheck() {
-    if (getGlobalOptions().os !== "macos") {
-      new DialogBuilder()
-        .icon("warning")
-        .title("Automatic Updates Not Supported")
-        .message("Automatic updates are not supported on this platform.")
-        .action({ label: "OK", value: "ok", variant: "flat" })
-        .build();
-      return;
-    }
-
     // An available update will trigger a toast
     let updateAvailable = await checkForAppUpdates(true);
 
@@ -276,10 +265,6 @@ function App() {
 
   useEffect(() => {
     const check = () => {
-      if (getGlobalOptions().os !== "macos") {
-        return;
-      }
-
       (async () => {
         await checkForAppUpdates(false);
       })();

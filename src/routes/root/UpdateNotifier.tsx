@@ -1,5 +1,6 @@
 import icon from "@/assets/icon.svg";
 import { useEffect, useState } from "react";
+import { open } from "@tauri-apps/plugin-shell";
 import {
   addToast,
   Button,
@@ -11,8 +12,9 @@ import {
 } from "@heroui/react";
 import { useStore } from "@/state/store";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { None, Option, Some } from "@/lib/utils";
+import { cn, None, Option, Some } from "@/lib/utils";
 import AtuinEnv from "@/atuin_env";
+import { getGlobalOptions } from "@/lib/global_options";
 
 export default function UpdateNotifier() {
   const [relaunching, setRelaunching] = useState(false);
@@ -56,6 +58,10 @@ export default function UpdateNotifier() {
     }, 3000);
   }
 
+  async function openDownloadPage() {
+    await open(AtuinEnv.url("/download"));
+  }
+
   useEffect(() => {
     if (showingUpdate) {
       setShowedUpdatePrompt(true);
@@ -65,7 +71,8 @@ export default function UpdateNotifier() {
     if (availableUpdate && !updating && !showedUpdatePrompt) {
       setShowingUpdate(true);
       setShowedUpdatePrompt(true);
-      addToast({
+
+      const baseOptions = {
         title: "Update Available",
         icon: <img src={icon} alt="icon" className="h-8 w-8" />,
         description: `Atuin Desktop version ${availableUpdate.version} is available for download.`,
@@ -76,18 +83,42 @@ export default function UpdateNotifier() {
         onClose: () => {
           setShowingUpdate(false);
         },
-        endContent: (
-          <Button
-            size="sm"
-            variant="flat"
-            color="primary"
-            className="p-2"
-            onPress={() => doUpdate()}
-          >
-            Update
-          </Button>
-        ),
-      });
+      } as const;
+
+      if (getGlobalOptions().os === "macos") {
+        addToast({
+          ...baseOptions,
+          endContent: (
+            <Button
+              size="sm"
+              variant="flat"
+              color="primary"
+              className="p-2"
+              onPress={() => doUpdate()}
+            >
+              Update
+            </Button>
+          ),
+        });
+      } else {
+        addToast({
+          ...baseOptions,
+          classNames: {
+            base: cn(["flex flex-col items-center gap-2"]),
+          },
+          endContent: (
+            <Button
+              size="sm"
+              variant="flat"
+              color="primary"
+              className="p-2"
+              onPress={() => openDownloadPage()}
+            >
+              Download from Atuin Hub
+            </Button>
+          ),
+        });
+      }
     }
   }, [availableUpdate, updating, showedUpdatePrompt, showingUpdate]);
 

@@ -1,13 +1,3 @@
-// [MKT] NextUI seems to have added a logging function that depends on checking
-// for the `NODE_ENV` environment variable in the `process` object. It throws
-// an exception when trying to access the global `process` object, so this
-// shims out NODE_ENV with the Tauri env.
-(window as any).process = (window as any).process || {
-  env: {
-    NODE_ENV: import.meta.env.MODE,
-  },
-};
-
 window.addEventListener("unhandledrejection", (event) => {
   console.error("Unhandled rejection", event);
 });
@@ -40,6 +30,7 @@ import Workspace from "./state/runbooks/workspace";
 import { SharedStateManager } from "./lib/shared_state/manager";
 import { AtuinSharedStateAdapter } from "./lib/shared_state/adapter";
 import { startup as startupOperationProcessor } from "./state/runbooks/operation_processor";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
 import ServerObserver from "./lib/sync/server_observer";
 import DevConsole from "./lib/dev/dev_console";
@@ -223,6 +214,7 @@ function Application() {
     <HeroUIProvider>
       <ToastProvider placement="bottom-center" toastOffset={40} />
       <QueryClientProvider client={queryClient}>
+        <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
         <main className="text-foreground bg-background overflow-hidden">
           {AtuinEnv.isProd && globalOptions.customTitleBar && (
             <div data-tauri-drag-region className="w-full min-h-8 z-10 border-b-1" />

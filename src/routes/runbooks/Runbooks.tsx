@@ -317,7 +317,6 @@ export default function Runbooks() {
           <Topbar
             runbook={currentRunbook}
             remoteRunbook={remoteRunbook || undefined}
-            refreshRemoteRunbook={refreshRemoteRunbook}
             tags={tags}
             presences={presences}
             showTagMenu={showTagMenu}

@@ -9,6 +9,7 @@ concurrency:
 
 env:
   CN_APP_SLUG: atuin/atuin-desktop
+  NODE_ENV: production
 
 jobs:
   draft:

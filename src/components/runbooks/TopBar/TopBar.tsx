@@ -19,7 +19,6 @@ import PlayButton from "@/lib/blocks/common/PlayButton";
 type TopbarProps = {
   runbook: Runbook;
   remoteRunbook?: RemoteRunbook;
-  refreshRemoteRunbook: () => void;
   tags: Array<{ text: string; value: string }>;
   presences: PresenceUserInfo[];
   currentTag: string | null;
@@ -169,7 +168,6 @@ export default function Topbar(props: TopbarProps) {
               onDeleteFromHub={props.onDeleteFromHub}
               runbook={runbook}
               remoteRunbook={props.remoteRunbook}
-              refreshRemoteRunbook={props.refreshRemoteRunbook}
             />
           )}
         </div>

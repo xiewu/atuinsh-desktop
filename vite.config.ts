@@ -47,5 +47,6 @@ export default defineConfig(async () => ({
   },
   define: {
     "import.meta.vitest": "undefined",
+    "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV || "development"),
   },
 }));

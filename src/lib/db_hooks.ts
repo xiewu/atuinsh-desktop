@@ -58,8 +58,8 @@ export function invalidateQueryKeys(kind: Model, action: Action, model: any) {
   const queryKeys = getQueryKeys(kind, action, model);
 
   queryKeys.forEach((queryKey) => {
-    if (!Array.isArray(queryKey)) {
-      queryKey = queryKey.queryKey;
+    if (Array.isArray(queryKey)) {
+      queryKey = { queryKey };
     }
 
     useStore.getState().queryClient.invalidateQueries(queryKey);

@@ -22,7 +22,6 @@ const logger = new Logger("SharePopover", "purple", "purple");
 type ShareProps = {
   runbook: Runbook;
   remoteRunbook?: RemoteRunbook;
-  refreshRemoteRunbook: () => void;
   onShareToHub: () => void;
   onDeleteFromHub: () => void;
 };

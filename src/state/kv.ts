@@ -8,8 +8,10 @@
 import Database from "@tauri-apps/plugin-sql";
 import AtuinDB from "./atuin_db";
 import { uuidv7 } from "uuidv7";
+import { None, Option, Some } from "@binarymuse/ts-stdlib";
 
 export class KVStore {
+  private static defaultInstance: Option<Promise<KVStore>> = None;
   private db: Database;
 
   constructor(db: Database) {
@@ -17,11 +19,17 @@ export class KVStore {
   }
 
   static async open_default(): Promise<KVStore> {
-    const db = await AtuinDB.load("kv");
+    const instance = this.defaultInstance.unwrapOrElse(async () => {
+      const db = await AtuinDB.load("kv");
+      db.execute("create table if not exists kv(key text primary key, value text)");
+      return new KVStore(db);
+    });
 
-    db.execute("create table if not exists kv(key text primary key, value text)");
+    if (this.defaultInstance.isNone()) {
+      this.defaultInstance = Some(instance);
+    }
 
-    return new KVStore(db);
+    return instance;
   }
 
   // Get a value from the store, and decode the json

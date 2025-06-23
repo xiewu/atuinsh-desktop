@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
 import { Input, Tooltip, Button } from "@heroui/react";
 import { FolderInputIcon } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { KVStore } from "@/state/kv";
+import { useKvValue } from "@/lib/hooks/useKvValue";
 
 interface LocalDirectoryComponentProps {
   blockId: string;
@@ -10,34 +9,8 @@ interface LocalDirectoryComponentProps {
 }
 
 export const LocalDirectoryComponent = ({ blockId, isEditable }: LocalDirectoryComponentProps) => {
-  const [path, setPath] = useState("");
-
   const storeKey = `block.${blockId}.path`;
-
-  // Load path from KV store on mount
-  useEffect(() => {
-    const loadPath = async () => {
-      try {
-        const kvStore = await KVStore.open_default();
-        const storedPath = await kvStore.get(storeKey);
-        if (storedPath) {
-          setPath(storedPath);
-        }
-      } catch (error) {
-        console.error("Failed to load path from KV store:", error);
-      }
-    };
-    loadPath();
-  }, [blockId, storeKey]);
-
-  const savePath = async (newPath: string) => {
-    try {
-      const kvStore = await KVStore.open_default();
-      await kvStore.set(storeKey, newPath);
-    } catch (error) {
-      console.error("Failed to save path to KV store:", error);
-    }
-  };
+  const [path, setPath] = useKvValue(storeKey, "");
 
   const selectFolder = async () => {
     if (isEditable) {
@@ -48,14 +21,12 @@ export const LocalDirectoryComponent = ({ blockId, isEditable }: LocalDirectoryC
 
       if (selectedPath) {
         setPath(selectedPath);
-        await savePath(selectedPath);
       }
     }
   };
 
   const handleInputChange = async (newPath: string) => {
     setPath(newPath);
-    await savePath(newPath);
   };
 
   return (
@@ -66,9 +37,9 @@ export const LocalDirectoryComponent = ({ blockId, isEditable }: LocalDirectoryC
       >
         <div className="flex flex-row items-center space-x-3 w-full bg-gradient-to-r from-orange-50 to-amber-50 dark:from-slate-800 dark:to-orange-950 rounded-lg p-3 border border-orange-200 dark:border-orange-900 shadow-sm hover:shadow-md transition-all duration-200">
           <div className="flex items-center">
-            <Button 
-              isIconOnly 
-              variant="light" 
+            <Button
+              isIconOnly
+              variant="light"
               className="bg-orange-100 dark:bg-orange-800 text-orange-600 dark:text-orange-300"
               aria-label="Select folder"
               onPress={selectFolder}

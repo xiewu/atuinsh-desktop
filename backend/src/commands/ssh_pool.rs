@@ -6,7 +6,7 @@ use crate::state::AtuinState;
 
 use eyre::Result;
 use std::path::PathBuf;
-use tauri::Emitter;
+use tauri::{ipc::Channel, Emitter};
 use uuid::Uuid;
 
 /// Connect to an SSH host
@@ -157,6 +157,7 @@ pub async fn ssh_open_pty(
     block: &str,
     width: u16,
     height: u16,
+    output_channel: Channel<Vec<u8>>,
 ) -> Result<(), String> {
     let host = if !host.contains(":") {
         format!("{}:22", host)
@@ -182,21 +183,17 @@ pub async fn ssh_open_pty(
         .await
         .map_err(|e| e.to_string())?;
 
-    // Forward output from the PTY to the frontend
-    let channel_name = format!("pty-{}", channel);
-    let app_clone = app.clone();
+    // Forward output from the PTY to the frontend via channel
     tokio::task::spawn(async move {
         while let Some(output) = output_receiver.recv().await {
-            if let Err(e) = app_clone.emit(&channel_name, output) {
-                log::error!("Failed to emit PTY output: {}", e);
+            let bytes = output.into_bytes();
+            let channel_clone = output_channel.clone();
+            let send_result = tokio::task::spawn_blocking(move || channel_clone.send(bytes)).await;
+
+            if let Ok(Err(e)) = send_result {
+                log::error!("Failed to send SSH PTY output to channel: {}", e);
                 break;
             }
-        }
-
-        // When the output channel closes, notify the frontend
-        let finished_channel = format!("ssh_pty_finished:{}", channel_name);
-        if let Err(e) = app_clone.emit(&finished_channel, "") {
-            log::error!("Failed to emit PTY finished event: {}", e);
         }
     });
 

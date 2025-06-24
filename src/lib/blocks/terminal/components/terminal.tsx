@@ -4,25 +4,15 @@ import { AtuinState, useStore } from "@/state/store";
 import { platform } from "@tauri-apps/plugin-os";
 
 const usePersistentTerminal = (pty: string) => {
-  const newPtyTerm = useStore((store) => store.newPtyTerm);
   const terminals = useStore((store) => store.terminals);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      if (!terminals.hasOwnProperty(pty)) {
-        // create a new terminal and store it in the store.
-        // this means we can resume the same instance even across mount/dismount
-        await newPtyTerm(pty);
-      }
-
+    // Terminal should already exist since component.tsx calls newPtyTerm
+    if (terminals.hasOwnProperty(pty)) {
       setIsReady(true);
-    })();
-
-    return () => {
-      // We don't dispose of the terminal when the component unmounts
-    };
-  }, [pty, terminals, newPtyTerm]);
+    }
+  }, [pty, terminals]);
 
   return { terminalData: terminals[pty], isReady };
 };

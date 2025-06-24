@@ -106,10 +106,30 @@ impl Pty {
             .map_err(|e| e.to_string())
             .expect("Failed to clone reader");
 
-        tokio::spawn(async move {
-            while let Some(bytes) = master_rx.recv().await {
-                writer.write_all(&bytes).unwrap();
-                writer.flush().unwrap();
+        tokio::task::spawn_blocking(move || {
+            let rt = tokio::runtime::Handle::current();
+            loop {
+                let bytes = rt.block_on(async {
+                    tokio::time::timeout(std::time::Duration::from_secs(30), master_rx.recv()).await
+                });
+
+                match bytes {
+                    Ok(Some(bytes)) => {
+                        if let Err(e) = writer.write_all(&bytes) {
+                            eprintln!("PTY write error: {e}");
+                            break;
+                        }
+                        if let Err(e) = writer.flush() {
+                            eprintln!("PTY flush error: {e}");
+                            break;
+                        }
+                    }
+                    Ok(None) => break, // Channel closed
+                    Err(_) => {
+                        eprintln!("PTY write timeout");
+                        break;
+                    }
+                }
             }
 
             // When the channel has been closed, we won't be getting any more input. Close the

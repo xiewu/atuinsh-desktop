@@ -42,7 +42,7 @@ import { useBlockNoteEditor } from "@blocknote/react";
 import { AtuinState, useStore } from "@/state/store";
 import { cn, toSnakeCase } from "@/lib/utils";
 import { logExecution } from "@/lib/exec_log";
-import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency";
+import { DependencySpec } from "@/lib/workflow/dependency";
 import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus";
 import BlockBus from "@/lib/workflow/block_bus";
 import useCodemirrorTheme from "@/lib/hooks/useCodemirrorTheme";
@@ -115,7 +115,6 @@ const SQL = ({
   const [error, setError] = useState<string | null>(null);
   const [currentRunbookId] = useStore((store: AtuinState) => [store.currentRunbookId]);
   const colorMode = useStore((state) => state.functionalColorMode);
-  const { canRun } = useDependencyState(block, isRunning);
   const elementRef = useRef<HTMLDivElement>(null);
 
   const themeObj = useCodemirrorTheme();
@@ -286,7 +285,6 @@ const SQL = ({
 
           <div className="flex flex-row gap-2 w-full" ref={elementRef}>
             <PlayButton
-              disabled={!canRun}
               eventName="runbooks.block.execute"
               eventProps={{ type: sqlType }}
               isRunning={isRunning}

@@ -21,7 +21,7 @@ import { Command } from "@codemirror/view";
 import { ScriptBlock as ScriptBlockType } from "@/lib/workflow/blocks/script.ts";
 import { default as BlockType } from "@/lib/workflow/blocks/block.ts";
 import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert.ts";
-import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency.ts";
+import { DependencySpec } from "@/lib/workflow/dependency.ts";
 import BlockBus from "@/lib/workflow/block_bus.ts";
 import {
   useBlockBusRunSubscription,
@@ -88,7 +88,6 @@ const ScriptBlock = ({
   const terminalRef = useRef<HTMLDivElement>(null);
   const [currentRunbookId] = useStore((store: AtuinState) => [store.currentRunbookId]);
   const [parentBlock, setParentBlock] = useState<BlockType | null>(null);
-  const { canRun } = useDependencyState(script, isRunning);
   const channelRef = useRef<string | null>(null);
   const elementRef = useRef<HTMLDivElement>(null);
   const unlisten = useRef<UnlistenFn | null>(null);
@@ -461,7 +460,6 @@ const ScriptBlock = ({
             >
               <div>
                 <PlayButton
-                  disabled={!canRun}
                   eventName="runbooks.block.execute" eventProps={{ type: "script" }}
                   onPlay={handlePlay}
                   onStop={handleStop}

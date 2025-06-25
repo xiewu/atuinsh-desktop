@@ -23,7 +23,7 @@ import CodeEditor, { TabAutoComplete } from "../common/CodeEditor/CodeEditor.tsx
 import { Command } from "@codemirror/view";
 import { TerminalBlock } from "./schema.ts";
 import { logExecution } from "@/lib/exec_log.ts";
-import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency.ts";
+import { DependencySpec } from "@/lib/workflow/dependency.ts";
 import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert.ts";
 import BlockBus from "@/lib/workflow/block_bus.ts";
 import {
@@ -93,7 +93,6 @@ export const RunBlock = ({
     return colorMode === "dark" ? darkModeEditorTheme : lightModeEditorTheme;
   }, [colorMode, lightModeEditorTheme, darkModeEditorTheme]);
 
-  const { canRun } = useDependencyState(terminal, isRunning);
 
   // This ensures that the first time we run a block, it executes the code. But subsequent mounts of an already-existing pty
   // don't run the code again.
@@ -449,7 +448,6 @@ export const RunBlock = ({
               onPlay={handlePlay}
               onStop={handleStop}
               onRefresh={handleRefresh}
-              disabled={!canRun}
               alwaysStop
             />
             <CodeEditor

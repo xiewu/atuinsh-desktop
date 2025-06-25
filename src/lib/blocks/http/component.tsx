@@ -15,7 +15,7 @@ import { templateString } from "@/state/templates";
 import { useStore } from "@/state/store";
 import { logExecution } from "@/lib/exec_log";
 import { HttpBlock as HttpBlockType, HttpVerb, HttpHeaders } from "./schema";
-import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency";
+import { DependencySpec } from "@/lib/workflow/dependency";
 import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus";
 import BlockBus from "@/lib/workflow/block_bus";
 import useCodemirrorTheme from "@/lib/hooks/useCodemirrorTheme";
@@ -88,7 +88,6 @@ export const Http = ({
   const [response, setResponse] = useState<any | null>(null);
   const [error, setError] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState("headers");
-  const { canRun } = useDependencyState(http, isRunning);
   const elementRef = useRef<HTMLDivElement>(null);
 
   const formatJSON = () => {
@@ -188,7 +187,6 @@ export const Http = ({
             isRunning={isRunning}
             onPlay={onPlay}
             cancellable={false}
-            disabled={!canRun}
           />
 
           <HttpVerbDropdown

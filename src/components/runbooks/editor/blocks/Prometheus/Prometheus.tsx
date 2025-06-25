@@ -31,7 +31,7 @@ import { templateString } from "@/state/templates";
 import { useStore } from "@/state/store";
 import { logExecution } from "@/lib/exec_log";
 import { PrometheusBlock as PrometheusBlockType } from "@/lib/workflow/blocks/prometheus";
-import { DependencySpec, useDependencyState } from "@/lib/workflow/dependency";
+import { DependencySpec } from "@/lib/workflow/dependency";
 import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus";
 import BlockBus from "@/lib/workflow/block_bus";
 import track_event from "@/tracking";
@@ -123,7 +123,6 @@ const Prometheus = ({
   const [promClient, setPromClient] = useState<PrometheusDriver | null>(null);
   const [promExtension, setPromExtension] = useState<PromQLExtension | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { canRun } = useDependencyState(prometheus, isRunning);
 
   const runQuery = useCallback(
     async (val: any) => {
@@ -248,7 +247,6 @@ const Prometheus = ({
         <>
           <div className="w-full !max-w-full !outline-none overflow-none flex flex-row gap-2">
             <PlayButton
-              disabled={!canRun}
               eventName="runbooks.block.execute"
               eventProps={{ type: "prometheus" }}
               onPlay={async () => {

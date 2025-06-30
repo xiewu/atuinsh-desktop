@@ -1,4 +1,4 @@
-import { invoke, Channel } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 import { platform } from "@tauri-apps/plugin-os";
 import { FitAddon } from "@xterm/addon-fit";
 import { IDisposable, Terminal } from "@xterm/xterm";
@@ -7,38 +7,57 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import Logger from "@/lib/logger";
 import { StateCreator } from "zustand";
 import { templateString } from "../templates";
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import Emittery from "emittery";
 
 const logger = new Logger("PtyStore");
+const endMarkerRegex = /\x1b\]633;ATUIN_COMMAND_END;(\d+)\x1b\\/;
 
 export class TerminalData extends Emittery {
   terminal: Terminal;
   fitAddon: FitAddon;
   pty: string;
-  outputChannel: Channel<Uint8Array>;
 
   disposeResize: IDisposable;
   disposeOnData: IDisposable;
+  unlisten: UnlistenFn | null;
 
   startTime: number | null;
 
-  constructor(pty: string, terminal: Terminal, fit: FitAddon, outputChannel: Channel<Uint8Array>) {
+  constructor(pty: string, terminal: Terminal, fit: FitAddon) {
     super();
 
     this.terminal = terminal;
     this.fitAddon = fit;
     this.pty = pty;
-    this.outputChannel = outputChannel;
     this.startTime = null;
+    this.unlisten = null;
 
     this.disposeResize = this.terminal.onResize((e) => this.onResize(e));
     this.disposeOnData = this.terminal.onData((e) => this.onData(e));
   }
 
   async listen() {
-    this.outputChannel.onmessage = (bytes: Uint8Array) => {
-      this.terminal.write(bytes);
-    };
+    this.unlisten = await listen(`pty-${this.pty}`, (event: any) => {
+      if (event.payload.indexOf("ATUIN_COMMAND_START") >= 0) {
+        this.emit("command_start");
+        this.startTime = performance.now();
+      }
+
+      const endMatch = endMarkerRegex.exec(event.payload);
+
+      let duration = null;
+      if (endMatch) {
+        if (this.startTime) {
+          duration = performance.now() - this.startTime;
+          this.startTime = null;
+        }
+
+        this.emit("command_end", { exitCode: parseInt(endMatch[1], 10), duration: duration || 0 });
+      }
+
+      this.terminal.write(event.payload);
+    });
   }
 
   async onData(event: any) {
@@ -71,8 +90,11 @@ export class TerminalData extends Emittery {
     this.disposeResize.dispose();
     this.disposeOnData.dispose();
     this.terminal.dispose();
-    
-    // Channel cleanup is automatic when reference is lost
+
+    if (this.unlisten) {
+      this.unlisten();
+      this.unlisten = null;
+    }
   }
 
   relisten(pty: string) {
@@ -94,7 +116,7 @@ export interface AtuinPtyState {
   terminals: { [pty: string]: TerminalData };
 
   setPtyTerm: (pty: string, terminal: any) => void;
-  newPtyTerm: (pty: string, outputChannel: Channel<Uint8Array>) => Promise<TerminalData>;
+  newPtyTerm: (pty: string) => Promise<TerminalData>;
   cleanupPtyTerm: (pty: string) => void;
 }
 
@@ -125,7 +147,7 @@ export const createPtyState: StateCreator<AtuinPtyState> = (set, get, _store): A
     });
   },
 
-  newPtyTerm: async (pty: string, outputChannel: Channel<Uint8Array>) => {
+  newPtyTerm: async (pty: string) => {
     // FiraCode is included as part of our build
     // We could consider including a few different popular fonts, and providing a dropdown
     // for the user to select from.
@@ -151,7 +173,7 @@ export const createPtyState: StateCreator<AtuinPtyState> = (set, get, _store): A
     let fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
 
-    let td = new TerminalData(pty, terminal, fitAddon, outputChannel);
+    let td = new TerminalData(pty, terminal, fitAddon);
 
     set({
       terminals: { ...get().terminals, [pty]: td },

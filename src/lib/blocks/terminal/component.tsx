@@ -5,7 +5,7 @@ import "./index.css";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { invoke, Channel } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 import { platform } from "@tauri-apps/plugin-os";
 
 import { useBlockNoteEditor } from "@blocknote/react";
@@ -164,7 +164,6 @@ export const RunBlock = ({
 
   const openPty = async (): Promise<string> => {
     let cwd = await getCurrentDirectory(editor, terminal.id, currentRunbookId);
-    const newPtyTerm = useStore.getState().newPtyTerm;
 
     let vars = findAllParentsOfType(editor, terminal.id, "env");
     let env: { [key: string]: string } = {};
@@ -197,8 +196,6 @@ export const RunBlock = ({
       let [user, host] = connectionBlock.props.userHost.split("@");
 
       try {
-        const outputChannel = new Channel<Uint8Array>();
-
         await invoke<void>("ssh_open_pty", {
           host: host,
           username: user,
@@ -207,11 +204,7 @@ export const RunBlock = ({
           block: terminal.id,
           width: 80,
           height: 24,
-          outputChannel,
         });
-
-        // Create terminal with the channel
-        await newPtyTerm(pty, outputChannel);
       } catch (error) {
         console.error(error);
         setIsLoading(false);
@@ -229,20 +222,13 @@ export const RunBlock = ({
     const customShell = await Settings.terminalShell();
     
     try {
-      const outputChannel = new Channel<Uint8Array>();
-      
       let pty = await invoke<string>("pty_open", {
         cwd,
         env,
         runbook: currentRunbookId,
         block: terminal.id,
         shell: customShell,
-        outputChannel,
       });
-
-      // Create terminal with the channel
-      await newPtyTerm(pty, outputChannel);
-      
       return pty;
     } catch (error) {
       console.error(error);

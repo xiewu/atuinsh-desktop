@@ -5,7 +5,7 @@ use eyre::Result;
 use minijinja::Environment;
 
 use crate::{pty::PtyMetadata, runtime::pty_store::PtyStoreHandle, state::AtuinState};
-use tauri::{ipc::Channel, Emitter, Manager, State};
+use tauri::{async_runtime::block_on, Emitter, Manager, State};
 
 pub const PTY_OPEN_CHANNEL: &str = "pty_open";
 pub const PTY_KILL_CHANNEL: &str = "pty_kill";
@@ -23,7 +23,6 @@ async fn update_badge_count(app: &tauri::AppHandle, store: PtyStoreHandle) -> Re
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn pty_open(
     app: tauri::AppHandle,
@@ -33,7 +32,6 @@ pub async fn pty_open(
     runbook: Uuid,
     block: String,
     shell: Option<String>,
-    output_channel: Channel<Vec<u8>>,
 ) -> Result<uuid::Uuid, String> {
     let id = uuid::Uuid::new_v4();
 
@@ -65,51 +63,37 @@ pub async fn pty_open(
     let reader = pty.reader.clone();
     let app_inner = app.clone();
     let pty_store = state.pty_store();
+    let channel = format!("pty-{id}");
 
-    tokio::task::spawn(async move {
-        loop {
-            let read_result = tokio::task::spawn_blocking({
-                let reader = reader.clone();
-                move || -> Result<(usize, [u8; 4096]), String> {
-                    let mut buf = [0u8; 4096];
-                    let mut reader = reader.lock().map_err(|e| format!("Lock failed: {e}"))?;
-                    let bytes_read = reader
-                        .read(&mut buf)
-                        .map_err(|e| format!("Read failed: {e}"))?;
-                    Ok((bytes_read, buf))
-                }
-            })
-            .await;
+    tauri::async_runtime::spawn_blocking(move || loop {
+        let mut buf = [0u8; 512];
 
-            match read_result {
-                Ok(Ok((0, _))) => {
-                    // EOF
-                    println!("PTY reader loop hit EOF for {}", id);
-                    if let Err(e) = remove_pty(app_inner.clone(), id, pty_store).await {
-                        println!("failed to remove pty: {e}");
+        match reader.lock().unwrap().read(&mut buf) {
+            // EOF
+            Ok(0) => {
+                println!("reader loop hit eof");
+                match block_on(remove_pty(app_inner.clone(), id, pty_store)) {
+                    Ok(_) => {
+                        break;
                     }
-                    break;
-                }
-                Ok(Ok((n, buf))) => {
-                    let bytes = buf[..n].to_vec();
-
-                    let channel_clone = output_channel.clone();
-                    let send_result =
-                        tokio::task::spawn_blocking(move || channel_clone.send(bytes)).await;
-
-                    if let Ok(Err(e)) = send_result {
-                        println!("PTY channel send failed: {e}, closing reader");
+                    Err(e) => {
+                        println!("failed to remove pty: {e}");
                         break;
                     }
                 }
-                Ok(Err(e)) => {
-                    println!("PTY read error: {e:?}");
-                    break;
-                }
-                Err(e) => {
-                    println!("PTY spawn_blocking error: {e:?}");
-                    break;
-                }
+            }
+
+            Ok(_n) => {
+                // TODO: sort inevitable encoding issues
+                let out = String::from_utf8_lossy(&buf).to_string();
+                let out = out.trim_matches(char::from(0));
+
+                app_inner.emit(channel.as_str(), out).unwrap();
+            }
+
+            Err(e) => {
+                println!("failed to read: {e}");
+                break;
             }
         }
     });

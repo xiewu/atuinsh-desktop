@@ -207,26 +207,38 @@ export function normalizeInput(input: string) {
     .replace(/\u2018|\u2019/g, "'"); // Replace opening/closing single quotes
 }
 
-export function usePromise<T>(promise: Promise<T>) {
+export function usePromise<T>(promise: Promise<T>, deps: any[] = []) {
   const [value, setValue] = useState<T | undefined>(undefined);
 
   useEffect(() => {
     promise.then(setValue);
-  }, [promise]);
+  }, [promise, ...deps]);
+
+  return value;
+}
+
+export function useAsyncData<T>(fn: () => Promise<T>, deps: any[] = []) {
+  const [value, setValue] = useState<T | null>(null);
+
+  useEffect(() => {
+    fn().then(setValue);
+  }, [fn, ...deps]);
 
   return value;
 }
 
 export function toSnakeCase(str: string) {
-  return str
-    // Replace any non-alphanumeric characters with spaces
-    .replace(/[^\w\s]/g, ' ')
-    // Replace multiple spaces with a single space
-    .replace(/\s+/g, ' ')
-    // Trim whitespace from beginning and end
-    .trim()
-    // Convert to lowercase
-    .toLowerCase()
-    // Replace spaces with underscores
-    .replace(/\s/g, '_');
+  return (
+    str
+      // Replace any non-alphanumeric characters with spaces
+      .replace(/[^\w\s]/g, " ")
+      // Replace multiple spaces with a single space
+      .replace(/\s+/g, " ")
+      // Trim whitespace from beginning and end
+      .trim()
+      // Convert to lowercase
+      .toLowerCase()
+      // Replace spaces with underscores
+      .replace(/\s/g, "_")
+  );
 }

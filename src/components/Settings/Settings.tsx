@@ -29,7 +29,7 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { useStore } from "@/state/store";
 import { invoke } from "@tauri-apps/api/core";
-import { usePromise } from "@/lib/utils";
+import { useAsyncData } from "@/lib/utils";
 import SocketManager from "@/socket";
 import handleDeepLink from "@/routes/root/deep";
 import * as api from "@/api/api";
@@ -128,7 +128,7 @@ const SettingSwitch = ({
 
 // Settings sections
 const GeneralSettings = () => {
-  const fonts = usePromise(loadFonts());
+  const fonts = useAsyncData(loadFonts, []);
 
   const [trackingOptIn, setTrackingOptIn, isLoading] = useSettingsState(
     "usage_tracking",
@@ -349,7 +349,7 @@ const GeneralSettings = () => {
 };
 
 const RunbookSettings = () => {
-  const fonts = usePromise(loadFonts());
+  const fonts = useAsyncData(loadFonts, []);
   const [scriptInterpreters, setScriptInterpreters] = useState<
     Array<{ command: string; name: string }>
   >([]);

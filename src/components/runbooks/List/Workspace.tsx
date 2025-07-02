@@ -13,10 +13,21 @@ import { uuidv7 } from "uuidv7";
 import { NodeApi, TreeApi } from "react-arborist";
 import Runbook from "@/state/runbooks/runbook";
 import { useStore } from "@/state/store";
-import { createFolderMenu, createRunbookMenu, createWorkspaceMenu } from "./menus";
+import {
+  createFolderMenu,
+  createMultiItemMenu,
+  createRunbookMenu,
+  createWorkspaceMenu,
+} from "./menus";
 import { cn, usePrevious } from "@/lib/utils";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
 import InlineInput from "./TreeView/InlineInput";
+import { SharedStateManager } from "@/lib/shared_state/manager";
+import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
+import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
+import { Rc } from "@binarymuse/ts-stdlib";
+import { useDrop } from "react-dnd";
+import { actions } from "react-arborist/dist/module/state/dnd-slice";
 
 interface WorkspaceProps {
   workspace: Workspace;
@@ -239,11 +250,25 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     );
   }
 
-  async function handleMoveItems(ids: string[], parentId: string | null, index: number) {
-    doFolderOp(
-      (wsf) => wsf.moveItems(ids, parentId, index),
-      (changeRef) => moveItems(props.workspace.get("id")!, ids, parentId, index, changeRef),
-    );
+  async function handleMoveItems(
+    ids: string[],
+    sourceWorkspaceId: string,
+    parentId: string | null,
+    index: number,
+  ) {
+    if (sourceWorkspaceId === props.workspace.get("id")!) {
+      doFolderOp(
+        (wsf) => wsf.moveItems(ids, parentId, index),
+        (changeRef) => moveItems(props.workspace.get("id")!, ids, parentId, index, changeRef),
+      );
+    } else {
+      props.onStartMoveItemsToWorkspace(
+        ids,
+        sourceWorkspaceId,
+        props.workspace.get("id")!,
+        parentId,
+      );
+    }
   }
 
   async function handleDeleteWorkspace() {
@@ -278,35 +303,116 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
 
     focusWorkspace();
 
+    const workspaces = await Workspace.all();
+    const workspaceFolders = await Promise.all(
+      workspaces.map(async (ws) => {
+        const stateId = `workspace-folder:${ws.get("id")}`;
+        const manager = SharedStateManager.getInstance<Folder>(
+          stateId,
+          new AtuinSharedStateAdapter(stateId),
+        );
+        const data = await manager.getDataOnce();
+        const folder = WorkspaceFolder.fromJS(data);
+        Rc.dispose(manager);
+        return { id: ws.get("id")!, folder: folder.toArborist() };
+      }),
+    );
+    const userOrgs = useStore.getState().userOrgs.map((org) => ({
+      name: org.name,
+      id: org.id,
+      workspaces: workspaces
+        .filter((ws) => ws.get("orgId") === org.id)
+        .map((ws) => ({
+          workspace: ws,
+          folder: workspaceFolders.find((folder) => folder.id === ws.get("id"))!.folder,
+        })),
+    }));
+    let orgs = [
+      {
+        name: "Personal",
+        id: null,
+        workspaces: workspaces
+          .filter((ws) => ws.get("orgId") === null)
+          .map((ws) => ({
+            workspace: ws,
+            folder: workspaceFolders.find((folder) => folder.id === ws.get("id"))!.folder,
+          })),
+      },
+      ...userOrgs,
+    ];
+
+    if (props.workspace.get("orgId") !== null) {
+      orgs = orgs.filter((org) => org.id === props.workspace.get("orgId"));
+    }
+
     // If only one item is selected, we show the menu for the item that was right clicked.
     // If multiple items are selected, we show the menu for the whole selection, no matter which node was right clicked.
     const selectedNodes = treeRef.current!.selectedNodes;
     if (selectedNodes.length <= 1) {
       const node = treeRef.current!.get(itemId);
       if (node?.data.type === "folder") {
-        const menu = await createFolderMenu({
-          onNewFolder: () => handleNewFolder(node.data.id),
-          onRenameFolder: () => node.edit(),
-          onDeleteFolder: () => onStartDeleteFolder(node.data.id),
-          onNewRunbook: () => handleNewRunbook(node.data.id),
-          // onMoveToWorkspace: (
-          //   items: Array<{ id: string; type: "folder" | "runbook" }>,
-          //   newWorkspaceId: string,
-          //   newParentId: string | null,
-          // ) => {
-          //   //
-          // },
-        });
+        const menu = await createFolderMenu(
+          orgs,
+          props.workspace.get("orgId")!,
+          props.workspace.get("id")!,
+          {
+            onNewFolder: () => handleNewFolder(node.data.id),
+            onRenameFolder: () => node.edit(),
+            onDeleteFolder: () => onStartDeleteFolder(node.data.id),
+            onNewRunbook: () => handleNewRunbook(node.data.id),
+            onMoveToWorkspace: (newWorkspaceId, newParentId) => {
+              props.onStartMoveItemsToWorkspace(
+                [node.id],
+                props.workspace.get("id")!,
+                newWorkspaceId,
+                newParentId,
+              );
+            },
+          },
+        );
         await menu.popup();
         menu.close();
       } else if (node?.data.type === "runbook") {
-        const menu = await createRunbookMenu({
-          onDeleteRunbook: () =>
-            props.onStartDeleteRunbook(props.workspace.get("id")!, node.data.id),
-        });
+        const menu = await createRunbookMenu(
+          orgs,
+          props.workspace.get("orgId")!,
+          props.workspace.get("id")!,
+          {
+            onDeleteRunbook: () =>
+              props.onStartDeleteRunbook(props.workspace.get("id")!, node.data.id),
+            onMoveToWorkspace: (targetWorkspaceId, targetParentId) => {
+              props.onStartMoveItemsToWorkspace(
+                [node.id],
+                props.workspace.get("id")!,
+                targetWorkspaceId,
+                targetParentId,
+              );
+            },
+          },
+        );
         await menu.popup();
         menu.close();
       }
+    } else {
+      // more than 1 item selected
+      const menu = await createMultiItemMenu(
+        selectedNodes.map((node) => node.id),
+        orgs,
+        props.workspace.get("orgId")!,
+        props.workspace.get("id")!,
+        {
+          onMoveToWorkspace: (targetWorkspaceId, targetParentId) => {
+            props.onStartMoveItemsToWorkspace(
+              selectedNodes.map((node) => node.id),
+              props.workspace.get("id")!,
+              targetWorkspaceId,
+              targetParentId,
+            );
+          },
+        },
+      );
+      await menu.popup();
+      menu.close();
     }
   }
 
@@ -362,8 +468,27 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     menu.close();
   };
 
+  const [_collectedProps, dropRef] = useDrop(() => ({
+    accept: "NODE", // this is what react-arborist uses to tag its nodes
+    drop: (_item, _monitor) => {
+      const { lastSidebarDragInfo, setLastSidebarDragInfo } = useStore.getState();
+
+      // When react-arborist handles a drag and drop operation, we clear the lastSidebarDragInfo
+      // immediately; so, if we make it this far, it means it was dropped onto an empty tree or some
+      // non-valid dom element that is still within this workspace.
+      if (lastSidebarDragInfo) {
+        setLastSidebarDragInfo(undefined);
+        const { itemIds, sourceWorkspaceId } = lastSidebarDragInfo;
+        // HACK [mkt]: We need to manually dispatch a dragEnd to stop the drag indicator from showing.
+        treeRef.current?.store.dispatch(actions.dragEnd());
+        handleMoveItems(itemIds, sourceWorkspaceId, null, 0);
+      }
+    },
+  }));
+
   return (
     <div
+      ref={dropRef as any}
       className={cn("border rounded-md w-full", {
         "border-1 border-blue-500": currentWorkspaceId === props.workspace.get("id"),
       })}
@@ -392,6 +517,7 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
         </div>
       )}
       <TreeView
+        workspaceId={props.workspace.get("id")!}
         onTreeApiReady={(api) => (treeRef.current = api)}
         data={arboristData as any}
         sortBy={props.sortBy}

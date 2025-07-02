@@ -485,6 +485,7 @@ fn main() {
             shared_state::get_shared_state_document,
             shared_state::push_optimistic_update,
             shared_state::update_shared_state_document,
+            shared_state::delete_shared_state_document,
             shared_state::remove_optimistic_updates,
         ])
         .plugin(tauri_plugin_sql::Builder::default().build())

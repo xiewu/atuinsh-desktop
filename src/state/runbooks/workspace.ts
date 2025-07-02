@@ -4,6 +4,7 @@ import { DateEncoder, JSONEncoder } from "@/lib/db/encoders";
 import { SharedStateManager } from "@/lib/shared_state/manager";
 import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
 import { dbHook } from "@/lib/db_hooks";
+import { deleteSharedStateDocument } from "@/lib/shared_state/commands";
 
 export type WorkspaceAttrs = {
   id?: string;
@@ -40,6 +41,7 @@ const globalSpecs: GlobalSpec<WorkspaceAttrs> = {
   postDelete: async (_context, model) => {
     dbHook("workspace", "delete", model);
     SharedStateManager.stopInstance(`workspace-folder:${model.get("id")}`);
+    deleteSharedStateDocument(`workspace-folder:${model.get("id")}`);
   },
 };
 

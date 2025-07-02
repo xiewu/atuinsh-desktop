@@ -88,6 +88,7 @@ function getRunbookQueryKeys(action: Action, model: Runbook): InvalidateQueryFil
         runbooksByLegacyWorkspaceId(model.legacyWorkspaceId),
         allLegacyWorkspaces(),
         runbooksByWorkspaceId(model.workspaceId),
+        remoteRunbook(model),
       ];
     case "update":
       return [

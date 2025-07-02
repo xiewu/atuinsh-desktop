@@ -12,8 +12,8 @@ importers:
         specifier: ^1.2.12
         version: 1.2.12(zod@3.25.42)
       '@binarymuse/ts-stdlib':
-        specifier: ^0.2.7
-        version: 0.2.7
+        specifier: ^0.3.0
+        version: 0.3.0
       '@blocknote/core':
         specifier: ^0.31.1
         version: 0.31.1(@types/hast@3.0.4)(highlight.js@11.11.1)
@@ -534,8 +534,8 @@ packages:
     resolution: {integrity: sha512-Y3IR1cRnOxOCDvMmNiym7XpXQ93iGDDPHx+Zj+NM+rg0fBaShfQLkg+hKPaZCEvg5N/LeCo4+Rj/i3FuJsIQaw==}
     engines: {node: '>=6.9.0'}
 
-  '@binarymuse/ts-stdlib@0.2.7':
-    resolution: {integrity: sha512-QrVETghjNPsiM2MJ8+duILaAsYGGVgTk6zBzCOGi8z7PjT/lF/iqxxAR30LsNLvun9w9cSJBN82PFX84SNcRsQ==}
+  '@binarymuse/ts-stdlib@0.3.0':
+    resolution: {integrity: sha512-p5kTlXYo6fRUzkYB4kYgBdhBxvszLSPXoDh9kdIEtI2tOLe97BI5tU8CUBpf8vQOayh4ZG9mXvyjKwFOcqXFKQ==}
 
   '@blocknote/core@0.31.1':
     resolution: {integrity: sha512-EGRYksdz1MxgqlmLzvhjWZvwL2Q8iiWY8tbXTBcYSEMyEdxWM5t4v2lcfTuuZuz8wInMR/c7MW8ymlzoYxrBZA==}
@@ -5633,7 +5633,7 @@ snapshots:
       '@babel/helper-string-parser': 7.25.9
       '@babel/helper-validator-identifier': 7.25.9
 
-  '@binarymuse/ts-stdlib@0.2.7': {}
+  '@binarymuse/ts-stdlib@0.3.0': {}
 
   '@blocknote/core@0.31.1(@types/hast@3.0.4)(highlight.js@11.11.1)':
     dependencies:

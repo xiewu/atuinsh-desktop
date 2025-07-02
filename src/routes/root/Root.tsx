@@ -10,6 +10,7 @@ import icon from "@/assets/icon.svg";
 import { checkForAppUpdates } from "@/updater";
 import {
   addToast,
+  Alert,
   Avatar,
   Button,
   Dropdown,
@@ -46,6 +47,7 @@ import Operation, {
   createRunbook,
   createWorkspace,
   deleteRunbook,
+  moveItemsToNewWorkspace,
 } from "@/state/runbooks/operation";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
 import WorkspaceSyncManager from "@/lib/sync/workspace_sync_manager";
@@ -59,6 +61,9 @@ import DevConsole from "@/lib/dev/dev_console";
 import Sidebar, { SidebarItem } from "@/components/Sidebar";
 import InviteFriendsModal from "./InviteFriendsModal";
 import AtuinEnv from "@/atuin_env";
+import { ConnectionState } from "@/state/store/user_state";
+import { processUnprocessedOperations } from "@/state/runbooks/operation_processor";
+import { useQueryClient } from "@tanstack/react-query";
 
 const Onboarding = React.lazy(() => import("@/components/Onboarding/Onboarding"));
 const UpdateNotifier = React.lazy(() => import("./UpdateNotifier"));
@@ -118,9 +123,11 @@ function App() {
   const setSerialExecution = useStore((state: AtuinState) => state.setSerialExecution);
   const [runbookIdToDelete, setRunbookIdToDelete] = useState<string | null>(null);
   const selectedOrg = useStore((state: AtuinState) => state.selectedOrg);
+  const connectionState = useStore((state: AtuinState) => state.connectionState);
 
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const user = useStore((state: AtuinState) => state.user);
   const isLoggedIn = useStore((state: AtuinState) => state.isLoggedIn);
   const showDesktopConnect = useStore((state: AtuinState) => state.proposedDesktopConnectUser);
@@ -503,16 +510,13 @@ function App() {
           .build();
         return;
       }
+
+      let startedSyncIndicator = false;
       try {
-        let startedSyncIndicator = false;
         // TODO: use sync increment/decrement???
         if (!useStore.getState().isSyncing) {
           startedSyncIndicator = true;
           useStore.getState().setIsSyncing(true);
-        }
-
-        if (startedSyncIndicator) {
-          useStore.getState().setIsSyncing(false);
         }
 
         await api.createRunbook(runbook, runbook.id, "private");
@@ -533,6 +537,10 @@ function App() {
         console.error(err);
         runbook.delete();
         return;
+      } finally {
+        if (startedSyncIndicator) {
+          useStore.getState().setIsSyncing(false);
+        }
       }
     }
 
@@ -568,6 +576,36 @@ function App() {
     const newWorkspace = await Workspace.get(newWorkspaceId);
 
     if (!oldWorkspace || !newWorkspace) {
+      return;
+    }
+
+    if (oldWorkspace.isOrgOwned() && oldWorkspace.get("orgId") !== newWorkspace.get("orgId")) {
+      await new DialogBuilder()
+        .title("Cannot Move Items")
+        .icon("error")
+        .message("You cannot move items between workspaces in different Organizations.")
+        .action({
+          label: "OK",
+          variant: "flat",
+          value: "ok",
+        })
+        .build();
+
+      return;
+    }
+
+    if (oldWorkspace.isOrgOwned() && !newWorkspace.isOrgOwned()) {
+      await new DialogBuilder()
+        .title("Cannot Move Items")
+        .icon("error")
+        .message("You cannot move Organization items to a personal workspace.")
+        .action({
+          label: "OK",
+          variant: "flat",
+          value: "ok",
+        })
+        .build();
+
       return;
     }
 
@@ -645,10 +683,34 @@ function App() {
         }
 
         moveBundles.push({ type: "folder", id: item, name: data.name, descendants });
+        moveInfo.folders++;
       }
     }
+
     // Step 2: Confirm the move
-    const answer = await confirmMoveItems(moveBundles, moveInfo, newWorkspace);
+    if (
+      (oldWorkspace.isOrgOwned() || newWorkspace.isOrgOwned()) &&
+      // moving items between org workspaces in the same org is allowed offline
+      oldWorkspace.get("orgId") !== newWorkspace.get("orgId") &&
+      connectionState != ConnectionState.Online
+    ) {
+      await new DialogBuilder()
+        .title("Cannot Move Items")
+        .icon("error")
+        .message(
+          "You must be online and logged in to move items to or from an Organization workspace.",
+        )
+        .action({
+          label: "OK",
+          variant: "flat",
+          value: "ok",
+        })
+        .build();
+
+      return;
+    }
+
+    const answer = await confirmMoveItems(moveBundles, moveInfo, oldWorkspace, newWorkspace);
     if (answer === "no") {
       return;
     }
@@ -700,7 +762,7 @@ function App() {
 
     if (!createChangeRef || failure) {
       if (createChangeRef) {
-        oldManager.expireOptimisticUpdates([createChangeRef]);
+        newManager.expireOptimisticUpdates([createChangeRef]);
       }
 
       await new DialogBuilder()
@@ -732,7 +794,7 @@ function App() {
     // This should never fail, but those are famous last words
     if (!deleteChangeRef) {
       if (createChangeRef) {
-        oldManager.expireOptimisticUpdates([createChangeRef]);
+        newManager.expireOptimisticUpdates([createChangeRef]);
       }
 
       await new DialogBuilder()
@@ -745,32 +807,73 @@ function App() {
     }
 
     // Step 5: Update the runbook models to point to the new workspace
-    for (const item of moveBundles) {
-      if (item.type === "runbook") {
-        const runbook = await Runbook.load(item.id);
-        if (runbook) {
-          runbook.workspaceId = newWorkspaceId;
-          await runbook.save();
-        }
-      } else if (item.type === "folder") {
-        for (const descendant of item.descendants) {
-          if (descendant.type === "runbook") {
-            const runbook = await Runbook.load(descendant.id);
-            if (runbook) {
-              runbook.workspaceId = newWorkspaceId;
-              await runbook.save();
-            }
-          }
-        }
+    const topLevelRunbooksMoved = moveBundles
+      .filter((bundle) => bundle.type === "runbook")
+      .map((bundle) => bundle.id);
+
+    const descendantRunbooksMoved = moveBundles
+      .filter((bundle) => bundle.type === "folder")
+      .flatMap((bundle) => bundle.descendants)
+      .filter((descendant) => descendant.type === "runbook")
+      .map((descendant) => descendant.id);
+
+    const runbooksMoved = topLevelRunbooksMoved.concat(descendantRunbooksMoved);
+    const runbooksMovedWithName = [];
+
+    for (const runbookId of runbooksMoved) {
+      const runbook = await Runbook.load(runbookId);
+      if (runbook) {
+        runbook.workspaceId = newWorkspaceId;
+        runbooksMovedWithName.push({
+          id: runbookId,
+          name: runbook.name,
+        });
+        await runbook.save();
       }
     }
 
-    // Step 6: Create an operation that contains both changeRefs to send to the server;
-    // the server will then process the changeRefs and update the runbook models as well
-    // TODO
+    try {
+      // Step 6: Create an operation that contains both changeRefs to send to the server;
+      // the server will then process the changeRefs and update the runbook models as well,
+      // and will create any runbooks that don't exist on the server
+      await Operation.create(
+        moveItemsToNewWorkspace(
+          oldWorkspaceId,
+          newWorkspaceId,
+          newParentFolderId,
+          moveBundles.map((mb) => mb.id),
+          runbooksMovedWithName,
+          createChangeRef,
+          deleteChangeRef,
+        ),
+      );
 
-    Rc.dispose(oldManager);
-    Rc.dispose(newManager);
+      // Before we move on, we need to drain the operation processor
+      const success = await processUnprocessedOperations();
+      if (!success) {
+        console.error("Failed to process operations after moving items");
+
+        oldManager.expireOptimisticUpdates([deleteChangeRef]);
+        newManager.expireOptimisticUpdates([createChangeRef]);
+
+        await new DialogBuilder()
+          .title("Failed to move items")
+          .icon("error")
+          .message("Failed to move items")
+          .build();
+
+        return;
+      }
+
+      runbooksMoved.forEach((runbookId) => {
+        queryClient.invalidateQueries({
+          queryKey: ["remote_runbook", runbookId],
+        });
+      });
+    } finally {
+      Rc.dispose(oldManager);
+      Rc.dispose(newManager);
+    }
   }
 
   const sidebarOpen = useStore((state) => state.sidebarOpen);
@@ -970,10 +1073,18 @@ async function confirmMoveItems(
     folders: number;
     runbooks: number;
   },
+  sourceWorkspace: Workspace,
   targetWorkspace: Workspace,
 ): Promise<"yes" | "no"> {
   const total = info.folders + info.runbooks;
   let countSnippet: React.ReactNode | null = null;
+
+  const inSameOrg = sourceWorkspace.get("orgId") === targetWorkspace.get("orgId");
+
+  // A simple move of one or more items between workspaces in the same Org is always allowed.
+  if (inSameOrg) {
+    return "yes";
+  }
 
   if (info.folders === 0 && info.runbooks > 0) {
     countSnippet = (
@@ -984,14 +1095,14 @@ async function confirmMoveItems(
   } else if (info.folders > 0 && info.runbooks === 0) {
     countSnippet = (
       <strong className="text-danger">
-        {info.folders} {info.folders === 1 ? "subfolder" : "subfolders"}
+        {info.folders} {info.folders === 1 ? "folder" : "folders"}
       </strong>
     );
   } else if (info.folders > 0 && info.runbooks > 0) {
     countSnippet = (
       <>
         <strong className="text-danger">
-          {info.folders} {info.folders === 1 ? "subfolder" : "subfolders"}
+          {info.folders} {info.folders === 1 ? "folder" : "folders"}
         </strong>{" "}
         and{" "}
         <strong className="text-danger">
@@ -1002,12 +1113,20 @@ async function confirmMoveItems(
   }
 
   const message = (
-    <div>
+    <div className="flex flex-col gap-2">
       <p>
         Are you sure you want to move {moveBundles.length}{" "}
-        {moveBundles.length === 1 ? "item" : "items"}
+        {moveBundles.length === 1 ? "item " : "items "}
         to the {targetWorkspace.get("name")} workspace?
       </p>
+
+      {!sourceWorkspace.isOrgOwned() && targetWorkspace.isOrgOwned() && (
+        <Alert color="warning" variant="flat" className="mt-2">
+          By moving items to an Organization workspace, they will be owned by the Organization and
+          managed via that Organization's permissions. You will not be able to move them back to
+          your personal workspace.
+        </Alert>
+      )}
 
       {total > 0 && <p>This will move {countSnippet}.</p>}
     </div>

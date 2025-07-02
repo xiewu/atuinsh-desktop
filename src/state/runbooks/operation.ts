@@ -117,8 +117,11 @@ type WorkspaceFolderOperations =
       type: "workspace_items_moved_to_new_workspace";
       oldWorkspaceId: string;
       newWorkspaceId: string;
-      // need to send the move bundles
-      // as well as both change refs
+      targetFolderId: string | null;
+      topLevelItems: string[];
+      runbooksMovedWithName: { id: string; name: string }[];
+      createChangeRef: ChangeRef;
+      deleteChangeRef: ChangeRef;
     };
 
 export type OperationData =
@@ -284,5 +287,26 @@ export function createWorkspace(
     workspaceId,
     workspaceName,
     workspaceOwner,
+  };
+}
+
+export function moveItemsToNewWorkspace(
+  oldWorkspaceId: string,
+  newWorkspaceId: string,
+  targetFolderId: string | null,
+  topLevelItems: string[],
+  runbooksMovedWithName: { id: string; name: string }[],
+  createChangeRef: ChangeRef,
+  deleteChangeRef: ChangeRef,
+): OperationData {
+  return {
+    type: "workspace_items_moved_to_new_workspace",
+    oldWorkspaceId,
+    newWorkspaceId,
+    targetFolderId,
+    topLevelItems,
+    runbooksMovedWithName,
+    createChangeRef,
+    deleteChangeRef,
   };
 }

@@ -47,6 +47,7 @@ import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
 import VerticalDragHandle from "./VerticalDragHandle";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
+import { Rc } from "@binarymuse/ts-stdlib";
 import track_event from "@/tracking";
 import { open } from "@tauri-apps/plugin-shell";
 import AtuinEnv from "@/atuin_env";
@@ -157,15 +158,6 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
     });
   }, []);
 
-  const handleMoveItemsToWorkspace = async (
-    items: string[],
-    workspaceId: string,
-    newWorkspaceId: string,
-    newParentFolderId: string | null,
-  ) => {
-    props.moveItemsToWorkspace(items, workspaceId, newWorkspaceId, newParentFolderId);
-  };
-
   const handleNewRunbook = async (workspaceId: string, parentFolderId: string | null) => {
     const workspace = workspaces?.find((ws) => ws.get("id") === workspaceId);
     if (!workspace) return;
@@ -254,6 +246,7 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
         );
         const data = await manager.getDataOnce();
         const folder = WorkspaceFolder.fromJS(data);
+        Rc.dispose(manager);
         return folder.toArborist();
       }),
     );
@@ -542,7 +535,7 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
                           onStartDeleteRunbook={(_workspaceId: string, runbookId: string) =>
                             promptDeleteRunbook(runbookId)
                           }
-                          onStartMoveItemsToWorkspace={handleMoveItemsToWorkspace}
+                          onStartMoveItemsToWorkspace={props.moveItemsToWorkspace}
                         />
                       </div>
                     );

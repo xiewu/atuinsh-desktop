@@ -28,9 +28,9 @@ export const processUnprocessedOperations = () => {
   return runOperationProcessor.run();
 };
 
-async function doProcessUnprocessedOperations(): Promise<void> {
+async function doProcessUnprocessedOperations(): Promise<boolean> {
   if (!isOnline()) {
-    return;
+    return false;
   }
 
   const ops = await Operation.getUnprocessed();
@@ -39,16 +39,22 @@ async function doProcessUnprocessedOperations(): Promise<void> {
     logger.info(`Processing ${ops.length} operations from the operations log`);
   }
 
+  let allSuccess = true;
+
   for (const op of ops) {
     // Shut down if we've gone offline mid-run
     if (!isOnline()) {
-      return;
+      return false;
     }
 
     let success = false;
     try {
       success = await processOperation(op);
+      if (!success) {
+        allSuccess = false;
+      }
     } catch (err) {
+      allSuccess = false;
       continue;
     }
 
@@ -59,6 +65,7 @@ async function doProcessUnprocessedOperations(): Promise<void> {
   }
 
   logger.info(`Finished processing operations`);
+  return allSuccess;
 }
 
 let lastConnectionState: ConnectionState | null = null;
@@ -186,8 +193,15 @@ export function processOperation(op: Operation): Promise<boolean> {
       );
     }
     case "workspace_items_moved_to_new_workspace": {
-      // TODO
-      return Promise.resolve(false);
+      return processWorkspaceItemsMovedToNewWorkspace(
+        details.oldWorkspaceId,
+        details.newWorkspaceId,
+        details.targetFolderId,
+        details.topLevelItems,
+        details.runbooksMovedWithName,
+        details.createChangeRef,
+        details.deleteChangeRef,
+      );
     }
   }
   // Ensure all possible operation types are checked
@@ -519,6 +533,46 @@ async function processWorkspaceImportRunbooks(
     if (err instanceof api.HttpResponseError) {
       logger.error("Failed to import runbooks:", JSON.stringify(err.data));
       expireChangeRef(workspaceId, changeRef);
+      return true;
+    } else {
+      // Appears as though we're offline
+      return false;
+    }
+  }
+}
+
+async function processWorkspaceItemsMovedToNewWorkspace(
+  oldWorkspaceId: string,
+  newWorkspaceId: string,
+  targetFolderId: string | null,
+  topLevelItems: string[],
+  runbooksMovedWithNames: { id: string; name: string }[],
+  createChangeRef: ChangeRef,
+  deleteChangeRef: ChangeRef,
+): Promise<boolean> {
+  try {
+    await api.updateFolder(oldWorkspaceId, {
+      type: "items_moved_workspaces",
+      newWorkspaceId,
+      targetFolderId,
+      topLevelItems,
+      runbooksMovedWithNames: runbooksMovedWithNames,
+      createChangeRef,
+      deleteChangeRef,
+    });
+    return true;
+  } catch (err) {
+    if (err instanceof api.HttpResponseError) {
+      logger.error("Failed to move items to new workspace:", JSON.stringify(err.data));
+      expireChangeRef(newWorkspaceId, createChangeRef);
+      expireChangeRef(oldWorkspaceId, deleteChangeRef);
+      for (const { id } of runbooksMovedWithNames) {
+        const runbook = await Runbook.load(id);
+        if (runbook) {
+          runbook.workspaceId = oldWorkspaceId;
+          await runbook.save();
+        }
+      }
       return true;
     } else {
       // Appears as though we're offline

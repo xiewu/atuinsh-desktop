@@ -22,6 +22,7 @@ export interface AtuinUiState {
   sidebarWidth: number;
   sidebarOpen: boolean;
   sidebarClickStyle: "link" | "explorer";
+  lastSidebarDragInfo: { itemIds: string[]; sourceWorkspaceId: string } | undefined;
 
   lightModeEditorTheme: string;
   darkModeEditorTheme: string;
@@ -41,6 +42,7 @@ export interface AtuinUiState {
   setSidebarWidth: (width: number) => void;
   setSidebarOpen: (open: boolean) => void;
   setSidebarClickStyle: (style: "link" | "explorer") => void;
+  setLastSidebarDragInfo: (info?: { itemIds: string[]; sourceWorkspaceId: string }) => void;
 
   setLightModeEditorTheme: (theme: string) => void;
   setDarkModeEditorTheme: (theme: string) => void;
@@ -81,6 +83,7 @@ export const createUiState: StateCreator<AtuinUiState> = (set, get, _store): Atu
   sidebarWidth: 250,
   sidebarOpen: true,
   sidebarClickStyle: "link",
+  lastSidebarDragInfo: undefined,
 
   lightModeEditorTheme: "githubLight",
   darkModeEditorTheme: "githubDark",
@@ -102,6 +105,8 @@ export const createUiState: StateCreator<AtuinUiState> = (set, get, _store): Atu
   setSidebarWidth: (width: number) => set(() => ({ sidebarWidth: width })),
   setSidebarOpen: (open: boolean) => set(() => ({ sidebarOpen: open })),
   setSidebarClickStyle: (style: "link" | "explorer") => set(() => ({ sidebarClickStyle: style })),
+  setLastSidebarDragInfo: (info?: { itemIds: string[]; sourceWorkspaceId: string }) =>
+    set(() => ({ lastSidebarDragInfo: info })),
 
   setLightModeEditorTheme: (theme: string) => set(() => ({ lightModeEditorTheme: theme })),
   setDarkModeEditorTheme: (theme: string) => set(() => ({ darkModeEditorTheme: theme })),

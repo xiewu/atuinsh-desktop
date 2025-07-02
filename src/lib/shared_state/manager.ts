@@ -32,6 +32,7 @@ function applyOptimisticUpdates<T>(data: T, updates: Array<OptimisticUpdate>) {
  */
 export class SharedStateManager<T extends SharableState> {
   private static instanceMap = new Map<string, Rc<SharedStateManager<any>>>();
+  private static logger = new Logger("SharedStateManager (static)");
 
   public readonly stateId: string;
 
@@ -63,7 +64,19 @@ export class SharedStateManager<T extends SharableState> {
   public static stopInstance(stateId: string) {
     if (this.instanceMap.has(stateId)) {
       const rc = this.instanceMap.get(stateId)!;
+      const info = Rc.inspect(rc);
+      if (info.refCount > 1) {
+        this.logger.warn(
+          `Stopping shared state manager for ${stateId} but strong ref count is higher than the expected of 1: ${info.refCount}`,
+        );
+      }
       Rc.dispose(rc);
+
+      if (this.instanceMap.has(stateId)) {
+        this.logger.error(
+          `Shared state manager for ${stateId} still exists in the map after stopInstance()`,
+        );
+      }
     }
   }
 

@@ -115,6 +115,15 @@ export type WorkspaceFolderOperation =
       runbookIds: string[];
       parentId: string | null;
       changeRef: ChangeRef;
+    }
+  | {
+      type: "items_moved_workspaces";
+      newWorkspaceId: string;
+      targetFolderId: string | null;
+      topLevelItems: string[];
+      runbooksMovedWithNames: { id: string; name: string }[];
+      createChangeRef: ChangeRef;
+      deleteChangeRef: ChangeRef;
     };
 
 export function updateFolder(workspaceId: string, operation: WorkspaceFolderOperation) {

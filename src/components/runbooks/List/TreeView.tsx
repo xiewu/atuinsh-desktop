@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { RefCallback, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NodeApi, NodeRendererProps, Tree, TreeApi } from "react-arborist";
 import useResizeObserver from "use-resize-observer";
 import RunbookTreeRow, { RunbookRowData, RunbookTreeRowProps } from "./TreeView/RunbookTreeRow";
 import FolderTreeRow, { FolderRowData, FolderTreeRowProps } from "./TreeView/FolderTreeRow";
 import { useDragDropManager } from "react-dnd";
+import debounce from "lodash.debounce";
+import { useStore } from "@/state/store";
+import { actions } from "react-arborist/dist/module/state/dnd-slice";
 
 export type TreeRowData = FolderRowData | RunbookRowData;
 
@@ -22,14 +25,9 @@ interface MoveHandlerArgs<T> {
   index: number;
 }
 
-interface DragCheckArgs<T> {
-  parentNode: NodeApi<T> | null;
-  dragNodes: NodeApi<T>[];
-  index: number;
-}
-
 interface TreeViewProps {
   data: TreeRowData[];
+  workspaceId?: string;
   sortBy: SortBy;
   selectedItemId: string | null;
   initialOpenState: Record<string, boolean>;
@@ -37,14 +35,23 @@ interface TreeViewProps {
   onActivateItem: (itemId: string) => void;
   onNewFolder: (parentId: string | null) => void;
   onRenameFolder: (folderId: string, newName: string) => void;
-  onMoveItems: (ids: string[], parentId: string | null, index: number) => void;
+  onMoveItems: (
+    ids: string[],
+    sourceWorkspaceId: string,
+    parentId: string | null,
+    index: number,
+  ) => void;
   onContextMenu: (evt: React.MouseEvent<HTMLDivElement>, itemId: string) => void;
   onToggleFolder: (nodeId: string) => void;
 }
 
 export default function TreeView(props: TreeViewProps) {
   const { ref: resizeRef, width } = useResizeObserver();
+  const [divElement, setDivElement] = useState<HTMLDivElement | null>(null);
   const treeRef = useRef<TreeApi<TreeRowData> | null>(null);
+
+  // See https://github.com/brimdata/react-arborist/issues/230#issuecomment-2404208311
+  const dragDropManager = useDragDropManager();
 
   function handleActivate(node: NodeApi<TreeRowData>) {
     props.onActivateItem(node.data.id); // TODO: rename
@@ -73,26 +80,71 @@ export default function TreeView(props: TreeViewProps) {
 
   const [rowCount, setRowCount] = useState<number | null>(null);
 
+  const mouseMoveCallback = useMemo(() => {
+    return debounce(() => {
+      const monitor = dragDropManager.getMonitor();
+      if (monitor.isDragging()) {
+        const item = monitor.getItem();
+        const { setLastSidebarDragInfo } = useStore.getState();
+        if (item) {
+          setLastSidebarDragInfo({
+            itemIds: item.dragIds,
+            sourceWorkspaceId: props.workspaceId!,
+          });
+        }
+      }
+    }, 100);
+  }, []);
+
+  // Both the resize observer and the mouse move callback need to be
+  // attached to the same element, so we use a composite ref.
+  const compositeRef: RefCallback<HTMLDivElement> = useCallback((el) => {
+    if (el) {
+      resizeRef(el);
+      setDivElement(el);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (divElement) {
+      divElement.addEventListener("mousemove", mouseMoveCallback);
+    }
+    return () => {
+      if (divElement) {
+        divElement.removeEventListener("mousemove", mouseMoveCallback);
+      }
+    };
+  }, [divElement]);
+
   function handleToggle(nodeId: string) {
     setTimeout(() => setRowCount(treeRef.current?.visibleNodes.length || 10));
     props.onToggleFolder(nodeId);
   }
 
   function handleMove(args: MoveHandlerArgs<TreeRowData>) {
-    const ids = args.dragIds;
+    const { lastSidebarDragInfo, setLastSidebarDragInfo } = useStore.getState();
+    setLastSidebarDragInfo(undefined);
+
+    let ids = args.dragIds;
+    let sourceWorkspaceId = props.workspaceId;
     const parentId = args.parentId;
     const index = args.index;
 
-    props.onMoveItems(ids, parentId, index);
-  }
-
-  function checkDisableDrop({ dragNodes }: DragCheckArgs<TreeRowData>) {
-    // When dragging nodes over a different tree,
-    // `dragNodes` will be empty.
-    if (dragNodes.length === 0) {
-      return true;
+    // If the dragIds are empty, it means we've dragged items from some other workspace into this workspace
+    // (which isn't supported natively by react-arborist). The source workspace and dragged item IDs are
+    // stored in the state via a manual mouse-move handler (below).
+    if (args.dragIds.length == 0) {
+      if (lastSidebarDragInfo) {
+        ids = lastSidebarDragInfo.itemIds;
+        sourceWorkspaceId = lastSidebarDragInfo.sourceWorkspaceId;
+      }
     }
-    return false;
+
+    if (ids.length > 0 && sourceWorkspaceId) {
+      // HACK [mkt]: We need to manually dispatch a dragEnd to stop the drag indicator from showing.
+      treeRef.current?.store.dispatch(actions.dragEnd());
+      props.onMoveItems(ids, sourceWorkspaceId, parentId, index);
+    }
   }
 
   // Hack to allow TreeRow to be memoized, which keeps
@@ -141,15 +193,16 @@ export default function TreeView(props: TreeViewProps) {
     if (tree) {
       treeRef.current = tree;
       props.onTreeApiReady(tree);
-      setTimeout(() => setRowCount(treeRef.current?.visibleNodes.length || 10), 25);
+      setTimeout(() => setRowCount(treeRef.current?.visibleNodes.length || 1), 25);
     }
   }, []);
 
-  // See https://github.com/brimdata/react-arborist/issues/230#issuecomment-2404208311
-  const dragDropManager = useDragDropManager();
+  const height = useMemo(() => {
+    return Math.max((rowCount || 1) * 24 + 8, 10);
+  }, [rowCount]);
 
   return (
-    <div ref={resizeRef} className="w-[98%] m-auto">
+    <div ref={compositeRef} className="w-[98%] m-auto">
       <Tree
         ref={ref}
         data={props.data}
@@ -160,9 +213,8 @@ export default function TreeView(props: TreeViewProps) {
         openByDefault={true}
         initialOpenState={props.initialOpenState}
         width={width}
-        height={Math.max((rowCount || 10) * 24 + 8, 30)}
+        height={height}
         padding={4}
-        disableDrop={checkDisableDrop}
         onActivate={handleActivate}
         onMove={handleMove}
         onSelect={handleSelect}

@@ -96,6 +96,18 @@ impl SharedStateHandle {
         receiver.await?
     }
 
+    pub async fn delete_document(&self, name: String) -> Result<()> {
+        let (sender, receiver) = oneshot::channel();
+
+        self.sender
+            .send(SharedStateMessage::DeleteDocument {
+                name,
+                reply_to: sender,
+            })
+            .await?;
+        receiver.await?
+    }
+
     pub async fn push_optimistic_update(
         &self,
         name: String,
@@ -169,6 +181,10 @@ impl SharedState {
                     reply_to,
                 } => {
                     let res = self.update_document(name, value, version).await;
+                    reply_to.send(res).unwrap();
+                }
+                DeleteDocument { name, reply_to } => {
+                    let res = self.delete_document(name).await;
                     reply_to.send(res).unwrap();
                 }
                 PushOptimisticUpdate {
@@ -265,6 +281,20 @@ impl SharedState {
         Ok(())
     }
 
+    async fn delete_document(&self, name: String) -> Result<()> {
+        let _ = sqlx::query("DELETE FROM documents WHERE name = ?")
+            .bind(&name)
+            .execute(&self.pool)
+            .await?;
+
+        let _ = sqlx::query("DELETE FROM optimistic_updates WHERE document_name = ?")
+            .bind(&name)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
     async fn push_optimistic_update(&self, name: String, update: OptimisticUpdate) -> Result<()> {
         let _ = sqlx::query("INSERT INTO optimistic_updates (id, document_name, delta, change_ref, source_version) VALUES (?, ?, ?, ?, ?)")
             .bind(Uuid::now_v7().to_string())
@@ -315,6 +345,10 @@ pub enum SharedStateMessage {
         name: String,
         value: serde_json::Value,
         version: i64,
+        reply_to: oneshot::Sender<Result<()>>,
+    },
+    DeleteDocument {
+        name: String,
         reply_to: oneshot::Sender<Result<()>>,
     },
     PushOptimisticUpdate {
@@ -369,6 +403,19 @@ pub async fn update_shared_state_document(
     state
         .shared_state()
         .update_document(name, value, version)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn delete_shared_state_document(
+    state: tauri::State<'_, AtuinState>,
+    name: String,
+) -> Result<(), String> {
+    state
+        .shared_state()
+        .delete_document(name)
         .await
         .map_err(|e| e.to_string())?;
     Ok(())

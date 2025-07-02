@@ -5,7 +5,17 @@ import SSHBus from "@/lib/buses/ssh";
 import { addToast } from "@heroui/react";
 
 export async function sshConnect(userHost: string): Promise<void> {
-  let [username, host] = userHost.split("@");
+  let username: string | undefined;
+  let host: string;
+  
+  // Handle both "user@host" and just "host" formats
+  if (userHost.includes("@")) {
+    [username, host] = userHost.split("@");
+  } else {
+    // No username specified, let SSH config determine it
+    username = undefined;
+    host = userHost;
+  }
   
   try {
     // Set status to idle while connecting

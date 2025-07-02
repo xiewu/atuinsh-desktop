@@ -20,22 +20,13 @@ pub async fn ssh_connect(
 ) -> Result<(), String> {
     let ssh_pool = state.ssh_pool();
 
-    let host = if !host.contains(":") {
-        format!("{}:22", host)
-    } else {
-        host
-    };
-
     // Determine authentication method
     let auth = match (password, key_path) {
         (Some(pass), _) => Some(Authentication::Password(
             username.clone().unwrap_or_default(),
             pass,
         )),
-        (_, Some(path)) => Some(Authentication::Key(
-            username.clone().unwrap_or_default(),
-            PathBuf::from(path),
-        )),
+        (_, Some(path)) => Some(Authentication::Key(PathBuf::from(path))),
         _ => None,
     };
 
@@ -82,17 +73,11 @@ pub async fn ssh_exec(
     state: tauri::State<'_, AtuinState>,
     app: tauri::AppHandle,
     host: String,
-    username: &str,
+    username: Option<&str>,
     channel: &str,
     command: &str,
     interpreter: &str,
 ) -> Result<String, String> {
-    let host = if !host.contains(":") {
-        format!("{}:22", host)
-    } else {
-        host
-    };
-
     let ssh_pool = state.ssh_pool();
     let (sender, mut receiver) = tokio::sync::mpsc::channel(100);
     let (result_tx, result_rx) = tokio::sync::oneshot::channel();
@@ -151,19 +136,13 @@ pub async fn ssh_open_pty(
     state: tauri::State<'_, AtuinState>,
     app: tauri::AppHandle,
     host: &str,
-    username: &str,
+    username: Option<&str>,
     channel: &str,
     runbook: &str,
     block: &str,
     width: u16,
     height: u16,
 ) -> Result<(), String> {
-    let host = if !host.contains(":") {
-        format!("{}:22", host)
-    } else {
-        host.to_string()
-    };
-
     let ssh_pool = state.ssh_pool();
 
     // Create channels for bidirectional communication
@@ -171,14 +150,7 @@ pub async fn ssh_open_pty(
 
     // Start the PTY session
     let pty_tx = ssh_pool
-        .open_pty(
-            host.as_str(),
-            username,
-            channel,
-            output_sender,
-            width,
-            height,
-        )
+        .open_pty(host, username, channel, output_sender, width, height)
         .await
         .map_err(|e| e.to_string())?;
 

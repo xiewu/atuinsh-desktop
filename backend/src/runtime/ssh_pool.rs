@@ -10,6 +10,7 @@ use crate::pty::PtyMetadata;
 use crate::runtime::ssh::pool::Pool;
 use crate::runtime::ssh::session::{Authentication, Session};
 use eyre::Result;
+use std::sync::Arc;
 
 use super::pty_store::PtyLike;
 
@@ -51,7 +52,7 @@ pub enum SshPoolMessage {
         host: String,
         username: Option<String>,
         auth: Option<Authentication>,
-        reply_to: oneshot::Sender<Result<Session>>,
+        reply_to: oneshot::Sender<Result<Arc<Session>>>,
     },
     Disconnect {
         host: String,
@@ -135,7 +136,7 @@ impl SshPoolHandle {
         host: &str,
         username: Option<&str>,
         auth: Option<Authentication>,
-    ) -> Result<Session> {
+    ) -> Result<Arc<Session>> {
         let (sender, receiver) = oneshot::channel();
         let msg = SshPoolMessage::Connect {
             host: host.to_string(),
@@ -182,7 +183,7 @@ impl SshPoolHandle {
     pub async fn exec(
         &self,
         host: &str,
-        username: &str,
+        username: Option<&str>,
         interpreter: &str,
         command: &str,
         channel: &str,
@@ -192,7 +193,7 @@ impl SshPoolHandle {
         let (sender, receiver) = oneshot::channel();
         let msg = SshPoolMessage::Exec {
             host: host.to_string(),
-            username: Some(username.to_string()),
+            username: username.map(|u| u.to_string()),
             interpreter: interpreter.to_string(),
             command: command.to_string(),
             channel: channel.to_string(),
@@ -228,7 +229,7 @@ impl SshPoolHandle {
     pub async fn open_pty(
         &self,
         host: &str,
-        username: &str,
+        username: Option<&str>,
         channel: &str,
         output_stream: mpsc::Sender<String>,
         width: u16,
@@ -238,7 +239,7 @@ impl SshPoolHandle {
 
         let msg = SshPoolMessage::OpenPty {
             host: host.to_string(),
-            username: Some(username.to_string()),
+            username: username.map(|u| u.to_string()),
             channel: channel.to_string(),
             output_stream,
             reply_to: reply_sender,

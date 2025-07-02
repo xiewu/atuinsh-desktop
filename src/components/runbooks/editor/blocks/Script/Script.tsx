@@ -297,7 +297,14 @@ const ScriptBlock = ({
 
     if (connectionBlock && connectionBlock.type === "ssh-connect") {
       try {
-        let [username, host] = connectionBlock.props.userHost.split("@");
+        // Parse user@host format, handle cases where username is not provided
+        let username, host;
+        if (connectionBlock.props.userHost.includes("@")) {
+          [username, host] = connectionBlock.props.userHost.split("@");
+        } else {
+          username = null;
+          host = connectionBlock.props.userHost;
+        }
 
         tauriUnlisten.current = await listen("ssh_exec_finished:" + channel, async () => {
           onStop();

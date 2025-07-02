@@ -223,19 +223,33 @@ impl PtyStore {
 
         if let Some(pty) = pty {
             log::info!("Killing pty: {}", pty.metadata().pid);
-            pty.kill_child().await.unwrap();
+            if let Err(e) = pty.kill_child().await {
+                log::debug!(
+                    "Failed to kill PTY child {}: {} (likely already closed)",
+                    pty.metadata().pid,
+                    e
+                );
+            }
         }
     }
 
     async fn write_pty(&mut self, id: Uuid, data: Bytes) {
         if let Some(pty) = self.pty_sessions.get_mut(&id) {
-            pty.send_bytes(data).await.unwrap();
+            if let Err(e) = pty.send_bytes(data).await {
+                log::debug!(
+                    "Failed to send bytes to PTY {}: {} (likely session closed)",
+                    id,
+                    e
+                );
+            }
         }
     }
 
     async fn pty_resize(&mut self, id: Uuid, rows: u16, cols: u16) {
         if let Some(pty) = self.pty_sessions.get_mut(&id) {
-            pty.resize(rows, cols).await.unwrap();
+            if let Err(e) = pty.resize(rows, cols).await {
+                log::debug!("Failed to resize PTY {}: {} (likely session closed)", id, e);
+            }
         }
     }
 }

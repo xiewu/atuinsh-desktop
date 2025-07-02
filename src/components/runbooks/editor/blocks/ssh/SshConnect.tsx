@@ -54,7 +54,7 @@ const SshConnect = ({ userHost, onUserHostChange, isEditable }: SshConnectProps)
 
         <div className="flex-1">
           <Input
-            placeholder="root@localhost:22"
+            placeholder="myserver or user@host:port"
             value={userHost}
             autoComplete="off"
             autoCapitalize="off"

@@ -93,7 +93,6 @@ export const RunBlock = ({
     return colorMode === "dark" ? darkModeEditorTheme : lightModeEditorTheme;
   }, [colorMode, lightModeEditorTheme, darkModeEditorTheme]);
 
-
   // This ensures that the first time we run a block, it executes the code. But subsequent mounts of an already-existing pty
   // don't run the code again.
   // We have to write to the pty from the terminal component atm, because it needs to be listening for data from the pty before
@@ -123,10 +122,9 @@ export const RunBlock = ({
 
   const sshBorderClass = useMemo(() => {
     if (!sshParent) return "";
-    
-      return "border-2 border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.4)] rounded-md transition-all duration-300";
-  }, [sshParent]);
 
+    return "border-2 border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.4)] rounded-md transition-all duration-300";
+  }, [sshParent]);
 
   useEffect(() => {
     setIsRunning(pty != null);
@@ -193,7 +191,17 @@ export const RunBlock = ({
     // If SSH block found, use SSH connection
     if (connectionBlock && connectionBlock.type === "ssh-connect") {
       let pty = uuidv7();
-      let [user, host] = connectionBlock.props.userHost.split("@");
+      let user: string | undefined;
+      let host: string;
+
+      // Handle both "user@host" and just "host" formats
+      if (connectionBlock.props.userHost.includes("@")) {
+        [user, host] = connectionBlock.props.userHost.split("@");
+      } else {
+        // No username specified, let SSH config determine it
+        user = undefined;
+        host = connectionBlock.props.userHost;
+      }
 
       try {
         await invoke<void>("ssh_open_pty", {
@@ -220,7 +228,7 @@ export const RunBlock = ({
     // Default to local execution if Host block found or no connection block found
     // Get the custom shell from settings if available
     const customShell = await Settings.terminalShell();
-    
+
     try {
       let pty = await invoke<string>("pty_open", {
         cwd,
@@ -264,7 +272,7 @@ export const RunBlock = ({
         setIsLoading(false);
       }
 
-      track_event("runbooks.block.execute", {type: "terminal"});
+      track_event("runbooks.block.execute", { type: "terminal" });
     },
     [isRunning, terminal.code, terminal.id, currentRunbookId, onRun, openPty],
   );
@@ -379,7 +387,7 @@ export const RunBlock = ({
       setName={setName}
       inlineHeader
       setDependency={setDependency}
-      hideChild={(!terminal.outputVisible || !isRunning)}
+      hideChild={!terminal.outputVisible || !isRunning}
       header={
         <>
           <div className="flex flex-row justify-between w-full">
@@ -477,7 +485,7 @@ export const RunBlock = ({
 
       {/* Fullscreen Terminal Modal */}
       {isFullscreen && pty && (
-        <div 
+        <div
           className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md z-[9999]"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
@@ -487,14 +495,15 @@ export const RunBlock = ({
         >
           <div className="h-full bg-background overflow-hidden rounded-lg shadow-2xl flex flex-col">
             {/* Fullscreen Terminal Header */}
-            <div 
+            <div
               data-tauri-drag-region
               className="flex justify-between items-center w-full border-default-200/50 bg-content1/95 backdrop-blur-sm flex-shrink-0"
             >
-              <div data-tauri-drag-region className="flex items-center gap-3 ml-16 w-full justify-between">
-                <span className="text-sm text-default-700">
-                  {terminal.name || "Terminal"}
-                </span>
+              <div
+                data-tauri-drag-region
+                className="flex items-center gap-3 ml-16 w-full justify-between"
+              >
+                <span className="text-sm text-default-700">{terminal.name || "Terminal"}</span>
                 {isRunning && commandRunning && <Spinner size="sm" />}
                 {isRunning && commandDuration && (
                   <Chip
@@ -508,16 +517,11 @@ export const RunBlock = ({
                   </Chip>
                 )}
               </div>
-              <Button
-                isIconOnly
-                size="sm"
-                variant="flat"
-                onPress={() => setIsFullscreen(false)}
-              >
+              <Button isIconOnly size="sm" variant="flat" onPress={() => setIsFullscreen(false)}>
                 <Minimize2 size={18} />
               </Button>
             </div>
-            
+
             {/* Fullscreen Terminal Content */}
             <div className="bg-black min-h-0 flex-1 overflow-hidden">
               <Terminal

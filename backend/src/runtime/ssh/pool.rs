@@ -1,6 +1,7 @@
 use super::session::{Authentication, Session};
 use eyre::Result;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 // A pool of ssh connections
 // This avoids opening several ssh connections to the same host
@@ -9,8 +10,8 @@ use std::collections::HashMap;
 
 pub struct Pool {
     /// A map of ssh connections, host -> session
-    /// Session is safe to clone and use concurrently
-    pub connections: HashMap<String, Session>,
+    /// Session is wrapped in Arc to be shared
+    pub connections: HashMap<String, Arc<Session>>,
 }
 
 impl Default for Pool {
@@ -33,15 +34,16 @@ impl Pool {
         host: &str,
         username: Option<&str>,
         auth: Option<Authentication>,
-    ) -> Result<Session> {
+    ) -> Result<Arc<Session>> {
         let username = username.unwrap_or("root");
 
         if let Some(session) = self.get(host, username) {
-            Ok(session.clone())
+            Ok(session)
         } else {
-            let session = Session::open(host).await?;
+            let mut session = Session::open(host).await?;
             session.authenticate(auth, Some(username)).await?;
 
+            let session = Arc::new(session);
             let key = format!("{}@{}", username, host);
             self.connections.insert(key, session.clone());
 
@@ -49,7 +51,7 @@ impl Pool {
         }
     }
 
-    pub fn get(&self, host: &str, username: &str) -> Option<Session> {
+    pub fn get(&self, host: &str, username: &str) -> Option<Arc<Session>> {
         self.connections
             .get(&format!("{}@{}", username, host))
             .cloned()

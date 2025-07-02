@@ -1,121 +1,409 @@
 // Handle making SSH connections. Do not manage or pool them, just handle the actual plumbing.
-// This is essentially a wrapper around the ssh2 crate.
+// This is essentially a wrapper around the russh crate.
 
 use bytes::Bytes;
-use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::sync::{mpsc::Sender, oneshot};
 
-use tokio::net::TcpStream;
-
-use async_ssh2_lite::AsyncSession;
 use eyre::Result;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use russh::client::Handle;
+use russh::*;
+use russh_config::*;
+use russh_keys::*;
 
 use crate::runtime::ssh_pool::SshPoolHandle;
 
-/// An ssh session, wrapping the underlying ssh2 with async-safe primitives
-/// Safe to clone across threads - the session is managed behind a mutex (within ssh2)
-#[derive(Clone)]
+/// An ssh session, wrapping the underlying russh with async-safe primitives
 pub struct Session {
-    session: AsyncSession<async_ssh2_lite::TokioTcpStream>,
+    session: Handle<Client>,
+    ssh_config: SshConfig,
+}
+
+/// SSH connection configuration resolved from SSH config
+#[derive(Debug, Clone)]
+pub struct SshConfig {
+    pub hostname: String,
+    pub port: u16,
+    pub username: Option<String>,
+    pub identity_files: Vec<PathBuf>,
+    pub proxy_command: Option<String>,
+    pub proxy_jump: Option<String>,
+    pub identity_agent: Option<String>,
 }
 
 /// Authentication methods
 pub enum Authentication {
-    Key(String, PathBuf),
+    Key(PathBuf),
     Password(String, String),
 }
 
+/// SSH client implementation for russh
+pub struct Client;
+
+#[async_trait::async_trait]
+impl russh::client::Handler for Client {
+    type Error = russh::Error;
+
+    async fn check_server_key(
+        &mut self,
+        _server_public_key: &key::PublicKey,
+    ) -> Result<bool, Self::Error> {
+        // For now, accept all server keys
+        // In production, you'd want to implement proper host key verification
+        Ok(true)
+    }
+}
+
 impl Session {
-    /// Open a new SSH session to the given host, and handshake. Do not authenticate.
-    pub async fn open(host: &str) -> Result<Self> {
-        let tcp = TcpStream::connect(host).await?;
-        let mut sess = AsyncSession::new(tcp, None)?;
-
-        sess.handshake().await?;
-
-        // only applies for read/write operations to channels
-        // Without this, if we are blocking on a read to channel A, reads to channel B will block indefinitely.
-        // no bueno when we're going to want to be multiplexing a bunch of shit all over the place
-
-        Ok(Session { session: sess })
+    /// Parse IdentityAgent from SSH config manually (since russh-config doesn't support it)
+    fn parse_identity_agent(host: &str) -> Option<String> {
+        Self::parse_identity_agent_from_path(host, &dirs::home_dir()?.join(".ssh").join("config"))
     }
 
-    /// Password authentication with timeout
-    async fn password_auth(&self, username: &str, password: &str) -> Result<()> {
-        self.session.userauth_password(username, password).await?;
+    /// Helper function to parse IdentityAgent from a specific config file path
+    fn parse_identity_agent_from_path(host: &str, config_path: &std::path::Path) -> Option<String> {
 
-        Ok(())
-    }
+        if !config_path.exists() {
+            return None;
+        }
 
-    /// Public key authentication with timeout
-    async fn key_auth(&self, username: &str, _user: &str, key_path: PathBuf) -> Result<()> {
-        self.session
-            .userauth_pubkey_file(username, None, &key_path, None)
-            .await?;
+        let content = std::fs::read_to_string(config_path).ok()?;
+        let mut current_host_matches = false;
 
-        Ok(())
-    }
-
-    async fn agent_auth(&self, username: &str) -> Result<bool> {
-        let mut agent = self.session.agent()?;
-        agent.connect().await?;
-        agent.list_identities().await?;
-
-        let identities = agent.identities()?;
-
-        for key in identities {
-            let username = username.to_string();
-            match agent.userauth(&username, &key).await {
-                Ok(()) => {
-                    log::debug!("Authenticated with host");
-                }
-                Err(e) => {
-                    log::debug!("Failed to authenticate with host: {}", e);
-                }
+        for line in content.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
             }
 
-            // the above should handle the case where the agent is authenticated, but I'd prefer we check explicitly
-            if self.session.authenticated() {
-                return Ok(true);
+            if let Some(host_line) = line
+                .strip_prefix("Host ")
+                .or_else(|| line.strip_prefix("host "))
+            {
+                // Check if this host section matches our target using glob patterns
+                let hosts: Vec<&str> = host_line.split_whitespace().collect();
+                current_host_matches = hosts.iter().any(|pattern| {
+                    if pattern == &"*" {
+                        true
+                    } else if pattern.contains('*') || pattern.contains('?') {
+                        // Use glob pattern matching
+                        match glob::Pattern::new(pattern) {
+                            Ok(glob_pattern) => glob_pattern.matches(host),
+                            Err(_) => false,
+                        }
+                    } else {
+                        pattern == &host
+                    }
+                });
+            } else if current_host_matches {
+                // Parse IdentityAgent under the matching host
+                if let Some((key, value)) = line.split_once(' ').or_else(|| line.split_once('\t')) {
+                    let key = key.trim().to_lowercase();
+                    let value = value.trim().trim_matches('"');
+
+                    if key == "identityagent" {
+                        // Expand ~ to home directory
+                        if let Some(pref) = value.strip_prefix("~/") {
+                            if let Some(home) = dirs::home_dir() {
+                                return Some(home.join(pref).to_string_lossy().to_string());
+                            }
+                        }
+                        return Some(value.to_string());
+                    }
+                }
             }
         }
 
-        Ok(false)
+        None
     }
 
-    /// Authenticate the session. If a username is provided, use it for authentication - otherwise we will use "root"
+    /// Parse user@hostname:port format and extract components
+    fn parse_host_string(input: &str) -> (Option<String>, String, Option<u16>) {
+        // Handle user@host:port, user@host, host:port, or just host
+        let (user_part, host_part) = if let Some(at_pos) = input.find('@') {
+            let user = input[..at_pos].to_string();
+            let host_part = &input[at_pos + 1..];
+            (Some(user), host_part)
+        } else {
+            (None, input)
+        };
+
+        // Now parse host:port from the host part
+        let (hostname, port) = if let Some(colon_pos) = host_part.rfind(':') {
+            let host = host_part[..colon_pos].to_string();
+            let port_str = &host_part[colon_pos + 1..];
+
+            // Try to parse port as number
+            match port_str.parse::<u16>() {
+                Ok(port) => (host, Some(port)),
+                Err(_) => {
+                    // If port parsing fails, treat the whole thing as hostname
+                    (host_part.to_string(), None)
+                }
+            }
+        } else {
+            (host_part.to_string(), None)
+        };
+
+        (user_part, hostname, port)
+    }
+
+    /// Resolve SSH configuration for a host using ~/.ssh/config with russh-config
+    fn resolve_ssh_config(host: &str) -> SshConfig {
+        // Parse the input to extract user, hostname, and port
+        let (input_user, hostname, input_port) = Self::parse_host_string(host);
+
+        let default_config = SshConfig {
+            hostname: hostname.clone(),
+            port: input_port.unwrap_or(22),
+            username: input_user.clone(),
+            identity_files: vec![],
+            proxy_command: None,
+            proxy_jump: None,
+            identity_agent: None,
+        };
+
+        // Try to read SSH config using russh-config
+        let config_path = dirs::home_dir().map(|home| home.join(".ssh").join("config"));
+
+        if let Some(_path) = config_path {
+            // Use russh-config to resolve host settings with glob pattern support
+            // Pass only the hostname part to russh-config
+            match parse_home(&hostname) {
+                Ok(config) => {
+                    let hostname = if config.host_name.is_empty() {
+                        hostname.clone()
+                    } else {
+                        config.host_name
+                    };
+                    // Use input port if specified, otherwise use config port, otherwise default
+                    let port = input_port.unwrap_or(config.port);
+                    // Use input username if specified, otherwise use config username
+                    let username = input_user.or({
+                        if config.user.is_empty() {
+                            None
+                        } else {
+                            Some(config.user)
+                        }
+                    });
+
+                    // Collect identity files from config
+                    let mut identity_files = Vec::new();
+                    if let Some(identity_file) = config.identity_file {
+                        if let Some(home) = dirs::home_dir() {
+                            let path = if let Some(pref) = identity_file.strip_prefix("~/") {
+                                home.join(pref)
+                            } else if identity_file.starts_with('/') {
+                                PathBuf::from(identity_file)
+                            } else {
+                                home.join(".ssh").join(identity_file)
+                            };
+                            if path.exists() {
+                                identity_files.push(path);
+                            }
+                        }
+                    }
+
+                    let proxy_command = config.proxy_command.clone();
+                    let proxy_jump = config.proxy_jump.clone();
+
+                    // Parse IdentityAgent manually since russh-config doesn't support it
+                    let identity_agent = Self::parse_identity_agent(&hostname);
+
+                    log::debug!("Resolved SSH config for {}: hostname={}, port={}, username={:?}, identity_files={:?}, proxy_command={:?}, proxy_jump={:?}",
+                        host, hostname, port, username, identity_files, proxy_command, proxy_jump);
+
+                    return SshConfig {
+                        hostname,
+                        port,
+                        username,
+                        identity_files,
+                        proxy_command,
+                        proxy_jump,
+                        identity_agent,
+                    };
+                }
+                Err(e) => {
+                    log::warn!("Failed to parse SSH config: {}", e);
+                }
+            }
+        }
+
+        log::debug!("No SSH config found for {}, using defaults", host);
+        default_config
+    }
+
+    /// Open a new SSH session to the given host, and connect
+    pub async fn open(host: &str) -> Result<Self> {
+        let ssh_config = Self::resolve_ssh_config(host);
+
+        let config = russh::client::Config::default();
+        let sh = Client;
+
+        // Parse the hostname for proxy connections
+        let (_, hostname, _) = Self::parse_host_string(host);
+
+        // Handle ProxyCommand and ProxyJump
+        let session = if ssh_config.proxy_command.is_some() || ssh_config.proxy_jump.is_some() {
+            log::debug!(
+                "Using proxy for connection to {} (proxy_command: {:?}, proxy_jump: {:?})",
+                host,
+                ssh_config.proxy_command,
+                ssh_config.proxy_jump
+            );
+
+            // Use russh-config's stream method to handle proxying
+            match parse_home(&hostname) {
+                Ok(parsed_config) => {
+                    let stream = parsed_config.stream().await?;
+                    russh::client::connect_stream(Arc::new(config), stream, sh).await?
+                }
+                Err(e) => {
+                    log::warn!("Failed to create proxy stream: {}", e);
+                    // Fallback to direct connection
+                    let address = format!("{}:{}", ssh_config.hostname, ssh_config.port);
+                    log::debug!("Falling back to direct connection: {}", address);
+                    russh::client::connect(Arc::new(config), address.as_str(), sh).await?
+                }
+            }
+        } else {
+            // Direct connection
+            let address = format!("{}:{}", ssh_config.hostname, ssh_config.port);
+            log::debug!("Connecting directly to: {}", address);
+            russh::client::connect(Arc::new(config), address.as_str(), sh).await?
+        };
+
+        Ok(Session {
+            session,
+            ssh_config,
+        })
+    }
+
+    /// Password authentication
+    pub async fn password_auth(&mut self, username: &str, password: &str) -> Result<()> {
+        let auth_res = self
+            .session
+            .authenticate_password(username, password)
+            .await?;
+
+        if !auth_res {
+            return Err(eyre::eyre!("Password authentication failed"));
+        }
+
+        Ok(())
+    }
+
+    /// Public key authentication
+    pub async fn key_auth(&mut self, username: &str, key_path: PathBuf) -> Result<()> {
+        let key_pair = load_secret_key(&key_path, None)?;
+
+        let auth_res = self
+            .session
+            .authenticate_publickey(username, Arc::new(key_pair))
+            .await?;
+
+        if !auth_res {
+            return Err(eyre::eyre!("Public key authentication failed"));
+        }
+
+        Ok(())
+    }
+
+    pub async fn agent_auth(&mut self, username: &str) -> Result<bool> {
+        // Try to connect to SSH agent, using custom IdentityAgent if specified
+        let agent_result = if let Some(ref identity_agent) = self.ssh_config.identity_agent {
+            log::debug!("Using custom IdentityAgent: {}", identity_agent);
+            // Connect to custom agent socket
+            match tokio::net::UnixStream::connect(identity_agent).await {
+                Ok(stream) => Ok(russh_keys::agent::client::AgentClient::connect(stream)),
+                Err(e) => Err(russh_keys::Error::IO(e)),
+            }
+        } else {
+            // Use default SSH agent from environment
+            russh_keys::agent::client::AgentClient::connect_env().await
+        };
+
+        match agent_result {
+            Ok(mut agent) => match agent.request_identities().await {
+                Ok(keys) => {
+                    log::debug!("Found {} keys in SSH agent", keys.len());
+                    for key in keys {
+                        let (returned_agent, auth_result) =
+                            self.session.authenticate_future(username, key, agent).await;
+                        agent = returned_agent;
+
+                        match auth_result {
+                            Ok(true) => {
+                                log::debug!("Successfully authenticated with SSH agent key");
+                                return Ok(true);
+                            }
+                            Ok(false) => {
+                                log::debug!("SSH agent key rejected by server");
+                                continue;
+                            }
+                            Err(e) => {
+                                log::debug!("Error trying SSH agent key: {:?}", e);
+                                continue;
+                            }
+                        }
+                    }
+                    log::debug!("No SSH agent keys worked for authentication");
+                    Ok(false)
+                }
+                Err(e) => {
+                    log::debug!("Failed to request identities from SSH agent: {}", e);
+                    Ok(false)
+                }
+            },
+            Err(e) => {
+                log::debug!("Failed to connect to SSH agent: {}", e);
+                Ok(false)
+            }
+        }
+    }
+
+    /// Authenticate the session. If a username is provided, use it for authentication - otherwise we will use SSH config or "root"
     ///
-    /// Regardless of the provided authentication method, this function will try the following in order
-    ///
-    /// 1. Noauth (99% of the time does nothing, but for cases like tailscale ssh this is required)
-    /// 2. Agent - attempt to authenticate using the identities available to the agent
-    /// 3. Provided authentication method, if provided
+    /// The authentication order is:
+    /// 1. SSH Agent authentication
+    /// 2. SSH config identity files
+    /// 3. Provided authentication method (password or key)
     pub async fn authenticate(
-        &self,
+        &mut self,
         auth: Option<Authentication>,
         username: Option<&str>,
     ) -> Result<()> {
-        let username = username.unwrap_or("root");
-        log::debug!("SSH authentication as {}", username);
+        // Clone values we need before any mutable borrows
+        let config_username = self.ssh_config.username.clone();
+        let identity_files = self.ssh_config.identity_files.clone();
 
-        // 1. ssh userauth none, potentially trigger tailscale ssh auth/etc
-        // TODO(ellie): this is blocking!
-        self.session.auth_methods(username).await?;
+        // Use provided username, or SSH config username, or default to "root"
+        let username = username.or(config_username.as_deref()).unwrap_or("root");
 
-        if self.session.authenticated() {
-            log::debug!("SSH authentication successful with no auth");
+        log::debug!(
+            "SSH authentication as {} (config username: {:?})",
+            username,
+            config_username
+        );
+
+        // 1. attempt ssh agent auth
+        if self.agent_auth(username).await? {
+            log::debug!("SSH authentication successful with agent");
             return Ok(());
         }
 
-        // 2. attempt ssh agent auth
-        self.agent_auth(username).await?;
-
-        if self.session.authenticated() {
-            log::debug!("SSH authentication successful with agent");
-            return Ok(());
+        // 2. Try SSH config identity files
+        for identity_file in &identity_files {
+            log::debug!("Trying SSH config identity file: {:?}", identity_file);
+            if let Ok(()) = self.key_auth(username, identity_file.clone()).await {
+                log::debug!(
+                    "SSH authentication successful with config identity file: {:?}",
+                    identity_file
+                );
+                return Ok(());
+            }
         }
 
         // 3. whatever the user provided
@@ -123,18 +411,21 @@ impl Session {
             Some(Authentication::Password(_user, password)) => {
                 self.password_auth(username, &password).await?
             }
-            Some(Authentication::Key(user, key_path)) => {
-                self.key_auth(username, &user, key_path).await?
+            Some(Authentication::Key(key_path)) => self.key_auth(username, key_path).await?,
+            None => {
+                // If no explicit auth method is provided and previous methods failed,
+                // log the attempt but don't fail
+                log::debug!("No explicit authentication method provided, tried SSH agent and config identity files");
             }
-            None => {}
         }
 
         Ok(())
     }
 
     pub async fn disconnect(&self) -> Result<()> {
-        // dropping the session object will close the underlying socket
-        self.session.disconnect(None, "", None).await?;
+        self.session
+            .disconnect(Disconnect::HostNotAllowedToConnect, "", "")
+            .await?;
         Ok(())
     }
 
@@ -149,167 +440,104 @@ impl Session {
         interpreter: &str,
         command: &str,
     ) -> Result<()> {
-        // Much like we do with the shell command exec, lets spawn a task to read the output line-by-line,
-        // and then write it to the app channel as we receive it
-        let mut channel = self.session.channel_session().await?;
+        // For now, let's simplify this and just execute the command directly
+        // without creating files on the remote
+        let mut channel = self.session.channel_open_session().await?;
 
-        // as a hack to workaround annoying interpreter things, we can first write the actual script as a file to the remote.
-        // the path can be ~/.atuin/.ssh/{channel_id}
-        // then we can call the interpreter on it
-        // then, cleanup.
-        let script_bin = command.as_bytes();
+        // Create the actual command to execute
+        let full_command = format!("{} -c '{}'", interpreter, command.replace('\'', "'\"'\"'"));
 
-        channel
-            .exec("mkdir -p ~/.atuin/ssh/script && echo -n $HOME")
-            .await?;
-        let mut home = String::new();
-        channel.read_to_string(&mut home).await?;
+        log::debug!("Executing command on remote: {}", full_command);
 
-        let path = Path::new(&home)
-            .join(".atuin/ssh/script/")
-            .join(channel_id.as_str());
+        let channel_id_clone = channel_id.clone();
+        let output_stream_clone = output_stream.clone();
 
-        log::debug!("Sending script to remote path: {}", path.display());
-        let mut remote_file = self
-            .session
-            .scp_send(path.as_path(), 0o700, script_bin.len() as u64, None)
-            .await?;
-        remote_file.write_all(script_bin).await?;
-        remote_file.flush().await?;
-        remote_file.send_eof().await?;
-        remote_file.wait_eof().await?;
-        remote_file.close().await?;
-        remote_file.wait_close().await?;
-
-        let mut channel = self.session.channel_session().await?;
-        let mut cleanup_channel = self.session.channel_session().await?;
-        let mut kill_channel = self.session.channel_session().await?;
-        let command = format!("{} {}", interpreter, path.display());
-        let kill_command = format!(
-            "ps -ef | grep \"{}\" | grep -v grep | awk '{{print $2}}' | xargs kill -9",
-            channel_id
-        );
-
-        log::debug!("Executing command on remote: {}", command);
         tokio::task::spawn(async move {
-            if let Err(e) = channel.exec(&command).await {
+            if let Err(e) = channel.exec(true, full_command.as_str()).await {
                 log::error!("Failed to execute command: {}", e);
-                output_stream.send(e.to_string()).await.unwrap();
+                let _ = output_stream_clone.send(e.to_string()).await;
                 return;
             }
 
-            let mut buffer = [0; 1024];
-            let mut stderr_buffer = [0; 1024];
             let mut line_buffer = String::new();
             let mut stderr_line_buffer = String::new();
-            let mut stderr = channel.stderr();
 
             loop {
                 tokio::select! {
                     // Check if we've been asked to cancel
                     _ = &mut cancel_rx => {
                         log::debug!("SSH command execution cancelled");
-                        kill_channel.exec(&kill_command).await.unwrap();
                         break;
                     }
-                    // Try to read from stdout
-                    read_result = channel.read(&mut buffer) => {
-                        match read_result {
-                            Ok(n) if n > 0 => {
-                                // Convert bytes to string and process line by line
-                                if let Ok(data) = std::str::from_utf8(&buffer[..n]) {
-                                    line_buffer.push_str(data);
+
+                    // Wait for channel messages
+                    msg = channel.wait() => {
+                        let Some(msg) = msg else {
+                            break;
+                        };
+
+                        match msg {
+                            ChannelMsg::Data { data } => {
+                                if let Ok(data_str) = std::str::from_utf8(&data) {
+                                    line_buffer.push_str(data_str);
 
                                     // Process complete lines
                                     while let Some(pos) = line_buffer.find('\n') {
                                         let line = line_buffer[..pos].to_string();
                                         line_buffer = line_buffer[pos + 1..].to_string();
 
-                                        if output_stream.send(line).await.is_err() {
-                                            // Receiver dropped, exit
+                                        if output_stream_clone.send(line).await.is_err() {
                                             break;
                                         }
                                     }
                                 }
                             }
-                            Ok(_) => {
-                                // End of stream, send any remaining data
-                                if !line_buffer.is_empty() {
-                                    let _ = output_stream.send(line_buffer).await;
-                                }
-                                break;
-                            }
-                            Err(e) => {
-                                log::error!("Error reading SSH stdout: {}", e);
-                                output_stream.send(format!("Error reading stdout: {}", e)).await.unwrap_or_default();
-                                break;
-                            }
-                        }
-                    }
-                    // Try to read from stderr
-                    stderr_result = stderr.read(&mut stderr_buffer) => {
-                        match stderr_result {
-                            Ok(n) if n > 0 => {
-                                // Convert bytes to string and process line by line
-                                if let Ok(data) = std::str::from_utf8(&stderr_buffer[..n]) {
-                                    stderr_line_buffer.push_str(data);
+                            ChannelMsg::ExtendedData { data, ext: 1 } => {
+                                // stderr
+                                if let Ok(data_str) = std::str::from_utf8(&data) {
+                                    stderr_line_buffer.push_str(data_str);
 
                                     // Process complete lines
                                     while let Some(pos) = stderr_line_buffer.find('\n') {
                                         let line = stderr_line_buffer[..pos].to_string();
                                         stderr_line_buffer = stderr_line_buffer[pos + 1..].to_string();
 
-                                        if output_stream.send(line).await.is_err() {
-                                            // Receiver dropped, exit
+                                        if output_stream_clone.send(line).await.is_err() {
                                             break;
                                         }
                                     }
                                 }
                             }
-                            Ok(_) => {
-                                // End of stream, send any remaining data
-                                if !stderr_line_buffer.is_empty() {
-                                    let _ = output_stream.send(stderr_line_buffer.clone()).await;
+                            ChannelMsg::ExitStatus { .. } => {
+                                // Send any remaining data
+                                if !line_buffer.is_empty() {
+                                    let _ = output_stream_clone.send(line_buffer).await;
                                 }
-                                // Don't break the main loop here, as stdout might still have data
+                                if !stderr_line_buffer.is_empty() {
+                                    let _ = output_stream_clone.send(stderr_line_buffer).await;
+                                }
+                                break;
                             }
-                            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                                // No data available on stderr right now, that's fine
-                                // Continue the loop
+                            ChannelMsg::Eof => {
+                                break;
                             }
-                            Err(e) => {
-                                log::error!("Error reading SSH stderr: {}", e);
-                                output_stream.send(format!("Error reading stderr: {}", e)).await.unwrap_or_default();
-                                // Don't break the main loop here, as stdout might still have data
+                            ChannelMsg::Close => {
+                                break;
                             }
+                            _ => {}
                         }
                     }
                 }
             }
 
-            log::debug!("Sending EOF and exec finished for channel {}", channel_id);
-            channel.send_eof().await.unwrap();
-            channel.shutdown().await.unwrap();
-            channel.close().await.unwrap();
-            drop(channel);
-
-            cleanup_channel
-                .exec(&format!("rm -f {}", path.display()))
-                .await
-                .unwrap();
-            cleanup_channel.send_eof().await.unwrap();
-            cleanup_channel.shutdown().await.unwrap();
-            cleanup_channel.close().await.unwrap();
-            drop(cleanup_channel);
-
-            handle.exec_finished(&channel_id).await.unwrap();
+            log::debug!("Sending exec finished for channel {}", channel_id_clone);
+            let _ = handle.exec_finished(&channel_id_clone).await;
         });
 
         Ok(())
     }
 
-    // open_pty
-    // TODO: Consider having a single "channel input" stream that takes an enum and handles both stdin and pty resizing
+    /// Open a PTY session
     #[allow(clippy::too_many_arguments, clippy::type_complexity)]
     pub async fn open_pty(
         &self,
@@ -321,24 +549,25 @@ impl Session {
         output_stream: Sender<String>,
         mut cancel_rx: oneshot::Receiver<()>,
     ) -> Result<()> {
-        let mut channel = self.session.channel_session().await?;
+        let mut channel = self.session.channel_open_session().await?;
 
-        // TODO(ellie): allow specifying mode and dimensions
-        // Investigate what TERM is best to use for us
+        // Request PTY
         channel
             .request_pty(
+                true,
                 "xterm-256color",
-                None,
-                Some((width as u32, height as u32, 0, 0)),
+                width as u32,
+                height as u32,
+                0,
+                0,
+                &[],
             )
             .await?;
-        channel.shell().await?; // Start a shell session
 
-        // Handle both reading and writing in a single task
-        // channel does not impl clone sooooo.
+        // Start shell
+        channel.request_shell(true).await?;
+
         tokio::task::spawn(async move {
-            let mut buffer = [0; 1024];
-
             loop {
                 tokio::select! {
                     // Check if we've been asked to cancel
@@ -350,7 +579,7 @@ impl Session {
                     resize = resize_stream.recv() => {
                         match resize {
                             Some((width, height)) => {
-                                let _ = channel.request_pty_size(width as u32, height as u32, None, None).await;
+                                let _ = channel.window_change(width as u32, height as u32, 0, 0).await;
                             }
                             None => {
                                 log::debug!("SSH resize stream closed");
@@ -359,31 +588,12 @@ impl Session {
                         }
                     }
 
-                    // Try to read from the channel
-                    read_result = channel.read(&mut buffer) => {
-                        match read_result {
-                            Ok(n) if n > 0 => {
-                                if let Err(e) = output_stream.send(String::from_utf8_lossy(&buffer[..n]).to_string()).await {
-                                    log::error!("Failed to send output to stream: {}", e);
-                                    break;
-                                }
-                            }
-                            Ok(_) => { // we can only read 0 if the channel is closed. match on _ because compilers are silly
-                                log::debug!("SSH channel closed");
-                                break;
-                            }
-                            Err(e) => {
-                                log::error!("Error reading from channel: {}", e);
-                                break;
-                            }
-                        }
-                    }
-
-                    // Try to read from the input stream
+                    // Try to read from input stream
                     input_result = input_stream.recv() => {
                         match input_result {
                             Some(input) => {
-                                if let Err(e) = channel.write_all(&input).await {
+                                let cursor = std::io::Cursor::new(input.as_ref());
+                                if let Err(e) = channel.data(cursor).await {
                                     log::error!("Failed to write to channel: {}", e);
                                     break;
                                 }
@@ -394,14 +604,224 @@ impl Session {
                             }
                         }
                     }
+
+                    // Wait for channel messages
+                    msg = channel.wait() => {
+                        let Some(msg) = msg else {
+                            break;
+                        };
+
+                        match msg {
+                            ChannelMsg::Data { data } => {
+                                if let Err(e) = output_stream.send(String::from_utf8_lossy(&data).to_string()).await {
+                                    log::error!("Failed to send output to stream: {}", e);
+                                    break;
+                                }
+                            }
+                            ChannelMsg::Close => {
+                                log::debug!("SSH channel closed");
+                                break;
+                            }
+                            ChannelMsg::Eof => {
+                                log::debug!("SSH channel EOF");
+                                break;
+                            }
+                            _ => {}
+                        }
+                    }
                 }
             }
 
             // Clean up
-            let _ = channel.send_eof().await;
+            let _ = channel.eof().await;
             let _ = channel.close().await;
         });
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    fn create_test_ssh_config(content: &str) -> TempDir {
+        let temp_dir = TempDir::new().unwrap();
+        let ssh_dir = temp_dir.path().join(".ssh");
+        fs::create_dir_all(&ssh_dir).unwrap();
+        
+        let config_path = ssh_dir.join("config");
+        fs::write(&config_path, content).unwrap();
+        
+        temp_dir
+    }
+
+    #[test]
+    fn test_parse_host_string_host_only() {
+        let (user, host, port) = Session::parse_host_string("example.com");
+        assert_eq!(user, None);
+        assert_eq!(host, "example.com");
+        assert_eq!(port, None);
+    }
+
+    #[test]
+    fn test_parse_host_string_with_port() {
+        let (user, host, port) = Session::parse_host_string("example.com:2222");
+        assert_eq!(user, None);
+        assert_eq!(host, "example.com");
+        assert_eq!(port, Some(2222));
+    }
+
+    #[test]
+    fn test_parse_host_string_with_user() {
+        let (user, host, port) = Session::parse_host_string("alice@example.com");
+        assert_eq!(user, Some("alice".to_string()));
+        assert_eq!(host, "example.com");
+        assert_eq!(port, None);
+    }
+
+    #[test]
+    fn test_parse_host_string_full_format() {
+        let (user, host, port) = Session::parse_host_string("alice@example.com:2222");
+        assert_eq!(user, Some("alice".to_string()));
+        assert_eq!(host, "example.com");
+        assert_eq!(port, Some(2222));
+    }
+
+    #[test]
+    fn test_parse_host_string_invalid_port() {
+        let (user, host, port) = Session::parse_host_string("example.com:invalid");
+        assert_eq!(user, None);
+        assert_eq!(host, "example.com:invalid");
+        assert_eq!(port, None);
+    }
+
+    #[test]
+    fn test_parse_host_string_ipv6() {
+        let (user, host, port) = Session::parse_host_string("[2001:db8::1]:2222");
+        assert_eq!(user, None);
+        assert_eq!(host, "[2001:db8::1]");
+        assert_eq!(port, Some(2222));
+    }
+
+    #[test]
+    fn test_parse_identity_agent_not_found() {
+        let temp_dir = create_test_ssh_config("");
+        let config_path = temp_dir.path().join(".ssh").join("config");
+        let result = Session::parse_identity_agent_from_path("nonexistent", &config_path);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_parse_identity_agent_basic() {
+        let config_content = r#"
+Host example.com
+    IdentityAgent ~/.ssh/agent.sock
+"#;
+        let temp_dir = create_test_ssh_config(config_content);
+        let config_path = temp_dir.path().join(".ssh").join("config");
+        
+        let home_dir = dirs::home_dir().unwrap();
+        let expected = home_dir.join(".ssh/agent.sock").to_string_lossy().to_string();
+        
+        let result = Session::parse_identity_agent_from_path("example.com", &config_path);
+        assert_eq!(result, Some(expected));
+    }
+
+    #[test]
+    fn test_parse_identity_agent_glob_pattern() {
+        let config_content = r#"
+Host *.example.com
+    IdentityAgent /tmp/custom-agent.sock
+"#;
+        let temp_dir = create_test_ssh_config(config_content);
+        let config_path = temp_dir.path().join(".ssh").join("config");
+        
+        let result = Session::parse_identity_agent_from_path("server.example.com", &config_path);
+        assert_eq!(result, Some("/tmp/custom-agent.sock".to_string()));
+    }
+
+    #[test]
+    fn test_parse_identity_agent_wildcard() {
+        let config_content = r#"
+Host *
+    IdentityAgent ~/.ssh/default-agent.sock
+"#;
+        let temp_dir = create_test_ssh_config(config_content);
+        let config_path = temp_dir.path().join(".ssh").join("config");
+        
+        let home_dir = dirs::home_dir().unwrap();
+        let expected = home_dir.join(".ssh/default-agent.sock").to_string_lossy().to_string();
+        
+        let result = Session::parse_identity_agent_from_path("any-host", &config_path);
+        assert_eq!(result, Some(expected));
+    }
+
+    #[test]
+    fn test_parse_identity_agent_no_match() {
+        let config_content = r#"
+Host other.com
+    IdentityAgent ~/.ssh/agent.sock
+"#;
+        let temp_dir = create_test_ssh_config(config_content);
+        let config_path = temp_dir.path().join(".ssh").join("config");
+        
+        let result = Session::parse_identity_agent_from_path("example.com", &config_path);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_parse_identity_agent_case_insensitive() {
+        let config_content = r#"
+Host example.com
+    identityagent ~/.ssh/agent.sock
+"#;
+        let temp_dir = create_test_ssh_config(config_content);
+        let config_path = temp_dir.path().join(".ssh").join("config");
+        
+        let home_dir = dirs::home_dir().unwrap();
+        let expected = home_dir.join(".ssh/agent.sock").to_string_lossy().to_string();
+        
+        let result = Session::parse_identity_agent_from_path("example.com", &config_path);
+        assert_eq!(result, Some(expected));
+    }
+
+    #[test]
+    fn test_resolve_ssh_config_defaults() {
+        // Test with a host that's unlikely to be in any real SSH config
+        let config = Session::resolve_ssh_config("test-nonexistent-host-12345.invalid");
+        assert_eq!(config.hostname, "test-nonexistent-host-12345.invalid");
+        assert_eq!(config.port, 22);
+        // Note: username might be set from global SSH config, so we don't assert None
+        assert!(config.identity_files.is_empty());
+        assert_eq!(config.proxy_command, None);
+        assert_eq!(config.proxy_jump, None);
+        assert_eq!(config.identity_agent, None);
+    }
+
+    #[test]
+    fn test_resolve_ssh_config_with_input_port() {
+        let config = Session::resolve_ssh_config("test-nonexistent-host-12345.invalid:2222");
+        assert_eq!(config.hostname, "test-nonexistent-host-12345.invalid");
+        assert_eq!(config.port, 2222);
+        // Note: username might be set from global SSH config, so we don't assert None
+    }
+
+    #[test]
+    fn test_resolve_ssh_config_with_input_user() {
+        let config = Session::resolve_ssh_config("alice@test-nonexistent-host-12345.invalid");
+        assert_eq!(config.hostname, "test-nonexistent-host-12345.invalid");
+        assert_eq!(config.port, 22);
+        assert_eq!(config.username, Some("alice".to_string()));
+    }
+
+    #[test]
+    fn test_resolve_ssh_config_full_input() {
+        let config = Session::resolve_ssh_config("alice@test-nonexistent-host-12345.invalid:2222");
+        assert_eq!(config.hostname, "test-nonexistent-host-12345.invalid");
+        assert_eq!(config.port, 2222);
+        assert_eq!(config.username, Some("alice".to_string()));
     }
 }

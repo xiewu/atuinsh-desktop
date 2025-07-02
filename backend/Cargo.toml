@@ -1,6 +1,6 @@
 [package]
 name = "atuin-desktop"
-version = "0.0.83"
+version = "0.0.84"
 description = "Atuin Desktop"
 publish = false
 authors = ["you"]
@@ -76,9 +76,6 @@ glob = "0.3"  # For general glob pattern matching
 base64 = "0.22"
 async-trait = "0.1.88"
 
-[dev-dependencies]
-tempfile = "3.10"
-
 
 [dependencies.sqlx]
 version = "0.8"
@@ -98,6 +95,9 @@ features = [
 [dependencies.tauri-plugin-sql]
 features = ["sqlite"] # or "postgres", or "mysql"
 version = "2.2.0"
+
+[dev-dependencies]
+tempfile = "3.10"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 cocoa = "0.26"

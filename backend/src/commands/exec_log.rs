@@ -20,7 +20,7 @@ pub async fn log_execution(
     end_time: u64,
     output: String,
 ) -> Result<(), String> {
-    log::debug!("Logging execution for block: {:?}", block);
+    log::debug!("Logging execution for block: {block:?}");
     state
         .exec_log()
         .log_execution(block.clone(), start_time, end_time, output.clone())

@@ -134,7 +134,7 @@ pub struct ExecLog {
 
 impl ExecLog {
     async fn new(path: PathBuf, receiver: mpsc::Receiver<ExecLogMessage>) -> Result<Self> {
-        debug!("opening exec_log sqlite database at {:?}", path);
+        debug!("opening exec_log sqlite database at {path:?}");
 
         let create = !path.exists();
         if create {

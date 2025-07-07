@@ -56,7 +56,7 @@ pub async fn pty_open(
     {
         Ok(pty) => pty,
         Err(e) => {
-            return Err(format!("Failed to open terminal: {}", e));
+            return Err(format!("Failed to open terminal: {e}"));
         }
     };
 

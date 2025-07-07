@@ -34,7 +34,7 @@ pub async fn ssh_connect(
         .connect(&host, username.as_deref(), auth)
         .await
         .map_err(|e| {
-            log::error!("Failed to connect to SSH host: {}", e);
+            log::error!("Failed to connect to SSH host: {e}");
             e.to_string()
         })?;
 
@@ -109,8 +109,8 @@ pub async fn ssh_exec(
     let channel = channel.to_string();
     tokio::task::spawn(async move {
         let _ = result_rx.await;
-        let channel = format!("ssh_exec_finished:{}", channel);
-        log::debug!("Sending ssh_exec_finished event to {}", channel);
+        let channel = format!("ssh_exec_finished:{channel}");
+        log::debug!("Sending ssh_exec_finished event to {channel}");
         app.emit(channel.as_str(), "").unwrap();
     });
 
@@ -155,20 +155,20 @@ pub async fn ssh_open_pty(
         .map_err(|e| e.to_string())?;
 
     // Forward output from the PTY to the frontend
-    let channel_name = format!("pty-{}", channel);
+    let channel_name = format!("pty-{channel}");
     let app_clone = app.clone();
     tokio::task::spawn(async move {
         while let Some(output) = output_receiver.recv().await {
             if let Err(e) = app_clone.emit(&channel_name, output) {
-                log::error!("Failed to emit PTY output: {}", e);
+                log::error!("Failed to emit PTY output: {e}");
                 break;
             }
         }
 
         // When the output channel closes, notify the frontend
-        let finished_channel = format!("ssh_pty_finished:{}", channel_name);
+        let finished_channel = format!("ssh_pty_finished:{channel_name}");
         if let Err(e) = app_clone.emit(&finished_channel, "") {
-            log::error!("Failed to emit PTY finished event: {}", e);
+            log::error!("Failed to emit PTY finished event: {e}");
         }
     });
 

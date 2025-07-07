@@ -324,7 +324,7 @@ async fn get_platform_info() -> Result<String, String> {
                             .strip_prefix("ID=")
                             .unwrap_or("linux")
                             .trim_matches('"');
-                        format!("linux-{}", distro)
+                        format!("linux-{distro}")
                     })
             })
             .unwrap_or_else(|| "linux".to_string())

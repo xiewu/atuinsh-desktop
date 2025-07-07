@@ -68,8 +68,8 @@ impl DbInstances {
 
         self.dev_prefix
             .as_ref()
-            .map_or(format!("{}{}", database, ext), |prefix| {
-                format!("{}_{}{}", prefix, database, ext)
+            .map_or(format!("{database}{ext}"), |prefix| {
+                format!("{prefix}_{database}{ext}")
             })
     }
 }

@@ -67,8 +67,8 @@ impl From<History> for UIHistory {
             ("no-host".to_string(), "no-user".to_string())
         };
 
-        let mac = format!("/Users/{}", user);
-        let linux = format!("/home/{}", user);
+        let mac = format!("/Users/{user}");
+        let linux = format!("/home/{user}");
 
         let cwd = history.cwd.replace(mac.as_str(), "~");
         let cwd = cwd.replace(linux.as_str(), "~");
@@ -146,9 +146,9 @@ impl HistoryDB {
         start: Option<i64>,
         end: Option<i64>,
     ) -> Result<Vec<UIHistory>, String> {
-        let command_like = command_like.map_or("%".to_string(), |s| format!("%{}%", s));
-        let path_like = path_like.map_or("%".to_string(), |s| format!("%{}%", s));
-        let hostname_like = hostname_like.map_or("%".to_string(), |s| format!("%{}%", s));
+        let command_like = command_like.map_or("%".to_string(), |s| format!("%{s}%"));
+        let path_like = path_like.map_or("%".to_string(), |s| format!("%{s}%"));
+        let hostname_like = hostname_like.map_or("%".to_string(), |s| format!("%{s}%"));
 
         let query = sqlx::query(
             "select * from history where command like ?1 and cwd like ?2 and hostname like ?3 and timestamp > ?4 and timestamp < ?5",
@@ -275,9 +275,9 @@ impl HistoryDB {
         let end =
             end.unwrap_or_else(|| time::OffsetDateTime::now_utc().unix_timestamp_nanos() as i64);
 
-        let command_like = command_like.map_or("%".to_string(), |s| format!("%{}%", s));
-        let path_like = path_like.map_or("%".to_string(), |s| format!("%{}%", s));
-        let hostname_like = hostname_like.map_or("%".to_string(), |s| format!("%{}%", s));
+        let command_like = command_like.map_or("%".to_string(), |s| format!("%{s}%"));
+        let path_like = path_like.map_or("%".to_string(), |s| format!("%{s}%"));
+        let hostname_like = hostname_like.map_or("%".to_string(), |s| format!("%{s}%"));
 
         let query = "select count(1) as count, strftime('%F', datetime(timestamp / 1000000000, 'unixepoch')) as day from history where timestamp > ?1 and timestamp < ?2 and command like ?3 and cwd like ?4 and hostname like ?5 group by day;";
 

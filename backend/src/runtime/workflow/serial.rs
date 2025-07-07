@@ -15,10 +15,10 @@ pub async fn serial_execute(
     // 3. Repeat until the workflow is complete
     // 4. Listen on the cancel channel for a stop event. Terminate the current block and exit.
     let mut iter = workflow.iter();
-    println!("serial workflow: {:?}", workflow);
+    println!("serial workflow: {workflow:?}");
 
     if let Some(block) = iter.next() {
-        println!("running block: {:?}", block);
+        println!("running block: {block:?}");
         send_command
             .send(WorkflowCommand::RunBlock { id: block.id() })
             .await
@@ -45,10 +45,10 @@ pub async fn serial_execute(
             Ok(event) = recv_event.recv() => {
                 match event {
                     WorkflowEvent::BlockStarted { id } => {
-                        println!("block {} started", id);
+                        println!("block {id} started");
                     }
                     WorkflowEvent::BlockFinished { id } => {
-                        println!("block {} finished", id);
+                        println!("block {id} finished");
 
                         // Get the next block in the workflow
                         if let Some(block) = iter.next() {

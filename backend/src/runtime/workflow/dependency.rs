@@ -28,7 +28,7 @@ impl DependencySpec {
 
                 // Parent must have been run at least once
                 let parent_last_run = exec_log.get_last_execution_time(parent_uuid).await?;
-                println!("got run once ever, parent_last_run: {:?}", parent_last_run);
+                println!("got run once ever, parent_last_run: {parent_last_run:?}");
 
                 Ok(parent_last_run.is_some())
             }
@@ -63,7 +63,7 @@ impl DependencySpec {
                 // Parent must have been run within the specified time window
                 let parent_last_run = exec_log.get_last_execution_time(parent_uuid).await?;
 
-                println!("got run within, parent_last_run: {:?}", parent_last_run);
+                println!("got run within, parent_last_run: {parent_last_run:?}");
 
                 if let Some(parent_last_run) = parent_last_run {
                     let now = time::OffsetDateTime::now_utc().unix_timestamp_nanos();

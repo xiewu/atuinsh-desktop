@@ -44,7 +44,7 @@ impl Pool {
             session.authenticate(auth, Some(username)).await?;
 
             let session = Arc::new(session);
-            let key = format!("{}@{}", username, host);
+            let key = format!("{username}@{host}");
             self.connections.insert(key, session.clone());
 
             Ok(session)
@@ -52,13 +52,11 @@ impl Pool {
     }
 
     pub fn get(&self, host: &str, username: &str) -> Option<Arc<Session>> {
-        self.connections
-            .get(&format!("{}@{}", username, host))
-            .cloned()
+        self.connections.get(&format!("{username}@{host}")).cloned()
     }
 
     pub async fn disconnect(&mut self, host: &str, username: &str) -> Result<()> {
-        let key = format!("{}@{}", username, host);
+        let key = format!("{username}@{host}");
         if let Some(session) = self.connections.remove(&key) {
             session.disconnect().await?;
         }

@@ -87,11 +87,11 @@ pub(crate) async fn create_main_window(app: &AppHandle) -> Result<(), String> {
 
     let query_string = query_elems
         .iter()
-        .map(|(k, v)| format!("{}={}", k, v))
+        .map(|(k, v)| format!("{k}={v}"))
         .collect::<Vec<String>>()
         .join("&");
 
-    let app_url = WebviewUrl::App(format!("index.html?{}", query_string).into());
+    let app_url = WebviewUrl::App(format!("index.html?{query_string}").into());
 
     let title = if dev_prefix.is_some() && dev_prefix.as_ref().unwrap() != "dev" {
         format!("Atuin - {}", dev_prefix.unwrap())
@@ -144,16 +144,13 @@ pub(crate) async fn create_main_window(app: &AppHandle) -> Result<(), String> {
         attempts += 1;
         let target_size = PhysicalSize::new(window_state.width, window_state.height);
         let target_pos = PhysicalPosition::new(window_state.x, window_state.y);
-        println!(
-            "target window state:  size: {:?}, pos: {:?}",
-            target_size, target_pos
-        );
+        println!("target window state:  size: {target_size:?}, pos: {target_pos:?}");
         println!(
             "current window state: size: {:?}, pos: {:?}",
             window.outer_size().unwrap(),
             window.outer_position().unwrap()
         );
-        println!("adjustment attempt: {}", attempts);
+        println!("adjustment attempt: {attempts}");
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
         window
             .set_size(PhysicalSize::new(window_state.width, window_state.height))

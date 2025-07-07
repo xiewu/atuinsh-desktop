@@ -83,7 +83,7 @@ pub async fn shell_exec(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| format!("Failed to spawn command: {:?} {}", path, e))?;
+        .map_err(|e| format!("Failed to spawn command: {path:?} {e}"))?;
 
     let cmd = Arc::new(RwLock::new(cmd));
     let nanoseconds_start = time::OffsetDateTime::now_utc().unix_timestamp_nanos();
@@ -188,7 +188,7 @@ pub async fn shell_exec(
         .unwrap();
 
         app_clone
-            .emit(format!("shell_exec_finished:{}", pid).as_str(), "")
+            .emit(format!("shell_exec_finished:{pid}").as_str(), "")
             .unwrap();
     });
 
@@ -218,7 +218,7 @@ pub async fn shell_exec_sync(
         .envs(env)
         .output()
         .await
-        .map_err(|e| format!("Failed to run command: {:?} {}", path, e))?;
+        .map_err(|e| format!("Failed to run command: {path:?} {e}"))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);

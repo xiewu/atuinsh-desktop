@@ -37,7 +37,7 @@ impl ExecutorHandle {
     }
 
     pub async fn run_workflow(&self, id: Uuid, workflow: Vec<Block>) {
-        println!("running workflow: {:?}", workflow);
+        println!("running workflow: {workflow:?}");
         self.sender
             .send(ExecutorMessage::RunWorkflow { id, workflow })
             .await
@@ -109,17 +109,17 @@ impl Executor {
                             .expect("Failed to send finished event");
                     });
 
-                    println!("inserting workflow into store: {:?}", id);
+                    println!("inserting workflow into store: {id:?}");
                     self.workflow_store
                         .insert(id, WorkflowData { cancel_channel });
                 }
                 ExecutorMessage::StopWorkflow { id } => {
-                    println!("stopping workflow: {:?}", id);
+                    println!("stopping workflow: {id:?}");
                     if let Some(handle) = self.workflow_store.remove(&id) {
                         // If the cancel channel is still open, cancel the workflow. Otherwise, it has already finished
                         if !handle.cancel_channel.is_closed() {
                             if let Err(e) = handle.cancel_channel.send(()) {
-                                println!("error sending cancel signal: {:?}", e);
+                                println!("error sending cancel signal: {e:?}");
                             }
                         }
                     } else {

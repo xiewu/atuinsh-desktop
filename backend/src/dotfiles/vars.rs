@@ -23,7 +23,7 @@ pub async fn vars() -> Result<Vec<Var>, String> {
     let vars = var_store
         .vars()
         .await
-        .map_err(|e| format!("failed to load aliases: {}", e))?;
+        .map_err(|e| format!("failed to load aliases: {e}"))?;
 
     Ok(vars)
 }

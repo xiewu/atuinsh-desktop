@@ -368,7 +368,7 @@ impl SshPool {
 
                 if let Err(e) = session {
                     if let Err(e) = reply_to.send(Err(e)) {
-                        log::error!("Failed to send error to reply_to: {:?}", e);
+                        log::error!("Failed to send error to reply_to: {e:?}");
                     }
                     return;
                 }
@@ -388,7 +388,7 @@ impl SshPool {
                     },
                 );
 
-                log::debug!("Executing command on channel {}: {}", channel, command);
+                log::debug!("Executing command on channel {channel}: {command}");
                 let result = session
                     .exec(
                         self.handle(),
@@ -400,11 +400,11 @@ impl SshPool {
                     )
                     .await;
                 if let Err(e) = reply_to.send(result) {
-                    log::error!("Failed to send result to reply_to: {:?}", e);
+                    log::error!("Failed to send result to reply_to: {e:?}");
                 }
             }
             SshPoolMessage::ExecFinished { channel, reply_to } => {
-                log::debug!("ExecFinished for channel: {}", channel);
+                log::debug!("ExecFinished for channel: {channel}");
 
                 if let Some(meta) = self.channels.remove(&channel) {
                     let _ = meta.result_tx.send(());
@@ -413,7 +413,7 @@ impl SshPool {
                 let _ = reply_to.send(Ok(()));
             }
             SshPoolMessage::ExecCancel { channel } => {
-                log::debug!("ExecCancel for channel: {}", channel);
+                log::debug!("ExecCancel for channel: {channel}");
 
                 if let Some(meta) = self.channels.remove(&channel) {
                     let _ = meta.cancel_tx.send(());
@@ -436,7 +436,7 @@ impl SshPool {
 
                 if let Err(e) = session {
                     if let Err(e) = reply_to.send(Err(e)) {
-                        log::error!("Failed to send error to reply_to: {:?}", e);
+                        log::error!("Failed to send error to reply_to: {e:?}");
                     }
                     return;
                 }
@@ -462,7 +462,7 @@ impl SshPool {
                     },
                 );
 
-                log::debug!("Opening PTY for {}", channel);
+                log::debug!("Opening PTY for {channel}");
                 if let Err(e) = session
                     .open_pty(
                         channel,
@@ -475,7 +475,7 @@ impl SshPool {
                     )
                     .await
                 {
-                    log::error!("Failed to open PTY: {:?}", e);
+                    log::error!("Failed to open PTY: {e:?}");
                     let _ = reply_to.send(Err(e));
                 } else {
                     let _ = reply_to.send(Ok((input_tx, resize_tx)));
@@ -504,7 +504,7 @@ impl SshPool {
                 }
             }
             SshPoolMessage::ClosePty { channel } => {
-                log::debug!("Closing PTY for {}", channel);
+                log::debug!("Closing PTY for {channel}");
                 if let Some(meta) = self.channels.remove(&channel) {
                     let _ = meta.cancel_tx.send(());
                 }

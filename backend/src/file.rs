@@ -34,7 +34,7 @@ fn sha256_digest(path: &Path) -> Result<String> {
         hasher.finalize()
     };
 
-    Ok(format!("{:X}", digest))
+    Ok(format!("{digest:X}"))
 }
 
 fn is_hidden(entry: &DirEntry) -> bool {

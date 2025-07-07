@@ -64,7 +64,6 @@ impl Session {
 
     /// Helper function to parse IdentityAgent from a specific config file path
     fn parse_identity_agent_from_path(host: &str, config_path: &std::path::Path) -> Option<String> {
-
         if !config_path.exists() {
             return None;
         }
@@ -212,8 +211,7 @@ impl Session {
                     // Parse IdentityAgent manually since russh-config doesn't support it
                     let identity_agent = Self::parse_identity_agent(&hostname);
 
-                    log::debug!("Resolved SSH config for {}: hostname={}, port={}, username={:?}, identity_files={:?}, proxy_command={:?}, proxy_jump={:?}",
-                        host, hostname, port, username, identity_files, proxy_command, proxy_jump);
+                    log::debug!("Resolved SSH config for {host}: hostname={hostname}, port={port}, username={username:?}, identity_files={identity_files:?}, proxy_command={proxy_command:?}, proxy_jump={proxy_jump:?}");
 
                     return SshConfig {
                         hostname,
@@ -226,12 +224,12 @@ impl Session {
                     };
                 }
                 Err(e) => {
-                    log::warn!("Failed to parse SSH config: {}", e);
+                    log::warn!("Failed to parse SSH config: {e}");
                 }
             }
         }
 
-        log::debug!("No SSH config found for {}, using defaults", host);
+        log::debug!("No SSH config found for {host}, using defaults");
         default_config
     }
 
@@ -261,17 +259,17 @@ impl Session {
                     russh::client::connect_stream(Arc::new(config), stream, sh).await?
                 }
                 Err(e) => {
-                    log::warn!("Failed to create proxy stream: {}", e);
+                    log::warn!("Failed to create proxy stream: {e}");
                     // Fallback to direct connection
                     let address = format!("{}:{}", ssh_config.hostname, ssh_config.port);
-                    log::debug!("Falling back to direct connection: {}", address);
+                    log::debug!("Falling back to direct connection: {address}");
                     russh::client::connect(Arc::new(config), address.as_str(), sh).await?
                 }
             }
         } else {
             // Direct connection
             let address = format!("{}:{}", ssh_config.hostname, ssh_config.port);
-            log::debug!("Connecting directly to: {}", address);
+            log::debug!("Connecting directly to: {address}");
             russh::client::connect(Arc::new(config), address.as_str(), sh).await?
         };
 
@@ -314,7 +312,7 @@ impl Session {
     pub async fn agent_auth(&mut self, username: &str) -> Result<bool> {
         // Try to connect to SSH agent, using custom IdentityAgent if specified
         let agent_result = if let Some(ref identity_agent) = self.ssh_config.identity_agent {
-            log::debug!("Using custom IdentityAgent: {}", identity_agent);
+            log::debug!("Using custom IdentityAgent: {identity_agent}");
             // Connect to custom agent socket
             match tokio::net::UnixStream::connect(identity_agent).await {
                 Ok(stream) => Ok(russh_keys::agent::client::AgentClient::connect(stream)),
@@ -344,7 +342,7 @@ impl Session {
                                 continue;
                             }
                             Err(e) => {
-                                log::debug!("Error trying SSH agent key: {:?}", e);
+                                log::debug!("Error trying SSH agent key: {e:?}");
                                 continue;
                             }
                         }
@@ -353,12 +351,12 @@ impl Session {
                     Ok(false)
                 }
                 Err(e) => {
-                    log::debug!("Failed to request identities from SSH agent: {}", e);
+                    log::debug!("Failed to request identities from SSH agent: {e}");
                     Ok(false)
                 }
             },
             Err(e) => {
-                log::debug!("Failed to connect to SSH agent: {}", e);
+                log::debug!("Failed to connect to SSH agent: {e}");
                 Ok(false)
             }
         }
@@ -382,11 +380,7 @@ impl Session {
         // Use provided username, or SSH config username, or default to "root"
         let username = username.or(config_username.as_deref()).unwrap_or("root");
 
-        log::debug!(
-            "SSH authentication as {} (config username: {:?})",
-            username,
-            config_username
-        );
+        log::debug!("SSH authentication as {username} (config username: {config_username:?})");
 
         // 1. attempt ssh agent auth
         if self.agent_auth(username).await? {
@@ -396,11 +390,10 @@ impl Session {
 
         // 2. Try SSH config identity files
         for identity_file in &identity_files {
-            log::debug!("Trying SSH config identity file: {:?}", identity_file);
+            log::debug!("Trying SSH config identity file: {identity_file:?}");
             if let Ok(()) = self.key_auth(username, identity_file.clone()).await {
                 log::debug!(
-                    "SSH authentication successful with config identity file: {:?}",
-                    identity_file
+                    "SSH authentication successful with config identity file: {identity_file:?}"
                 );
                 return Ok(());
             }
@@ -447,14 +440,14 @@ impl Session {
         // Create the actual command to execute
         let full_command = format!("{} -c '{}'", interpreter, command.replace('\'', "'\"'\"'"));
 
-        log::debug!("Executing command on remote: {}", full_command);
+        log::debug!("Executing command on remote: {full_command}");
 
         let channel_id_clone = channel_id.clone();
         let output_stream_clone = output_stream.clone();
 
         tokio::task::spawn(async move {
             if let Err(e) = channel.exec(true, full_command.as_str()).await {
-                log::error!("Failed to execute command: {}", e);
+                log::error!("Failed to execute command: {e}");
                 let _ = output_stream_clone.send(e.to_string()).await;
                 return;
             }
@@ -530,7 +523,7 @@ impl Session {
                 }
             }
 
-            log::debug!("Sending exec finished for channel {}", channel_id_clone);
+            log::debug!("Sending exec finished for channel {channel_id_clone}");
             let _ = handle.exec_finished(&channel_id_clone).await;
         });
 
@@ -594,7 +587,7 @@ impl Session {
                             Some(input) => {
                                 let cursor = std::io::Cursor::new(input.as_ref());
                                 if let Err(e) = channel.data(cursor).await {
-                                    log::error!("Failed to write to channel: {}", e);
+                                    log::error!("Failed to write to channel: {e}");
                                     break;
                                 }
                             }
@@ -614,7 +607,7 @@ impl Session {
                         match msg {
                             ChannelMsg::Data { data } => {
                                 if let Err(e) = output_stream.send(String::from_utf8_lossy(&data).to_string()).await {
-                                    log::error!("Failed to send output to stream: {}", e);
+                                    log::error!("Failed to send output to stream: {e}");
                                     break;
                                 }
                             }
@@ -651,10 +644,10 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let ssh_dir = temp_dir.path().join(".ssh");
         fs::create_dir_all(&ssh_dir).unwrap();
-        
+
         let config_path = ssh_dir.join("config");
         fs::write(&config_path, content).unwrap();
-        
+
         temp_dir
     }
 
@@ -722,10 +715,13 @@ Host example.com
 "#;
         let temp_dir = create_test_ssh_config(config_content);
         let config_path = temp_dir.path().join(".ssh").join("config");
-        
+
         let home_dir = dirs::home_dir().unwrap();
-        let expected = home_dir.join(".ssh/agent.sock").to_string_lossy().to_string();
-        
+        let expected = home_dir
+            .join(".ssh/agent.sock")
+            .to_string_lossy()
+            .to_string();
+
         let result = Session::parse_identity_agent_from_path("example.com", &config_path);
         assert_eq!(result, Some(expected));
     }
@@ -738,7 +734,7 @@ Host *.example.com
 "#;
         let temp_dir = create_test_ssh_config(config_content);
         let config_path = temp_dir.path().join(".ssh").join("config");
-        
+
         let result = Session::parse_identity_agent_from_path("server.example.com", &config_path);
         assert_eq!(result, Some("/tmp/custom-agent.sock".to_string()));
     }
@@ -751,10 +747,13 @@ Host *
 "#;
         let temp_dir = create_test_ssh_config(config_content);
         let config_path = temp_dir.path().join(".ssh").join("config");
-        
+
         let home_dir = dirs::home_dir().unwrap();
-        let expected = home_dir.join(".ssh/default-agent.sock").to_string_lossy().to_string();
-        
+        let expected = home_dir
+            .join(".ssh/default-agent.sock")
+            .to_string_lossy()
+            .to_string();
+
         let result = Session::parse_identity_agent_from_path("any-host", &config_path);
         assert_eq!(result, Some(expected));
     }
@@ -767,7 +766,7 @@ Host other.com
 "#;
         let temp_dir = create_test_ssh_config(config_content);
         let config_path = temp_dir.path().join(".ssh").join("config");
-        
+
         let result = Session::parse_identity_agent_from_path("example.com", &config_path);
         assert_eq!(result, None);
     }
@@ -780,10 +779,13 @@ Host example.com
 "#;
         let temp_dir = create_test_ssh_config(config_content);
         let config_path = temp_dir.path().join(".ssh").join("config");
-        
+
         let home_dir = dirs::home_dir().unwrap();
-        let expected = home_dir.join(".ssh/agent.sock").to_string_lossy().to_string();
-        
+        let expected = home_dir
+            .join(".ssh/agent.sock")
+            .to_string_lossy()
+            .to_string();
+
         let result = Session::parse_identity_agent_from_path("example.com", &config_path);
         assert_eq!(result, Some(expected));
     }

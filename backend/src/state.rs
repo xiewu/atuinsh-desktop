@@ -94,7 +94,7 @@ impl AtuinState {
     }
     pub async fn init(&self, app: &AppHandle) -> Result<()> {
         let path = if let Some(ref prefix) = self.dev_prefix {
-            self.app_path.join(format!("{}_exec_log.db", prefix))
+            self.app_path.join(format!("{prefix}_exec_log.db"))
         } else {
             self.app_path.join("exec_log.db")
         };
@@ -131,13 +131,13 @@ impl AtuinState {
             while let Some(event) = cmd_receiver.recv().await {
                 match event {
                     WorkflowCommand::RunBlock { id } => {
-                        println!("emitting start block event {}", id);
+                        println!("emitting start block event {id}");
                         app_clone
                             .emit("start-block", id)
                             .expect("Failed to emit start block event");
                     }
                     WorkflowCommand::StopBlock { id } => {
-                        println!("emitting stop block event {}", id);
+                        println!("emitting stop block event {id}");
                         app_clone
                             .emit("stop-block", id)
                             .expect("Failed to emit stop block event");
@@ -152,19 +152,19 @@ impl AtuinState {
             while let Ok(event) = event_receiver.recv().await {
                 match event {
                     WorkflowEvent::BlockStarted { id } => {
-                        println!("block {} started", id);
+                        println!("block {id} started");
                     }
                     WorkflowEvent::BlockFinished { id } => {
-                        println!("block {} finished", id);
+                        println!("block {id} finished");
                     }
                     WorkflowEvent::WorkflowStarted { id } => {
-                        println!("workflow {} started", id);
+                        println!("workflow {id} started");
                         app_clone
                             .emit("workflow-started", id)
                             .expect("Failed to emit workflow started event");
                     }
                     WorkflowEvent::WorkflowFinished { id } => {
-                        println!("workflow {} finished", id);
+                        println!("workflow {id} finished");
                         executor_clone.stop_workflow(id).await;
                         app_clone
                             .emit("workflow-finished", id)

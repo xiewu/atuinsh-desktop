@@ -236,11 +236,7 @@ impl PtyStore {
     async fn write_pty(&mut self, id: Uuid, data: Bytes) {
         if let Some(pty) = self.pty_sessions.get_mut(&id) {
             if let Err(e) = pty.send_bytes(data).await {
-                log::debug!(
-                    "Failed to send bytes to PTY {}: {} (likely session closed)",
-                    id,
-                    e
-                );
+                log::debug!("Failed to send bytes to PTY {id}: {e} (likely session closed)");
             }
         }
     }
@@ -248,7 +244,7 @@ impl PtyStore {
     async fn pty_resize(&mut self, id: Uuid, rows: u16, cols: u16) {
         if let Some(pty) = self.pty_sessions.get_mut(&id) {
             if let Err(e) = pty.resize(rows, cols).await {
-                log::debug!("Failed to resize PTY {}: {} (likely session closed)", id, e);
+                log::debug!("Failed to resize PTY {id}: {e} (likely session closed)");
             }
         }
     }

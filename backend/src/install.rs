@@ -61,10 +61,8 @@ pub(crate) async fn setup_cli() -> Result<(), String> {
         .await
         .unwrap();
 
-    let config = format!(
-        "if [ -x \"$(command -v atuin)\" ]; then eval \"$(atuin init {})\"; fi",
-        shell
-    );
+    let config =
+        format!("if [ -x \"$(command -v atuin)\" ]; then eval \"$(atuin init {shell})\"; fi");
     file.write_all(config.as_bytes())
         .await
         .map_err(|e| format!("Failed to write Atuin shell init: {e}"))?;

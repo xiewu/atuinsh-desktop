@@ -463,7 +463,7 @@ dependencies = [
 
 [[package]]
 name = "atuin-desktop"
-version = "0.0.84"
+version = "0.0.85"
 dependencies = [
  "async-trait",
  "atuin-client",

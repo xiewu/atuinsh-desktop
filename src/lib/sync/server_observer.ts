@@ -161,7 +161,15 @@ class PersonalOrgObserver {
     this.init();
   }
 
-  private init() {
+  private async init() {
+    const workspaces = await Workspace.all({ orgId: null });
+    for (const workspace of workspaces) {
+      this.workspaceObservers.set(
+        workspace.get("id")!,
+        new OrgWorkspaceObserver(workspace.get("id")!, this.store, this.notifications),
+      );
+    }
+
     const unsub = this.notifications.onPersonalWorkspaceEvent((event, data) => {
       if (event === "created") {
         this.logger.info(`Creating workspace observer for workspace ${data.workspaceId}`);

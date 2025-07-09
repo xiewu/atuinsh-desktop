@@ -64,6 +64,7 @@ import AtuinEnv from "@/atuin_env";
 import { ConnectionState } from "@/state/store/user_state";
 import { processUnprocessedOperations } from "@/state/runbooks/operation_processor";
 import { useQueryClient } from "@tanstack/react-query";
+import NewWorkspaceDialog from "./NewWorkspaceDialog";
 
 const Onboarding = React.lazy(() => import("@/components/Onboarding/Onboarding"));
 const UpdateNotifier = React.lazy(() => import("./UpdateNotifier"));
@@ -131,6 +132,8 @@ function App() {
   const user = useStore((state: AtuinState) => state.user);
   const isLoggedIn = useStore((state: AtuinState) => state.isLoggedIn);
   const showDesktopConnect = useStore((state: AtuinState) => state.proposedDesktopConnectUser);
+
+  const [showNewWorkspaceDialog, setShowNewWorkspaceDialog] = useState(false);
 
   const listRef = useRef<ListApi>(null);
 
@@ -203,9 +206,28 @@ function App() {
     }
   }
 
-  async function createNewWorkspace() {
+  function handleAcceptNewWorkspace(name: string, online: boolean) {
+    setShowNewWorkspaceDialog(false);
+
+    createNewWorkspace(name, online).then(() => {
+      console.log("workspace created");
+    });
+  }
+
+  async function createNewWorkspace(name: string, online: boolean) {
+    if (!online && selectedOrg) {
+      await new DialogBuilder()
+        .title("Cannot create offline workspace for org")
+        .icon("error")
+        .message("You cannot create an offline workspace for an Organization.")
+        .action({ label: "OK", value: "ok", variant: "flat" })
+        .build();
+      return;
+    }
+
     const workspace = new Workspace({
-      name: "Untitled Workspace",
+      name,
+      online: online ? 1 : 0,
     });
 
     if (selectedOrg) {
@@ -267,7 +289,7 @@ function App() {
   });
 
   useTauriEvent("new-workspace", async () => {
-    createNewWorkspace();
+    setShowNewWorkspaceDialog(true);
   });
 
   useEffect(() => {
@@ -1036,7 +1058,7 @@ function App() {
 
           <List
             importRunbooks={handleImportRunbooks}
-            onStartCreateWorkspace={createNewWorkspace}
+            onStartCreateWorkspace={() => setShowNewWorkspaceDialog(true)}
             moveItemsToWorkspace={handleMoveItemsToWorkspace}
             ref={listRef}
           />
@@ -1046,6 +1068,13 @@ function App() {
 
           {showDesktopConnect && <DesktopConnect />}
           {showOnboarding && <Onboarding />}
+          {showNewWorkspaceDialog && (
+            <NewWorkspaceDialog
+              onAccept={handleAcceptNewWorkspace}
+              onCancel={() => setShowNewWorkspaceDialog(false)}
+              forceOnline={selectedOrg ? true : false}
+            />
+          )}
           <InviteFriendsModal
             isOpen={showInviteFriends}
             onClose={() => setShowInviteFriends(false)}

@@ -10,6 +10,7 @@ export type WorkspaceAttrs = {
   id?: string;
   name: string;
   orgId?: string | null;
+  online: 1 | 0;
   permissions?: string[];
 
   created?: Date;
@@ -28,7 +29,9 @@ const fieldSpecs = {
 };
 
 const globalSpecs: GlobalSpec<WorkspaceAttrs> = {
-  preSave: setTimestamps,
+  preSave: async (context, model, _type) => {
+    setTimestamps(context, model);
+  },
   postSave: async (_context, model, type) => {
     dbHook("workspace", type === "insert" ? "create" : "update", model);
     if (type === "insert") {

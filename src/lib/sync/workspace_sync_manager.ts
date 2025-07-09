@@ -159,6 +159,7 @@ export default class WorkspaceSyncManager {
           name: workspace.name,
           orgId: workspace.owner.type === "org" ? workspace.owner.id : null,
           permissions: workspace.permissions,
+          online: 1,
         });
         await ws.save();
         if (workspace.owner.type === "org") {

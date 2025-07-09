@@ -284,6 +284,17 @@ async function processWorkspaceCreated(
   workspaceName: string,
   workspaceOwner: { type: "user" } | { type: "org"; orgId: string },
 ): Promise<boolean> {
+  const workspace = await Workspace.get(workspaceId);
+  if (!workspace) {
+    // No local workspace, no way to recover
+    return true;
+  }
+
+  if (workspace.get("online") !== 1) {
+    // Offline workspace; don't send to server
+    return true;
+  }
+
   try {
     if (workspaceOwner.type === "user") {
       await api.createUserWorkspace(workspaceId, workspaceName);

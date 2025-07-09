@@ -228,15 +228,11 @@ function App() {
     const workspace = new Workspace({
       name,
       online: online ? 1 : 0,
+      orgId: selectedOrg || null,
     });
-
-    if (selectedOrg) {
-      workspace.set("orgId", selectedOrg);
-    }
 
     await workspace.save();
 
-    console.log("workspace saved", workspace);
     track_event("workspace.create");
 
     setCurrentWorkspaceId(workspace.get("id")!);

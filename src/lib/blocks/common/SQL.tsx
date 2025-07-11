@@ -2,7 +2,7 @@
 // Intended for databases that have tables
 // postgres, sqlite, etc - not document stores.
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import {
   Dropdown,
   DropdownTrigger,
@@ -22,11 +22,11 @@ import {
   FileTerminalIcon,
   LockIcon,
   RefreshCwIcon,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import CodeMirror, { Extension } from "@uiw/react-codemirror";
-import { GridColumn } from "@glideapps/glide-data-grid";
-
-import "@glideapps/glide-data-grid/dist/index.css";
+import { langs } from "@uiw/codemirror-extensions-langs";
 
 // @ts-ignore
 import { CardHeader } from "@/components/ui/card";
@@ -47,6 +47,7 @@ import { useBlockBusRunSubscription } from "@/lib/hooks/useBlockBus";
 import BlockBus from "@/lib/workflow/block_bus";
 import useCodemirrorTheme from "@/lib/hooks/useCodemirrorTheme";
 import { useCodeMirrorValue } from "@/lib/hooks/useCodeMirrorValue";
+import EditableHeading from "@/components/EditableHeading/index";
 
 interface SQLProps {
   id: string;
@@ -110,15 +111,34 @@ const SQL = ({
   const [isRunning, setIsRunning] = useState<boolean>(false);
 
   const [results, setResults] = useState<QueryResult | null>(null);
-  const [columns, setColumns] = useState<GridColumn[]>([]);
+  const [columns, setColumns] = useState<
+    { id: string; title: string; grow?: number; width?: number }[]
+  >([]);
 
   const [error, setError] = useState<string | null>(null);
   const [currentRunbookId] = useStore((store: AtuinState) => [store.currentRunbookId]);
-  const colorMode = useStore((state) => state.functionalColorMode);
   const elementRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [isFullscreenQueryCollapsed, setIsFullscreenQueryCollapsed] = useState<boolean>(false);
 
   const themeObj = useCodemirrorTheme();
   const codeMirrorValue = useCodeMirrorValue(query, setQuery);
+  
+  // Get SQL language extension based on sqlType
+  const getSqlExtension = () => {
+    switch (sqlType) {
+      case "postgres":
+        return langs.pgsql();
+      case "mysql":
+        return langs.mysql();
+      case "sqlite":
+        return langs.sql();
+      case "clickhouse":
+        return langs.sql(); // Use generic SQL for ClickHouse
+      default:
+        return langs.sql();
+    }
+  };
 
   const handlePlay = useCallback(async () => {
     console.log("sql handlePlay called");
@@ -222,6 +242,24 @@ const SQL = ({
     setUri(`{{ var.${blockName} }}`);
   };
 
+  // Handle ESC key to exit fullscreen and prevent body scroll
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+
+    if (isFullscreen) {
+      document.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.removeEventListener("keydown", handleKeyDown);
+        document.body.style.overflow = "auto";
+      };
+    }
+  }, [isFullscreen]);
+
   return (
     <Block
       hasDependency
@@ -230,8 +268,25 @@ const SQL = ({
       setDependency={setDependency}
       type={block.typeName}
       setName={setName}
+      inlineHeader
       header={
         <>
+          <div className="flex flex-row justify-between w-full">
+            <h1 className="text-default-700 font-semibold">
+              <EditableHeading initialText={name} onTextChange={(text) => setName(text)} />
+            </h1>
+            <div className="flex flex-row items-center gap-2">
+              <Tooltip content={isFullscreen ? "Exit fullscreen" : "Open in fullscreen"}>
+                <button
+                  onClick={() => setIsFullscreen(!isFullscreen)}
+                  className="p-2 hover:bg-default-100 rounded-md"
+                >
+                  {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+                </button>
+              </Tooltip>
+            </div>
+          </div>
+
           <div className="flex flex-row gap-2 w-full items-center">
             <MaskedInput
               size="sm"
@@ -297,7 +352,7 @@ const SQL = ({
                 "h-8 overflow-hidden": collapseQuery,
               })}
               basicSetup={true}
-              extensions={[...extensions]}
+              extensions={[getSqlExtension(), ...extensions]}
               value={codeMirrorValue.value}
               onChange={codeMirrorValue.onChange}
               editable={isEditable}
@@ -356,16 +411,165 @@ const SQL = ({
         </ButtonGroup>
       }
     >
-      {(results || error) && (
+      {(results || error) && !isFullscreen && (
         <SQLResults
           results={results}
           error={error}
-          colorMode={colorMode}
           dismiss={() => {
             setResults(null);
             setError(null);
           }}
         />
+      )}
+
+      {/* Fullscreen SQL Block Modal */}
+      {isFullscreen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md z-[9999]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsFullscreen(false);
+            }
+          }}
+        >
+          <div className="h-full bg-background overflow-hidden rounded-lg shadow-2xl flex flex-col">
+            {/* Fullscreen Header */}
+            <div
+              data-tauri-drag-region
+              className="flex justify-between items-center w-full border-default-200/50 bg-content1/95 backdrop-blur-sm flex-shrink-0"
+            >
+              <div
+                data-tauri-drag-region
+                className="flex items-center gap-3 ml-16 w-full justify-between"
+              >
+                <span className="text-sm text-default-700">{name || "SQL Query"}</span>
+              </div>
+              <ButtonGroup>
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="flat"
+                  onPress={() => setIsFullscreenQueryCollapsed(!isFullscreenQueryCollapsed)}
+                >
+                  <Tooltip
+                    content={isFullscreenQueryCollapsed ? "Show query editor" : "Hide query editor"}
+                  >
+                    {isFullscreenQueryCollapsed ? (
+                      <ArrowDownToLineIcon size={16} />
+                    ) : (
+                      <ArrowUpToLineIcon size={16} />
+                    )}
+                  </Tooltip>
+                </Button>
+                <Button isIconOnly size="sm" variant="flat" onPress={() => setIsFullscreen(false)}>
+                  <Tooltip content="Exit fullscreen">
+                    <Minimize2 size={18} />
+                  </Tooltip>
+                </Button>
+              </ButtonGroup>
+            </div>
+
+            {/* Fullscreen Content */}
+            <div className="min-h-0 flex-1 overflow-hidden flex flex-col">
+              {/* URI and Controls Section */}
+              {!isFullscreenQueryCollapsed && (
+                <div
+                  className="flex-shrink-0 p-4 border-b border-default-200/50"
+                  style={{ maxHeight: "33vh" }}
+                >
+                  <div className="flex flex-row gap-2 w-full items-center mb-4">
+                    <MaskedInput
+                      size="sm"
+                      maskRegex={/(?<=:\/\/).*(?=@[^@]*$)/}
+                      placeholder={placeholder || "protocol://user:password@host:port/db"}
+                      label="URI"
+                      isRequired
+                      startContent={<DatabaseIcon size={18} />}
+                      value={uri}
+                      onChange={(val: string) => {
+                        setUri(val);
+                      }}
+                      disabled={!isEditable}
+                    />
+
+                    <Dropdown>
+                      <DropdownTrigger>
+                        <Button isIconOnly variant="flat">
+                          <LockIcon size={16} />
+                        </Button>
+                      </DropdownTrigger>
+                      <DropdownMenu disabledKeys={["secret"]}>
+                        <DropdownSection title="Use a local variable or script">
+                          <DropdownItem
+                            key="local-var"
+                            description="Local variable - not synced"
+                            startContent={<CloudOffIcon size={16} />}
+                            onPress={addLocalVar}
+                          >
+                            Variable
+                          </DropdownItem>
+                          <DropdownItem
+                            key="template"
+                            description="Shell command output"
+                            startContent={<FileTerminalIcon size={16} />}
+                            onPress={addScriptForUri}
+                          >
+                            Script
+                          </DropdownItem>
+                          <DropdownItem
+                            key="secret"
+                            description="Synchronized + encrypted secret"
+                            startContent={<LockIcon size={16} />}
+                          >
+                            Secret
+                          </DropdownItem>
+                        </DropdownSection>
+                      </DropdownMenu>
+                    </Dropdown>
+                  </div>
+
+                  {/* Query Editor */}
+                  <div className="flex flex-row gap-2 w-full">
+                    <PlayButton
+                      eventName="runbooks.block.execute"
+                      eventProps={{ type: sqlType }}
+                      isRunning={isRunning}
+                      onPlay={handlePlay}
+                      cancellable={false}
+                    />
+                    <CodeMirror
+                      placeholder={"Write your query here..."}
+                      className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
+                      style={{ maxHeight: "33vh", overflow: "auto" }}
+                      basicSetup={true}
+                      extensions={[getSqlExtension(), ...extensions]}
+                      value={codeMirrorValue.value}
+                      onChange={codeMirrorValue.onChange}
+                      editable={isEditable}
+                      theme={themeObj}
+                      onFocus={onCodeMirrorFocus}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Results Section */}
+              <div className="flex-1 min-h-0 overflow-hidden p-4">
+                {(results || error) && (
+                  <SQLResults
+                    results={results}
+                    error={error}
+                    isFullscreen={true}
+                    dismiss={() => {
+                      setResults(null);
+                      setError(null);
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </Block>
   );

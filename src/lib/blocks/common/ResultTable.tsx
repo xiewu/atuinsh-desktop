@@ -1,142 +1,238 @@
+import { AgGridReact } from "ag-grid-react";
 import {
-  DataEditor,
-  GridCell,
-  GridCellKind,
-  GridColumn,
-  Item,
-  Theme,
-} from "@glideapps/glide-data-grid";
+  ColDef,
+  ModuleRegistry,
+  AllCommunityModule,
+  themeQuartz,
+  colorSchemeLightWarm,
+  colorSchemeDarkWarm,
+  GridApi,
+  CellDoubleClickedEvent,
+  ColumnResizedEvent,
+  GridReadyEvent,
+} from "ag-grid-community";
+import { useMemo, useRef, useEffect, useState } from "react";
+import { useStore } from "@/state/store";
+import { createPortal } from "react-dom";
 
-import "@glideapps/glide-data-grid/dist/index.css";
-import { useMemo } from "react";
+// Register AG Grid modules
+ModuleRegistry.registerModules([AllCommunityModule]);
 
-export const getCellContent =
-  (results: any[], columns: GridColumn[]) =>
-  ([col, row]: Item): GridCell => {
-    if (!results) throw new Error("Trying to render cell without results");
+interface ResultTableProps {
+  columns: { id: string; title: string; grow?: number; width?: number }[];
+  results: any[];
+  setColumns?: (columns: { id: string; title: string; grow?: number; width?: number }[]) => void;
+  width: string;
+}
 
-    const item = results[row];
-    const key = columns[col].id;
+export default function ResultTable({ columns, results, setColumns, width }: ResultTableProps) {
+  const gridRef = useRef<AgGridReact>(null);
+  const colorMode = useStore((state) => state.functionalColorMode);
+  const [gridApi, setGridApi] = useState<GridApi | null>(null);
+  const [cellPopup, setCellPopup] = useState<{
+    content: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
-    if (!key) throw new Error("Trying to render cell without key");
+  const columnDefs: ColDef[] = useMemo(() => {
+    return columns.map((col) => ({
+      headerName: col.title,
+      field: col.id,
+      sortable: true,
+      filter: true,
+      resizable: true,
+      width: col.width || undefined,
+      flex: col.width ? 0 : 1, // Use flex if no specific width is set
+      cellRenderer: (params: any) => {
+        const value = params.value;
+        if (value === null || value === undefined) {
+          return "null";
+        }
+        if (typeof value === "object") {
+          return JSON.stringify(value);
+        }
+        return String(value);
+      },
+    }));
+  }, [columns]);
 
-    const value = item[col];
+  const rowData = useMemo(() => {
+    return results.map((row) => {
+      const rowObj: any = {};
+      columns.forEach((col, index) => {
+        rowObj[col.id] = row[index];
+      });
+      return rowObj;
+    });
+  }, [results, columns]);
 
-    // Determine the type of the value and return appropriate cell data
-    if (typeof value === "number") {
-      return {
-        kind: GridCellKind.Number,
-        data: value,
-        displayData: value.toString(),
-        allowOverlay: true,
-        readonly: true,
-      };
-    } else if (typeof value === "boolean") {
-      return {
-        kind: GridCellKind.Boolean,
-        data: value,
-        allowOverlay: false,
-        readonly: true,
-      };
-    } else if (Array.isArray(value)) {
-      return {
-        kind: GridCellKind.Text,
-        data: value.join(", "),
-        displayData: value.join(", "),
-        allowOverlay: true,
-        readonly: true,
-      };
-    } else if (typeof value === "object" && value !== null) {
-      return {
-        kind: GridCellKind.Text,
-        data: JSON.stringify(value),
-        displayData: JSON.stringify(value),
-        allowOverlay: true,
-        readonly: true,
-      };
-    } else {
-      return {
-        kind: GridCellKind.Text,
-        data: String(value),
-        displayData: String(value),
-        allowOverlay: true,
-        readonly: true,
-      };
+  const onColumnResized = (event: ColumnResizedEvent) => {
+    if (setColumns && event.finished) {
+      const newColumns = columns.map((col) => {
+        const agCol = event.api.getColumn(col.id);
+        if (agCol) {
+          return {
+            ...col,
+            width: agCol.getActualWidth(),
+          };
+        }
+        return col;
+      });
+      setColumns(newColumns);
     }
   };
 
-const darkTheme: Partial<Theme> = {
-  accentColor: "#4F5DFF",
-  accentFg: "#FFFFFF",
-  accentLight: "rgba(79, 93, 255, 0.2)",
+  const defaultColDef = useMemo(
+    () => ({
+      sortable: true,
+      filter: true,
+      resizable: true,
+      minWidth: 80,
+    }),
+    [],
+  );
 
-  textDark: "#FFFFFF",
-  textMedium: "#B8B8B8",
-  textLight: "#888888",
-  textBubble: "#FFFFFF",
+  const theme = useMemo(() => {
+    let theme =
+      colorMode === "dark"
+        ? themeQuartz.withPart(colorSchemeDarkWarm)
+        : themeQuartz.withPart(colorSchemeLightWarm);
 
-  bgIconHeader: "#B8B8B8",
-  fgIconHeader: "#1A1A1A",
-  textHeader: "#FFFFFF",
-  textGroupHeader: "#CCCCCCBB",
-  textHeaderSelected: "#FFFFFF",
+    theme = theme.withParams({
+      wrapperBorderRadius: 0,
+    });
 
-  bgCell: "#2A2A2A",
-  bgCellMedium: "#333333",
-  bgHeader: "#1E1E1E",
-  bgHeaderHasFocus: "#404040",
-  bgHeaderHovered: "#383838",
+    return theme;
+  }, [colorMode]);
 
-  bgBubble: "#404040",
-  bgBubbleSelected: "#2A2A2A",
+  const onGridReady = (params: GridReadyEvent) => {
+    setGridApi(params.api);
+  };
 
-  bgSearchResult: "#4A4A00",
+  const onCellDoubleClicked = (event: CellDoubleClickedEvent) => {
+    const value = event.value;
+    const cellContent =
+      value === null || value === undefined
+        ? "null"
+        : typeof value === "object"
+          ? JSON.stringify(value, null, 2)
+          : String(value);
 
-  borderColor: "rgba(255, 255, 255, 0.12)",
-  drilldownBorder: "rgba(255, 255, 255, 0.12)",
+    // Get the cell element position
+    const cellElement = event.event?.target as HTMLElement;
+    if (cellElement && gridApi) {
+      const rect = cellElement.getBoundingClientRect();
 
-  linkColor: "#7B8CFF",
-};
+      setCellPopup({
+        content: cellContent,
+        x: rect.left,
+        y: rect.top - 10,
+      });
+    }
+  };
 
-interface ResultTableProps {
-  columns: GridColumn[];
-  results: any[];
-  setColumns?: (columns: GridColumn[]) => void;
-  width: string;
-  colorMode?: "dark" | "light";
-}
+  const onCellClicked = () => {
+    // Dismiss popup when any cell is clicked
+    if (cellPopup) {
+      setCellPopup(null);
+    }
+  };
 
-export default function ResultTable({
-  columns,
-  results,
-  setColumns,
-  width,
-  colorMode,
-}: ResultTableProps) {
-  const cellContent = useMemo(() => getCellContent(results, columns), [results, columns]);
+  useEffect(() => {
+    // ag-grid enterprise/pro has some really cool clipboard features - and a lot of other things!
+    // this makes it work in a bare-bones way for now, but tbh we should pay for the full version at some point.
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Check if Cmd+C (Mac) or Ctrl+C (Windows/Linux) is pressed
+      if ((event.metaKey || event.ctrlKey) && event.key === "c" && gridApi) {
+        const focusedCell = gridApi.getFocusedCell();
+        if (focusedCell) {
+          const rowNode = gridApi.getDisplayedRowAtIndex(focusedCell.rowIndex);
+          if (rowNode) {
+            const cellValue = rowNode.data[focusedCell.column.getColId()];
+            const textToCopy =
+              cellValue === null || cellValue === undefined ? "" : String(cellValue);
 
-  const theme: Partial<Theme> = colorMode === "dark" ? darkTheme : {};
+            navigator.clipboard
+              .writeText(textToCopy)
+              .then(() => {
+                console.log("Cell content copied to clipboard:", textToCopy);
+              })
+              .catch((err) => {
+                console.error("Failed to copy to clipboard:", err);
+              });
+          }
+        }
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
 
-  // PERF: Note that getCellsForSelection can be a bit slow with a LOT of rows
-  // Optimise in the future. Would be cool as fuck to render millions of rows.
+    const handleClickOutside = (event: MouseEvent) => {
+      if (cellPopup) {
+        const target = event.target as HTMLElement;
+        if (!target.closest(".cell-popup")) {
+          setCellPopup(null);
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("click", handleClickOutside);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("click", handleClickOutside);
+    };
+  }, [gridApi, cellPopup]);
 
   return (
-    <DataEditor
-      className="w-full p-0 m-0"
-      getCellContent={cellContent}
-      getCellsForSelection={true}
-      columns={columns}
-      rows={results.length}
-      width={width}
-      theme={theme}
-      onColumnResize={(_col, newSize, index) => {
-        const newColumns = [...columns];
-        newColumns[index] = {
-          ...newColumns[index],
-          width: newSize,
-        };
-        setColumns?.(newColumns);
-      }}
-    />
+    <>
+      <div
+        className="w-full h-full ag-grid"
+        style={{ width, height: "100%" }}
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onDragStart={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        onDragEnd={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+      >
+        <AgGridReact
+          ref={gridRef}
+          rowData={rowData}
+          columnDefs={columnDefs}
+          defaultColDef={defaultColDef}
+          onGridReady={onGridReady}
+          onColumnResized={onColumnResized}
+          onCellDoubleClicked={onCellDoubleClicked}
+          onCellClicked={onCellClicked}
+          theme={theme}
+          suppressColumnVirtualisation={true}
+        />
+      </div>
+
+      {cellPopup &&
+        createPortal(
+          <div
+            className="cell-popup fixed z-50 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg p-2 max-w-sm max-h-48 overflow-auto"
+            style={{
+              left: cellPopup.x,
+              top: cellPopup.y,
+              maxWidth: "300px",
+              maxHeight: "200px",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <pre className="text-xs whitespace-pre-wrap font-mono text-gray-900 dark:text-gray-100">
+              {cellPopup.content}
+            </pre>
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }

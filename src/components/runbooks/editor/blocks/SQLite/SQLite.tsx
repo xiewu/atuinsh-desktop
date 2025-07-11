@@ -1,6 +1,6 @@
 import { DatabaseIcon } from "lucide-react";
 
-import "@glideapps/glide-data-grid/dist/index.css";
+
 
 // @ts-ignore
 import { createReactBlockSpec } from "@blocknote/react";

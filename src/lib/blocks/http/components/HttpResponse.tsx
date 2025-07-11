@@ -141,7 +141,6 @@ const HttpResponse = ({ response, error, dismiss, colorMode }: any) => {
             <ResultTable
               results={headerEntries}
               width={"100%"}
-              colorMode={colorMode}
               columns={[
                 {
                   id: "Header",

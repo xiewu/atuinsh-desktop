@@ -50,19 +50,21 @@ import BlockBus from "@/lib/workflow/block_bus";
 import { invoke } from "@tauri-apps/api/core";
 import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert";
 import track_event from "@/tracking";
-import { saveScrollPosition, restoreScrollPosition, getScrollPosition } from "@/utils/scroll-position";
+import {
+  saveScrollPosition,
+  restoreScrollPosition,
+  getScrollPosition,
+} from "@/utils/scroll-position";
 import { insertDropdown } from "./blocks/Dropdown/Dropdown";
 import { insertTerminal } from "@/lib/blocks/terminal";
 import { insertKubernetes } from "@/lib/blocks/kubernetes";
 import { insertLocalDirectory } from "@/lib/blocks/localdirectory";
 import { calculateAIPopupPosition, calculateLinkPopupPosition } from "./utils/popupPositioning";
 
-
 // Fix for react-dnd interference with BlockNote drag-and-drop
 // React-dnd wraps dataTransfer in a proxy that blocks access during drag operations
 // We capture the original data during dragstart and resynthesize clean drop events
 let originalDragData: any = null;
-
 
 const insertDirectory = (editor: typeof schema.BlockNoteEditor) => ({
   title: "Directory",
@@ -148,12 +150,15 @@ const insertVarDisplay = (editor: typeof schema.BlockNoteEditor) => ({
   group: "Execute",
 });
 
-const insertRunbookLink = (editor: typeof schema.BlockNoteEditor, showRunbookLinkPopup: (position: { x: number; y: number }) => void) => ({
+const insertRunbookLink = (
+  editor: typeof schema.BlockNoteEditor,
+  showRunbookLinkPopup: (position: { x: number; y: number }) => void,
+) => ({
   title: "Runbook Link",
   subtext: "Link to another runbook",
   onItemClick: () => {
     track_event("runbooks.block.create", { type: "runbook_link" });
-    
+
     // Show the runbook link popup
     const position = calculateLinkPopupPosition(editor);
     showRunbookLinkPopup(position);
@@ -163,10 +168,11 @@ const insertRunbookLink = (editor: typeof schema.BlockNoteEditor, showRunbookLin
   group: "Content",
 });
 
-
-
 // AI Generate function
-const insertAIGenerate = (editor: any, showAIPopup: (position: { x: number; y: number }) => void) => ({
+const insertAIGenerate = (
+  editor: any,
+  showAIPopup: (position: { x: number; y: number }) => void,
+) => ({
   title: "AI Generate",
   subtext: "Generate blocks from a natural language prompt (or press ⌘K)",
   onItemClick: () => {
@@ -225,46 +231,49 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
     setRunbookLinkPopupVisible(false);
   }, []);
 
-  const handleRunbookLinkSelect = useCallback((runbookId: string, runbookName: string) => {
-    if (!editor) return;
-    
-    editor.insertInlineContent([
-      {
-        type: "runbook-link",
-        props: {
-          runbookId,
-          runbookName,
-        },
-      } as any,
-      " ", // add a space after the link
-    ]);
-    
-    closeRunbookLinkPopup();
-    
-    // Focus back to the editor and position cursor after the inserted link
-    setTimeout(() => {
-      editor.focus();
-    }, 10);
-  }, [editor, closeRunbookLinkPopup]);
+  const handleRunbookLinkSelect = useCallback(
+    (runbookId: string, runbookName: string) => {
+      if (!editor) return;
+
+      editor.insertInlineContent([
+        {
+          type: "runbook-link",
+          props: {
+            runbookId,
+            runbookName,
+          },
+        } as any,
+        " ", // add a space after the link
+      ]);
+
+      closeRunbookLinkPopup();
+
+      // Focus back to the editor and position cursor after the inserted link
+      setTimeout(() => {
+        editor.focus();
+      }, 10);
+    },
+    [editor, closeRunbookLinkPopup],
+  );
 
   const getEditorContext = useCallback(async () => {
     if (!editor) return undefined;
-    
+
     try {
       // Get current document blocks
       const blocks = editor.document;
-      
+
       // Get cursor position (current block)
       const textCursorPosition = editor.getTextCursorPosition();
       const currentBlockId = textCursorPosition.block.id;
-      
+
       // Find current block index
-      const currentBlockIndex = blocks.findIndex(block => block.id === currentBlockId);
-      
+      const currentBlockIndex = blocks.findIndex((block) => block.id === currentBlockId);
+
       return {
         blocks,
         currentBlockId,
-        currentBlockIndex: currentBlockIndex >= 0 ? currentBlockIndex : 0
+        currentBlockIndex: currentBlockIndex >= 0 ? currentBlockIndex : 0,
       };
     } catch (error) {
       console.warn("Could not get editor context:", error);
@@ -272,18 +281,17 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
     }
   }, [editor]);
 
-  const handleAIGenerate = useCallback((blocks: any[]) => {
-    if (!editor) return;
+  const handleAIGenerate = useCallback(
+    (blocks: any[]) => {
+      if (!editor) return;
 
-    const currentPosition = editor.getTextCursorPosition();
-    
-    editor.insertBlocks(
-      blocks,
-      currentPosition.block.id,
-      "after"
-    );
-    closeAIPopup();
-  }, [editor, closeAIPopup]);
+      const currentPosition = editor.getTextCursorPosition();
+
+      editor.insertBlocks(blocks, currentPosition.block.id, "after");
+      closeAIPopup();
+    },
+    [editor, closeAIPopup],
+  );
 
   const serialExecuteCallback = useCallback(async () => {
     if (!editor || !runbook) {
@@ -297,8 +305,6 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
     console.log(workflow);
     await invoke("workflow_serial", { id: runbook.id, workflow });
   }, [editor, runbook]);
-
-
 
   useEffect(() => {
     if (!editor || !runbook || serialExecuteRef.current) {
@@ -321,20 +327,21 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Cmd+K for AI popup
-      if (e.metaKey && e.key === 'k') {
+      if (e.metaKey && e.key === "k") {
         e.preventDefault();
-        
+
         if (!editor) return;
-        
+
         try {
           // Get the current cursor position in the editor
           const cursorPosition = editor.getTextCursorPosition();
           const currentBlock = cursorPosition.block;
-          
+
           // Check if we're in an empty paragraph (for generation) or specific block (for editing)
-          const isEmptyParagraph = currentBlock.type === "paragraph" && 
+          const isEmptyParagraph =
+            currentBlock.type === "paragraph" &&
             (!currentBlock.content || currentBlock.content.length === 0);
-          
+
           if (isEmptyParagraph) {
             // Generate new blocks mode
             track_event("runbooks.ai.keyboard_shortcut");
@@ -354,26 +361,24 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
           showAIPopup({ x: 250, y: 100 });
         }
       }
-      
-
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    
+    document.addEventListener("keydown", handleKeyDown);
+
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [editor, showAIPopup, showRunbookLinkPopup]);
 
   // Handle visibility and scroll restoration when runbook changes
   useLayoutEffect(() => {
     if (!runbook?.id) return;
-    
+
     const savedPosition = getScrollPosition(runbook.id);
     if (savedPosition > 0) {
       // Hide temporarily while we restore position
       setIsVisible(false);
-      
+
       requestAnimationFrame(() => {
         try {
           if (scrollContainerRef.current) {
@@ -394,20 +399,23 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
 
   // Debounced scroll handler
   const timeoutRef = useRef<number | null>(null);
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    if (!runbook?.id) return;
-    
-    const target = e.currentTarget;
-    
-    // Debounce to avoid excessive localStorage writes
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = window.setTimeout(() => {
-      console.log("saving scroll position for runbook", runbook.id);
-      saveScrollPosition(runbook.id, target.scrollTop);
-    }, 100);
-  }, [runbook?.id]);
+  const handleScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      if (!runbook?.id) return;
+
+      const target = e.currentTarget;
+
+      // Debounce to avoid excessive localStorage writes
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = window.setTimeout(() => {
+        console.log("saving scroll position for runbook", runbook.id);
+        saveScrollPosition(runbook.id, target.scrollTop);
+      }, 100);
+    },
+    [runbook?.id],
+  );
 
   if (!editor || !runbook) {
     return (
@@ -425,10 +433,15 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
       style={{
         fontSize: `${fontSize}px`,
         fontFamily: fontFamily,
-        visibility: isVisible ? 'visible' : 'hidden',
+        visibility: isVisible ? "visible" : "hidden",
       }}
       onScroll={handleScroll}
       onDragStart={(e) => {
+        // Don't interfere with AG-Grid drag operations
+        if ((e.target as Element).closest(".ag-theme-alpine, .ag-theme-alpine-dark, .ag-grid")) {
+          return;
+        }
+
         // Capture original drag data before react-dnd can wrap it
         originalDragData = {
           effectAllowed: e.dataTransfer.effectAllowed,
@@ -445,6 +458,11 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
         });
       }}
       onDrop={(e) => {
+        // Don't interfere with AG-Grid drop operations
+        if ((e.target as Element).closest(".ag-theme-alpine, .ag-theme-alpine-dark, .ag-grid")) {
+          return;
+        }
+
         if (!originalDragData) {
           return;
         }
@@ -485,8 +503,19 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
 
         originalDragData = null;
       }}
-      onDragOver={(e) => e.preventDefault()}
+      onDragOver={(e) => {
+        // Don't interfere with AG-Grid drag operations
+        if ((e.target as Element).closest(".ag-theme-alpine, .ag-theme-alpine-dark, .ag-grid")) {
+          return;
+        }
+        e.preventDefault();
+      }}
       onClick={(e) => {
+        // Don't interfere with AG-Grid clicks
+        if ((e.target as Element).closest(".ag-theme-alpine, .ag-theme-alpine-dark, .ag-grid")) {
+          return;
+        }
+
         // Only return if clicking inside editor content, not modals/inputs
         if (
           (e.target as Element).matches(".editor .bn-container *") ||
@@ -527,9 +556,6 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
         }}
         theme={colorMode === "dark" ? "dark" : "light"}
         editable={editable}
-        onDragStart={(e) => {
-          console.log("onDragStart", e);
-        }}
       >
         <SuggestionMenuController
           triggerCharacter={"/"}
@@ -591,9 +617,8 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
             ></SideMenu>
           )}
         />
-
       </BlockNoteView>
-      
+
       {/* AI popup positioned relative to editor container (only if AI is enabled) */}
       {aiEnabledState && (
         <AIGeneratePopup
@@ -604,7 +629,7 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
           getEditorContext={getEditorContext}
         />
       )}
-      
+
       {/* AI edit popup for modifying existing blocks */}
       {aiEnabledState && (
         <AIPopup
@@ -616,7 +641,7 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
           getEditorContext={getEditorContext}
         />
       )}
-      
+
       {/* Runbook link popup */}
       <RunbookLinkPopup
         isVisible={runbookLinkPopupVisible}

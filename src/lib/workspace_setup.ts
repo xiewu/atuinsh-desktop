@@ -47,6 +47,7 @@ export default async function doWorkspaceSetup(): Promise<void> {
         id: server_ws.id,
         name: server_ws.name,
         permissions: server_ws.permissions,
+        online: 1,
       });
       await workspace.save();
     } catch (err) {
@@ -55,6 +56,7 @@ export default async function doWorkspaceSetup(): Promise<void> {
       workspace = new Workspace({
         id: uuidv7(),
         name: "Default Workspace",
+        online: 1,
       });
       await workspace.save();
 

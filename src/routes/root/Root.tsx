@@ -216,16 +216,6 @@ function App() {
   }
 
   async function createNewWorkspace(name: string, online: boolean) {
-    if (!online && selectedOrg) {
-      await new DialogBuilder()
-        .title("Cannot create offline workspace for org")
-        .icon("error")
-        .message("You cannot create an offline workspace for an Organization.")
-        .action({ label: "OK", value: "ok", variant: "flat" })
-        .build();
-      return;
-    }
-
     const workspace = new Workspace({
       name,
       online: online ? 1 : 0,
@@ -529,8 +519,7 @@ function App() {
     // which is why we call `handleRunbookActivate` before updating
     // the workspace folder (which would trigger the server observer).
     const workspace = await Workspace.get(workspaceId);
-    // TODO: remove check for org once all runbooks are online by default
-    if (workspace && workspace.isOrgOwned()) {
+    if (workspace && workspace.isOnline()) {
       const runbook = await Runbook.load(runbookId);
       if (!runbook) {
         new DialogBuilder()

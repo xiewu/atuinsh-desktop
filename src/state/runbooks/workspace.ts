@@ -34,7 +34,7 @@ const globalSpecs: GlobalSpec<WorkspaceAttrs> = {
   },
   postSave: async (_context, model, type) => {
     dbHook("workspace", type === "insert" ? "create" : "update", model);
-    if (type === "insert") {
+    if (type === "insert" && (model as Workspace).isOnline()) {
       SharedStateManager.startInstance(
         `workspace-folder:${model.get("id")}`,
         new AtuinSharedStateAdapter(`workspace-folder:${model.get("id")}`),
@@ -72,5 +72,9 @@ export default class Workspace extends Model<WorkspaceAttrs> {
 
   isOrgOwned(): boolean {
     return this.get("orgId") !== null;
+  }
+
+  isOnline(): boolean {
+    return this.get("online") === 1;
   }
 }

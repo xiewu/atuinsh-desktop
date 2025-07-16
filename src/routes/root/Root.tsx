@@ -824,6 +824,7 @@ function App() {
         .title("Failed to move items")
         .icon("error")
         .message("Failed to remove items from old workspace")
+        .action({ label: "OK", value: "ok", variant: "flat" })
         .build();
 
       return;
@@ -883,6 +884,7 @@ function App() {
           .title("Failed to move items")
           .icon("error")
           .message("Failed to move items")
+          .action({ label: "OK", value: "ok", variant: "flat" })
           .build();
 
         return;

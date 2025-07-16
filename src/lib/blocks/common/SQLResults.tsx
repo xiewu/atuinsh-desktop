@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { QueryResult } from "./database";
 import ResultTable from "./ResultTable";
-import { GridColumn } from "@glideapps/glide-data-grid";
 import { Card, CardBody, CardHeader, Chip, Tooltip, Button, Divider } from "@heroui/react";
 import { CheckCircle, CircleXIcon, Clock, HardDriveIcon, Rows4Icon } from "lucide-react";
 import { formatBytes } from "@/lib/utils";
@@ -9,12 +8,12 @@ import { formatBytes } from "@/lib/utils";
 interface SQLProps {
   error: any;
   results: QueryResult | null;
-  colorMode: "dark" | "light";
   dismiss?: () => void;
+  isFullscreen?: boolean;
 }
 
-const SQLResults = ({ results, error, dismiss, colorMode }: SQLProps) => {
-  const [columns, setColumns] = useState<GridColumn[] | null>(null);
+const SQLResults = ({ results, error, dismiss, isFullscreen = false }: SQLProps) => {
+  const [columns, setColumns] = useState<{ id: string; title: string; grow?: number; width?: number }[] | null>(null);
 
   useEffect(() => {
     if (!results) return;
@@ -28,7 +27,7 @@ const SQLResults = ({ results, error, dismiss, colorMode }: SQLProps) => {
       };
     });
 
-    setColumns(cols as GridColumn[]);
+    setColumns(cols);
   }, [results]);
 
   if (error) {
@@ -65,8 +64,8 @@ const SQLResults = ({ results, error, dismiss, colorMode }: SQLProps) => {
   if (!results) return null;
 
   return (
-    <Card shadow="sm" className="w-full max-w-full border border-default-200">
-      <CardHeader className="flex justify-between items-center bg-default-50">
+    <Card shadow="sm" className={isFullscreen ? "w-full h-full border border-default-200 flex flex-col" : "w-full max-w-full border border-default-200"}>
+      <CardHeader className="flex justify-between items-center bg-default-50 flex-shrink-0">
         <div className="flex items-center gap-3">
           {dismiss && (
             <Button variant="flat" isIconOnly onClick={dismiss} size="sm">
@@ -128,17 +127,16 @@ const SQLResults = ({ results, error, dismiss, colorMode }: SQLProps) => {
         </div>
       </CardHeader>
       <Divider />
-      <CardBody className="p-0">
+      <CardBody className={isFullscreen ? "p-0 flex-1 min-h-0" : "p-0"}>
         {error && <div className="bg-red-100 text-red-600 p-2 rounded">{error}</div>}
 
         {results && columns && (
-          <div className="h-64 w-full">
+          <div className={isFullscreen ? "h-full w-full overflow-auto" : "h-64 w-full overflow-auto"}>
             <ResultTable
               width={"100%"}
               columns={columns}
               results={results.rows || []}
               setColumns={setColumns}
-              colorMode={colorMode}
             />
           </div>
         )}

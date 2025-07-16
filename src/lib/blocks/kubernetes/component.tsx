@@ -1,5 +1,4 @@
 import { useState, useCallback, useMemo, useRef } from "react";
-import { GridColumn } from "@glideapps/glide-data-grid";
 import {
   Button,
   Dropdown,
@@ -68,7 +67,7 @@ interface KubernetesComponentProps {
 
 interface KubernetesResult {
   data: any[];
-  columns: GridColumn[];
+  columns: { id: string; title: string; width?: number }[];
   rowCount: number;
   duration: number;
   time: Date;
@@ -105,7 +104,7 @@ export function KubernetesComponent({
   const [collapseQuery, setCollapseQuery] = useState<boolean>(false);
   const [expandedFooter, setExpandedFooter] = useState<boolean>(false);
   const [currentRunbookId] = useStore((store: AtuinState) => [store.currentRunbookId]);
-  const colorMode = useStore((state) => state.functionalColorMode);
+  
   const elementRef = useRef<HTMLDivElement>(null);
 
   const themeObj = useCodemirrorTheme();
@@ -151,18 +150,10 @@ export function KubernetesComponent({
       }
 
       const { data, columns } = parseKubernetesOutput(response.output);
-      
-      // Convert to GridColumn format
-      const gridColumns: GridColumn[] = columns.map((col) => ({
-        id: col.id,
-        title: col.title,
-        width: col.width,
-        resizable: true,
-      }));
 
       const result: KubernetesResult = {
         data,
-        columns: gridColumns,
+        columns,
         rowCount: data.length,
         duration: (endTime - startTime) / 1000000, // Convert to milliseconds
         time: new Date(),
@@ -392,7 +383,6 @@ export function KubernetesComponent({
         <KubernetesResults
           results={results}
           error={error}
-          colorMode={colorMode}
           dismiss={() => {
             setResults(null);
             setError(null);
@@ -406,11 +396,10 @@ export function KubernetesComponent({
 interface KubernetesResultsProps {
   error: any;
   results: KubernetesResult | null;
-  colorMode: "dark" | "light";
   dismiss?: () => void;
 }
 
-function KubernetesResults({ results, error, dismiss, colorMode }: KubernetesResultsProps) {
+function KubernetesResults({ results, error, dismiss }: KubernetesResultsProps) {
   if (error) {
     return (
       <Card shadow="sm" className="w-full max-w-full border border-danger-200">
@@ -493,7 +482,7 @@ function KubernetesResults({ results, error, dismiss, colorMode }: KubernetesRes
               columns={results.columns}
               results={results.data || []}
               setColumns={() => {}} // Read-only
-              colorMode={colorMode}
+
             />
           </div>
         )}

@@ -15,6 +15,7 @@ export default defineConfig(async () => ({
       org: "atuin",
       project: "desktop-frontend",
       telemetry: false,
+      debug: true,
     }),
     analyzer({
       analyzerMode: "static",

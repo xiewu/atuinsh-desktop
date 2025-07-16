@@ -48,6 +48,7 @@ import Operation, {
   createWorkspace,
   deleteRunbook,
   moveItemsToNewWorkspace,
+  OperationData,
 } from "@/state/runbooks/operation";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
 import WorkspaceSyncManager from "@/lib/sync/workspace_sync_manager";
@@ -55,7 +56,7 @@ import doWorkspaceFolderOp from "@/state/runbooks/workspace_folder_ops";
 import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
 import { SharedStateManager } from "@/lib/shared_state/manager";
 import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
-import { Rc } from "@binarymuse/ts-stdlib";
+import { None, Rc, Some } from "@binarymuse/ts-stdlib";
 import { TraversalOrder } from "@/lib/tree";
 import DevConsole from "@/lib/dev/dev_console";
 import Sidebar, { SidebarItem } from "@/components/Sidebar";
@@ -238,14 +239,16 @@ function App() {
     setCurrentWorkspaceId(workspace.get("id")!);
     navigate(`/runbooks`);
 
-    const op = new Operation({
-      operation: createWorkspace(
-        workspace.get("id")!,
-        workspace.get("name")!,
-        selectedOrg ? { type: "org", orgId: selectedOrg } : { type: "user" },
-      ),
-    });
-    await op.save();
+    if (online) {
+      const op = new Operation({
+        operation: createWorkspace(
+          workspace.get("id")!,
+          workspace.get("name")!,
+          selectedOrg ? { type: "org", orgId: selectedOrg } : { type: "user" },
+        ),
+      });
+      await op.save();
+    }
 
     listRef.current?.scrollWorkspaceIntoView(workspace.get("id")!);
   }
@@ -323,13 +326,17 @@ function App() {
         return wsf.importRunbooks(runbookIds, parentFolderId);
       },
       (changeRef) => {
-        return {
-          type: "workspace_import_runbooks",
-          workspaceId: workspace.get("id")!,
-          parentFolderId,
-          runbookIds,
-          changeRef,
-        };
+        if (workspace && workspace.isOnline()) {
+          return Some<OperationData>({
+            type: "workspace_import_runbooks",
+            workspaceId: workspace.get("id")!,
+            parentFolderId,
+            runbookIds,
+            changeRef,
+          });
+        } else {
+          return None;
+        }
       },
     );
 
@@ -489,13 +496,18 @@ function App() {
       await invoke("workflow_stop", { id: runbookId });
     }
 
+    const workspace = await Workspace.get(workspaceId);
     doWorkspaceFolderOp(
       workspaceId,
       (wsf) => {
         return wsf.deleteRunbook(runbookId);
       },
       (changeRef) => {
-        return deleteRunbook(workspaceId, runbookId, changeRef);
+        if (workspace && workspace.isOnline()) {
+          return Some(deleteRunbook(workspaceId, runbookId, changeRef));
+        } else {
+          return None;
+        }
       },
     );
   }
@@ -575,7 +587,11 @@ function App() {
         return true;
       },
       (changeRef) => {
-        return createRunbook(workspaceId, parentFolderId, runbookId, changeRef);
+        if (workspace && workspace.isOnline()) {
+          return Some(createRunbook(workspaceId, parentFolderId, runbookId, changeRef));
+        } else {
+          return None;
+        }
       },
     );
   }

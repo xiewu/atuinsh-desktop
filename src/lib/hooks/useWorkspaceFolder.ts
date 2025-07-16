@@ -4,10 +4,11 @@ import { useMemo, useCallback } from "react";
 import { ChangeRef } from "../shared_state/types";
 import useSharedState from "../shared_state/useSharedState";
 import { doFolderOp } from "@/state/runbooks/workspace_folder_ops";
+import { Option } from "@binarymuse/ts-stdlib";
 
 type FolderOpFn = (
   op: (wsf: WorkspaceFolder, cancel: () => undefined) => boolean,
-  operation: (changeRef: ChangeRef) => OperationData,
+  operation: (changeRef: ChangeRef) => Option<OperationData>,
 ) => Promise<boolean>;
 
 /**
@@ -49,7 +50,7 @@ export default function useWorkspaceFolder(workspaceId: string): [WorkspaceFolde
   const wrappedDoFolderOp = useCallback(
     async (
       op: (wsf: WorkspaceFolder, cancel: () => undefined) => boolean,
-      operation: (changeRef: ChangeRef) => OperationData,
+      operation: (changeRef: ChangeRef) => Option<OperationData>,
     ) => {
       const result = await doFolderOp(updateFolderState, op, operation);
       return result.success;

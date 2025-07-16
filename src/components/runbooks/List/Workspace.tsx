@@ -25,7 +25,7 @@ import InlineInput from "./TreeView/InlineInput";
 import { SharedStateManager } from "@/lib/shared_state/manager";
 import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
 import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
-import { Rc } from "@binarymuse/ts-stdlib";
+import { None, Rc, Some } from "@binarymuse/ts-stdlib";
 import { useDrop } from "react-dnd";
 import { actions } from "react-arborist/dist/module/state/dnd-slice";
 
@@ -182,7 +182,13 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
   async function handleRenameFolder(folderId: string, newName: string) {
     doFolderOp(
       (wsf) => wsf.renameFolder(folderId, newName),
-      (changeRef) => updateFolderName(props.workspace.get("id")!, folderId, newName, changeRef),
+      (changeRef) => {
+        if (props.workspace.isOnline()) {
+          return Some(updateFolderName(props.workspace.get("id")!, folderId, newName, changeRef));
+        } else {
+          return None;
+        }
+      },
     );
   }
 
@@ -190,8 +196,15 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     const id = uuidv7();
     await doFolderOp(
       (wsf) => wsf.createFolder(id, "New Folder", parentId),
-      (changeRef) =>
-        createFolder(props.workspace.get("id")!, parentId, id, "New Folder", changeRef),
+      (changeRef) => {
+        if (props.workspace.isOnline()) {
+          return Some(
+            createFolder(props.workspace.get("id")!, parentId, id, "New Folder", changeRef),
+          );
+        } else {
+          return None;
+        }
+      },
     );
 
     let node: NodeApi<TreeRowData> | null = null;
@@ -246,7 +259,13 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
 
     await doFolderOp(
       (wsf) => wsf.deleteFolder(folderId),
-      (changeRef) => deleteFolder(props.workspace.get("id")!, folderId, changeRef),
+      (changeRef) => {
+        if (props.workspace.isOnline()) {
+          return Some(deleteFolder(props.workspace.get("id")!, folderId, changeRef));
+        } else {
+          return None;
+        }
+      },
     );
   }
 
@@ -259,7 +278,13 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     if (sourceWorkspaceId === props.workspace.get("id")!) {
       doFolderOp(
         (wsf) => wsf.moveItems(ids, parentId, index),
-        (changeRef) => moveItems(props.workspace.get("id")!, ids, parentId, index, changeRef),
+        (changeRef) => {
+          if (props.workspace.isOnline()) {
+            return Some(moveItems(props.workspace.get("id")!, ids, parentId, index, changeRef));
+          } else {
+            return None;
+          }
+        },
       );
     } else {
       props.onStartMoveItemsToWorkspace(

@@ -1,5 +1,6 @@
 import { open } from "@tauri-apps/plugin-shell";
 import "./Root.css";
+import debounce from "lodash.debounce";
 
 import { AtuinState, useStore } from "@/state/store";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -26,7 +27,7 @@ import {
   User,
 } from "@heroui/react";
 import { UnlistenFn } from "@tauri-apps/api/event";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ImperativePanelHandle } from "react-resizable-panels";
 import { isAppleDevice } from "@react-aria/utils";
 import { useTauriEvent } from "@/lib/tauri";
@@ -882,7 +883,7 @@ function App() {
 
   const sidebarOpen = useStore((state) => state.sidebarOpen);
   const setSidebarOpen = useStore((state) => state.setSidebarOpen);
-  
+
   const sidebarPanelRef = useRef<ImperativePanelHandle>(null);
 
   // Handle sidebar toggle with panel collapse/expand
@@ -894,11 +895,22 @@ function App() {
     if (sidebarPanelRef.current) {
       if (newSidebarOpen) {
         sidebarPanelRef.current.expand();
+        // Trigger a resize event so that xterm will reflow contents
+        (window as any).dispatchEvent(new Event("resize"));
       } else {
         sidebarPanelRef.current.collapse();
+        (window as any).dispatchEvent(new Event("resize"));
       }
     }
   };
+
+  const handlePanelGroupResize = useCallback(
+    debounce(() => {
+      // Trigger a resize event so that xterm will reflow contents
+      (window as any).dispatchEvent(new Event("resize"));
+    }, 100),
+    [],
+  );
 
   // Auto-collapse sidebar on mobile/narrow screens
   useEffect(() => {
@@ -1074,13 +1086,15 @@ function App() {
             </div>
           </div>
 
-          <ResizablePanelGroup 
-            direction="horizontal" 
+          <ResizablePanelGroup
+            direction="horizontal"
             className="flex-1"
+            autoSaveId="sidebar-panel"
+            onLayout={handlePanelGroupResize}
           >
-            <ResizablePanel 
+            <ResizablePanel
               ref={sidebarPanelRef}
-              defaultSize={sidebarOpen ? 25 : 0} 
+              defaultSize={sidebarOpen ? 25 : 0}
               minSize={sidebarOpen ? 15 : 0}
               maxSize={40}
               collapsible={true}

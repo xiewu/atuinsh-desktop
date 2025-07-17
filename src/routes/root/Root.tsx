@@ -5,6 +5,7 @@ import { AtuinState, useStore } from "@/state/store";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { Toaster } from "@/components/ui/toaster";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 
 import icon from "@/assets/icon.svg";
 import { checkForAppUpdates } from "@/updater";
@@ -26,6 +27,7 @@ import {
 } from "@heroui/react";
 import { UnlistenFn } from "@tauri-apps/api/event";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { ImperativePanelHandle } from "react-resizable-panels";
 import { isAppleDevice } from "@react-aria/utils";
 import { useTauriEvent } from "@/lib/tauri";
 import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
@@ -904,6 +906,42 @@ function App() {
   const sidebarOpen = useStore((state) => state.sidebarOpen);
   const setSidebarOpen = useStore((state) => state.setSidebarOpen);
 
+  const sidebarPanelRef = useRef<ImperativePanelHandle>(null);
+
+  // Handle sidebar toggle with panel collapse/expand
+  const handleSidebarToggle = () => {
+    const newSidebarOpen = !sidebarOpen;
+    setSidebarOpen(newSidebarOpen);
+
+    // Use imperative API to collapse/expand the panel
+    if (sidebarPanelRef.current) {
+      if (newSidebarOpen) {
+        sidebarPanelRef.current.expand();
+      } else {
+        sidebarPanelRef.current.collapse();
+      }
+    }
+  };
+
+  // Auto-collapse sidebar on mobile/narrow screens
+  useEffect(() => {
+    const handleResize = () => {
+      const isMobile = window.innerWidth < 768; // md breakpoint
+
+      if (isMobile && sidebarOpen) {
+        setSidebarOpen(false);
+        if (sidebarPanelRef.current) {
+          sidebarPanelRef.current.collapse();
+        }
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    handleResize(); // Check on mount
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, [sidebarOpen, setSidebarOpen]);
+
   return (
     <div
       className="flex w-screen dark:bg-default-50"
@@ -941,7 +979,7 @@ function App() {
               <Tooltip content={sidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}>
                 <Button
                   isIconOnly
-                  onPress={() => setSidebarOpen(!sidebarOpen)}
+                  onPress={handleSidebarToggle}
                   size="md"
                   variant="light"
                   className="ml-2"
@@ -1059,13 +1097,31 @@ function App() {
             </div>
           </div>
 
-          <List
-            importRunbooks={handleImportRunbooks}
-            onStartCreateWorkspace={() => setShowNewWorkspaceDialog(true)}
-            moveItemsToWorkspace={handleMoveItemsToWorkspace}
-            ref={listRef}
-          />
-          <Outlet />
+          <ResizablePanelGroup direction="horizontal" className="flex-1">
+            <ResizablePanel
+              ref={sidebarPanelRef}
+              defaultSize={sidebarOpen ? 25 : 0}
+              minSize={sidebarOpen ? 15 : 0}
+              maxSize={40}
+              collapsible={true}
+              className={sidebarOpen ? "min-w-[200px]" : ""}
+            >
+              {sidebarOpen && (
+                <List
+                  importRunbooks={handleImportRunbooks}
+                  onStartCreateWorkspace={() => setShowNewWorkspaceDialog(true)}
+                  moveItemsToWorkspace={handleMoveItemsToWorkspace}
+                  ref={listRef}
+                />
+              )}
+            </ResizablePanel>
+            <ResizableHandle className={sidebarOpen ? "" : "hidden"} />
+            <ResizablePanel defaultSize={sidebarOpen ? 75 : 100} minSize={60}>
+              <div className="flex flex-col h-full overflow-y-auto">
+                <Outlet />
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
 
           <Toaster />
 

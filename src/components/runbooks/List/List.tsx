@@ -24,7 +24,6 @@ import Runbook from "@/state/runbooks/runbook";
 import { AtuinState, useStore } from "@/state/store";
 import {
   forwardRef,
-  useCallback,
   useContext,
   useEffect,
   useImperativeHandle,
@@ -44,7 +43,7 @@ import RunbookContext from "@/context/runbook_context";
 import { createNewRunbookMenu, createRootMenu } from "./menus";
 import { SharedStateManager } from "@/lib/shared_state/manager";
 import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
-import VerticalDragHandle from "./VerticalDragHandle";
+
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Rc } from "@binarymuse/ts-stdlib";
@@ -80,9 +79,8 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
   const currentRunbookId = useStore((state: AtuinState) => state.currentRunbookId);
   const currentWorkspaceId = useStore((state: AtuinState) => state.currentWorkspaceId);
 
-  const sidebarWidth = useStore((state: AtuinState) => state.sidebarWidth);
-  const setSidebarWidth = useStore((state: AtuinState) => state.setSidebarWidth);
-  const sidebarOpen = useStore((state: AtuinState) => state.sidebarOpen);
+
+
   const elRef = useRef<HTMLDivElement>(null);
   const user = useStore((state: AtuinState) => state.user);
   const userOrgs = useStore((state: AtuinState) => state.userOrgs);
@@ -93,12 +91,7 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
     selectedOrg ? orgWorkspaces(selectedOrg) : userOwnedWorkspaces(),
   );
 
-  const onResize = useCallback(
-    (delta: number) => {
-      setSidebarWidth(sidebarWidth + delta);
-    },
-    [sidebarWidth],
-  );
+
 
   const { activateRunbook, promptDeleteRunbook, runbookCreated } = useContext(RunbookContext);
 
@@ -292,15 +285,11 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
   return (
     <div
       className={cn([
-        "hidden relative h-full bg-gray-50 dark:bg-content1 border-r border-gray-200 dark:border-default-300 select-none",
-        {
-          "md:flex md:flex-col": sidebarOpen,
-        },
+        "relative h-full bg-gray-50 dark:bg-content1 border-r border-gray-200 dark:border-default-300 select-none flex flex-col",
       ])}
       style={{
-        width: `${sidebarWidth}px`,
-        maxWidth: `${sidebarWidth}px`,
-        minWidth: `${sidebarWidth}px`,
+        width: "100%",
+        height: "100%",
       }}
       ref={elRef}
     >
@@ -546,7 +535,7 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
           </div>
         </>
       )}
-      <VerticalDragHandle minSize={200} onResize={onResize} />
+
     </div>
   );
 });

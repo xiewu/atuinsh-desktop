@@ -1,16 +1,11 @@
-import CodeMirror, { Command, keymap, Prec } from "@uiw/react-codemirror";
+import CodeMirror, { KeyBinding, keymap, Prec } from "@uiw/react-codemirror";
 import * as themes from "@uiw/codemirror-themes-all";
 import { langs } from "@uiw/codemirror-extensions-langs";
 import { extensions } from "./extensions";
 import { useMemo } from "react";
-import { acceptCompletion } from "@codemirror/autocomplete";
+import { acceptCompletion, completionStatus } from "@codemirror/autocomplete";
 import { useCodeMirrorValue } from "@/lib/hooks/useCodeMirrorValue";
-
-interface KeyMap {
-  key?: string;
-  mac?: string;
-  run: Command;
-}
+import { indentLess, indentMore } from "@codemirror/commands";
 
 interface CodeEditorProps {
   id: string;
@@ -18,12 +13,25 @@ interface CodeEditorProps {
   isEditable: boolean;
   language: string;
   theme: string;
-  keyMap?: KeyMap[];
+  keyMap?: KeyBinding[];
   onChange: (code: string) => void;
   onFocus?: () => void;
 }
 
-export const TabAutoComplete: KeyMap = { key: "Tab", run: acceptCompletion };
+export const TabAutoComplete: KeyBinding = {
+  key: "Tab",
+  run: (view) => {
+    // Only accept completion if there's an active completion popup
+    if (completionStatus(view.state) === "active") {
+      return acceptCompletion(view);
+    }
+    // Otherwise, perform normal tab indentation
+    return indentMore(view);
+  },
+  shift: (view) => {
+    return indentLess(view);
+  },
+};
 
 export default function CodeEditor({
   id,

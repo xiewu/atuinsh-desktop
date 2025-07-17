@@ -3,8 +3,9 @@ import * as themes from "@uiw/codemirror-themes-all";
 import { langs } from "@uiw/codemirror-extensions-langs";
 import { extensions } from "./extensions";
 import { useMemo } from "react";
-import { acceptCompletion } from "@codemirror/autocomplete";
+import { acceptCompletion, completionStatus } from "@codemirror/autocomplete";
 import { useCodeMirrorValue } from "@/lib/hooks/useCodeMirrorValue";
+import { indentMore } from "@codemirror/commands";
 
 interface KeyMap {
   key?: string;
@@ -23,7 +24,17 @@ interface CodeEditorProps {
   onFocus?: () => void;
 }
 
-export const TabAutoComplete: KeyMap = { key: "Tab", run: acceptCompletion };
+export const TabAutoComplete: KeyMap = { 
+  key: "Tab", 
+  run: (view) => {
+    // Only accept completion if there's an active completion popup
+    if (completionStatus(view.state) === "active") {
+      return acceptCompletion(view);
+    }
+    // Otherwise, perform normal tab indentation
+    return indentMore(view);
+  }
+};
 
 export default function CodeEditor({
   id,

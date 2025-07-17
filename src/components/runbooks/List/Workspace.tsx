@@ -28,6 +28,7 @@ import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
 import { None, Rc, Some } from "@binarymuse/ts-stdlib";
 import { useDrop } from "react-dnd";
 import { actions } from "react-arborist/dist/module/state/dnd-slice";
+import { ChevronDownIcon, ChevronRightIcon, CloudOffIcon } from "lucide-react";
 
 interface WorkspaceProps {
   workspace: Workspace;
@@ -97,7 +98,9 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
   const currentWorkspaceId = useStore((state) => state.currentWorkspaceId);
   const setCurrentWorkspaceId = useStore((state) => state.setCurrentWorkspaceId);
   const toggleFolder = useStore((state) => state.toggleFolder);
+  const toggleWorkspaceVisibility = useStore((state) => state.toggleWorkspaceVisibility);
   const folderState = useStore((state) => state.folderState);
+  const hiddenWorkspaces = useStore((state) => state.hiddenWorkspaces);
   const [currentItemId, setCurrentItemId] = useState<string | null>(currentRunbookId);
   const [workspaceNameState, dispatchWorkspaceName] = useReducer(workspaceNameReducer, {
     isEditing: false,
@@ -511,6 +514,7 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     },
   }));
 
+  console.log("initial open state", folderState[props.workspace.get("id")!]);
   return (
     <div
       ref={dropRef as any}
@@ -530,7 +534,10 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
         </div>
       ) : (
         <div
-          className="p-1 mb-2 bg-muted text-sm font-semibold whitespace-nowrap text-ellipsis overflow-x-hidden rounded-t-md"
+          className="flex justify-between p-1 mb-2 bg-muted text-sm font-semibold whitespace-nowrap text-ellipsis overflow-x-hidden rounded-t-md"
+          title={`${props.workspace.get("name")}${
+            props.workspace.isOnline() ? "" : " (Offline Workspace)"
+          }`}
           onDoubleClick={() =>
             dispatchWorkspaceName({
               type: "start_rename",
@@ -538,23 +545,45 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
             })
           }
         >
-          {props.workspace.get("name")}
+          <span>
+            {hiddenWorkspaces[props.workspace.get("id")!] ? (
+              <ChevronRightIcon
+                className="w-4 h-4 mt-[2px] mr-1 inline-block"
+                onClick={() => toggleWorkspaceVisibility(props.workspace.get("id")!)}
+              />
+            ) : (
+              <ChevronDownIcon
+                className="w-4 h-4 mt-[2px] mr-1 inline-block"
+                onClick={() => toggleWorkspaceVisibility(props.workspace.get("id")!)}
+              />
+            )}
+            <span className="shrink whitespace-nowrap text-ellipsis overflow-x-hidden">
+              {props.workspace.get("name")}
+            </span>
+          </span>
+          {props.workspace.get("online") === 1 ? (
+            <span />
+          ) : (
+            <CloudOffIcon className="w-4 h-4 mt-[2px] flex-none" />
+          )}
         </div>
       )}
-      <TreeView
-        workspaceId={props.workspace.get("id")!}
-        onTreeApiReady={(api) => (treeRef.current = api)}
-        data={arboristData as any}
-        sortBy={props.sortBy}
-        selectedItemId={currentItemId}
-        initialOpenState={folderState[props.workspace.get("id")!] || {}}
-        onActivateItem={handleActivateItem}
-        onRenameFolder={handleRenameFolder}
-        onNewFolder={handleNewFolder}
-        onMoveItems={handleMoveItems}
-        onContextMenu={handleContextMenu}
-        onToggleFolder={handleToggleFolder}
-      />
+      {hiddenWorkspaces[props.workspace.get("id")!] ? null : (
+        <TreeView
+          workspaceId={props.workspace.get("id")!}
+          onTreeApiReady={(api) => (treeRef.current = api)}
+          data={arboristData as any}
+          sortBy={props.sortBy}
+          selectedItemId={currentItemId}
+          initialOpenState={folderState[props.workspace.get("id")!] || {}}
+          onActivateItem={handleActivateItem}
+          onRenameFolder={handleRenameFolder}
+          onNewFolder={handleNewFolder}
+          onMoveItems={handleMoveItems}
+          onContextMenu={handleContextMenu}
+          onToggleFolder={handleToggleFolder}
+        />
+      )}
     </div>
   );
 }

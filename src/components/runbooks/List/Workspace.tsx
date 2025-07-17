@@ -545,7 +545,7 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
             })
           }
         >
-          <span>
+          <span className="shrink whitespace-nowrap text-ellipsis overflow-x-hidden">
             {hiddenWorkspaces[props.workspace.get("id")!] ? (
               <ChevronRightIcon
                 className="w-4 h-4 mt-[2px] mr-1 inline-block"
@@ -557,9 +557,7 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
                 onClick={() => toggleWorkspaceVisibility(props.workspace.get("id")!)}
               />
             )}
-            <span className="shrink whitespace-nowrap text-ellipsis overflow-x-hidden">
-              {props.workspace.get("name")}
-            </span>
+            <span className="">{props.workspace.get("name")}</span>
           </span>
           {props.workspace.get("online") === 1 ? (
             <span />

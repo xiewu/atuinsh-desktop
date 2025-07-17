@@ -530,6 +530,7 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
             value={workspaceNameState.newName}
             onSubmit={handleRenameWorkspace}
             onCancel={() => dispatchWorkspaceName({ type: "cancel_rename" })}
+            className="w-full"
           />
         </div>
       ) : (

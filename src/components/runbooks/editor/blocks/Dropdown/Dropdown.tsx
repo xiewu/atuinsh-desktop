@@ -214,7 +214,7 @@ const CommandTab = ({
           variant="flat"
         />
       </div>
-      <div className="min-h-[120px] border border-blue-200 dark:border-blue-800 rounded-md overflow-hidden">
+      <div className="min-h-[120px] border border-blue-200 dark:border-blue-800 rounded-md overflow-x-auto">
         <CodeEditor
           id="dropdown-command-editor"
           code={options}
@@ -508,32 +508,34 @@ const Dropdown = ({
         </div>
       </div>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Dropdown Options</DialogTitle>
           </DialogHeader>
-          <Tabs value={optionsType} onValueChange={onOptionsTypeChange}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="fixed">Fixed Options</TabsTrigger>
-              <TabsTrigger value="variable">Variable Options</TabsTrigger>
-              <TabsTrigger value="command">Command Output</TabsTrigger>
-            </TabsList>
-            <TabsContent value="fixed">
-              <FixedTab options={options} onOptionsUpdate={onOptionsUpdate} />
-            </TabsContent>
-            <TabsContent value="variable">
-              <VariableTab options={options} onOptionsUpdate={onOptionsUpdate} />
-            </TabsContent>
-            <TabsContent value="command">
-              <CommandTab
-                options={options}
-                onOptionsUpdate={onOptionsUpdate}
-                interpreter={interpreter}
-                onInterpreterChange={onInterpreterChange}
-                onCodeMirrorFocus={onCodeMirrorFocus}
-              />
-            </TabsContent>
-          </Tabs>
+          <div className="flex-1 overflow-hidden">
+            <Tabs value={optionsType} onValueChange={onOptionsTypeChange} className="h-full flex flex-col">
+              <TabsList className="grid w-full grid-cols-3 flex-shrink-0">
+                <TabsTrigger value="fixed">Fixed Options</TabsTrigger>
+                <TabsTrigger value="variable">Variable Options</TabsTrigger>
+                <TabsTrigger value="command">Command Output</TabsTrigger>
+              </TabsList>
+              <TabsContent value="fixed" className="flex-1 overflow-auto">
+                <FixedTab options={options} onOptionsUpdate={onOptionsUpdate} />
+              </TabsContent>
+              <TabsContent value="variable" className="flex-1 overflow-auto">
+                <VariableTab options={options} onOptionsUpdate={onOptionsUpdate} />
+              </TabsContent>
+              <TabsContent value="command" className="flex-1 overflow-auto">
+                <CommandTab
+                  options={options}
+                  onOptionsUpdate={onOptionsUpdate}
+                  interpreter={interpreter}
+                  onInterpreterChange={onInterpreterChange}
+                  onCodeMirrorFocus={onCodeMirrorFocus}
+                />
+              </TabsContent>
+            </Tabs>
+          </div>
         </DialogContent>
       </Dialog>
     </>

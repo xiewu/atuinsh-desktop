@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Tooltip, Button, Input } from "@heroui/react";
 import { EyeIcon } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 // @ts-ignore
 import { createReactBlockSpec } from "@blocknote/react";
 import { useStore } from "@/state/store";
+import RunbookBus from "@/lib/app/runbook_bus";
 
 /**
  * Props for the VarDisplay component that shows a live preview of a template variable
@@ -51,13 +52,21 @@ const VarDisplay = ({ name = "", isEditable, onUpdate }: VarDisplayProps) => {
     }
   }, [name, currentRunbookId]);
 
-  React.useEffect(() => {
+  useEffect(() => {
+    if (!currentRunbookId || !name) {
+      return;
+    }
+
+    const bus = RunbookBus.get(currentRunbookId);
+    return bus.onVariableChanged((changedName, newValue) => {
+      if (changedName === name) {
+        setValue(newValue);
+      }
+    });
+  }, [name, currentRunbookId]);
+
+  useEffect(() => {
     fetchValue();
-    
-    // Auto-refresh to keep the display updated with latest values
-    // Important when other blocks modify the same variable
-    const intervalId = setInterval(fetchValue, 2000);
-    return () => clearInterval(intervalId);
   }, [fetchValue]);
 
   return (

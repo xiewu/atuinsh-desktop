@@ -21,11 +21,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { useStore } from "@/state/store";
 import track_event from "@/tracking";
 import { findAllParentsOfType, getCurrentDirectory } from "@/lib/blocks/exec.ts";
-import { templateString } from "@/state/templates";
+import { setTemplateVar, templateString } from "@/state/templates";
 import CodeEditor, { TabAutoComplete } from "@/lib/blocks/common/CodeEditor/CodeEditor.tsx";
 import InterpreterSelector, {
   buildInterpreterCommand,
 } from "@/lib/blocks/common/InterpreterSelector.tsx";
+import RunbookBus from "@/lib/app/runbook_bus";
 
 // Helper to parse and display option nicely
 const parseOption = (option: string) => {
@@ -41,6 +42,23 @@ const parseOption = (option: string) => {
 
 type DropdownOptions = "fixed" | "variable" | "command";
 
+enum OptionType {
+  FIXED = "fixed",
+  VARIABLE = "variable",
+  COMMAND = "command",
+}
+
+function optionCacheName(optionsType: OptionType) {
+  switch (optionsType) {
+    case OptionType.FIXED:
+      return "fixedOptions";
+    case OptionType.VARIABLE:
+      return "variableOptions";
+    case OptionType.COMMAND:
+      return "commandOptions";
+  }
+}
+
 interface DropdownProps {
   name: string;
   id: string;
@@ -52,9 +70,9 @@ interface DropdownProps {
   editor: any;
 
   onNameUpdate: (name: string) => void;
-  onOptionsUpdate: (options: string) => void;
+  onOptionsUpdate: (type: OptionType, options: string) => void;
   onValueUpdate: (value: string) => void;
-  onOptionsTypeChange: (optionsType: string) => void;
+  onOptionsTypeChange: (optionsType: OptionType) => void;
   onInterpreterChange: (interpreter: string) => void;
   onCodeMirrorFocus?: () => void;
 }
@@ -127,9 +145,7 @@ const FixedTab = ({
                     {parsed.hasKeyValue ? (
                       <>
                         <span className="font-medium">{parsed.label}</span>
-                        <span className="text-xs opacity-70 font-mono">
-                          → {parsed.value}
-                        </span>
+                        <span className="text-xs opacity-70 font-mono">→ {parsed.value}</span>
                       </>
                     ) : (
                       <span>{parsed.label}</span>
@@ -296,8 +312,10 @@ const Dropdown = ({
 
         if (typeof value === "string") {
           setVariableOptions(splitLines(value));
+          return value;
         } else {
           setVariableOptions([]);
+          return "";
         }
       } catch (error) {
         console.error("Failed to fetch variable:", error);
@@ -342,8 +360,10 @@ const Dropdown = ({
 
         if (value) {
           setVariableOptions(splitLines(value));
+          return value;
         } else {
           setVariableOptions([]);
+          return "";
         }
       } catch (error) {
         console.error("Command execution failed:", error);
@@ -353,6 +373,23 @@ const Dropdown = ({
       }
     }
   }, [options, optionsType, interpreter, currentRunbookId, id]);
+
+  useEffect(() => {
+    if (!currentRunbookId) {
+      return;
+    }
+
+    const bus = RunbookBus.get(currentRunbookId);
+    return bus.onVariableChanged((changedName, _val) => {
+      if (changedName === options) {
+        fetchOptions().then((newValue) => {
+          if (newValue !== undefined) {
+            onValueUpdate(newValue);
+          }
+        });
+      }
+    });
+  }, [currentRunbookId, name, optionsType, fetchOptions]);
 
   // Fetch options when dependencies change
   useEffect(() => {
@@ -374,11 +411,11 @@ const Dropdown = ({
 
   useEffect(() => {
     (async () => {
-      await invoke("set_template_var", {
-        runbook: currentRunbookId,
-        name: name,
-        value: selected,
-      });
+      if (!currentRunbookId) {
+        return;
+      }
+
+      await setTemplateVar(currentRunbookId, name, selected);
     })();
   }, [selected]);
 
@@ -403,11 +440,7 @@ const Dropdown = ({
         .then((value: any) => {
           if (value && newName) {
             // Save under the new name
-            invoke("set_template_var", {
-              runbook: currentRunbookId,
-              name: newName,
-              value: value as string,
-            }).catch(console.error);
+            setTemplateVar(currentRunbookId, newName, value as string).catch(console.error);
           }
         })
         .catch(console.error);
@@ -415,6 +448,16 @@ const Dropdown = ({
 
     onNameUpdate(newName);
   };
+
+  const optionsChangeHandler = useCallback(
+    (type: OptionType) => (options: string) => onOptionsUpdate(type, options),
+    [onOptionsUpdate],
+  );
+
+  const tabChangeHandler = useCallback(
+    (type: string) => onOptionsTypeChange(type as OptionType),
+    [onOptionsTypeChange],
+  );
 
   return (
     <>
@@ -440,7 +483,11 @@ const Dropdown = ({
             autoCapitalize="off"
             autoCorrect="off"
             spellCheck={false}
-            className={`bg-white ${hasNameError ? "border-red-400 dark:border-red-400 focus:ring-red-500" : "border-blue-200 dark:border-blue-800"}`}
+            className={`bg-default-100 ${
+              hasNameError
+                ? "border-red-400 dark:border-red-400 focus:ring-red-500"
+                : "border-blue-200 dark:border-blue-800"
+            }`}
             disabled={!isEditable}
           />
         </div>
@@ -513,22 +560,32 @@ const Dropdown = ({
             <DialogTitle>Dropdown Options</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-hidden">
-            <Tabs value={optionsType} onValueChange={onOptionsTypeChange} className="h-full flex flex-col">
+            <Tabs
+              value={optionsType}
+              onValueChange={tabChangeHandler}
+              className="h-full flex flex-col"
+            >
               <TabsList className="grid w-full grid-cols-3 flex-shrink-0">
                 <TabsTrigger value="fixed">Fixed Options</TabsTrigger>
                 <TabsTrigger value="variable">Variable Options</TabsTrigger>
                 <TabsTrigger value="command">Command Output</TabsTrigger>
               </TabsList>
               <TabsContent value="fixed" className="flex-1 overflow-auto">
-                <FixedTab options={options} onOptionsUpdate={onOptionsUpdate} />
+                <FixedTab
+                  options={options}
+                  onOptionsUpdate={optionsChangeHandler(OptionType.FIXED)}
+                />
               </TabsContent>
               <TabsContent value="variable" className="flex-1 overflow-auto">
-                <VariableTab options={options} onOptionsUpdate={onOptionsUpdate} />
+                <VariableTab
+                  options={options}
+                  onOptionsUpdate={optionsChangeHandler(OptionType.VARIABLE)}
+                />
               </TabsContent>
               <TabsContent value="command" className="flex-1 overflow-auto">
                 <CommandTab
                   options={options}
-                  onOptionsUpdate={onOptionsUpdate}
+                  onOptionsUpdate={optionsChangeHandler(OptionType.COMMAND)}
                   interpreter={interpreter}
                   onInterpreterChange={onInterpreterChange}
                   onCodeMirrorFocus={onCodeMirrorFocus}
@@ -548,6 +605,9 @@ export default createReactBlockSpec(
     propSchema: {
       name: { default: "" },
       options: { default: "" },
+      fixedOptions: { default: "" },
+      variableOptions: { default: "" },
+      commandOptions: { default: "" },
       value: { default: "" },
       optionsType: { default: "fixed" },
       interpreter: { default: "bash" },
@@ -570,10 +630,12 @@ export default createReactBlockSpec(
         });
       };
 
-      const onOptionsUpdate = (options: string): void => {
+      const onOptionsUpdate = (optionsType: OptionType, options: string): void => {
+        let optionKey = optionCacheName(optionsType);
+
         editor.updateBlock(block, {
           // @ts-ignore
-          props: { ...block.props, options },
+          props: { ...block.props, options, [optionKey]: options },
         });
       };
 
@@ -584,10 +646,12 @@ export default createReactBlockSpec(
         });
       };
 
-      const onOptionsTypeChange = (optionsType: string): void => {
+      const onOptionsTypeChange = (optionsType: OptionType): void => {
+        const options = block.props[optionCacheName(optionsType)];
+
         editor.updateBlock(block, {
           // @ts-ignore
-          props: { ...block.props, optionsType, options: "" },
+          props: { ...block.props, optionsType, options, value: "" },
         });
       };
 

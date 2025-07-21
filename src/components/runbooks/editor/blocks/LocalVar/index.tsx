@@ -5,6 +5,7 @@ import { createReactBlockSpec } from "@blocknote/react";
 import { invoke } from "@tauri-apps/api/core";
 import { useStore } from "@/state/store";
 import track_event from "@/tracking";
+import { setTemplateVar } from "@/state/templates";
 
 interface LocalVarProps {
   name: string;
@@ -55,30 +56,22 @@ const LocalVar = ({ name = "", onNameUpdate, isEditable }: LocalVarProps) => {
         .then((value: any) => {
           if (value && newName) {
             // Save under the new name
-            invoke("set_template_var", {
-              runbook: currentRunbookId,
-              name: newName,
-              value: value as string,
-            }).catch(console.error);
+            setTemplateVar(currentRunbookId, newName, value as string);
           }
         })
         .catch(console.error);
     }
-    
+
     onNameUpdate(newName);
   };
 
   const handleValueChange = (e: React.FormEvent<HTMLInputElement>) => {
     const newValue = e.currentTarget.value;
     setLocalValue(newValue);
-    
+
     // Only save to backend if we have a name and runbook
     if (name && currentRunbookId) {
-      invoke("set_template_var", {
-        runbook: currentRunbookId,
-        name: name,
-        value: newValue,
-      }).catch(console.error);
+      setTemplateVar(currentRunbookId, name, newValue);
     }
   };
 

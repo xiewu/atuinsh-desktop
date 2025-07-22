@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { ListFilterIcon, CheckIcon, ChevronsUpDownIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Modal, ModalContent, ModalHeader, ModalBody, useDisclosure } from "@heroui/react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
@@ -264,7 +264,7 @@ const Dropdown = ({
 }: DropdownProps) => {
   const currentRunbookId = useStore((store) => store.currentRunbookId);
   const [selected, setSelected] = useState(value);
-  const [isOpen, setIsOpen] = useState(false);
+  const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [comboboxOpen, setComboboxOpen] = useState(false);
 
   useEffect(() => {
@@ -467,7 +467,7 @@ const Dropdown = ({
             size="sm"
             variant="ghost"
             className="bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-300"
-            onClick={() => setIsOpen(true)}
+            onClick={onOpen}
           >
             <ListFilterIcon className="h-4 w-4" />
           </Button>
@@ -554,47 +554,51 @@ const Dropdown = ({
           </Popover>
         </div>
       </div>
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Dropdown Options</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-hidden">
-            <Tabs
-              value={optionsType}
-              onValueChange={tabChangeHandler}
-              className="h-full flex flex-col"
-            >
-              <TabsList className="grid w-full grid-cols-3 flex-shrink-0">
-                <TabsTrigger value="fixed">Fixed Options</TabsTrigger>
-                <TabsTrigger value="variable">Variable Options</TabsTrigger>
-                <TabsTrigger value="command">Command Output</TabsTrigger>
-              </TabsList>
-              <TabsContent value="fixed" className="flex-1 overflow-auto">
-                <FixedTab
-                  options={options}
-                  onOptionsUpdate={optionsChangeHandler(OptionType.FIXED)}
-                />
-              </TabsContent>
-              <TabsContent value="variable" className="flex-1 overflow-auto">
-                <VariableTab
-                  options={options}
-                  onOptionsUpdate={optionsChangeHandler(OptionType.VARIABLE)}
-                />
-              </TabsContent>
-              <TabsContent value="command" className="flex-1 overflow-auto">
-                <CommandTab
-                  options={options}
-                  onOptionsUpdate={optionsChangeHandler(OptionType.COMMAND)}
-                  interpreter={interpreter}
-                  onInterpreterChange={onInterpreterChange}
-                  onCodeMirrorFocus={onCodeMirrorFocus}
-                />
-              </TabsContent>
-            </Tabs>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {isOpen && (
+        <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="xl" scrollBehavior="inside">
+          <ModalContent className="max-h-[90vh]">
+            {(_onClose) => (
+              <>
+                <ModalHeader className="flex flex-col gap-1">Dropdown Options</ModalHeader>
+                <ModalBody className="flex-1 overflow-hidden">
+                  <Tabs
+                    value={optionsType}
+                    onValueChange={tabChangeHandler}
+                    className="h-full flex flex-col"
+                  >
+                    <TabsList className="grid w-full grid-cols-3 flex-shrink-0">
+                      <TabsTrigger value="fixed">Fixed Options</TabsTrigger>
+                      <TabsTrigger value="variable">Variable Options</TabsTrigger>
+                      <TabsTrigger value="command">Command Output</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="fixed" className="flex-1 overflow-auto">
+                      <FixedTab
+                        options={options}
+                        onOptionsUpdate={optionsChangeHandler(OptionType.FIXED)}
+                      />
+                    </TabsContent>
+                    <TabsContent value="variable" className="flex-1 overflow-auto">
+                      <VariableTab
+                        options={options}
+                        onOptionsUpdate={optionsChangeHandler(OptionType.VARIABLE)}
+                      />
+                    </TabsContent>
+                    <TabsContent value="command" className="flex-1 overflow-auto">
+                      <CommandTab
+                        options={options}
+                        onOptionsUpdate={optionsChangeHandler(OptionType.COMMAND)}
+                        interpreter={interpreter}
+                        onInterpreterChange={onInterpreterChange}
+                        onCodeMirrorFocus={onCodeMirrorFocus}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </ModalBody>
+              </>
+            )}
+          </ModalContent>
+        </Modal>
+      )}
     </>
   );
 };

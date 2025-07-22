@@ -1,6 +1,6 @@
 [package]
 name = "atuin-desktop"
-version = "0.0.89"
+version = "0.0.90"
 description = "Atuin Desktop"
 publish = false
 authors = ["you"]

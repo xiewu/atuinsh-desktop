@@ -7,30 +7,35 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
+  Tooltip,
 } from "@heroui/react";
+import { open } from "@tauri-apps/plugin-dialog";
+import { FolderIcon } from "lucide-react";
+import { Option, Some } from "@binarymuse/ts-stdlib";
+import { cn } from "@/lib/utils";
+import { useStore } from "@/state/store";
+import { ConnectionState } from "@/state/store/user_state";
 
 interface NewWorkspaceDialogProps {
-  onAccept: (name: string, online: boolean) => void;
+  onAccept: (name: string, online: boolean, folder: Option<string>) => void;
   onCancel: () => void;
-  forceOnline: boolean;
 }
 
-export default function NewWorkspaceDialog({
-  onAccept,
-  onCancel,
-  forceOnline,
-}: NewWorkspaceDialogProps) {
+export default function NewWorkspaceDialog({ onAccept, onCancel }: NewWorkspaceDialogProps) {
   const [name, setName] = useState("New Workspace");
   const [isOnline, setIsOnline] = useState(true);
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const connectionState = useStore((state) => state.connectionState);
 
   function closeAndReset() {
     onCancel();
     setName("New Workspace");
     setIsOnline(true);
+    setSelectedFolder(null);
   }
 
   function handleSubmit() {
-    onAccept(name, isOnline);
+    onAccept(name, isOnline, Some(selectedFolder));
   }
 
   return (
@@ -49,26 +54,76 @@ export default function NewWorkspaceDialog({
             <div>
               <label className="block text-sm font-medium mb-2">Workspace Type</label>
               <div className="space-y-2">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    checked={isOnline}
-                    onChange={() => setIsOnline(true)}
-                    className="mr-2"
-                    disabled={forceOnline}
-                  />
-                  <span>Online - Sync across devices</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    checked={!isOnline}
-                    onChange={() => setIsOnline(false)}
-                    className="mr-2"
-                    disabled={forceOnline}
-                  />
-                  <span>Offline - Local only</span>
-                </label>
+                <div>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      checked={isOnline}
+                      onChange={() => setIsOnline(true)}
+                      className="mr-2"
+                    />
+                    <span>Online - Sync across devices</span>
+                  </label>
+                </div>
+                {isOnline && (
+                  <div className="ml-6 text-sm">
+                    {connectionState === ConnectionState.Offline && (
+                      <span className="text-red-500">
+                        You are offline. You must be online to create an online workspace.
+                      </span>
+                    )}
+                    {connectionState === ConnectionState.LoggedOut && (
+                      <span className="text-red-500">
+                        You must be logged in to Atuin Hub to create an online workspace.
+                      </span>
+                    )}
+                    {connectionState === ConnectionState.OutOfDate && (
+                      <span className="text-red-500">
+                        You must update Atuin Desktop to the latest version to create an online
+                        workspace.
+                      </span>
+                    )}
+                  </div>
+                )}
+                <div>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      checked={!isOnline}
+                      onChange={() => setIsOnline(false)}
+                      className="mr-2"
+                    />
+                    <div>Offline - Local only</div>
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <Tooltip content="Select a folder to store your workspace locally">
+                    <Button
+                      isIconOnly
+                      isDisabled={isOnline}
+                      className="mr-2"
+                      onPress={() => {
+                        open({
+                          directory: true,
+                        }).then((folder) => {
+                          setSelectedFolder(folder);
+                        });
+                      }}
+                    >
+                      <FolderIcon />
+                    </Button>
+                  </Tooltip>
+                  <span
+                    className={cn(
+                      !isOnline ? "text-foreground" : "text-muted",
+                      "overflow-x-scroll",
+                      "whitespace-nowrap",
+                    )}
+                  >
+                    {!selectedFolder && "No folder selected"}
+                    {selectedFolder && selectedFolder}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -77,7 +132,15 @@ export default function NewWorkspaceDialog({
           <Button onPress={closeAndReset} variant="flat">
             Cancel
           </Button>
-          <Button onPress={handleSubmit} color="primary">
+          <Button
+            onPress={handleSubmit}
+            color="primary"
+            isDisabled={
+              !name ||
+              (!isOnline && !selectedFolder) ||
+              (isOnline && connectionState !== ConnectionState.Online)
+            }
+          >
             Create Workspace
           </Button>
         </ModalFooter>

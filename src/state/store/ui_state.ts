@@ -1,7 +1,7 @@
 import { ColorMode, FunctionalColorMode } from "@/lib/color_modes";
 import { Update } from "@tauri-apps/plugin-updater";
 import { StateCreator } from "zustand";
-import { Option, Some } from "@binarymuse/ts-stdlib";
+import { None, Option, Some } from "@binarymuse/ts-stdlib";
 
 export interface AtuinUiState {
   focused: boolean;
@@ -14,7 +14,7 @@ export interface AtuinUiState {
   fontSize: number;
   fontFamily: string;
   availableUpdate: Update | undefined;
-  updating: boolean;
+  updating: Option<string>;
   showedUpdatePrompt: boolean;
   // Consumed by React Arborist;
   // { [workspaceId]: { [folderId]: isOpen }}
@@ -38,7 +38,7 @@ export interface AtuinUiState {
   setFontSize: (fontSize: number) => void;
   setFontFamily: (fontFamily: string) => void;
   setAvailableUpdate: (update: Update | undefined) => void;
-  setUpdating: (updating: boolean) => void;
+  setUpdating: (updating: Option<string>) => void;
   setShowedUpdatePrompt: (showed: boolean) => void;
   setSidebarWidth: (width: number) => void;
   setSidebarOpen: (open: boolean) => void;
@@ -80,7 +80,7 @@ export const createUiState: StateCreator<AtuinUiState> = (set, get, _store): Atu
   fontSize: 16,
   fontFamily: "Inter",
   availableUpdate: undefined,
-  updating: false,
+  updating: None,
   showedUpdatePrompt: false,
   folderState: {},
   hiddenWorkspaces: {},
@@ -104,7 +104,7 @@ export const createUiState: StateCreator<AtuinUiState> = (set, get, _store): Atu
   setFontSize: (fontSize: number) => set(() => ({ fontSize })),
   setFontFamily: (fontFamily: string) => set(() => ({ fontFamily })),
   setAvailableUpdate: (update: Update | undefined) => set(() => ({ availableUpdate: update })),
-  setUpdating: (updating: boolean) => set(() => ({ updating })),
+  setUpdating: (updating: Option<string>) => set(() => ({ updating })),
   setShowedUpdatePrompt: (showed: boolean) => set(() => ({ showedUpdatePrompt: showed })),
   setSidebarWidth: (width: number) => set(() => ({ sidebarWidth: width })),
   setSidebarOpen: (open: boolean) => set(() => ({ sidebarOpen: open })),

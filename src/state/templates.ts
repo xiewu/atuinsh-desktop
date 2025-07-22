@@ -5,6 +5,7 @@ import { normalizeInput } from "@/lib/utils";
 import { invoke } from "@tauri-apps/api/core";
 
 import { addToast } from "@heroui/react";
+import RunbookBus from "@/lib/app/runbook_bus";
 
 /// Expects the string to template, and the current Blocknote document
 export async function templateString(id: string, input: string, doc: any[], runbook: string | null): Promise<string> {
@@ -26,7 +27,19 @@ export async function templateString(id: string, input: string, doc: any[], runb
       description: `${error}`,
       color: "danger",
     });
-    
+
     return normalized; // Return original input when template fails
   }
+}
+
+export async function setTemplateVar(runbookId: string, name: string, value: string) {
+  await invoke("set_template_var", {
+    runbook: runbookId,
+    name,
+    value,
+  });
+
+  // Emit after invoking in case the command fails
+  const bus = RunbookBus.get(runbookId);
+  bus.emitVariableChanged(name, value);
 }

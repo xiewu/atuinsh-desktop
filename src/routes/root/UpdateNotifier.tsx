@@ -15,6 +15,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { cn, None, Option, Some } from "@/lib/utils";
 import AtuinEnv from "@/atuin_env";
 import { getGlobalOptions } from "@/lib/global_options";
+import { Update } from "@tauri-apps/plugin-updater";
 
 export default function UpdateNotifier() {
   const [relaunching, setRelaunching] = useState(false);
@@ -33,14 +34,14 @@ export default function UpdateNotifier() {
   const updating = useStore((state) => state.updating);
   const setUpdating = useStore((state) => state.setUpdating);
 
-  async function doUpdate() {
+  async function doUpdate(update: Update) {
     if (AtuinEnv.isDev) {
       console.log("UpdateNotifier: doUpdate: skipping update in dev mode");
       return;
     }
 
-    setUpdating(true);
-    await availableUpdate?.downloadAndInstall((progress) => {
+    setUpdating(Some(update.version));
+    await update.downloadAndInstall((progress) => {
       switch (progress.event) {
         case "Started":
           if (progress.data.contentLength) {
@@ -68,14 +69,15 @@ export default function UpdateNotifier() {
       return;
     }
 
-    if (availableUpdate && !updating && !showedUpdatePrompt) {
+    if (availableUpdate && updating.isNone() && !showedUpdatePrompt) {
+      const update = availableUpdate;
       setShowingUpdate(true);
       setShowedUpdatePrompt(true);
 
       const baseOptions = {
         title: "Update Available",
         icon: <img src={icon} alt="icon" className="h-8 w-8" />,
-        description: `Atuin Desktop version ${availableUpdate.version} is available for download.`,
+        description: `Atuin Desktop version ${update.version} is available for download.`,
         color: "primary",
         radius: "sm",
         timeout: Infinity,
@@ -94,7 +96,7 @@ export default function UpdateNotifier() {
               variant="flat"
               color="primary"
               className="p-2"
-              onPress={() => doUpdate()}
+              onPress={() => doUpdate(update)}
             >
               Update
             </Button>
@@ -120,14 +122,14 @@ export default function UpdateNotifier() {
         });
       }
     }
-  }, [availableUpdate, updating, showedUpdatePrompt, showingUpdate]);
+  }, [availableUpdate, updating.unwrapOr("v<unknown>"), showedUpdatePrompt, showingUpdate]);
 
-  if (availableUpdate && updating) {
+  if (availableUpdate && updating.isSome()) {
     return (
       <Modal isOpen={true} onClose={() => {}} hideCloseButton>
         <ModalContent>
           {!relaunching && (
-            <ModalHeader>Updating to Atuin Desktop {availableUpdate.version}...</ModalHeader>
+            <ModalHeader>Updating to Atuin Desktop {updating.unwrapOr("<unknown>")}...</ModalHeader>
           )}
           {relaunching && <ModalHeader>Relaunching app...</ModalHeader>}
           <ModalBody>

@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Input, Button } from "@heroui/react";
 import { TextCursorInputIcon } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
 
 // @ts-ignore
 import { createReactBlockSpec } from "@blocknote/react";
 import { useStore } from "@/state/store";
+import { setTemplateVar } from "@/state/templates";
 
 interface VarProps {
   name: string;
@@ -84,21 +84,17 @@ export default createReactBlockSpec(
     // @ts-ignore
     render: ({ block, editor }) => {
       const currentRunbookId = useStore((store) => store.currentRunbookId);
-      
+
       const onUpdate = (name: string, value: string): void => {
         // First update the block props
         editor.updateBlock(block, {
           // @ts-ignore
           props: { ...block.props, name: name, value: value },
         });
-        
+
         // Then update the template variable in the backend state
         if (name && currentRunbookId) {
-          invoke("set_template_var", {
-            runbook: currentRunbookId,
-            name,
-            value,
-          }).catch(console.error);
+          setTemplateVar(currentRunbookId, name, value).catch(console.error);
         }
       };
 

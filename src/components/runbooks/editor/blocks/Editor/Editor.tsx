@@ -6,7 +6,6 @@ import { createReactBlockSpec } from "@blocknote/react";
 import * as LanguageData from "@codemirror/language-data";
 import EditorBlockType from "@/lib/workflow/blocks/editor.ts";
 import track_event from "@/tracking";
-import { invoke } from "@tauri-apps/api/core";
 import { useStore } from "@/state/store";
 
 import CodeMirror, { Extension } from "@uiw/react-codemirror";
@@ -31,6 +30,7 @@ import { DependencySpec } from "@/lib/workflow/dependency.ts";
 import useCodemirrorTheme from "@/lib/hooks/useCodemirrorTheme.ts";
 import { useCodeMirrorValue } from "@/lib/hooks/useCodeMirrorValue";
 import Block from "@/lib/blocks/common/Block";
+import { setTemplateVar } from "@/state/templates";
 
 interface LanguageLoader {
   name: string;
@@ -246,11 +246,7 @@ export default createReactBlockSpec(
 
         // Store in template variable if variable name is specified
         if (block.props.variableName && currentRunbookId) {
-          invoke("set_template_var", {
-            runbook: currentRunbookId,
-            name: block.props.variableName,
-            value: val,
-          }).catch(console.error);
+          setTemplateVar(currentRunbookId, block.props.variableName, val).catch(console.error);
         }
       };
 

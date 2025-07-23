@@ -7,6 +7,21 @@ use std::{collections::HashMap, sync::Arc};
 
 use crate::state::AtuinState;
 
+/// Flatten a document to include nested blocks (like those in ToggleHeading children)
+/// This creates a linear execution order regardless of UI nesting structure
+pub fn flatten_document(doc: &[serde_json::Value]) -> Vec<serde_json::Value> {
+    let mut flattened = Vec::new();
+    for block in doc {
+        flattened.push(block.clone());
+        if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
+            if !children.is_empty() {
+                flattened.extend(flatten_document(children));
+            }
+        }
+    }
+    flattened
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PtyTemplateState {
     pub id: String,
@@ -158,8 +173,10 @@ pub async fn template_str(
     // Fetch the variables from the state
     let mut output_vars = state.runbook_output_variables.read().await.clone();
 
+    let flattened_doc = flatten_document(&doc);
+
     // We might also have var blocks in the document, which we need to add to the output vars
-    let var_blocks = doc
+    let var_blocks = flattened_doc
         .iter()
         .filter(|block| block.get("type").unwrap().as_str().unwrap() == "var")
         .collect::<Vec<_>>();
@@ -195,10 +212,10 @@ pub async fn template_str(
     let mut env = Environment::new();
     env.set_trim_blocks(true);
 
-    // Iterate through the doc, and find the block previous to the current one
+    // Iterate through the flattened doc, and find the block previous to the current one
     // If the previous block is an empty paragraph, skip it. Its content array will have 0
     // length
-    let previous = doc.iter().enumerate().find_map(|(i, block)| {
+    let previous = flattened_doc.iter().enumerate().find_map(|(i, block)| {
         let block = block.as_object().unwrap();
         if block.get("id").unwrap().as_str().unwrap() == block_id {
             if i == 0 {
@@ -208,7 +225,7 @@ pub async fn template_str(
                 // paragraph
                 let mut i = i - 1;
                 loop {
-                    let block = doc.get(i).unwrap().as_object().unwrap();
+                    let block = flattened_doc.get(i).unwrap().as_object().unwrap();
                     if block.get("type").unwrap().as_str().unwrap() == "paragraph"
                         && block.get("content").unwrap().as_array().unwrap().is_empty()
                     {
@@ -218,7 +235,7 @@ pub async fn template_str(
                             i -= 1;
                         }
                     } else {
-                        return Some(doc.get(i).unwrap().clone());
+                        return Some(flattened_doc.get(i).unwrap().clone());
                     }
                 }
             }
@@ -227,7 +244,7 @@ pub async fn template_str(
         }
     });
 
-    let named = doc
+    let named = flattened_doc
         .iter()
         .filter_map(|block| {
             let name = block

@@ -11,7 +11,7 @@ export type WorkspaceAttrs = {
   name: string;
   orgId?: string | null;
   online: 1 | 0;
-  folder: string | null;
+  folder?: string;
   permissions?: string[];
 
   created?: Date;

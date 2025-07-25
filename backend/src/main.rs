@@ -29,6 +29,7 @@ mod state;
 mod stats;
 mod store;
 mod templates;
+mod workspaces;
 
 // If this works out ergonomically, we should move all the commands into a single module
 // Separate the implementation from the command as much as we can
@@ -482,6 +483,13 @@ fn main() {
             commands::mysql::mysql_query,
             commands::mysql::mysql_execute,
             commands::kubernetes::kubernetes_get_execute,
+            commands::workspaces::reset_workspaces,
+            commands::workspaces::watch_workspace,
+            commands::workspaces::unwatch_workspace,
+            commands::workspaces::create_workspace,
+            commands::workspaces::rename_workspace,
+            commands::workspaces::delete_workspace,
+            commands::workspaces::read_dir,
             shared_state::get_shared_state_document,
             shared_state::push_optimistic_update,
             shared_state::update_shared_state_document,

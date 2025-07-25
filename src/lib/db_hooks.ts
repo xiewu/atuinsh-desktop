@@ -136,25 +136,22 @@ function getWorkspaceQueryKeys(action: Action, model: Workspace): InvalidateQuer
   switch (action) {
     case "create":
       if (isOrgWorkspace) {
-        return [allWorkspaces(), userOwnedWorkspaces()];
-      } else {
         return [allWorkspaces(), orgWorkspaces(model.get("orgId")!)];
+      } else {
+        return [allWorkspaces(), userOwnedWorkspaces()];
       }
     case "update":
-      if (isOrgWorkspace) {
-        return [allWorkspaces(), userOwnedWorkspaces(), workspaceById(model.get("id")!)];
-      } else {
-        return [
-          allWorkspaces(),
-          orgWorkspaces(model.get("orgId")!),
-          workspaceById(model.get("id")!),
-        ];
-      }
+      return [
+        allWorkspaces(),
+        userOwnedWorkspaces(),
+        workspaceById(model.get("id")!),
+        orgWorkspaces(model.get("orgId")!),
+      ];
     case "delete":
       if (isOrgWorkspace) {
-        return [allWorkspaces(), userOwnedWorkspaces()];
-      } else {
         return [allWorkspaces(), orgWorkspaces(model.get("orgId")!)];
+      } else {
+        return [allWorkspaces(), userOwnedWorkspaces()];
       }
   }
 }

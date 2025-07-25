@@ -68,6 +68,7 @@ const ScriptBlock = ({
   onCodeMirrorFocus,
 }: ScriptBlockProps) => {
   const [isRunning, setIsRunning] = useState<boolean>(false);
+  const [hasRun, setHasRun] = useState<boolean>(false);
   const [terminal, setTerminal] = useState<Terminal | null>(null);
   const [fitAddon, setFitAddon] = useState<FitAddon | null>(null);
   const [pid, setPid] = useState<number | null>(null);
@@ -194,8 +195,10 @@ const ScriptBlock = ({
     checkShellsAvailable();
   }, [supportedShells]);
 
-  // Initialize terminal
-  useEffect(() => {
+  // Initialize terminal lazily when needed
+  const initializeTerminal = useCallback(async () => {
+    if (terminal || !script.outputVisible) return terminal;
+
     const term = new Terminal({
       fontFamily: "FiraCode, monospace",
       fontSize: 14,
@@ -205,24 +208,26 @@ const ScriptBlock = ({
     const fit = new FitAddon();
     term.loadAddon(fit);
 
-    // Add WebGL support
-    try {
-      term.loadAddon(new WebglAddon());
-    } catch (e) {
-      console.warn("WebGL addon failed to load", e);
+    // Add WebGL support if enabled in settings
+    const useWebGL = await Settings.terminalGL();
+    if (useWebGL) {
+      try {
+        const webglAddon = new WebglAddon();
+        term.loadAddon(webglAddon);
+      } catch (e) {
+        console.warn("WebGL addon failed to load", e);
+      }
     }
 
     setTerminal(term);
     setFitAddon(fit);
 
-    return () => {
-      term.dispose();
-    };
-  }, []);
+    return term;
+  }, [terminal, script.outputVisible]);
 
   // Handle terminal attachment
   useEffect(() => {
-    if (!terminal || !terminalRef.current) return;
+    if (!terminal || !terminalRef.current || !script.outputVisible) return;
 
     terminal.open(terminalRef.current);
     fitAddon?.fit();
@@ -233,7 +238,7 @@ const ScriptBlock = ({
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [terminal, fitAddon]);
+  }, [terminal, fitAddon, script.outputVisible]);
 
   // handle dependency change
   useEffect(() => {
@@ -253,18 +258,31 @@ const ScriptBlock = ({
     }
   }, [script.dependency]);
 
+  // Clean up terminal when output becomes hidden
+  useEffect(() => {
+    if (!script.outputVisible && terminal) {
+      terminal.dispose();
+      setTerminal(null);
+      setFitAddon(null);
+    }
+  }, [script.outputVisible, terminal]);
+
   const handlePlay = useCallback(async () => {
-    if (!terminal) return;
     if (isRunning || unlisten.current) return;
 
+    // Initialize terminal only when needed and output is visible
+    const currentTerminal = script.outputVisible ? await initializeTerminal() : null;
+    if (script.outputVisible && !currentTerminal) return;
+
     setIsRunning(true);
-    terminal.clear();
+    setHasRun(true);
+    currentTerminal?.clear();
 
     const channel = uuidv7();
     channelRef.current = channel;
 
     unlisten.current = await listen(channel, (event) => {
-      terminal.write(event.payload + "\r\n");
+      currentTerminal?.write(event.payload + "\r\n");
     });
 
     let cwd = await getCurrentDirectory(editor, script.id, currentRunbookId);
@@ -320,7 +338,7 @@ const ScriptBlock = ({
         SSHBus.get().updateConnectionStatus(connectionBlock.props.userHost, "success");
       } catch (error) {
         console.error("SSH connection failed:", error);
-        terminal.write("SSH connection failed\r\n");
+        currentTerminal?.write("SSH connection failed\r\n");
         addToast({
           title: `ssh ${connectionBlock.props.userHost}`,
           description: `${error}`,
@@ -353,7 +371,7 @@ const ScriptBlock = ({
     tauriUnlisten.current = await listen("shell_exec_finished:" + pid, async () => {
       onStop();
     });
-  }, [script, terminal, editor.document]);
+  }, [script, initializeTerminal, editor.document]);
 
   const onStop = useCallback(async () => {
     unlisten.current?.();
@@ -406,8 +424,8 @@ const ScriptBlock = ({
       type={"Script"}
       setName={setName}
       inlineHeader
-      hideChild={!script.outputVisible}
       className={blockBorderClass}
+      hideChild={!script.outputVisible || !hasRun}
       topRightElement={topRightWarning}
       header={
         <>
@@ -448,7 +466,10 @@ const ScriptBlock = ({
                 content={script.outputVisible ? "Hide output terminal" : "Show output terminal"}
               >
                 <Button
-                  onPress={() => setOutputVisible(!script.outputVisible)}
+                  onPress={() => {
+                    setHasRun(false);
+                    setOutputVisible(!script.outputVisible);
+                  }}
                   size="sm"
                   variant="flat"
                   isIconOnly
@@ -498,7 +519,7 @@ const ScriptBlock = ({
         </>
       }
     >
-      <div ref={terminalRef} className="min-h-[200px] w-full" />
+      {script.outputVisible && <div ref={terminalRef} className="min-h-[200px] w-full" />}
     </Block>
   );
 };

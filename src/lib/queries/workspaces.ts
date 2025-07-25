@@ -51,16 +51,10 @@ export function legacyWorkspaceById(id: string) {
 }
 
 export function userOwnedWorkspaces() {
-  return queryOptions({
-    ...localQuery,
-    queryKey: ["workspaces", "user"],
-    queryFn: async () => {
-      return await Workspace.all({ orgId: null });
-    },
-  });
+  return orgWorkspaces(null);
 }
 
-export function orgWorkspaces(orgId: string) {
+export function orgWorkspaces(orgId: string | null) {
   return queryOptions({
     ...localQuery,
     queryKey: ["workspaces", "org", orgId],

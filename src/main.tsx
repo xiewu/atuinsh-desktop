@@ -236,6 +236,7 @@ function Application() {
 }
 
 async function setup() {
+  invoke<void>("reset_workspaces");
   const currentVersion = await invoke<string>("get_app_version");
   useStore.getState().setCurrentVersion(currentVersion);
 }

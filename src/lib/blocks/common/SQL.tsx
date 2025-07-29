@@ -62,7 +62,7 @@ interface SQLProps {
   uri: string;
   query: string;
   autoRefresh: number;
-  runQuery: (uri: string, query: string) => Promise<QueryResult>;
+  runQuery: (uri: string, query: string) => Promise<QueryResult & { queryCount?: number; executedQueries?: string[] }>;
 
   setCollapseQuery: (collapseQuery: boolean) => void;
   setQuery: (query: string) => void;
@@ -110,7 +110,7 @@ const SQL = ({
   let editor = useBlockNoteEditor();
   const [isRunning, setIsRunning] = useState<boolean>(false);
 
-  const [results, setResults] = useState<QueryResult | null>(null);
+  const [results, setResults] = useState<QueryResult & { queryCount?: number; executedQueries?: string[] } | null>(null);
   const [columns, setColumns] = useState<
     { id: string; title: string; grow?: number; width?: number }[]
   >([]);
@@ -160,6 +160,8 @@ const SQL = ({
       let output = {
         query,
         rowCount: res.rows?.length,
+        queryCount: res.queryCount || 1,
+        executedQueries: res.executedQueries || [],
       };
       await logExecution(block, block.typeName, startTime, endTime, JSON.stringify(output));
       BlockBus.get().blockFinished(block);
@@ -364,51 +366,61 @@ const SQL = ({
         </>
       }
       footer={
-        <ButtonGroup>
-          <Dropdown showArrow>
-            <DropdownTrigger>
-              <Button
-                size="sm"
-                variant="flat"
-                startContent={<RefreshCwIcon size={16} />}
-                endContent={<ChevronDown size={16} />}
-              >
-                Auto refresh:{" "}
-                {autoRefresh == 0
-                  ? "Off"
-                  : (
-                      autoRefreshChoices.find((a) => a.value == autoRefresh) || {
-                        label: "Off",
-                      }
-                    ).label}
-              </Button>
-            </DropdownTrigger>
-            <DropdownMenu variant="faded" aria-label="Select time frame for chart">
-              {autoRefreshChoices.map((setting) => {
-                return (
-                  <DropdownItem
-                    key={setting.label}
-                    onPress={() => {
-                      setAutoRefresh(setting.value);
-                    }}
-                  >
-                    {setting.label}
-                  </DropdownItem>
-                );
-              })}
-            </DropdownMenu>
-          </Dropdown>
-          <Button
-            size="sm"
-            isIconOnly
-            variant="flat"
-            onPress={() => setCollapseQuery(!collapseQuery)}
-          >
-            <Tooltip content={collapseQuery ? "Expand query" : "Collapse query"}>
-              {collapseQuery ? <ArrowDownToLineIcon size={16} /> : <ArrowUpToLineIcon size={16} />}
-            </Tooltip>
-          </Button>
-        </ButtonGroup>
+        <div className="flex flex-row justify-between items-center w-full">
+          <div className="flex flex-row items-center gap-2">
+            {results?.queryCount && results.queryCount > 1 && (
+              <span className="text-xs text-default-500 px-2 py-1 bg-default-100 rounded">
+                Executed {results.queryCount} queries
+                {results.rows && results.columns && " • Showing last result with data"}
+              </span>
+            )}
+          </div>
+          <ButtonGroup>
+            <Dropdown showArrow>
+              <DropdownTrigger>
+                <Button
+                  size="sm"
+                  variant="flat"
+                  startContent={<RefreshCwIcon size={16} />}
+                  endContent={<ChevronDown size={16} />}
+                >
+                  Auto refresh:{" "}
+                  {autoRefresh == 0
+                    ? "Off"
+                    : (
+                        autoRefreshChoices.find((a) => a.value == autoRefresh) || {
+                          label: "Off",
+                        }
+                      ).label}
+                </Button>
+              </DropdownTrigger>
+              <DropdownMenu variant="faded" aria-label="Select time frame for chart">
+                {autoRefreshChoices.map((setting) => {
+                  return (
+                    <DropdownItem
+                      key={setting.label}
+                      onPress={() => {
+                        setAutoRefresh(setting.value);
+                      }}
+                    >
+                      {setting.label}
+                    </DropdownItem>
+                  );
+                })}
+              </DropdownMenu>
+            </Dropdown>
+            <Button
+              size="sm"
+              isIconOnly
+              variant="flat"
+              onPress={() => setCollapseQuery(!collapseQuery)}
+            >
+              <Tooltip content={collapseQuery ? "Expand query" : "Collapse query"}>
+                {collapseQuery ? <ArrowDownToLineIcon size={16} /> : <ArrowUpToLineIcon size={16} />}
+              </Tooltip>
+            </Button>
+          </ButtonGroup>
+        </div>
       }
     >
       {(results || error) && !isFullscreen && (
@@ -425,7 +437,7 @@ const SQL = ({
       {/* Fullscreen SQL Block Modal */}
       {isFullscreen && (
         <div
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md z-[9999]"
+          className="fixed inset-0 bg-black/90 backdrop-blur-md z-[9999]"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setIsFullscreen(false);

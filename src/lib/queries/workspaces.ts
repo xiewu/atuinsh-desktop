@@ -26,11 +26,12 @@ export function allLegacyWorkspaces() {
   });
 }
 
-export function workspaceById(id: string) {
+export function workspaceById(id: string | null) {
   return queryOptions({
     ...localQuery,
     queryKey: ["workspace", id],
     queryFn: async () => {
+      if (!id) return null;
       return await Workspace.get(id);
     },
   });

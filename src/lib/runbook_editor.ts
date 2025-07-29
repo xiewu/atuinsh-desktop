@@ -28,6 +28,7 @@ export default class RunbookEditor {
   public runbook: Runbook;
   private user: User;
   private selectedTag: string;
+  private isOnline: boolean;
   private onPresenceJoin: (user: PresenceUserInfo) => void;
   private onPresenceLeave: (user: PresenceUserInfo) => void;
   private onClearPresences: () => void;
@@ -46,6 +47,7 @@ export default class RunbookEditor {
     runbook: Runbook,
     user: User,
     selectedTag: string | null,
+    isOnline: boolean,
     onPresenceJoin: (user: PresenceUserInfo) => void,
     onPresenceLeave: (user: PresenceUserInfo) => void,
     onClearPresences: () => void,
@@ -54,6 +56,7 @@ export default class RunbookEditor {
     this.runbook = runbook;
     this.user = user;
     this.selectedTag = selectedTag || "latest";
+    this.isOnline = isOnline;
     this.onPresenceJoin = onPresenceJoin;
     this.onPresenceLeave = onPresenceLeave;
     this.onClearPresences = onClearPresences;
@@ -98,6 +101,10 @@ export default class RunbookEditor {
       this.provider = null;
     }
     this.selectedTag = tag;
+  }
+
+  setOnline(isOnline: boolean) {
+    this.isOnline = isOnline;
   }
 
   resetEditor() {
@@ -253,7 +260,7 @@ export default class RunbookEditor {
     }
 
     this.runbook.save();
-    if (previousName !== this.runbook.name) {
+    if (previousName !== this.runbook.name && this.isOnline) {
       const op = new Operation({
         operation: {
           type: "runbook_name_updated",

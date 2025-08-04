@@ -43,7 +43,7 @@ import RunbookIndexService from "@/state/runbooks/search";
 import { MailPlusIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
 import Workspace from "@/state/runbooks/workspace";
 import track_event from "@/tracking";
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import RunbookContext from "@/context/runbook_context";
 import { SET_RUNBOOK_TAG } from "@/state/store/runbook_state";
 import Operation, {
@@ -59,7 +59,7 @@ import doWorkspaceFolderOp from "@/state/runbooks/workspace_folder_ops";
 import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
 import { SharedStateManager } from "@/lib/shared_state/manager";
 import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
-import { None, Rc, Some } from "@binarymuse/ts-stdlib";
+import { Option, None, Rc, Some, Result, Err, Ok } from "@binarymuse/ts-stdlib";
 import { TraversalOrder } from "@/lib/tree";
 import DevConsole from "@/lib/dev/dev_console";
 import Sidebar, { SidebarItem } from "@/components/Sidebar";
@@ -69,6 +69,7 @@ import { ConnectionState } from "@/state/store/user_state";
 import { processUnprocessedOperations } from "@/state/runbooks/operation_processor";
 import { useQueryClient } from "@tanstack/react-query";
 import NewWorkspaceDialog from "./NewWorkspaceDialog";
+import { getWorkspaceStrategy } from "@/lib/workspaces/strategy";
 
 const Onboarding = React.lazy(() => import("@/components/Onboarding/Onboarding"));
 const UpdateNotifier = React.lazy(() => import("./UpdateNotifier"));
@@ -210,38 +211,41 @@ function App() {
     }
   }
 
-  function handleAcceptNewWorkspace(name: string, online: boolean) {
+  function handleAcceptNewWorkspace(name: string, online: boolean, folder: Option<string>) {
     setShowNewWorkspaceDialog(false);
 
-    createNewWorkspace(name, online).then(() => {
+    createNewWorkspace(name, online, folder).then(() => {
       console.log("workspace created");
     });
   }
 
-  async function createNewWorkspace(name: string, online: boolean) {
-    const workspace = new Workspace({
+  async function createNewWorkspace(name: string, online: boolean, folder: Option<string>) {
+    const unsavedWorkspace = new Workspace({
       name,
       online: online ? 1 : 0,
       orgId: selectedOrg || null,
+      folder: online ? undefined : folder.expect("folder is required for offline workspaces"),
     });
+    const workspaceStrategy = getWorkspaceStrategy(unsavedWorkspace);
 
-    await workspace.save();
+    const result = await workspaceStrategy.createWorkspace(unsavedWorkspace);
+    if (result.isErr()) {
+      console.error(result.unwrapErr());
+      new DialogBuilder()
+        .title("Failed to create workspace")
+        .icon("error")
+        .message(result.unwrapErr())
+        .action({ label: "OK", value: "ok", variant: "flat" })
+        .build();
+      return;
+    }
+
+    const workspace = result.unwrap();
 
     track_event("workspace.create");
 
     setCurrentWorkspaceId(workspace.get("id")!);
     navigate(`/runbooks`);
-
-    if (online) {
-      const op = new Operation({
-        operation: createWorkspace(
-          workspace.get("id")!,
-          workspace.get("name")!,
-          selectedOrg ? { type: "org", orgId: selectedOrg } : { type: "user" },
-        ),
-      });
-      await op.save();
-    }
 
     listRef.current?.scrollWorkspaceIntoView(workspace.get("id")!);
   }
@@ -264,20 +268,7 @@ function App() {
   });
 
   useTauriEvent("new-runbook", async () => {
-    // Consider the case where we are already on the runbooks page
-    if (location.pathname === "/runbooks") {
-      let workspace = await Workspace.get(currentWorkspaceId);
-      if (!workspace) {
-        const workspaces = await Workspace.all();
-        workspace = workspaces[0];
-        setCurrentWorkspaceId(workspace.get("id")!);
-      }
-      let runbook = await Runbook.createUntitled(workspace);
-      handleRunbookCreated(runbook.id, workspace.get("id")!, null);
-      handleRunbookActivate(runbook.id);
-
-      return;
-    }
+    handleStartCreateRunbook(currentWorkspaceId, null);
   });
 
   useTauriEvent("new-workspace", async () => {
@@ -505,88 +496,36 @@ function App() {
     );
   }
 
-  async function handleRunbookCreated(
-    runbookId: string,
+  async function handleStartCreateRunbook(
     workspaceId: string,
     parentFolderId: string | null,
-    activate: boolean = false,
-  ) {
-    // NOTE [mkt]:
-    // This API call is made here instead of through the operation processor
-    // because we need to wait for the runbook to be created on the server
-    // before opening it; this is so the server observer doesn't create an
-    // observer for the runbook and cause a YJS sync conflict.
-    //
-    // Note that this requires `currentRunbookId` to be set synchronously,
-    // so that we create a PhoenixProvider via RunbookEditor,
-    // which is why we call `handleRunbookActivate` before updating
-    // the workspace folder (which would trigger the server observer).
+  ): Promise<Result<Runbook, string>> {
     const workspace = await Workspace.get(workspaceId);
-    if (workspace && workspace.isOnline()) {
-      const runbook = await Runbook.load(runbookId);
-      if (!runbook) {
-        new DialogBuilder()
-          .title("Could not load runbook")
-          .message("We were unable to load the runbook.")
-          .action({ label: "OK", value: "ok", variant: "flat" })
-          .build();
-        return;
-      }
+    if (!workspace) return Err("Workspace not found");
 
-      let startedSyncIndicator = false;
-      try {
-        // TODO: use sync increment/decrement???
-        if (!useStore.getState().isSyncing) {
-          startedSyncIndicator = true;
-          useStore.getState().setIsSyncing(true);
-        }
-
-        await api.createRunbook(runbook, runbook.id, "private");
-      } catch (err) {
-        if (err instanceof api.HttpResponseError) {
-          new DialogBuilder()
-            .title("Failed to create Org runbook")
-            .message("The API request to create the runbook for the Org failed.")
-            .action({ label: "OK", value: "ok", variant: "flat" })
-            .build();
-        } else {
-          new DialogBuilder()
-            .title("Failed to create Org runbook")
-            .message("You may be offline, or the server may be down.")
-            .action({ label: "OK", value: "ok", variant: "flat" })
-            .build();
-        }
-        console.error(err);
-        runbook.delete();
-        return;
-      } finally {
-        if (startedSyncIndicator) {
-          useStore.getState().setIsSyncing(false);
-        }
-      }
+    const strategy = getWorkspaceStrategy(workspace);
+    const result = await strategy.createRunbook(workspaceId, parentFolderId);
+    if (result.isErr()) {
+      console.error(result.unwrapErr());
+      return result;
     }
 
-    if (activate) {
-      handleRunbookActivate(runbookId);
-    }
+    const rb = result.unwrap();
 
-    track_event("runbooks.create");
+    // handleRunbookCreated(rb.id, workspaceId, parentFolderId, true);
+    await handleRunbookActivate(rb.id);
 
-    doWorkspaceFolderOp(
-      workspaceId,
-      (wsf) => {
-        wsf.createRunbook(runbookId, parentFolderId);
-        return true;
-      },
-      (changeRef) => {
-        if (workspace && workspace.isOnline()) {
-          return Some(createRunbook(workspaceId, parentFolderId, runbookId, changeRef));
-        } else {
-          return None;
-        }
-      },
-    );
+    return Ok(rb);
   }
+
+  // async function handleRunbookCreated(
+  //   runbookId: string,
+  //   workspaceId: string,
+  //   parentFolderId: string | null,
+  //   activate: boolean = false,
+  // ) {
+  //   //
+  // }
 
   async function handleMoveItemsToWorkspace(
     items: string[],
@@ -964,7 +903,7 @@ function App() {
           activateRunbook: handleRunbookActivate,
           promptDeleteRunbook: handlePromptDeleteRunbook,
           runbookDeleted: handleRunbookDeleted,
-          runbookCreated: handleRunbookCreated,
+          // runbookCreated: handleRunbookCreated,
           runbookMoved: () => {},
         }}
       >
@@ -1127,6 +1066,7 @@ function App() {
                 <List
                   importRunbooks={handleImportRunbooks}
                   onStartCreateWorkspace={() => setShowNewWorkspaceDialog(true)}
+                  onStartCreateRunbook={handleStartCreateRunbook}
                   moveItemsToWorkspace={handleMoveItemsToWorkspace}
                   ref={listRef}
                 />
@@ -1148,7 +1088,6 @@ function App() {
             <NewWorkspaceDialog
               onAccept={handleAcceptNewWorkspace}
               onCancel={() => setShowNewWorkspaceDialog(false)}
-              forceOnline={selectedOrg ? true : false}
             />
           )}
           <InviteFriendsModal

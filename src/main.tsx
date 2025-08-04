@@ -41,6 +41,7 @@ import Operation from "./state/runbooks/operation";
 import EditorBus from "./lib/buses/editor";
 import BlockBus from "./lib/workflow/block_bus";
 import { generateBlocks } from "./lib/ai/block_generator";
+import WorkspaceManager from "./lib/workspaces/manager";
 
 (async () => {
   try {
@@ -191,13 +192,11 @@ function Application() {
 
   useEffect(() => {
     // Start up listeners for all known workspaces
+    const workspaceManager = WorkspaceManager.getInstance();
     Workspace.all()
       .then((workspaces) => {
         for (const workspace of workspaces) {
-          SharedStateManager.startInstance(
-            `workspace-folder:${workspace.get("id")}`,
-            new AtuinSharedStateAdapter(`workspace-folder:${workspace.get("id")}`),
-          );
+          workspaceManager.watchWorkspace(workspace);
         }
       })
       .catch((err: any) => {

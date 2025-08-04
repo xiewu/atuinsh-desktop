@@ -570,6 +570,7 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
       {hiddenWorkspaces[props.workspace.get("id")!] ? null : (
         <TreeView
           workspaceId={props.workspace.get("id")!}
+          workspaceOnline={props.workspace.isOnline()}
           onTreeApiReady={(api) => (treeRef.current = api)}
           data={arboristData as any}
           sortBy={props.sortBy}

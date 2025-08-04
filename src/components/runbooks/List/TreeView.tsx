@@ -28,6 +28,7 @@ interface MoveHandlerArgs<T> {
 interface TreeViewProps {
   data: TreeRowData[];
   workspaceId?: string;
+  workspaceOnline: boolean;
   sortBy: SortBy;
   selectedItemId: string | null;
   initialOpenState: Record<string, boolean>;
@@ -178,6 +179,7 @@ export default function TreeView(props: TreeViewProps) {
           preview: innerProps.preview,
           runbookId: innerProps.node.data.id,
           onContextMenu,
+          useProvidedName: !props.workspaceOnline,
         };
         return <RunbookTreeRow key={innerProps.node.data.id} {...runbookProps} />;
       }

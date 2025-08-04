@@ -16,6 +16,7 @@ export interface RunbookRowData {
 
 export interface RunbookTreeRowProps extends NodeRendererProps<RunbookRowData> {
   runbookId: string;
+  useProvidedName: boolean;
   onContextMenu: (evt: React.MouseEvent<HTMLDivElement>, itemId: string) => void;
 }
 
@@ -146,8 +147,9 @@ export default function RunbookTreeRow(props: RunbookTreeRowProps) {
               "text-gray-900 dark:text-gray-100": runbook && !runbook.viewed_at,
             })}
           >
-            {!runbook && <span className="italic">Loading...</span>}
-            {runbook && (runbook.name || "Untitled")}
+            {!runbook && !props.useProvidedName && <span className="italic">Loading...</span>}
+            {props.useProvidedName && <span>{props.node.data.name}</span>}
+            {!props.useProvidedName && runbook && (runbook.name || "Untitled")}
           </span>
         </h3>
         <div className="flex items-center">

@@ -160,6 +160,13 @@ const GeneralSettings = () => {
   const lightModeEditorTheme = useStore((state) => state.lightModeEditorTheme);
   const darkModeEditorTheme = useStore((state) => state.darkModeEditorTheme);
 
+  const [vimModeEnabled, setVimModeEnabled, vimModeLoading] = useSettingsState(
+    "editor_vim_mode",
+    false,
+    Settings.editorVimMode,
+    Settings.editorVimMode,
+  );
+
   const themes = [
     ["Abcdef", "abcdef"],
     ["Abyss", "abyss"],
@@ -232,7 +239,7 @@ const GeneralSettings = () => {
     useStore.getState().setDarkModeEditorTheme(keys.currentKey as string);
   }
 
-  if (isLoading) return <Spinner />;
+  if (isLoading || vimModeLoading) return <Spinner />;
 
   return (
     <>
@@ -331,6 +338,14 @@ const GeneralSettings = () => {
           >
             {(item) => <SelectItem key={item.key}>{item.label}</SelectItem>}
           </Select>
+
+          <SettingSwitch
+            className="mt-4"
+            label="Enable Vim mode"
+            isSelected={vimModeEnabled}
+            onValueChange={setVimModeEnabled}
+            description="Enable Vim key bindings in code editors"
+          />
 
           <div className="mt-2 ml-1">
             <Link

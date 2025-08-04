@@ -104,6 +104,9 @@ importers:
       '@react-stately/utils':
         specifier: ^3.10.5
         version: 3.10.5(react@19.1.0)
+      '@replit/codemirror-vim':
+        specifier: ^6.3.0
+        version: 6.3.0(@codemirror/commands@6.8.0)(@codemirror/language@6.10.8)(@codemirror/search@6.5.10)(@codemirror/state@6.5.2)(@codemirror/view@6.37.1)
       '@sentry/react':
         specifier: ^9.10.1
         version: 9.10.1(react@19.1.0)
@@ -2679,6 +2682,15 @@ packages:
       '@lezer/highlight': ^1.0.0
       '@lezer/javascript': ^1.2.0
       '@lezer/lr': ^1.0.0
+
+  '@replit/codemirror-vim@6.3.0':
+    resolution: {integrity: sha512-aTx931ULAMuJx6xLf7KQDOL7CxD+Sa05FktTDrtLaSy53uj01ll3Zf17JdKsriER248oS55GBzg0CfCTjEneAQ==}
+    peerDependencies:
+      '@codemirror/commands': 6.x.x
+      '@codemirror/language': 6.x.x
+      '@codemirror/search': 6.x.x
+      '@codemirror/state': 6.x.x
+      '@codemirror/view': 6.x.x
 
   '@rollup/rollup-android-arm-eabi@4.34.9':
     resolution: {integrity: sha512-qZdlImWXur0CFakn2BJ2znJOdqYZKiedEPEVNTBrpfPjc/YuTGcaYZcdmNFTkUj3DU0ZM/AElcM8Ybww3xVLzA==}
@@ -9011,6 +9023,14 @@ snapshots:
       '@lezer/highlight': 1.2.1
       '@lezer/javascript': 1.4.21
       '@lezer/lr': 1.4.2
+
+  '@replit/codemirror-vim@6.3.0(@codemirror/commands@6.8.0)(@codemirror/language@6.10.8)(@codemirror/search@6.5.10)(@codemirror/state@6.5.2)(@codemirror/view@6.37.1)':
+    dependencies:
+      '@codemirror/commands': 6.8.0
+      '@codemirror/language': 6.10.8
+      '@codemirror/search': 6.5.10
+      '@codemirror/state': 6.5.2
+      '@codemirror/view': 6.37.1
 
   '@rollup/rollup-android-arm-eabi@4.34.9':
     optional: true

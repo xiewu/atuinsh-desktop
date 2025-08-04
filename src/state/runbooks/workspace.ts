@@ -5,6 +5,7 @@ import { SharedStateManager } from "@/lib/shared_state/manager";
 import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
 import { dbHook } from "@/lib/db_hooks";
 import { deleteSharedStateDocument } from "@/lib/shared_state/commands";
+import WorkspaceManager from "@/lib/workspaces/manager";
 
 export type WorkspaceAttrs = {
   id?: string;
@@ -35,16 +36,18 @@ const globalSpecs: GlobalSpec<WorkspaceAttrs> = {
   },
   postSave: async (_context, model, type) => {
     dbHook("workspace", type === "insert" ? "create" : "update", model);
-    if (type === "insert" && (model as Workspace).isOnline()) {
-      SharedStateManager.startInstance(
-        `workspace-folder:${model.get("id")}`,
-        new AtuinSharedStateAdapter(`workspace-folder:${model.get("id")}`),
-      );
+
+    if (type === "insert") {
+      const workspaceManager = WorkspaceManager.getInstance();
+      workspaceManager.watchWorkspace(model as Workspace);
     }
   },
   postDelete: async (_context, model) => {
     dbHook("workspace", "delete", model);
-    SharedStateManager.stopInstance(`workspace-folder:${model.get("id")}`);
+
+    const workspaceManager = WorkspaceManager.getInstance();
+    workspaceManager.unwatchWorkspace(model as Workspace);
+
     deleteSharedStateDocument(`workspace-folder:${model.get("id")}`);
   },
 };

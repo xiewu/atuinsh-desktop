@@ -2,9 +2,50 @@ import Workspace from "@/state/runbooks/workspace";
 import { Err, Ok, Result } from "@binarymuse/ts-stdlib";
 import { Channel, invoke } from "@tauri-apps/api/core";
 
-export interface FsEvent {
-  //
-}
+// This type was created based on observations of events sent to
+// the frontend from the backend. There may be more events that
+// we don't represent here, but these seem to be the most relevant
+// ones. Note that there is an "attrs" field that always seems to be
+// empty, so is not included here.
+//
+// See: https://docs.rs/notify/latest/notify/struct.Event.html
+//
+// TODO: should we include "any" and "other" in all the cases??
+export type FsEvent =
+  | {
+      type: "create";
+      kind: "file" | "folder";
+      paths: [string];
+    }
+  | {
+      type: "modify";
+      kind: "rename";
+      mode: "both";
+      paths: [string, string];
+    }
+  | {
+      type: "modify";
+      kind: "rename";
+      mode: "any";
+      paths: [string];
+    }
+  | {
+      type: "modify";
+      kind: "metadata";
+      mode: "any" | "metadata" | "extended";
+      paths: [string];
+    }
+  | {
+      type: "modify";
+      kind: "data";
+      mode: "content";
+      paths: [string];
+    }
+  | {
+      type: "remove";
+      kind: "file" | "folder";
+      paths: [string];
+    };
 
 export interface WorkspaceDirInfo {
   id: string;
@@ -29,7 +70,7 @@ async function promiseResult<T, E>(promise: Promise<T>): Promise<Result<T, E>> {
 }
 
 export async function resetWorkspaces(): Promise<Result<void, string>> {
-  return promiseResult<void, string>(invoke<void>("reset_workspaces"));
+  return promiseResult<void, string>(invoke("reset_workspaces"));
 }
 
 export async function watchWorkspace(
@@ -38,9 +79,9 @@ export async function watchWorkspace(
   callback: (event: FsEvent) => void,
 ): Promise<() => void> {
   const channel = new Channel<FsEvent>(callback);
-  await promiseResult<void, string>(invoke<void>("watch_workspace", { path, id, channel }));
+  await promiseResult<void, string>(invoke("watch_workspace", { path, id, channel }));
   return () => {
-    invoke<void>("unwatch_workspace", { id });
+    invoke("unwatch_workspace", { id });
   };
 }
 
@@ -49,15 +90,15 @@ export async function createWorkspace(
   id: string,
   name: string,
 ): Promise<Result<void, string>> {
-  return promiseResult<void, string>(invoke<void>("create_workspace", { path, id, name }));
+  return promiseResult<void, string>(invoke("create_workspace", { path, id, name }));
 }
 
 export async function renameWorkspace(id: string, name: string): Promise<Result<void, string>> {
-  return promiseResult<void, string>(invoke<void>("rename_workspace", { id, name }));
+  return promiseResult<void, string>(invoke("rename_workspace", { id, name }));
 }
 
 export async function deleteWorkspace(id: string): Promise<Result<void, string>> {
-  return promiseResult<void, string>(invoke<void>("delete_workspace", { id }));
+  return promiseResult<void, string>(invoke("delete_workspace", { id }));
 }
 
 export async function getWorkspaceInfo(

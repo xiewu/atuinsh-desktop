@@ -3,6 +3,18 @@
 version = 4
 
 [[package]]
+name = "actson"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42ceaa5a04ff2e693fcfc1d39d1a12d04b66846b66ff5eb00033942785ec4464"
+dependencies = [
+ "btoi",
+ "num-traits",
+ "thiserror 2.0.12",
+ "tokio",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -465,6 +477,7 @@ dependencies = [
 name = "atuin-desktop"
 version = "0.0.90"
 dependencies = [
+ "actson",
  "async-trait",
  "atuin-client",
  "atuin-common",
@@ -830,6 +843,15 @@ checksum = "a334ef7c9e23abf0ce748e8cd309037da93e606ad52eb372e4ce327a0dcfbdfd"
 dependencies = [
  "alloc-no-stdlib",
  "alloc-stdlib",
+]
+
+[[package]]
+name = "btoi"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9dd6407f73a9b8b6162d8a2ef999fe6afd7cc15902ebf42c5cd296addf17e0ad"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]
@@ -6484,6 +6506,7 @@ version = "1.0.140"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20068b6e96dc6c9bd23e01df8827e6c7e1f2fddd43c21810382803c136b99373"
 dependencies = [
+ "indexmap 2.9.0",
  "itoa 1.0.15",
  "memchr",
  "ryu",

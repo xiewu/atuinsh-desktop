@@ -152,6 +152,12 @@ export default class Runbook {
   }
 
   public static async createUntitled(workspace: Workspace, markViewed: boolean = false) {
+    if (!workspace.isOnline()) {
+      throw new Error(
+        "Creation of runbooks in an offline workspace needs to be done via the WorkspaceStrategy adapter",
+      );
+    }
+
     let runbook = await Runbook.create(workspace);
     runbook.name = "Untitled";
     runbook.content = JSON.stringify(untitledRunbook);

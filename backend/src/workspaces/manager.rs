@@ -5,8 +5,12 @@ use notify_debouncer_full::{
     notify::{RecommendedWatcher, RecursiveMode},
     DebounceEventResult, DebouncedEvent, Debouncer, RecommendedCache,
 };
+use serde_json::Value;
 
-use crate::workspaces::fs_ops::{FsOps, FsOpsHandle, WorkspaceDirInfo};
+use crate::workspaces::{
+    fs_ops::{FsOps, FsOpsHandle, WorkspaceDirInfo},
+    state::WorkspaceState,
+};
 
 pub trait OnEvent: Send + Sync + Sized + Fn(DebouncedEvent) {}
 impl<F: Send + Sync + Sized + Fn(DebouncedEvent)> OnEvent for F {}
@@ -16,8 +20,7 @@ pub struct WorkspaceManager {
 }
 
 pub struct Workspace {
-    id: String,
-    path: PathBuf,
+    state: WorkspaceState,
     debouncer: Debouncer<RecommendedWatcher, RecommendedCache>,
     fs_ops: FsOpsHandle,
 }
@@ -55,17 +58,19 @@ impl WorkspaceManager {
                 }
             },
         )
-        .expect("Failed to create debouncer");
+        .map_err(|e| e.to_string())?;
+
+        let fs_ops = FsOpsHandle::new();
+        let state = WorkspaceState::new(id.clone(), path.clone())
+            .await
+            .map_err(|e| e.to_string())?;
 
         debouncer
             .watch(&path, RecursiveMode::Recursive)
             .map_err(|e| e.to_string())?;
 
-        let fs_ops = FsOpsHandle::new();
-
         let ws = Workspace {
-            id: id.clone(),
-            path,
+            state,
             debouncer,
             fs_ops,
         };
@@ -76,12 +81,8 @@ impl WorkspaceManager {
     }
 
     pub async fn unwatch_workspace(&mut self, id: String) -> Result<(), String> {
-        if let Some(mut workspace) = self.workspaces.remove(&id) {
-            workspace
-                .debouncer
-                .unwatch(&workspace.path)
-                .map_err(|e| e.to_string())?;
-        }
+        // Drop will clean up debouncer and fs_ops
+        self.workspaces.remove(&id);
         Ok(())
     }
 
@@ -101,12 +102,16 @@ impl WorkspaceManager {
             .workspaces
             .get_mut(&id)
             .ok_or(format!("Workspace with id {} not found", id))?;
-        let path = workspace.path.clone();
+        let path = workspace.state.root.clone();
         workspace
             .fs_ops
             .rename_workspace(path, name)
             .await
             .map_err(|e| e.to_string())
+    }
+
+    pub async fn save_runbook(&mut self, id: String, name: String, content: Value) {
+        //
     }
 
     pub async fn get_dir_info(&mut self, workspace_id: String) -> Result<WorkspaceDirInfo, String> {
@@ -116,7 +121,7 @@ impl WorkspaceManager {
             .ok_or(format!("Workspace with id {} not found", workspace_id))?;
         workspace
             .fs_ops
-            .get_dir_info(workspace.path.clone())
+            .get_dir_info(workspace.state.root.clone())
             .await
             .map_err(|e| e.to_string())
     }

@@ -1,12 +1,10 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, time::SystemTime};
 
-use atuin_common::utils::uuid_v7;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{
     mpsc::{channel, error::SendError, Receiver, Sender},
     oneshot,
 };
-use toml::{Table, Value};
 
 #[derive(thiserror::Error, Debug)]
 pub enum FsOpsError {
@@ -41,10 +39,12 @@ pub struct DirEntry {
     pub name: String,
     pub is_dir: bool,
     pub path: PathBuf,
+    pub lastmod: Option<SystemTime>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorkspaceConfig {
+    // Nested so that there are no top-level keys in the config file
     pub workspace: WorkspaceConfigDetails,
 }
 
@@ -52,21 +52,23 @@ pub struct WorkspaceConfig {
 pub struct WorkspaceConfigDetails {
     pub id: String,
     pub name: String,
-    pub index: Option<Table>,
 }
 
 impl WorkspaceConfig {
     pub fn new(id: String, name: String) -> Self {
         Self {
-            workspace: WorkspaceConfigDetails {
-                id,
-                name,
-                index: None,
-            },
+            workspace: WorkspaceConfigDetails { id, name },
         }
+    }
+
+    pub async fn from_file(path: PathBuf) -> Result<Self, FsOpsError> {
+        let config_text = tokio::fs::read_to_string(path).await?;
+        let config: WorkspaceConfig = toml::from_str(&config_text)?;
+        Ok(config)
     }
 }
 
+#[derive(Clone)]
 pub struct FsOpsHandle {
     tx: Sender<FsOpsInstruction>,
 }
@@ -125,28 +127,19 @@ impl FsOps {
         id: String,
         name: String,
     ) -> Result<(), FsOpsError> {
-        let mut config = WorkspaceConfig::new(id, name);
-        let mut table = Table::new();
-        // TODO[mkt]: This is a placeholder for the index. We need to actually build the index here.
-        table.insert(
-            uuid_v7().to_string(),
-            Value::String("path/to-file1.atrb".to_string()),
-        );
-        table.insert(
-            uuid_v7().to_string(),
-            Value::String("path/to-file2.atrb".to_string()),
-        );
-        config.workspace.index = Some(table);
-
+        let config = WorkspaceConfig::new(id, name);
         let workspace_path = path.join("atuin.toml");
         let contents = toml::to_string(&config)?;
         tokio::fs::write(workspace_path, contents).await?;
+        let dot_atuin_path = path.join(".atuin");
+        if !dot_atuin_path.exists() {
+            tokio::fs::create_dir_all(&dot_atuin_path).await?;
+        }
         Ok(())
     }
 
     pub async fn run(&mut self, mut rx: Receiver<FsOpsInstruction>) {
-        loop {
-            let instruction = rx.recv().await.unwrap();
+        while let Some(instruction) = rx.recv().await {
             match instruction {
                 FsOpsInstruction::GetDirectoryInformation(path, reply_to) => {
                     let info = self.get_directory_information(path).await;
@@ -167,9 +160,17 @@ impl FsOps {
         &mut self,
         path: PathBuf,
     ) -> Result<WorkspaceDirInfo, FsOpsError> {
-        let mut contents = read_dir_recursive(&path)?;
+        let config_path = path.join("atuin.toml");
+        if !config_path.exists() {
+            return Err(FsOpsError::IoError(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Workspace config not found",
+            )));
+        }
+
+        let mut contents = read_dir_recursive(&path).await?;
         contents.retain(|entry| entry.name.ends_with(".atrb"));
-        let config_text = tokio::fs::read_to_string(path.join("atuin.toml")).await?;
+        let config_text = tokio::fs::read_to_string(config_path).await?;
         let config: WorkspaceConfig = toml::from_str(&config_text)?;
         Ok(WorkspaceDirInfo {
             id: config.workspace.id,
@@ -189,23 +190,25 @@ impl FsOps {
     }
 }
 
-fn read_dir_recursive(path: &PathBuf) -> Result<Vec<DirEntry>, FsOpsError> {
+pub async fn read_dir_recursive(path: &PathBuf) -> Result<Vec<DirEntry>, FsOpsError> {
     let mut contents = Vec::new();
-    for entry in std::fs::read_dir(path)? {
-        let entry = entry?;
+    let mut dir = tokio::fs::read_dir(path).await?;
+    while let Some(entry) = dir.next_entry().await? {
         let path = entry.path();
         if path.is_dir() {
             contents.push(DirEntry {
                 name: path.file_name().unwrap().to_string_lossy().to_string(),
                 is_dir: true,
                 path: path.clone(),
+                lastmod: entry.metadata().await?.modified().ok(),
             });
-            contents.extend(read_dir_recursive(&path)?);
+            contents.extend(Box::pin(read_dir_recursive(&path)).await?);
         } else {
             contents.push(DirEntry {
                 name: path.file_name().unwrap().to_string_lossy().to_string(),
                 is_dir: false,
                 path,
+                lastmod: entry.metadata().await?.modified().ok(),
             });
         }
     }

@@ -87,6 +87,22 @@ fn new_workspace<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
 }
 
 #[allow(dead_code)]
+fn export_markdown<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
+    let export_markdown = MenuItemBuilder::new("Markdown")
+        .id("export-markdown")
+        .build(handle)?;
+
+    handle.on_menu_event(move |window, event| {
+        if event.id().0 == "export-markdown" {
+            window
+                .emit("export-markdown", 0)
+                .expect("Failed to emit menu event");
+        }
+    });
+    Ok(export_markdown)
+}
+
+#[allow(dead_code)]
 fn show_devtools<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
     let show_devtools = MenuItemBuilder::new("Toggle DevTools")
         .id("toggle-devtools")
@@ -222,6 +238,12 @@ pub fn menu<R: Runtime>(app_handle: &AppHandle<R>) -> Result<Menu<R>> {
                         "Workspaces",
                         true,
                         &[&new_workspace(app_handle)?],
+                    )?,
+                    &Submenu::with_items(
+                        app_handle,
+                        "Export",
+                        true,
+                        &[&export_markdown(app_handle)?],
                     )?,
                     &PredefinedMenuItem::separator(app_handle)?,
                     &PredefinedMenuItem::close_window(app_handle, None)?,

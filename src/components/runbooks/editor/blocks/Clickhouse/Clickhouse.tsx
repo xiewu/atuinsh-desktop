@@ -9,6 +9,7 @@ import { ClickhouseBlock } from "@/lib/workflow/blocks/clickhouse";
 import { DependencySpec } from "@/lib/workflow/dependency";
 import track_event from "@/tracking";
 import SQL from "@/lib/blocks/common/SQL";
+import { exportPropMatter } from "@/lib/utils";
 
 interface SQLProps {
   isEditable: boolean;
@@ -73,6 +74,19 @@ export default createReactBlockSpec(
     content: "none",
   },
   {
+    toExternalHTML: ({ block }) => {
+      let propMatter = exportPropMatter("clickhouse", block.props, ["name", "uri"]);
+      return (
+        <div>
+          <pre lang="sql">
+            <code>
+              {propMatter}
+              {block.props.query}
+            </code>
+          </pre>
+        </div>
+      );
+    },
     // @ts-ignore
     render: ({ block, editor, code, type }) => {
       const handleCodeMirrorFocus = () => {

@@ -31,6 +31,7 @@ import useCodemirrorTheme from "@/lib/hooks/useCodemirrorTheme.ts";
 import { useCodeMirrorValue } from "@/lib/hooks/useCodeMirrorValue";
 import Block from "@/lib/blocks/common/Block";
 import { setTemplateVar } from "@/state/templates";
+import { exportPropMatter } from "@/lib/utils";
 
 interface LanguageLoader {
   name: string;
@@ -90,7 +91,7 @@ const EditorBlock = ({
   onCodeMirrorFocus,
 }: CodeBlockProps) => {
   const languages: LanguageLoader[] = useMemo(() => languageLoaders(), []);
-  
+
   const codeMirrorValue = useCodeMirrorValue(code, onChange);
 
   const [extension, setExtension] = useState<Extension | null>(null);
@@ -229,6 +230,17 @@ export default createReactBlockSpec(
     content: "none",
   },
   {
+    toExternalHTML: ({ block }) => {
+      let propMatter = exportPropMatter("editor", block.props, ["name", "language"]);
+      return (
+        <pre lang={block.props.language}>
+          <code>
+            {propMatter}
+            {block.props.code}
+          </code>
+        </pre>
+      );
+    },
     // @ts-ignore
     render: ({ block, editor, code, type }) => {
       const { currentRunbookId } = useStore();
@@ -294,13 +306,6 @@ export default createReactBlockSpec(
           isEditable={editor.isEditable}
           onCodeMirrorFocus={handleCodeMirrorFocus}
         />
-      );
-    },
-    toExternalHTML: ({ block }) => {
-      return (
-        <pre>
-          <code>{block?.props?.code}</code>
-        </pre>
       );
     },
   },

@@ -4,6 +4,7 @@ import { VariableIcon } from "lucide-react";
 
 // @ts-ignore
 import { createReactBlockSpec } from "@blocknote/react";
+import { exportPropMatter } from "@/lib/utils";
 
 interface EnvProps {
   name: string;
@@ -76,6 +77,17 @@ export default createReactBlockSpec(
     content: "none",
   },
   {
+    toExternalHTML: ({ block }) => {
+      let propMatter = exportPropMatter("env", block.props, ["name"]);
+      return (
+        <pre lang="env">
+          <code>
+            {propMatter}
+            {block.props.value}
+          </code>
+        </pre>
+      );
+    },
     // @ts-ignore
     render: ({ block, editor, code, type }) => {
       const onUpdate = (name: string, value: string): void => {

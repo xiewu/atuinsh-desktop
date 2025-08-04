@@ -10,6 +10,7 @@ import { createReactBlockSpec } from "@blocknote/react";
 import { useEffect } from "react";
 import EditorBus from "@/lib/buses/editor";
 import track_event from "@/tracking";
+import { exportPropMatter } from "@/lib/utils";
 
 interface HostSelectProps {
   isEditable: boolean;
@@ -63,6 +64,15 @@ export default createReactBlockSpec(
     content: "none",
   },
   {
+    toExternalHTML: ({ block }) => {
+      return (
+        <pre lang="host-select">
+          <code>
+            {exportPropMatter("host-select", block.props, ["host"])}
+          </code>
+        </pre>
+      );
+    },
     // @ts-ignore
     render: ({ block, editor }) => {
       return (

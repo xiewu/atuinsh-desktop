@@ -5,6 +5,7 @@ import type { ClassValue } from "clsx";
 import clsx from "clsx";
 import { useEffect, useRef, useState } from "react";
 import { extendTailwindMerge } from "tailwind-merge";
+import { stringify } from "yaml";
 
 export type { Option } from "@binarymuse/ts-stdlib";
 export { None, Some } from "@binarymuse/ts-stdlib";
@@ -241,4 +242,14 @@ export function toSnakeCase(str: string) {
       // Replace spaces with underscores
       .replace(/\s/g, "_")
   );
+}
+
+export function exportPropMatter(type: string, props: any, exportProps: string[]) {
+  let propMatter = exportProps.reduce((acc: any, key: string) => {
+    if (props[key]) 
+      acc[key] = props[key as keyof typeof props];
+    return acc;
+  }, {type});
+
+  return `---\n${stringify(propMatter)}---\n`;
 }

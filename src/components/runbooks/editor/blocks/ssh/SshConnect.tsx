@@ -11,6 +11,7 @@ import { sshConnect } from "./ssh";
 import EditorBus from "@/lib/buses/editor";
 import { useEffect } from "react";
 import track_event from "@/tracking";
+import { exportPropMatter } from "@/lib/utils";
 
 interface SshConnectProps {
   userHost: string; // foo@bar, combine for natural-ness
@@ -81,6 +82,15 @@ export default createReactBlockSpec(
     content: "none",
   },
   {
+    toExternalHTML: ({ block }) => {
+      return (
+        <pre lang="ssh-connect">
+          <code>
+            {exportPropMatter("ssh-connect", block.props, ["userHost"])}
+          </code>
+        </pre>
+      );
+    },
     // @ts-ignore
     render: ({ block, editor, code, type }) => {
       const onUserHostChange = (val: string) => {

@@ -4,6 +4,7 @@ import { createReactBlockSpec } from "@blocknote/react";
 import { RunBlock } from "./component";
 import track_event from "@/tracking";
 import { CodeIcon } from "lucide-react";
+import { exportPropMatter } from "@/lib/utils";
 
 export default createReactBlockSpec(
     TERMINAL_BLOCK_SCHEMA,
@@ -79,9 +80,13 @@ export default createReactBlockSpec(
         );
       },
       toExternalHTML: ({ block }) => {
+        let propMatter = exportPropMatter("terminal", block.props, ["name"]);
         return (
           <pre lang="beep boop">
-            <code lang="bash">{block?.props?.code}</code>
+            <code lang="bash">
+              {propMatter}
+              {block?.props?.code}
+            </code>
           </pre>
         );
       },

@@ -7,6 +7,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { createReactBlockSpec } from "@blocknote/react";
 import { useStore } from "@/state/store";
 import RunbookBus from "@/lib/app/runbook_bus";
+import { exportPropMatter } from "@/lib/utils";
 
 /**
  * Props for the VarDisplay component that shows a live preview of a template variable
@@ -119,6 +120,14 @@ export default createReactBlockSpec(
     content: "none", // This block doesn't need to store content
   },
   {
+    toExternalHTML: ({ block }) => {
+      let propMatter = exportPropMatter("var_display", block.props, ["name"]);
+      return (
+        <pre lang="var_display">
+          <code>{propMatter}</code>
+        </pre>
+      );
+    },
     // @ts-ignore
     render: ({ block, editor }) => {
       // Updates the block's stored variable name when changed by user

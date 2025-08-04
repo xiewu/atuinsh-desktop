@@ -37,6 +37,7 @@ import PlayButton from "@/lib/blocks/common/PlayButton.tsx";
 import CodeEditor, { TabAutoComplete } from "@/lib/blocks/common/CodeEditor/CodeEditor.tsx";
 import Block from "@/lib/blocks/common/Block.tsx";
 import InterpreterSelector, { buildInterpreterCommand, supportedShells } from "@/lib/blocks/common/InterpreterSelector.tsx";
+import { exportPropMatter } from "@/lib/utils";
 
 interface ScriptBlockProps {
   onChange: (val: string) => void;
@@ -548,6 +549,17 @@ export default createReactBlockSpec(
     content: "none",
   },
   {
+    toExternalHTML: ({ block }) => {
+      let propMatter = exportPropMatter("script", block.props, ["name", "interpreter"]);
+      return (
+        <pre lang="script">
+          <code>
+            {propMatter}
+            {block.props.code}
+          </code>
+        </pre>
+      );
+    },
     // @ts-ignore
     render: ({ block, editor }) => {
       const handleCodeMirrorFocus = () => {
@@ -640,13 +652,6 @@ export default createReactBlockSpec(
           setDependency={setDependency}
           onCodeMirrorFocus={handleCodeMirrorFocus}
         />
-      );
-    },
-    toExternalHTML: ({ block }) => {
-      return (
-        <pre lang="beep boop">
-          <code lang="bash">{block?.props?.code}</code>
-        </pre>
       );
     },
   },

@@ -6,6 +6,7 @@ import { TextCursorInputIcon } from "lucide-react";
 import { createReactBlockSpec } from "@blocknote/react";
 import { useStore } from "@/state/store";
 import { setTemplateVar } from "@/state/templates";
+import { exportPropMatter } from "@/lib/utils";
 
 interface VarProps {
   name: string;
@@ -81,6 +82,17 @@ export default createReactBlockSpec(
     content: "none",
   },
   {
+    toExternalHTML: ({ block }) => {
+      let propMatter = exportPropMatter("var", block.props, ["name"]);
+      return (
+        <pre lang="var">
+          <code>
+            {propMatter}
+            {block.props.value}
+          </code>
+        </pre>
+      );
+    },
     // @ts-ignore
     render: ({ block, editor }) => {
       const currentRunbookId = useStore((store) => store.currentRunbookId);

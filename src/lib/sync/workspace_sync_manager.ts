@@ -193,9 +193,9 @@ export default class WorkspaceSyncManager {
 
     for (const id of idsToDelete) {
       const workspace = localWorkspaces.find((w) => w.get("id")! === id);
-      // Only propagate deletes for org-owned workspaces (eventually, "online" workspaces);
-      // non-org workspaces will need to be deleted on each synced client.
-      if (workspace?.get("orgId")) {
+      // Only propagate deletes for online workspaces;
+      // offline workspaces will need to be deleted on each synced client.
+      if (workspace?.isOnline()) {
         await workspace.del();
         this.notifications.emit("org_workspace_deleted", {
           org_id: workspace.get("orgId")!,

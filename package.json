@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest",
-    "test-once": "vitest run"
+    "test-once": "vitest run",
+    "test-rs": "cd backend && cargo test",
+    "generate-bindings": "cd backend && cargo test export_bindings"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",

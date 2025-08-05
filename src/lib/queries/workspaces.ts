@@ -2,6 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { localQuery } from "./local_query";
 import LegacyWorkspace from "@/state/runbooks/legacy_workspace";
 import Workspace from "@/state/runbooks/workspace";
+import WorkspaceManager from "../workspaces/manager";
 
 export function allWorkspaces() {
   return queryOptions({
@@ -61,6 +62,18 @@ export function orgWorkspaces(orgId: string | null) {
     queryKey: ["workspaces", "org", orgId],
     queryFn: async () => {
       return await Workspace.all({ orgId });
+    },
+  });
+}
+
+export function localWorkspaceInfo(workspaceId: string) {
+  return queryOptions({
+    ...localQuery,
+    queryKey: ["workspace_info", workspaceId],
+    queryFn: async () => {
+      const manager = WorkspaceManager.getInstance();
+      const info = manager.getWorkspaceInfo(workspaceId);
+      return info;
     },
   });
 }

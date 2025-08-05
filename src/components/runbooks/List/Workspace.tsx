@@ -90,6 +90,160 @@ function workspaceNameReducer(
   }
 }
 
+function transformDirEntriesToArboristTree(
+  entries: DirEntry[],
+  basePath: string,
+  runbooks: Record<string, WorkspaceRunbook>,
+): ArboristTree {
+  console.log("Transforming dir entries to arborist tree", entries, basePath);
+  entries = entries.filter((entry) => {
+    if (entry.is_dir) {
+      return true;
+    }
+
+    return entry.path.endsWith(".atrb");
+  });
+
+  // folders first, then files
+  const sortedEntries = [...entries].sort((a, b) => {
+    if (a.is_dir && !b.is_dir) return -1;
+    if (!a.is_dir && b.is_dir) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  const rootItems: ArboristTree = [];
+
+  function findOrCreateFolder(pathParts: string[]): {
+    id: string;
+    name: string;
+    type: "folder";
+    children: ArboristTree;
+  } {
+    if (pathParts.length === 0) {
+      throw new Error("Cannot create folder with empty path");
+    }
+
+    // Start from root and traverse down the path
+    let currentLevel = rootItems;
+    let currentPath = "";
+
+    for (let i = 0; i < pathParts.length; i++) {
+      const folderName = pathParts[i];
+      currentPath = currentPath ? `${currentPath}/${folderName}` : folderName;
+
+      // Look for existing folder at this level
+      let folder = currentLevel.find(
+        (item) => item.type === "folder" && item.name === folderName,
+      ) as { id: string; name: string; type: "folder"; children: ArboristTree } | undefined;
+
+      if (!folder) {
+        // Create new folder
+        const folderId = `folder-${basePath}/${currentPath}`;
+        folder = {
+          id: folderId,
+          name: folderName,
+          type: "folder",
+          children: [],
+        };
+        currentLevel.push(folder);
+      }
+
+      // If this is the last part, return the folder
+      if (i === pathParts.length - 1) {
+        return folder;
+      }
+
+      // Move to next level (children of this folder)
+      currentLevel = folder.children;
+    }
+
+    throw new Error("Unexpected end of path traversal");
+  }
+
+  for (const entry of sortedEntries) {
+    // Calculate relative path from base path
+    const relativePath = entry.path.replace(basePath, "").replace(/^\/+/, "");
+    const pathParts = relativePath.split("/").filter((part) => part.length > 0);
+
+    if (entry.is_dir) {
+      // Check if folder already exists
+      const existingFolder = findOrCreateFolder(pathParts);
+      if (existingFolder.id === `folder-${entry.path}`) {
+        // This is the same folder we're trying to create, skip
+        continue;
+      }
+
+      // Create folder entry
+      const folderId = `folder-${entry.path}`;
+      const folder = {
+        id: folderId,
+        name: entry.name,
+        type: "folder" as const,
+        children: [],
+      };
+
+      // Add to parent folder if it exists
+      if (pathParts.length > 1) {
+        const parentPathParts = pathParts.slice(0, -1);
+        const parentFolder = findOrCreateFolder(parentPathParts);
+        parentFolder.children.push(folder);
+      } else {
+        // Root level folder
+        rootItems.push(folder);
+      }
+    } else {
+      // Find runbook with matching path
+      const runbook = Object.values(runbooks).find((r) => r.path === entry.path);
+      if (!runbook) {
+        throw new Error(`Runbook not found for path: ${entry.path}`);
+      }
+
+      // Create file entry
+      const file = {
+        id: runbook.id,
+        name: runbook.name,
+        type: "runbook" as const,
+      };
+
+      // Add to parent folder if it exists
+      if (pathParts.length > 1) {
+        const parentPathParts = pathParts.slice(0, -1);
+        const parentFolder = findOrCreateFolder(parentPathParts);
+        parentFolder.children.push(file);
+      } else {
+        // Root level file
+        rootItems.push(file);
+      }
+    }
+  }
+
+  return rootItems;
+}
+
+async function retryUntilOk<T, E = string>(
+  fn: () => Promise<Result<T, E>>,
+  retryDelay: number,
+  retries: number,
+): Promise<Result<T, E>> {
+  let attempts = 0;
+  let lastResult: Option<Result<T, E>> = None;
+
+  while (true) {
+    const result = await fn();
+    if (result.isOk()) {
+      return result;
+    }
+
+    lastResult = Some(result);
+    attempts++;
+    if (attempts > retries) {
+      return lastResult.unwrap();
+    }
+
+    await timeoutPromise(retryDelay, null);
+  }
+}
+
 export default function WorkspaceComponent(props: WorkspaceProps) {
   const treeRef = useRef<TreeApi<TreeRowData> | null>(null);
 
@@ -107,11 +261,42 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     newName: props.workspace.get("name")!,
   });
 
+  const { data: workspaceInfo } = useQuery(localWorkspaceInfo(props.workspace.get("id")!));
+
   const [workspaceFolder, doFolderOp] = useWorkspaceFolder(props.workspace.get("id")!);
 
   const arboristData = useMemo(() => {
-    return workspaceFolder.toArborist();
-  }, [workspaceFolder]);
+    if (props.workspace.isOnline()) {
+      return workspaceFolder.toArborist();
+    } else {
+      if (!workspaceInfo) {
+        return [];
+      }
+
+      return transformDirEntriesToArboristTree(
+        workspaceInfo.entries,
+        props.workspace.get("folder")!,
+        workspaceInfo.runbooks,
+      );
+    }
+  }, [workspaceFolder, workspaceInfo, props.workspace.get("folder")]);
+  console.log("Arborist data:", arboristData);
+
+  useEffect(() => {
+    // Update offline workspaces from the FS info
+    if (
+      !workspaceInfo ||
+      props.workspace.get("id") !== workspaceInfo.id ||
+      props.workspace.isOnline()
+    ) {
+      return;
+    }
+
+    if (props.workspace.get("name") !== workspaceInfo.name) {
+      props.workspace.set("name", workspaceInfo.name);
+      props.workspace.save();
+    }
+  }, [workspaceInfo, props.workspace.get("id")]);
 
   useEffect(() => {
     // If the current runbook ID changes and we have the previous runbook selected, update the selection.
@@ -514,7 +699,58 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     },
   }));
 
-  console.log("initial open state", folderState[props.workspace.get("id")!]);
+  // useEffect(() => {
+  //   let shutdown = false;
+  //   let unwatch: Option<() => void> = None;
+
+  //   if (props.workspace.isOnline()) {
+  //     return () => {};
+  //   }
+
+  //   logger.info("Watching workspace FS:", props.workspace.get("folder")!);
+
+  //   // Workspace info may not be immediately available until the FS watcher is ready.
+  //   retryUntilOk(() => getWorkspaceInfo(props.workspace), 250, 10).then((info) => {
+  //     if (info.isOk()) {
+  //       setWorkspaceInfo(info.unwrap());
+  //     } else {
+  //       logger.error("Failed to get workspace info:", info.unwrapErr());
+  //     }
+  //   });
+
+  //   watchWorkspace(
+  //     props.workspace.get("folder")!,
+  //     props.workspace.get("id")!,
+  //     async (event: WorkspaceEvent) => {
+  //       // TODO: handle from backend!!!!
+  //       //
+  //       // // TODO[mkt]: Debouce the event handler, or filter to only the events we care about
+  //       // logger.info("Workspace FS event:", event);
+  //       // getWorkspaceInfo(props.workspace).then((info) => {
+  //       //   if (info.isOk()) {
+  //       //     logger.info("Workspace info:", info.unwrap());
+  //       //     setWorkspaceInfo(info.unwrap());
+  //       //   } else {
+  //       //     logger.error("Failed to get workspace info:", info.unwrapErr());
+  //       //   }
+  //       // });
+  //     },
+  //   ).then((uw) => {
+  //     if (shutdown) {
+  //       logger.debug("Unwatching workspace FS");
+  //       uw();
+  //       return;
+  //     }
+
+  //     unwatch = Some(uw);
+  //   });
+
+  //   return () => {
+  //     shutdown = true;
+  //     unwatch.map((uw) => uw());
+  //   };
+  // }, [props.workspace.get("id")]);
+
   return (
     <div
       ref={dropRef as any}

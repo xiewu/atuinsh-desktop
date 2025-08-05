@@ -2,29 +2,16 @@ import Workspace from "@/state/runbooks/workspace";
 import { SharedStateManager } from "../shared_state/manager";
 import { AtuinSharedStateAdapter } from "../shared_state/adapter";
 
-interface WorkspaceInfo {
-  id: string;
-  name: string;
-  root: string;
-  runbooks: Record<string, WorkspaceRunbook>;
-}
-
-interface WorkspaceRunbook {
-  id: string;
-  name: string;
-  version: number;
-  path: string;
-  hash: string;
-  lastmod: Date | null;
-}
+import type { WorkspaceState } from "@rust/WorkspaceState";
+import { watchWorkspace } from "./commands";
+import { localWorkspaceInfo } from "../queries/workspaces";
+import { useStore } from "@/state/store";
 
 export default class WorkspaceManager {
   private static instance: WorkspaceManager;
-  private workspaces: Map<string, WorkspaceInfo> = new Map();
+  private workspaces: Map<string, WorkspaceState> = new Map();
 
-  private constructor() {
-    //
-  }
+  private constructor() {}
 
   public static getInstance(): WorkspaceManager {
     if (!WorkspaceManager.instance) {
@@ -34,7 +21,15 @@ export default class WorkspaceManager {
   }
 
   public async watchWorkspace(workspace: Workspace) {
+    console.log(
+      "Requesting to watch workspace",
+      workspace.get("id"),
+      workspace,
+      workspace.isOnline(),
+    );
+
     if (workspace.isOnline()) {
+      console.log("Starting shared state manager for workspace", workspace.get("id"));
       SharedStateManager.startInstance(
         `workspace-folder:${workspace.get("id")}`,
         new AtuinSharedStateAdapter(`workspace-folder:${workspace.get("id")}`),
@@ -43,6 +38,16 @@ export default class WorkspaceManager {
       if (this.workspaces.has(workspace.get("id")!)) {
         throw new Error("Workspace already being watched");
       }
+
+      await watchWorkspace(workspace.get("folder")!, workspace.get("id")!, (event) => {
+        console.log("Workspace event", event);
+        if ("InitialState" in event) {
+          this.workspaces.set(workspace.get("id")!, event.InitialState);
+          useStore
+            .getState()
+            .queryClient.invalidateQueries(localWorkspaceInfo(workspace.get("id")!));
+        }
+      });
     }
   }
 
@@ -54,5 +59,9 @@ export default class WorkspaceManager {
         throw new Error("Workspace not being watched");
       }
     }
+  }
+
+  public getWorkspaceInfo(workspaceId: string): WorkspaceState | undefined {
+    return this.workspaces.get(workspaceId);
   }
 }

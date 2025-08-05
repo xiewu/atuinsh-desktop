@@ -3,7 +3,10 @@ use std::path::PathBuf;
 use notify_debouncer_full::notify::Event;
 use tauri::{ipc::Channel, State};
 
-use crate::{state::AtuinState, workspaces::fs_ops::WorkspaceDirInfo};
+use crate::{
+    state::AtuinState,
+    workspaces::{fs_ops::WorkspaceDirInfo, manager::WorkspaceEvent},
+};
 
 #[tauri::command]
 pub async fn reset_workspaces(state: State<'_, AtuinState>) -> Result<(), String> {
@@ -17,14 +20,19 @@ pub async fn reset_workspaces(state: State<'_, AtuinState>) -> Result<(), String
 pub async fn watch_workspace(
     path: PathBuf,
     id: String,
-    channel: Channel<Event>,
+    channel: Channel<WorkspaceEvent>,
     state: State<'_, AtuinState>,
 ) -> Result<(), String> {
     let mut manager = state.workspaces.lock().await;
     let manager = manager.as_mut().expect("Workspaces not found in state");
     manager
-        .watch_workspace(path, id, move |event| {
-            let _ = channel.send(event.event.clone());
+        .watch_workspace(path, id, move |event: WorkspaceEvent| {
+            match channel.send(event) {
+                Ok(_) => (),
+                Err(e) => {
+                    println!("Error sending workspace event: {:?}", e);
+                }
+            }
         })
         .await
         .map_err(|e| e.to_string())

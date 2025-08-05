@@ -1,19 +1,21 @@
-use std::{collections::HashMap, path::PathBuf, time::Duration};
+use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Duration};
 
 use notify_debouncer_full::{
     new_debouncer,
     notify::{RecommendedWatcher, RecursiveMode},
     DebounceEventResult, DebouncedEvent, Debouncer, RecommendedCache,
 };
+use serde::Serialize;
 use serde_json::Value;
+use ts_rs::TS;
 
 use crate::workspaces::{
     fs_ops::{FsOps, FsOpsHandle, WorkspaceDirInfo},
     state::WorkspaceState,
 };
 
-pub trait OnEvent: Send + Sync + Sized + Fn(DebouncedEvent) {}
-impl<F: Send + Sync + Sized + Fn(DebouncedEvent)> OnEvent for F {}
+pub trait OnEvent: Send + Sync + Fn(WorkspaceEvent) {}
+impl<F: Send + Sync + Fn(WorkspaceEvent)> OnEvent for F {}
 
 pub struct WorkspaceManager {
     workspaces: HashMap<String, Workspace>,
@@ -23,6 +25,14 @@ pub struct Workspace {
     state: WorkspaceState,
     debouncer: Debouncer<RecommendedWatcher, RecommendedCache>,
     fs_ops: FsOpsHandle,
+    on_event: Arc<dyn OnEvent>,
+}
+
+#[derive(TS, Debug, Serialize)]
+#[ts(export)]
+pub enum WorkspaceEvent {
+    InitialState(WorkspaceState),
+    OtherMessage(String),
 }
 
 impl WorkspaceManager {
@@ -47,13 +57,16 @@ impl WorkspaceManager {
             return Err(format!("Workspace with id {} already watched", id));
         }
 
+        let on_event = Arc::new(on_event);
+
+        let on_event_clone = on_event.clone();
         let mut debouncer = new_debouncer(
             Duration::from_millis(250),
             None,
             move |event: DebounceEventResult| {
                 if let Ok(events) = event {
                     for event in events {
-                        on_event(event);
+                        on_event_clone(WorkspaceEvent::OtherMessage(format!("{:?}", event)));
                     }
                 }
             },
@@ -65,6 +78,8 @@ impl WorkspaceManager {
             .await
             .map_err(|e| e.to_string())?;
 
+        on_event(WorkspaceEvent::InitialState(state.clone()));
+
         debouncer
             .watch(&path, RecursiveMode::Recursive)
             .map_err(|e| e.to_string())?;
@@ -73,6 +88,7 @@ impl WorkspaceManager {
             state,
             debouncer,
             fs_ops,
+            on_event,
         };
 
         self.workspaces.insert(id, ws);

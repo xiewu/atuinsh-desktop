@@ -4,6 +4,7 @@ use actson::{tokio::AsyncBufReaderJsonFeeder, JsonEvent, JsonParser};
 use serde::Serialize;
 use serde_json::{Number, Value};
 use tokio::{fs::File, io::BufReader};
+use ts_rs::TS;
 
 use crate::workspaces::{
     fs_ops::{DirEntry, WorkspaceConfig},
@@ -40,16 +41,21 @@ pub enum WorkspaceError {
     FillError(#[from] actson::feeder::FillError),
 }
 
-#[derive(Debug, Serialize)]
+#[derive(TS, Debug, Clone, Serialize)]
+#[ts(export)]
 pub struct WorkspaceState {
     pub id: String,
+    pub name: String,
     pub root: PathBuf,
+    pub entries: Vec<DirEntry>,
+    #[ts(type = "Record<string, WorkspaceRunbook>")]
     pub runbooks: HashMap<String, WorkspaceRunbook>,
 }
 
 impl WorkspaceState {
     pub async fn new(id: String, root: PathBuf) -> Result<Self, WorkspaceError> {
         let config = WorkspaceConfig::from_file(root.join("atuin.toml")).await?;
+        println!("Config: {:?}", config);
         if config.workspace.id != id {
             return Err(WorkspaceError::InvalidWorkspaceManifest(
                 id,
@@ -57,19 +63,29 @@ impl WorkspaceState {
             ));
         }
 
-        let runbooks = get_workspace_runbooks(&root).await?;
+        let entries = read_dir_recursive(&root).await?;
+        let runbooks = get_workspace_runbooks(&root, &entries).await?;
 
-        Ok(Self { id, root, runbooks })
+        Ok(Self {
+            id,
+            name: config.workspace.name,
+            root,
+            entries,
+            runbooks,
+        })
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(TS, Debug, Clone, Serialize)]
+#[ts(export)]
 pub struct WorkspaceRunbook {
     id: String,
     name: String,
+    #[ts(type = "number")]
     version: u64,
     path: PathBuf,
     history: HashHistory,
+    #[ts(type = "{ secs_since_epoch: number, nanos_since_epoch: number } | null")]
     lastmod: Option<SystemTime>,
 }
 
@@ -125,9 +141,9 @@ enum ParseState {
 
 async fn get_workspace_runbooks(
     root: &PathBuf,
+    dir_entries: &[DirEntry],
 ) -> Result<HashMap<String, WorkspaceRunbook>, WorkspaceError> {
     let mut runbooks = HashMap::new();
-    let dir_entries = read_dir_recursive(root).await?;
     for entry in dir_entries {
         let name = entry
             .path
@@ -148,7 +164,10 @@ pub async fn read_dir_recursive(path: &PathBuf) -> Result<Vec<DirEntry>, Workspa
     let mut contents = Vec::new();
     let mut dir = tokio::fs::read_dir(path).await?;
     while let Some(entry) = dir.next_entry().await? {
-        let path = entry.path();
+        let mut path = entry.path();
+        if path.is_symlink() {
+            path = path.read_link()?;
+        }
         let attrs = entry.metadata().await?;
         let lastmod = attrs.modified().ok();
         if path.is_dir() {
@@ -166,8 +185,6 @@ pub async fn read_dir_recursive(path: &PathBuf) -> Result<Vec<DirEntry>, Workspa
                 path,
                 lastmod,
             });
-        } else {
-            return Err(WorkspaceError::BadFileType(path.clone()));
         }
     }
     Ok(contents)

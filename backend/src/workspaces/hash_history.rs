@@ -1,8 +1,11 @@
 use std::collections::VecDeque;
 
 use serde::Serialize;
+use ts_rs::TS;
 
-#[derive(Debug, Serialize)]
+#[derive(TS, Debug, Clone, Serialize)]
+#[serde(into = "Vec<String>")]
+#[ts(as = "Vec<String>")]
 pub struct HashHistory {
     vec: VecDeque<String>,
     size: usize,
@@ -30,6 +33,12 @@ impl HashHistory {
     pub fn contains(&self, item: impl AsRef<str>) -> bool {
         let item_str = item.as_ref();
         self.vec.iter().any(|s| s == item_str)
+    }
+}
+
+impl Into<Vec<String>> for HashHistory {
+    fn into(self) -> Vec<String> {
+        self.vec.into_iter().collect()
     }
 }
 

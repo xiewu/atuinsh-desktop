@@ -5,6 +5,7 @@ use tokio::sync::{
     mpsc::{channel, error::SendError, Receiver, Sender},
     oneshot,
 };
+use ts_rs::TS;
 
 #[derive(thiserror::Error, Debug)]
 pub enum FsOpsError {
@@ -26,7 +27,7 @@ pub enum FsOpsInstruction {
     Shutdown,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkspaceDirInfo {
     pub id: String,
     pub name: String,
@@ -34,11 +35,13 @@ pub struct WorkspaceDirInfo {
     pub contents: Vec<DirEntry>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(TS, Debug, Clone, Serialize, Deserialize)]
+#[ts(export)]
 pub struct DirEntry {
     pub name: String,
     pub is_dir: bool,
     pub path: PathBuf,
+    #[ts(type = "{ secs_since_epoch: number, nanos_since_epoch: number } | null")]
     pub lastmod: Option<SystemTime>,
 }
 

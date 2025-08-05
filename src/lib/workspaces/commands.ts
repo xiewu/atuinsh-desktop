@@ -2,6 +2,8 @@ import Workspace from "@/state/runbooks/workspace";
 import { Err, Ok, Result } from "@binarymuse/ts-stdlib";
 import { Channel, invoke } from "@tauri-apps/api/core";
 
+import type { WorkspaceEvent } from "@rust/WorkspaceEvent";
+
 // This type was created based on observations of events sent to
 // the frontend from the backend. There may be more events that
 // we don't represent here, but these seem to be the most relevant
@@ -76,9 +78,10 @@ export async function resetWorkspaces(): Promise<Result<void, string>> {
 export async function watchWorkspace(
   path: string,
   id: string,
-  callback: (event: FsEvent) => void,
+  callback: (event: WorkspaceEvent) => void,
 ): Promise<() => void> {
-  const channel = new Channel<FsEvent>(callback);
+  console.log("(coommand) Watching workspace", id);
+  const channel = new Channel<WorkspaceEvent>(callback);
   await promiseResult<void, string>(invoke("watch_workspace", { path, id, channel }));
   return () => {
     invoke("unwatch_workspace", { id });

@@ -5,10 +5,10 @@ declare global {
   type Option<T> = import("@binarymuse/ts-stdlib").Option<T>;
   type Result<T, E> = import("@binarymuse/ts-stdlib").Result<T, E>;
 
-  var Some: <T>(value: T) => import("@binarymuse/ts-stdlib").Option<T>;
-  var None: import("@binarymuse/ts-stdlib").Option<any>;
-  var Ok: <T>(value: T) => import("@binarymuse/ts-stdlib").Result<T, never>;
-  var Err: <E>(error: E) => import("@binarymuse/ts-stdlib").Result<never, E>;
+  var Some = import("@binarymuse/ts-stdlib").Some;
+  var None = import("@binarymuse/ts-stdlib").None;
+  var Ok = import("@binarymuse/ts-stdlib").Ok;
+  var Err = import("@binarymuse/ts-stdlib").Err;
 }
 
 // This export is required to make this a module

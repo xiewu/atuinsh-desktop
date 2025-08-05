@@ -28,7 +28,6 @@ import debounce from "lodash.debounce";
 import { getGlobalOptions } from "./lib/global_options";
 import Workspace from "./state/runbooks/workspace";
 import { SharedStateManager } from "./lib/shared_state/manager";
-import { AtuinSharedStateAdapter } from "./lib/shared_state/adapter";
 import { startup as startupOperationProcessor } from "./state/runbooks/operation_processor";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
@@ -41,7 +40,6 @@ import Operation from "./state/runbooks/operation";
 import EditorBus from "./lib/buses/editor";
 import BlockBus from "./lib/workflow/block_bus";
 import { generateBlocks } from "./lib/ai/block_generator";
-import WorkspaceManager from "./lib/workspaces/manager";
 
 (async () => {
   try {
@@ -189,21 +187,6 @@ function Application() {
       refreshCollaborations();
     }
   }, [online, user]);
-
-  useEffect(() => {
-    // Start up listeners for all known workspaces
-    const workspaceManager = WorkspaceManager.getInstance();
-    Workspace.all()
-      .then((workspaces) => {
-        for (const workspace of workspaces) {
-          workspaceManager.watchWorkspace(workspace);
-        }
-      })
-      .catch((err: any) => {
-        console.error("Error starting shared state managers");
-        console.error(err);
-      });
-  }, []);
 
   useEffect(() => {
     startupOperationProcessor();

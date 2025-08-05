@@ -36,18 +36,9 @@ const globalSpecs: GlobalSpec<WorkspaceAttrs> = {
   },
   postSave: async (_context, model, type) => {
     dbHook("workspace", type === "insert" ? "create" : "update", model);
-
-    if (type === "insert") {
-      const workspaceManager = WorkspaceManager.getInstance();
-      workspaceManager.watchWorkspace(model as Workspace);
-    }
   },
   postDelete: async (_context, model) => {
     dbHook("workspace", "delete", model);
-
-    const workspaceManager = WorkspaceManager.getInstance();
-    workspaceManager.unwatchWorkspace(model as Workspace);
-
     deleteSharedStateDocument(`workspace-folder:${model.get("id")}`);
   },
 };

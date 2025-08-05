@@ -67,9 +67,11 @@ import InviteFriendsModal from "./InviteFriendsModal";
 import AtuinEnv from "@/atuin_env";
 import { ConnectionState } from "@/state/store/user_state";
 import { processUnprocessedOperations } from "@/state/runbooks/operation_processor";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import NewWorkspaceDialog from "./NewWorkspaceDialog";
 import { getWorkspaceStrategy } from "@/lib/workspaces/strategy";
+import { allWorkspaces } from "@/lib/queries/workspaces";
+import WorkspaceWatcher from "./WorkspaceWatcher";
 
 const Onboarding = React.lazy(() => import("@/components/Onboarding/Onboarding"));
 const UpdateNotifier = React.lazy(() => import("./UpdateNotifier"));
@@ -130,6 +132,7 @@ function App() {
   const [runbookIdToDelete, setRunbookIdToDelete] = useState<string | null>(null);
   const selectedOrg = useStore((state: AtuinState) => state.selectedOrg);
   const connectionState = useStore((state: AtuinState) => state.connectionState);
+  const { data: workspaces } = useQuery(allWorkspaces());
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -910,6 +913,11 @@ function App() {
         <CommandMenu index={runbookIndex} />
         <RunbookSearchIndex index={runbookIndex} />
         <UpdateNotifier />
+        <>
+          {workspaces?.map((workspace) => (
+            <WorkspaceWatcher key={workspace.get("id")} workspace={workspace} />
+          ))}
+        </>
 
         <div className="flex w-full">
           <div className="relative flex flex-col !border-r-small border-divider transition-width pb-6 pt-4 items-center select-none">

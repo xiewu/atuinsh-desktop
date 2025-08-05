@@ -41,11 +41,19 @@ export default class WorkspaceManager {
 
       await watchWorkspace(workspace.get("folder")!, workspace.get("id")!, (event) => {
         console.log("Workspace event", event);
-        if ("InitialState" in event) {
-          this.workspaces.set(workspace.get("id")!, event.InitialState);
-          useStore
-            .getState()
-            .queryClient.invalidateQueries(localWorkspaceInfo(workspace.get("id")!));
+        switch (event.type) {
+          case "InitialState":
+            this.workspaces.set(workspace.get("id")!, event.data);
+            useStore
+              .getState()
+              .queryClient.invalidateQueries(localWorkspaceInfo(workspace.get("id")!));
+            break;
+          case "OtherMessage":
+            console.log("Workspace event", event.data);
+            break;
+          default:
+            const exhaustiveCheck: never = event;
+            throw new Error(`Unhandled workspace event: ${exhaustiveCheck}`);
         }
       });
     }

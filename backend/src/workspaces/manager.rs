@@ -29,7 +29,7 @@ pub struct Workspace {
 }
 
 #[derive(TS, Debug, Serialize)]
-#[ts(export)]
+#[ts(tag = "type", content = "data", export)]
 pub enum WorkspaceEvent {
     InitialState(WorkspaceState),
     OtherMessage(String),

@@ -2,11 +2,10 @@ import Workspace from "@/state/runbooks/workspace";
 import useWorkspaceFolder from "@/lib/hooks/useWorkspaceFolder";
 import TreeView, { SortBy, TreeRowData } from "./TreeView";
 import { JSX, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import Operation, {
+import {
   createFolder,
   deleteFolder,
   moveItems,
-  renameWorkspace,
   updateFolderName,
 } from "@/state/runbooks/operation";
 import { uuidv7 } from "uuidv7";
@@ -19,16 +18,27 @@ import {
   createRunbookMenu,
   createWorkspaceMenu,
 } from "./menus";
-import { cn, usePrevious } from "@/lib/utils";
+import { cn, timeoutPromise, useMemory, usePrevious } from "@/lib/utils";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
 import InlineInput from "./TreeView/InlineInput";
 import { SharedStateManager } from "@/lib/shared_state/manager";
-import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
+import WorkspaceFolder, { ArboristTree, Folder } from "@/state/runbooks/workspace_folders";
 import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
-import { None, Rc, Some } from "@binarymuse/ts-stdlib";
 import { useDrop } from "react-dnd";
 import { actions } from "react-arborist/dist/module/state/dnd-slice";
 import { ChevronDownIcon, ChevronRightIcon, CloudOffIcon } from "lucide-react";
+import {
+  DirEntry,
+  FsEvent,
+  getWorkspaceInfo,
+  watchWorkspace,
+  WorkspaceDirInfo,
+} from "@/lib/workspaces/commands";
+import Logger from "@/lib/logger";
+import { getWorkspaceStrategy } from "@/lib/workspaces/strategy";
+import { useQuery } from "@tanstack/react-query";
+import { localWorkspaceInfo } from "@/lib/queries/workspaces";
+import { WorkspaceRunbook } from "@/rs-bindings/WorkspaceRunbook";
 
 interface WorkspaceProps {
   workspace: Workspace;
@@ -93,7 +103,7 @@ function workspaceNameReducer(
 function transformDirEntriesToArboristTree(
   entries: DirEntry[],
   basePath: string,
-  runbooks: Record<string, WorkspaceRunbook>,
+  runbooks: { [key in string]?: WorkspaceRunbook },
 ): ArboristTree {
   console.log("Transforming dir entries to arborist tree", entries, basePath);
   entries = entries.filter((entry) => {
@@ -193,7 +203,7 @@ function transformDirEntriesToArboristTree(
       }
     } else {
       // Find runbook with matching path
-      const runbook = Object.values(runbooks).find((r) => r.path === entry.path);
+      const runbook = Object.values(runbooks).find((r) => r!.path === entry.path);
       if (!runbook) {
         throw new Error(`Runbook not found for path: ${entry.path}`);
       }
@@ -218,30 +228,6 @@ function transformDirEntriesToArboristTree(
   }
 
   return rootItems;
-}
-
-async function retryUntilOk<T, E = string>(
-  fn: () => Promise<Result<T, E>>,
-  retryDelay: number,
-  retries: number,
-): Promise<Result<T, E>> {
-  let attempts = 0;
-  let lastResult: Option<Result<T, E>> = None;
-
-  while (true) {
-    const result = await fn();
-    if (result.isOk()) {
-      return result;
-    }
-
-    lastResult = Some(result);
-    attempts++;
-    if (attempts > retries) {
-      return lastResult.unwrap();
-    }
-
-    await timeoutPromise(retryDelay, null);
-  }
 }
 
 export default function WorkspaceComponent(props: WorkspaceProps) {
@@ -269,31 +255,34 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     if (props.workspace.isOnline()) {
       return workspaceFolder.toArborist();
     } else {
-      if (!workspaceInfo) {
+      console.log("Workspace info:", workspaceInfo);
+      if (workspaceInfo.isNone() || workspaceInfo.unwrap().isErr()) {
         return [];
       }
 
+      const info = workspaceInfo.unwrap().unwrap();
       return transformDirEntriesToArboristTree(
-        workspaceInfo.entries,
+        info.entries,
         props.workspace.get("folder")!,
-        workspaceInfo.runbooks,
+        info.runbooks,
       );
     }
-  }, [workspaceFolder, workspaceInfo, props.workspace.get("folder")]);
-  console.log("Arborist data:", arboristData);
+  }, [workspaceFolder, workspaceInfo]);
 
   useEffect(() => {
     // Update offline workspaces from the FS info
     if (
-      !workspaceInfo ||
-      props.workspace.get("id") !== workspaceInfo.id ||
+      workspaceInfo.isNone() ||
+      workspaceInfo.unwrap().isErr() ||
+      props.workspace.get("id") !== workspaceInfo.unwrap().unwrap().id ||
       props.workspace.isOnline()
     ) {
       return;
     }
 
-    if (props.workspace.get("name") !== workspaceInfo.name) {
-      props.workspace.set("name", workspaceInfo.name);
+    const info = workspaceInfo.unwrap().unwrap();
+    if (props.workspace.get("name") !== info.name) {
+      props.workspace.set("name", info.name);
       props.workspace.save();
     }
   }, [workspaceInfo, props.workspace.get("id")]);
@@ -494,14 +483,8 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
   async function handleRenameWorkspace(newName: string) {
     dispatchWorkspaceName({ type: "confirm_rename", newName });
 
-    const workspace = await Workspace.get(props.workspace.get("id")!);
-    if (workspace) {
-      workspace.set("name", newName);
-      await workspace.save();
-    }
-
-    const op = await Operation.create(renameWorkspace(props.workspace.get("id")!, newName));
-    await op.save();
+    const strategy = getWorkspaceStrategy(props.workspace);
+    await strategy.renameWorkspace(props.workspace, newName);
   }
 
   function handleToggleFolder(nodeId: string) {
@@ -698,58 +681,6 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
       }
     },
   }));
-
-  // useEffect(() => {
-  //   let shutdown = false;
-  //   let unwatch: Option<() => void> = None;
-
-  //   if (props.workspace.isOnline()) {
-  //     return () => {};
-  //   }
-
-  //   logger.info("Watching workspace FS:", props.workspace.get("folder")!);
-
-  //   // Workspace info may not be immediately available until the FS watcher is ready.
-  //   retryUntilOk(() => getWorkspaceInfo(props.workspace), 250, 10).then((info) => {
-  //     if (info.isOk()) {
-  //       setWorkspaceInfo(info.unwrap());
-  //     } else {
-  //       logger.error("Failed to get workspace info:", info.unwrapErr());
-  //     }
-  //   });
-
-  //   watchWorkspace(
-  //     props.workspace.get("folder")!,
-  //     props.workspace.get("id")!,
-  //     async (event: WorkspaceEvent) => {
-  //       // TODO: handle from backend!!!!
-  //       //
-  //       // // TODO[mkt]: Debouce the event handler, or filter to only the events we care about
-  //       // logger.info("Workspace FS event:", event);
-  //       // getWorkspaceInfo(props.workspace).then((info) => {
-  //       //   if (info.isOk()) {
-  //       //     logger.info("Workspace info:", info.unwrap());
-  //       //     setWorkspaceInfo(info.unwrap());
-  //       //   } else {
-  //       //     logger.error("Failed to get workspace info:", info.unwrapErr());
-  //       //   }
-  //       // });
-  //     },
-  //   ).then((uw) => {
-  //     if (shutdown) {
-  //       logger.debug("Unwatching workspace FS");
-  //       uw();
-  //       return;
-  //     }
-
-  //     unwatch = Some(uw);
-  //   });
-
-  //   return () => {
-  //     shutdown = true;
-  //     unwatch.map((uw) => uw());
-  //   };
-  // }, [props.workspace.get("id")]);
 
   return (
     <div

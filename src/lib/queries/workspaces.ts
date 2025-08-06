@@ -3,6 +3,8 @@ import { localQuery } from "./local_query";
 import LegacyWorkspace from "@/state/runbooks/legacy_workspace";
 import Workspace from "@/state/runbooks/workspace";
 import WorkspaceManager from "../workspaces/manager";
+import { WorkspaceError } from "@rust/WorkspaceError";
+import { WorkspaceState } from "@rust/WorkspaceState";
 
 export function allWorkspaces() {
   return queryOptions({
@@ -67,6 +69,9 @@ export function orgWorkspaces(orgId: string | null) {
 }
 
 export function localWorkspaceInfo(workspaceId: string) {
+  const manager = WorkspaceManager.getInstance();
+  const info = manager.getWorkspaceInfo(workspaceId);
+
   return queryOptions({
     ...localQuery,
     queryKey: ["workspace_info", workspaceId],
@@ -75,5 +80,6 @@ export function localWorkspaceInfo(workspaceId: string) {
       const info = manager.getWorkspaceInfo(workspaceId);
       return info;
     },
+    initialData: info,
   });
 }

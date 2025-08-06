@@ -1,25 +1,12 @@
 import { QueryResult } from "@/lib/blocks/common/database";
 import { invoke } from "@tauri-apps/api/core";
 
-export const runQuery = async (
-  uri: string,
-  query: string,
-): Promise<QueryResult> => {
-  // First up, let's process the query a little. This is probably too naive, but we shall see.
-  // 1. Only run the _first_ statement in the input
-  // 2. If the statement is a SELECT, run it and display the results
-  // 3. If the statement is an INSERT/UPDATE/whatever, run it and display the number of rows affected
+export interface MultiQueryResult extends QueryResult {
+  queryCount?: number;
+  executedQueries?: string[];
+}
 
-  const statements = query.split(";");
-
-  if (statements.length >= 1) {
-    query = statements[0];
-  } else if (statements.length === 0) {
-    throw new Error("No query to run");
-  }
-
-  // Determine if we run a select or an execute, based on if the first word is select or not
-
+const executeSingleQuery = async (uri: string, query: string): Promise<QueryResult> => {
   const firstWord = query.trim().split(/\s+/)[0].toLowerCase();
 
   if (firstWord === "select") {
@@ -50,5 +37,57 @@ export const runQuery = async (
     rowsAffected: res.rowsAffected,
     lastInsertID: null,
     duration: performance.now() - start,
+  };
+};
+
+export const runQuery = async (
+  uri: string,
+  query: string,
+): Promise<MultiQueryResult> => {
+  // Split queries by semicolon and filter out empty statements
+  const statements = query.split(";")
+    .map(q => q.trim())
+    .filter(q => q.length > 0);
+
+  if (statements.length === 0) {
+    throw new Error("No query to run");
+  }
+
+  // For single query, maintain backward compatibility
+  if (statements.length === 1) {
+    return await executeSingleQuery(uri, statements[0]);
+  }
+
+  // Execute multiple queries sequentially
+  const results: QueryResult[] = [];
+  const executedQueries: string[] = [];
+  let totalDuration = 0;
+  let lastResultWithData: QueryResult | null = null;
+
+  for (const statement of statements) {
+    try {
+      const result = await executeSingleQuery(uri, statement);
+      results.push(result);
+      executedQueries.push(statement);
+      totalDuration += result.duration;
+
+      // Keep track of the last query that returned data (SELECT results)
+      if (result.rows && result.columns) {
+        lastResultWithData = result;
+      }
+    } catch (error) {
+      // If a query fails, we still want to show what was executed successfully
+      throw new Error(`Query ${results.length + 1} failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // Return the last query with data, or the last executed query if none had data
+  const finalResult = lastResultWithData || results[results.length - 1];
+
+  return {
+    ...finalResult,
+    duration: totalDuration,
+    queryCount: statements.length,
+    executedQueries,
   };
 };

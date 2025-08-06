@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/command";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, exportPropMatter } from "@/lib/utils";
 import { createReactBlockSpec } from "@blocknote/react";
 
 import { invoke } from "@tauri-apps/api/core";
@@ -620,6 +620,26 @@ export default createReactBlockSpec(
     content: "none",
   },
   {
+    toExternalHTML: ({ block }) => {
+      const props = block.props;
+
+      let propsToExport = [
+        "name",
+        "optionsType",
+      ];
+
+      if (props.optionsType === "fixed") propsToExport.push("fixedOptions");
+      if (props.optionsType === "variable") propsToExport.push("variableOptions");
+      if (props.optionsType === "command") propsToExport.push("commandOptions", "interpreter");
+
+      let propMatter = exportPropMatter("dropdown", props, propsToExport);
+
+        return (
+          <div>
+            <pre lang="dropdown">{propMatter}</pre>
+          </div>
+        );
+    },
     // @ts-ignore
     render: ({ block, editor }) => {
       const handleCodeMirrorFocus = () => {

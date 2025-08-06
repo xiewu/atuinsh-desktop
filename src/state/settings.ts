@@ -7,6 +7,7 @@ const TERMINAL_GL = "settings.runbooks.terminal.gl";
 const TERMINAL_SHELL = "settings.runbooks.terminal.shell";
 const SCRIPT_SHELL = "settings.runbooks.script.shell";
 const SCRIPT_INTERPRETERS = "settings.runbooks.script.interpreters";
+const EDITOR_VIM_MODE = "settings.editor.vim_mode";
 const AI_ENABLED = "settings.ai.enabled";
 const AI_API_KEY = "settings.ai.api_key";
 
@@ -89,6 +90,17 @@ export class Settings {
   public static async setScriptInterpreters(interpreters: Array<{command: string; name: string}>): Promise<void> {
     let store = await KVStore.open_default();
     await store.set(SCRIPT_INTERPRETERS, interpreters);
+  }
+
+  public static async editorVimMode(val: boolean | null = null): Promise<boolean> {
+    let store = await KVStore.open_default();
+
+    if (val !== null) {
+      await store.set(EDITOR_VIM_MODE, val);
+      return val;
+    }
+
+    return (await store.get(EDITOR_VIM_MODE)) || false;
   }
 
   public static async aiEnabled(val: boolean | null = null): Promise<boolean> {

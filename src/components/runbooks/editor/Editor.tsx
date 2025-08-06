@@ -60,6 +60,9 @@ import { insertTerminal } from "@/lib/blocks/terminal";
 import { insertKubernetes } from "@/lib/blocks/kubernetes";
 import { insertLocalDirectory } from "@/lib/blocks/localdirectory";
 import { calculateAIPopupPosition, calculateLinkPopupPosition } from "./utils/popupPositioning";
+import { useTauriEvent } from "@/lib/tauri";
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeTextFile } from "@tauri-apps/plugin-fs";
 
 // Fix for react-dnd interference with BlockNote drag-and-drop
 // React-dnd wraps dataTransfer in a proxy that blocks access during drag operations
@@ -230,6 +233,34 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
   const closeRunbookLinkPopup = useCallback(() => {
     setRunbookLinkPopupVisible(false);
   }, []);
+
+  const handleExportMarkdown = async () => {
+    let editor = await runbookEditor.getEditor();
+
+    try {
+      const markdown = await editor?.blocksToMarkdownLossy();
+      const filePath = await save({
+        defaultPath: `${runbook?.name}.md`,
+        filters: [
+          {
+            name: "Markdown",
+            extensions: ["md"],
+          },
+        ],
+      });
+
+      if (!filePath) return;
+
+      await writeTextFile(filePath, markdown || "");
+
+      track_event("runbooks.export.markdown", { runbookId: runbook?.id || "" });
+    } catch (error) {
+      console.error("Failed to export markdown:", error);
+    }
+  };
+
+  // Listen for export-markdown menu event
+  useTauriEvent("export-markdown", () => handleExportMarkdown());
 
   const handleRunbookLinkSelect = useCallback(
     (runbookId: string, runbookName: string) => {

@@ -2,10 +2,13 @@ import CodeMirror, { KeyBinding, keymap, Prec } from "@uiw/react-codemirror";
 import * as themes from "@uiw/codemirror-themes-all";
 import { langs } from "@uiw/codemirror-extensions-langs";
 import { extensions } from "./extensions";
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { acceptCompletion, completionStatus } from "@codemirror/autocomplete";
 import { useCodeMirrorValue } from "@/lib/hooks/useCodeMirrorValue";
 import { indentLess, indentMore } from "@codemirror/commands";
+import { vim } from "@replit/codemirror-vim";
+import { Settings } from "@/state/settings";
+
 
 interface CodeEditorProps {
   id: string;
@@ -43,6 +46,11 @@ export default function CodeEditor({
   keyMap,
   onFocus,
 }: CodeEditorProps) {
+  const [vimModeEnabled, setVimModeEnabled] = useState(false);
+
+  useEffect(() => {
+    Settings.editorVimMode().then(setVimModeEnabled);
+  }, []);
   let editorLanguage = useMemo(() => {
     // Do the best we can with the interpreter name - get the language
     // TODO: consider dropdown to override this
@@ -84,11 +92,14 @@ export default function CodeEditor({
 
   let editorExtensions: any[] = useMemo(() => {
     const ext = [...extensions(), customKeymap];
+    if (vimModeEnabled) {
+      ext.unshift(vim());
+    }
     if (editorLanguage) {
       ext.push(editorLanguage);
     }
     return ext;
-  }, [editorLanguage, customKeymap]);
+  }, [editorLanguage, customKeymap, vimModeEnabled]);
 
   return (
     <CodeMirror

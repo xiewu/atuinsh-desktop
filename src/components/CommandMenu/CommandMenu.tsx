@@ -6,7 +6,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogPortal } from "@/components/ui/dialog";
 
 import { type SearchResultItem } from "./data";
 
@@ -18,8 +18,6 @@ import { useQuery } from "@tanstack/react-query";
 import { allRunbooks } from "@/lib/queries/runbooks";
 import { allWorkspaces } from "@/lib/queries/workspaces";
 import RunbookContext from "@/context/runbook_context";
-
-
 
 interface CommandMenuProps {
   index: RunbookIndexService;
@@ -77,8 +75,6 @@ export default function CommandMenu(props: CommandMenuProps) {
     };
   }, [query]);
 
-
-
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const hotkey = navigator.platform.toLowerCase().includes("mac") ? "metaKey" : "ctrlKey";
@@ -131,6 +127,7 @@ export default function CommandMenu(props: CommandMenuProps) {
 
   return (
     <Dialog
+      modal={false}
       open={isOpen}
       onOpenChange={(open) => {
         if (!open) {
@@ -139,34 +136,32 @@ export default function CommandMenu(props: CommandMenuProps) {
         setOpen(open);
       }}
     >
-      <DialogContent className="overflow-hidden p-0">
-        <Command shouldFilter={false}>
-          <CommandInput
-            placeholder="Search Runbooks..."
-            value={query}
-            onValueChange={setQuery}
-          />
-          <CommandList>
-            <CommandEmpty>
-              <div className="py-6 text-center text-sm">
-                {query.length === 0 ? (
-                  <p>Type to search runbooks...</p>
-                ) : (
-                  <div>
-                    <p>No results for &quot;{query}&quot;</p>
-                    <p className="text-muted-foreground">
-                      {query.length === 1 
-                        ? "Try adding more characters to your search term." 
-                        : "Try searching for something else."}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </CommandEmpty>
-            {results.map((item) => renderSearchItem(item))}
-          </CommandList>
-        </Command>
-      </DialogContent>
+      <DialogPortal>
+        <DialogContent className="overflow-hidden p-0 data-[state=open]:animate-none data-[state=closed]:animate-none">
+          <Command shouldFilter={false}>
+            <CommandInput placeholder="Search Runbooks..." value={query} onValueChange={setQuery} />
+            <CommandList>
+              <CommandEmpty>
+                <div className="py-6 text-center text-sm">
+                  {query.length === 0 ? (
+                    <p>Type to search runbooks...</p>
+                  ) : (
+                    <div>
+                      <p>No results for &quot;{query}&quot;</p>
+                      <p className="text-muted-foreground">
+                        {query.length === 1
+                          ? "Try adding more characters to your search term."
+                          : "Try searching for something else."}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CommandEmpty>
+              {results.map((item) => renderSearchItem(item))}
+            </CommandList>
+          </Command>
+        </DialogContent>
+      </DialogPortal>
     </Dialog>
   );
 }

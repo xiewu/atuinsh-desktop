@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useStore } from "@/state/store";
 import track_event from "@/tracking";
 import { setTemplateVar } from "@/state/templates";
+import { exportPropMatter } from "@/lib/utils";
 
 interface LocalVarProps {
   name: string;
@@ -123,6 +124,16 @@ export default createReactBlockSpec(
     content: "none",
   },
   {
+    toExternalHTML: ({ block }) => {
+      let propMatter = exportPropMatter("local-var", block.props, ["name"]);
+      return (
+        <pre lang="local-var">
+          <code>
+            {propMatter}
+          </code>
+        </pre>
+      );
+    },
     // @ts-ignore
     render: ({ block, editor }) => {
       const onNameUpdate = (name: string): void => {

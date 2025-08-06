@@ -87,7 +87,7 @@ export default function Block({
         {header && header}
       </CardHeader>
 
-      {children && <CardBody className={cn({ hidden: hideChild })}>{children}</CardBody>}
+      {children && !hideChild && <CardBody>{children}</CardBody>}
 
       {footer && <CardFooter>{footer}</CardFooter>}
     </Card>

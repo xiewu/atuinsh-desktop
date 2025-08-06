@@ -62,7 +62,7 @@ interface SQLProps {
   uri: string;
   query: string;
   autoRefresh: number;
-  runQuery: (uri: string, query: string) => Promise<QueryResult>;
+  runQuery: (uri: string, query: string) => Promise<QueryResult & { queryCount?: number; executedQueries?: string[] }>;
 
   setCollapseQuery: (collapseQuery: boolean) => void;
   setQuery: (query: string) => void;
@@ -110,7 +110,7 @@ const SQL = ({
   let editor = useBlockNoteEditor();
   const [isRunning, setIsRunning] = useState<boolean>(false);
 
-  const [results, setResults] = useState<QueryResult | null>(null);
+  const [results, setResults] = useState<QueryResult & { queryCount?: number; executedQueries?: string[] } | null>(null);
   const [columns, setColumns] = useState<
     { id: string; title: string; grow?: number; width?: number }[]
   >([]);
@@ -160,6 +160,8 @@ const SQL = ({
       let output = {
         query,
         rowCount: res.rows?.length,
+        queryCount: res.queryCount || 1,
+        executedQueries: res.executedQueries || [],
       };
       await logExecution(block, block.typeName, startTime, endTime, JSON.stringify(output));
       BlockBus.get().blockFinished(block);
@@ -364,51 +366,61 @@ const SQL = ({
         </>
       }
       footer={
-        <ButtonGroup>
-          <Dropdown showArrow>
-            <DropdownTrigger>
-              <Button
-                size="sm"
-                variant="flat"
-                startContent={<RefreshCwIcon size={16} />}
-                endContent={<ChevronDown size={16} />}
-              >
-                Auto refresh:{" "}
-                {autoRefresh == 0
-                  ? "Off"
-                  : (
-                      autoRefreshChoices.find((a) => a.value == autoRefresh) || {
-                        label: "Off",
-                      }
-                    ).label}
-              </Button>
-            </DropdownTrigger>
-            <DropdownMenu variant="faded" aria-label="Select time frame for chart">
-              {autoRefreshChoices.map((setting) => {
-                return (
-                  <DropdownItem
-                    key={setting.label}
-                    onPress={() => {
-                      setAutoRefresh(setting.value);
-                    }}
-                  >
-                    {setting.label}
-                  </DropdownItem>
-                );
-              })}
-            </DropdownMenu>
-          </Dropdown>
-          <Button
-            size="sm"
-            isIconOnly
-            variant="flat"
-            onPress={() => setCollapseQuery(!collapseQuery)}
-          >
-            <Tooltip content={collapseQuery ? "Expand query" : "Collapse query"}>
-              {collapseQuery ? <ArrowDownToLineIcon size={16} /> : <ArrowUpToLineIcon size={16} />}
-            </Tooltip>
-          </Button>
-        </ButtonGroup>
+        <div className="flex flex-row justify-between items-center w-full">
+          <div className="flex flex-row items-center gap-2">
+            {results?.queryCount && results.queryCount > 1 && (
+              <span className="text-xs text-default-500 px-2 py-1 bg-default-100 rounded">
+                Executed {results.queryCount} queries
+                {results.rows && results.columns && " • Showing last result with data"}
+              </span>
+            )}
+          </div>
+          <ButtonGroup>
+            <Dropdown showArrow>
+              <DropdownTrigger>
+                <Button
+                  size="sm"
+                  variant="flat"
+                  startContent={<RefreshCwIcon size={16} />}
+                  endContent={<ChevronDown size={16} />}
+                >
+                  Auto refresh:{" "}
+                  {autoRefresh == 0
+                    ? "Off"
+                    : (
+                        autoRefreshChoices.find((a) => a.value == autoRefresh) || {
+                          label: "Off",
+                        }
+                      ).label}
+                </Button>
+              </DropdownTrigger>
+              <DropdownMenu variant="faded" aria-label="Select time frame for chart">
+                {autoRefreshChoices.map((setting) => {
+                  return (
+                    <DropdownItem
+                      key={setting.label}
+                      onPress={() => {
+                        setAutoRefresh(setting.value);
+                      }}
+                    >
+                      {setting.label}
+                    </DropdownItem>
+                  );
+                })}
+              </DropdownMenu>
+            </Dropdown>
+            <Button
+              size="sm"
+              isIconOnly
+              variant="flat"
+              onPress={() => setCollapseQuery(!collapseQuery)}
+            >
+              <Tooltip content={collapseQuery ? "Expand query" : "Collapse query"}>
+                {collapseQuery ? <ArrowDownToLineIcon size={16} /> : <ArrowUpToLineIcon size={16} />}
+              </Tooltip>
+            </Button>
+          </ButtonGroup>
+        </div>
       }
     >
       {(results || error) && !isFullscreen && (
@@ -425,7 +437,7 @@ const SQL = ({
       {/* Fullscreen SQL Block Modal */}
       {isFullscreen && (
         <div
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md z-[9999]"
+          className="fixed inset-0 bg-black/90 backdrop-blur-md z-[9999]"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setIsFullscreen(false);
@@ -471,90 +483,95 @@ const SQL = ({
 
             {/* Fullscreen Content */}
             <div className="min-h-0 flex-1 overflow-hidden flex flex-col">
-              {/* URI and Controls Section */}
+              {/* URI and Controls Section - 1/3 height */}
               {!isFullscreenQueryCollapsed && (
-                <div
-                  className="flex-shrink-0 p-4 border-b border-default-200/50"
-                  style={{ maxHeight: "33vh" }}
-                >
-                  <div className="flex flex-row gap-2 w-full items-center mb-4">
-                    <MaskedInput
-                      size="sm"
-                      maskRegex={/(?<=:\/\/).*(?=@[^@]*$)/}
-                      placeholder={placeholder || "protocol://user:password@host:port/db"}
-                      label="URI"
-                      isRequired
-                      startContent={<DatabaseIcon size={18} />}
-                      value={uri}
-                      onChange={(val: string) => {
-                        setUri(val);
-                      }}
-                      disabled={!isEditable}
-                    />
+                <div className="flex-none h-1/3 border-b border-default-200/50 flex flex-col overflow-hidden">
+                  <div className="flex-shrink-0 p-4 pb-2">
+                    <div className="flex flex-row gap-2 w-full items-center">
+                      <MaskedInput
+                        size="sm"
+                        maskRegex={/(?<=:\/\/).*(?=@[^@]*$)/}
+                        placeholder={placeholder || "protocol://user:password@host:port/db"}
+                        label="URI"
+                        isRequired
+                        startContent={<DatabaseIcon size={18} />}
+                        value={uri}
+                        onChange={(val: string) => {
+                          setUri(val);
+                        }}
+                        disabled={!isEditable}
+                      />
 
-                    <Dropdown>
-                      <DropdownTrigger>
-                        <Button isIconOnly variant="flat">
-                          <LockIcon size={16} />
-                        </Button>
-                      </DropdownTrigger>
-                      <DropdownMenu disabledKeys={["secret"]}>
-                        <DropdownSection title="Use a local variable or script">
-                          <DropdownItem
-                            key="local-var"
-                            description="Local variable - not synced"
-                            startContent={<CloudOffIcon size={16} />}
-                            onPress={addLocalVar}
-                          >
-                            Variable
-                          </DropdownItem>
-                          <DropdownItem
-                            key="template"
-                            description="Shell command output"
-                            startContent={<FileTerminalIcon size={16} />}
-                            onPress={addScriptForUri}
-                          >
-                            Script
-                          </DropdownItem>
-                          <DropdownItem
-                            key="secret"
-                            description="Synchronized + encrypted secret"
-                            startContent={<LockIcon size={16} />}
-                          >
-                            Secret
-                          </DropdownItem>
-                        </DropdownSection>
-                      </DropdownMenu>
-                    </Dropdown>
+                      <Dropdown>
+                        <DropdownTrigger>
+                          <Button isIconOnly variant="flat">
+                            <LockIcon size={16} />
+                          </Button>
+                        </DropdownTrigger>
+                        <DropdownMenu disabledKeys={["secret"]}>
+                          <DropdownSection title="Use a local variable or script">
+                            <DropdownItem
+                              key="local-var"
+                              description="Local variable - not synced"
+                              startContent={<CloudOffIcon size={16} />}
+                              onPress={addLocalVar}
+                            >
+                              Variable
+                            </DropdownItem>
+                            <DropdownItem
+                              key="template"
+                              description="Shell command output"
+                              startContent={<FileTerminalIcon size={16} />}
+                              onPress={addScriptForUri}
+                            >
+                              Script
+                            </DropdownItem>
+                            <DropdownItem
+                              key="secret"
+                              description="Synchronized + encrypted secret"
+                              startContent={<LockIcon size={16} />}
+                            >
+                              Secret
+                            </DropdownItem>
+                          </DropdownSection>
+                        </DropdownMenu>
+                      </Dropdown>
+                    </div>
                   </div>
 
                   {/* Query Editor */}
-                  <div className="flex flex-row gap-2 w-full">
-                    <PlayButton
-                      eventName="runbooks.block.execute"
-                      eventProps={{ type: sqlType }}
-                      isRunning={isRunning}
-                      onPlay={handlePlay}
-                      cancellable={false}
-                    />
-                    <CodeMirror
-                      placeholder={"Write your query here..."}
-                      className="!pt-0 max-w-full border border-gray-300 rounded flex-grow"
-                      style={{ maxHeight: "33vh", overflow: "auto" }}
-                      basicSetup={true}
-                      extensions={[getSqlExtension(), ...extensions]}
-                      value={codeMirrorValue.value}
-                      onChange={codeMirrorValue.onChange}
-                      editable={isEditable}
-                      theme={themeObj}
-                      onFocus={onCodeMirrorFocus}
-                    />
+                  <div className="flex-1 min-h-0 p-4 pt-2 flex flex-col overflow-hidden">
+                    <div className="flex flex-row gap-2 w-full h-full min-h-0">
+                      <PlayButton
+                        eventName="runbooks.block.execute"
+                        eventProps={{ type: sqlType }}
+                        isRunning={isRunning}
+                        onPlay={handlePlay}
+                        cancellable={false}
+                      />
+                      <div className="flex-grow min-h-0 min-w-0">
+                        <CodeMirror
+                          placeholder={"Write your query here..."}
+                          className="!pt-0 border border-gray-300 rounded h-full overflow-scroll"
+                          basicSetup={true}
+                          extensions={[getSqlExtension(), ...extensions]}
+                          value={codeMirrorValue.value}
+                          onChange={codeMirrorValue.onChange}
+                          editable={isEditable}
+                          theme={themeObj}
+                          onFocus={onCodeMirrorFocus}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Results Section */}
-              <div className="flex-1 min-h-0 overflow-hidden p-4">
+              {/* Results Section - 2/3 height */}
+              <div className={cn("flex-1 min-h-0 overflow-hidden p-4", {
+                "h-2/3": !isFullscreenQueryCollapsed,
+                "h-full": isFullscreenQueryCollapsed
+              })}>
                 {(results || error) && (
                   <SQLResults
                     results={results}

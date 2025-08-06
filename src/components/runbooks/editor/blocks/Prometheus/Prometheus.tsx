@@ -40,6 +40,7 @@ import { useCodeMirrorValue } from "@/lib/hooks/useCodeMirrorValue";
 import ErrorCard from "@/lib/blocks/common/ErrorCard";
 import PlayButton from "@/lib/blocks/common/PlayButton";
 import Block from "@/lib/blocks/common/Block";
+import { exportPropMatter } from "@/lib/utils";
 
 interface PromProps {
   setName: (name: string) => void;
@@ -363,6 +364,17 @@ export default createReactBlockSpec(
     content: "none",
   },
   {
+    toExternalHTML: ({ block }) => {
+      let propMatter = exportPropMatter("prometheus", block.props, ["name", "endpoint", "period"]);
+      return (
+        <pre lang="prometheus">
+          <code>
+            {propMatter}
+            {block.props.query}
+          </code>
+        </pre>
+      );
+    },
     // @ts-ignore
     render: ({ block, editor }) => {
       const setName = (name: string) => {

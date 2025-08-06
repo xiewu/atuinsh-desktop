@@ -10,6 +10,7 @@ import { SQLiteBlock } from "@/lib/workflow/blocks/sqlite";
 import { DependencySpec } from "@/lib/workflow/dependency";
 import track_event from "@/tracking";
 import SQL from "@/lib/blocks/common/SQL";
+import { exportPropMatter } from "@/lib/utils";
 
 interface SQLiteProps {
   isEditable: boolean;
@@ -75,6 +76,19 @@ export default createReactBlockSpec(
     content: "none",
   },
   {
+    toExternalHTML: ({ block }) => {
+      let propMatter = exportPropMatter("sqlite", block.props, ["name", "uri"]);
+      return (
+        <div>
+          <pre lang="sqlite">
+            <code>
+              {propMatter}
+              {block.props.query}
+            </code>
+          </pre>
+        </div>
+      );
+    },
     // @ts-ignore
     render: ({ block, editor, code, type }) => {
       const handleCodeMirrorFocus = () => {

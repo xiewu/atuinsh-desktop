@@ -11,6 +11,7 @@ import { PostgresBlock } from "@/lib/workflow/blocks/postgres";
 import { DependencySpec } from "@/lib/workflow/dependency";
 import track_event from "@/tracking";
 import SQL from "@/lib/blocks/common/SQL";
+import { exportPropMatter } from "@/lib/utils";
 
 interface SQLProps {
   isEditable: boolean;
@@ -76,6 +77,17 @@ export default createReactBlockSpec(
     content: "none",
   },
   {
+    toExternalHTML: ({ block }) => {
+      let propMatter = exportPropMatter("postgres", block.props, ["name", "uri"]);
+      return (
+        <pre lang="postgres">
+          <code>
+            {propMatter}
+            {block.props.query}
+          </code>
+        </pre>
+      );
+    },
     // @ts-ignore
     render: ({ block, editor, code, type }) => {
       const handleCodeMirrorFocus = () => {

@@ -6,6 +6,7 @@ import { FolderInputIcon } from "lucide-react";
 import { createReactBlockSpec } from "@blocknote/react";
 
 import { open } from "@tauri-apps/plugin-dialog";
+import { exportPropMatter } from "@/lib/utils";
 
 interface DirectoryProps {
   path: string;
@@ -36,9 +37,9 @@ const Directory = ({ path, onInputChange, isEditable }: DirectoryProps) => {
       >
         <div className="flex flex-row items-center space-x-3 w-full bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-slate-800 dark:to-blue-950 rounded-lg p-3 border border-blue-200 dark:border-blue-900 shadow-sm hover:shadow-md transition-all duration-200">
           <div className="flex items-center">
-            <Button 
-              isIconOnly 
-              variant="light" 
+            <Button
+              isIconOnly
+              variant="light"
               className="bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-300"
               aria-label="Select folder"
               onPress={selectFolder}
@@ -79,6 +80,19 @@ export default createReactBlockSpec(
     content: "none",
   },
   {
+    toExternalHTML: ({ block }) => {
+      let propMatter = exportPropMatter("directory", {}, []);
+      return (
+        <div>
+          <pre lang="bash">
+            <code>
+              {propMatter}
+              {block.props.path}
+            </code>
+          </pre>
+        </div>
+      );
+    },
     // @ts-ignore
     render: ({ block, editor, code, type }) => {
       const onInputChange = (val: string) => {

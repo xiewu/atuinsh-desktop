@@ -43,6 +43,7 @@ import Operation from "./state/runbooks/operation";
 import EditorBus from "./lib/buses/editor";
 import BlockBus from "./lib/workflow/block_bus";
 import { generateBlocks } from "./lib/ai/block_generator";
+import WorkspaceManager from "./lib/workspaces/manager";
 
 (async () => {
   try {
@@ -93,6 +94,7 @@ DevConsole.addAppObject("invoke", invoke)
   .addAppObject("socketManager", socketManager)
   .addAppObject("notificationManager", notificationManager)
   .addAppObject("workspaceSyncManager", workspaceSyncManager)
+  .addAppObject("workspaceManager", WorkspaceManager.getInstance())
   .addAppObject("queryClient", queryClient)
   .addAppObject("AppBus", AppBus.get())
   .addAppObject("SSHBus", SSHBus.get())

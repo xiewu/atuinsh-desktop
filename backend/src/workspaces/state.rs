@@ -12,7 +12,7 @@ use crate::workspaces::{
 };
 
 #[derive(thiserror::Error, Debug)]
-pub enum WorkspaceError {
+pub enum WorkspaceStateError {
     #[error("Failed to read directory: {0}")]
     DirReadError(PathBuf),
     #[error("Expected file or directory: {0}")]
@@ -46,18 +46,16 @@ pub enum WorkspaceError {
 pub struct WorkspaceState {
     pub id: String,
     pub name: String,
-    pub root: PathBuf,
     pub entries: Vec<DirEntry>,
-    #[ts(type = "Record<string, WorkspaceRunbook>")]
     pub runbooks: HashMap<String, WorkspaceRunbook>,
 }
 
 impl WorkspaceState {
-    pub async fn new(id: String, root: PathBuf) -> Result<Self, WorkspaceError> {
+    pub async fn new(id: String, root: PathBuf) -> Result<Self, WorkspaceStateError> {
         let config = WorkspaceConfig::from_file(root.join("atuin.toml")).await?;
         println!("Config: {:?}", config);
         if config.workspace.id != id {
-            return Err(WorkspaceError::InvalidWorkspaceManifest(
+            return Err(WorkspaceStateError::InvalidWorkspaceManifest(
                 id,
                 config.workspace.id,
             ));
@@ -69,7 +67,6 @@ impl WorkspaceState {
         Ok(Self {
             id,
             name: config.workspace.name,
-            root,
             entries,
             runbooks,
         })
@@ -109,7 +106,7 @@ impl WorkspaceRunbook {
 
     /// Incrementally parses an .atrb file to find the ID and name of the runbook.
     /// Once these are found, the function returns and the rest of the file is ignored.
-    pub async fn from_file(path: PathBuf) -> Result<Self, WorkspaceError> {
+    pub async fn from_file(path: PathBuf) -> Result<Self, WorkspaceStateError> {
         let file = File::open(&path).await?;
         let stats = File::metadata(&file).await?;
         drop(file);
@@ -119,16 +116,16 @@ impl WorkspaceRunbook {
             .get("id")
             .and_then(|v| v.as_str())
             .map(|v| v.to_string())
-            .ok_or_else(|| WorkspaceError::InvalidAtrbFile(path.clone()))?;
+            .ok_or_else(|| WorkspaceStateError::InvalidAtrbFile(path.clone()))?;
         let name = info
             .get("name")
             .and_then(|v| v.as_str())
             .map(|v| v.to_string())
-            .ok_or_else(|| WorkspaceError::InvalidAtrbFile(path.clone()))?;
+            .ok_or_else(|| WorkspaceStateError::InvalidAtrbFile(path.clone()))?;
         let version = info
             .get("version")
             .and_then(|v| v.as_u64())
-            .ok_or_else(|| WorkspaceError::InvalidAtrbFile(path.clone()))?;
+            .ok_or_else(|| WorkspaceStateError::InvalidAtrbFile(path.clone()))?;
 
         Ok(Self::new(id, name, version, path, stats.modified().ok()))
     }
@@ -142,13 +139,13 @@ enum ParseState {
 async fn get_workspace_runbooks(
     root: &PathBuf,
     dir_entries: &[DirEntry],
-) -> Result<HashMap<String, WorkspaceRunbook>, WorkspaceError> {
+) -> Result<HashMap<String, WorkspaceRunbook>, WorkspaceStateError> {
     let mut runbooks = HashMap::new();
     for entry in dir_entries {
         let name = entry
             .path
             .file_name()
-            .ok_or_else(|| WorkspaceError::DirReadError(entry.path.clone()))?
+            .ok_or_else(|| WorkspaceStateError::DirReadError(entry.path.clone()))?
             .to_string_lossy()
             .to_string();
 
@@ -160,7 +157,7 @@ async fn get_workspace_runbooks(
     Ok(runbooks)
 }
 
-pub async fn read_dir_recursive(path: &PathBuf) -> Result<Vec<DirEntry>, WorkspaceError> {
+pub async fn read_dir_recursive(path: &PathBuf) -> Result<Vec<DirEntry>, WorkspaceStateError> {
     let mut contents = Vec::new();
     let mut dir = tokio::fs::read_dir(path).await?;
     while let Some(entry) = dir.next_entry().await? {
@@ -197,7 +194,7 @@ pub async fn read_dir_recursive(path: &PathBuf) -> Result<Vec<DirEntry>, Workspa
 async fn get_json_keys(
     atrb_path: &PathBuf,
     keys: &[&str],
-) -> Result<HashMap<String, Value>, WorkspaceError> {
+) -> Result<HashMap<String, Value>, WorkspaceStateError> {
     let file = File::open(&atrb_path).await?;
     let reader = BufReader::with_capacity(1024, file);
     let feeder = AsyncBufReaderJsonFeeder::new(reader);
@@ -257,7 +254,7 @@ async fn get_json_keys(
                 if let ParseState::Expecting(field_name) = state {
                     let value = parser.current_float()?;
                     let value = Number::from_f64(value)
-                        .ok_or(WorkspaceError::InvalidAtrbFile(atrb_path.clone()))?;
+                        .ok_or(WorkspaceStateError::InvalidAtrbFile(atrb_path.clone()))?;
                     let value = Value::Number(value);
                     result.insert(field_name, value);
                     state = ParseState::None;
@@ -323,7 +320,7 @@ async fn get_json_keys(
     }
 
     if result.len() != keys.len() {
-        return Err(WorkspaceError::InvalidAtrbFile(atrb_path.clone()));
+        return Err(WorkspaceStateError::InvalidAtrbFile(atrb_path.clone()));
     }
 
     Ok(result)
@@ -382,7 +379,6 @@ mod tests {
             .unwrap();
 
         assert_eq!(state.id, "test");
-        assert_eq!(&state.root, &root.path());
 
         assert_eq!(state.runbooks.len(), 2);
 

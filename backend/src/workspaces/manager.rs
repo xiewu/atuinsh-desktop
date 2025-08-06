@@ -84,6 +84,7 @@ impl WorkspaceManager {
                 let id_clone = id.clone();
                 let manager_clone = manager_clone.clone();
 
+                // the debouncer runs on a separate vanilla thread
                 run_async_command(async move {
                     let mut manager = manager_clone.lock().await;
                     let manager = manager.as_mut().unwrap();

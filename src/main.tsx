@@ -2,6 +2,9 @@ window.addEventListener("unhandledrejection", (event) => {
   console.error("Unhandled rejection", event);
 });
 
+// Initialize global types
+import "./global";
+
 // import sentry before anything else
 import { init_tracking } from "./tracking";
 import track_event from "./tracking";

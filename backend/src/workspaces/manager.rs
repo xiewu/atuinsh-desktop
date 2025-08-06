@@ -52,6 +52,9 @@ impl WorkspaceManager {
         path: PathBuf,
         id: String,
         on_event: impl OnEvent + 'static,
+        // hack: we need to pass the manager to the callback, so we pass in
+        // a clone of the manager Arc from the Tauri state
+        manager_clone: Arc<tokio::sync::Mutex<Option<WorkspaceManager>>>,
     ) -> Result<(), String> {
         if self.workspaces.contains_key(&id) {
             return Err(format!("Workspace with id {} already watched", id));

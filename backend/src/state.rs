@@ -46,7 +46,7 @@ pub(crate) struct AtuinState {
     shared_state: Mutex<Option<SharedStateHandle>>,
 
     // File-based workspaces
-    pub workspaces: tokio::sync::Mutex<Option<WorkspaceManager>>,
+    pub workspaces: Arc<tokio::sync::Mutex<Option<WorkspaceManager>>>,
 
     executor: Mutex<Option<ExecutorHandle>>,
     event_sender: Mutex<Option<broadcast::Sender<WorkflowEvent>>>,
@@ -86,7 +86,7 @@ impl AtuinState {
             ssh_pool: Mutex::new(None),
             db_instances: DbInstances::new(app_path.clone(), dev_prefix.clone()),
             shared_state: Mutex::new(None),
-            workspaces: tokio::sync::Mutex::new(None),
+            workspaces: Arc::new(tokio::sync::Mutex::new(None)),
             executor: Mutex::new(None),
             event_sender: Mutex::new(None),
             child_processes: Default::default(),

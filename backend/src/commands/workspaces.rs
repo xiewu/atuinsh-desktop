@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use notify_debouncer_full::notify::Event;
-use tauri::{ipc::Channel, State};
+use tauri::{ipc::Channel, AppHandle, Manager, State};
 
 use crate::{
     state::AtuinState,
@@ -23,17 +23,21 @@ pub async fn watch_workspace(
     channel: Channel<WorkspaceEvent>,
     state: State<'_, AtuinState>,
 ) -> Result<(), String> {
+    let workspaces_clone = state.workspaces.clone();
     let mut manager = state.workspaces.lock().await;
     let manager = manager.as_mut().expect("Workspaces not found in state");
     manager
-        .watch_workspace(path, id, move |event: WorkspaceEvent| {
-            match channel.send(event) {
+        .watch_workspace(
+            path,
+            id,
+            move |event: WorkspaceEvent| match channel.send(event) {
                 Ok(_) => (),
                 Err(e) => {
                     println!("Error sending workspace event: {:?}", e);
                 }
-            }
-        })
+            },
+            workspaces_clone,
+        )
         .await
         .map_err(|e| e.to_string())
 }

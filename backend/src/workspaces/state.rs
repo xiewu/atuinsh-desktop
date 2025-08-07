@@ -46,6 +46,7 @@ pub enum WorkspaceStateError {
 pub struct WorkspaceState {
     pub id: String,
     pub name: String,
+    pub root: PathBuf,
     pub entries: Vec<DirEntry>,
     pub runbooks: HashMap<String, WorkspaceRunbook>,
 }
@@ -53,7 +54,6 @@ pub struct WorkspaceState {
 impl WorkspaceState {
     pub async fn new(id: String, root: PathBuf) -> Result<Self, WorkspaceStateError> {
         let config = WorkspaceConfig::from_file(root.join("atuin.toml")).await?;
-        println!("Config: {:?}", config);
         if config.workspace.id != id {
             return Err(WorkspaceStateError::InvalidWorkspaceManifest(
                 id,
@@ -67,23 +67,48 @@ impl WorkspaceState {
         Ok(Self {
             id,
             name: config.workspace.name,
+            root,
             entries,
             runbooks,
         })
+    }
+
+    pub fn update_runbook(&mut self, runbook: WorkspaceRunbook) {
+        self.runbooks.insert(runbook.id.clone(), runbook);
+    }
+
+    pub async fn rescan_entries(&mut self) -> Result<(), WorkspaceStateError> {
+        let entries = read_dir_recursive(&self.root).await?;
+        self.entries = entries;
+        Ok(())
+    }
+
+    pub async fn rescan_config(&mut self) -> Result<(), WorkspaceStateError> {
+        let config = WorkspaceConfig::from_file(self.root.join("atuin.toml")).await?;
+        if config.workspace.id != self.id {
+            return Err(WorkspaceStateError::InvalidWorkspaceManifest(
+                self.id.clone(),
+                config.workspace.id,
+            ));
+        }
+
+        self.name = config.workspace.name;
+        self.id = config.workspace.id;
+        Ok(())
     }
 }
 
 #[derive(TS, Debug, Clone, Serialize)]
 #[ts(export)]
 pub struct WorkspaceRunbook {
-    id: String,
-    name: String,
+    pub id: String,
+    pub name: String,
     #[ts(type = "number")]
-    version: u64,
-    path: PathBuf,
-    history: HashHistory,
+    pub version: u64,
+    pub path: PathBuf,
+    pub history: HashHistory,
     #[ts(type = "{ secs_since_epoch: number, nanos_since_epoch: number } | null")]
-    lastmod: Option<SystemTime>,
+    pub lastmod: Option<SystemTime>,
 }
 
 impl WorkspaceRunbook {

@@ -682,6 +682,15 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     },
   }));
 
+  if (!props.workspace.isOnline() && workspaceInfo.map((info) => info.isErr()).unwrapOr(false)) {
+    return (
+      <div>
+        There is an error in this workspace:
+        <pre>{JSON.stringify(workspaceInfo.unwrap().unwrapErr(), null, 2)}</pre>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={dropRef as any}

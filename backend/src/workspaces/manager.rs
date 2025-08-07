@@ -13,7 +13,7 @@ use crate::{
     run_async_command,
     workspaces::{
         fs_ops::{FsOps, FsOpsHandle, WorkspaceDirInfo},
-        state::{WorkspaceState, WorkspaceStateError},
+        state::WorkspaceState,
     },
 };
 
@@ -35,7 +35,7 @@ pub struct WorkspaceManager {
 pub struct Workspace {
     state: Result<WorkspaceState, WorkspaceError>,
     path: PathBuf,
-    debouncer: Debouncer<RecommendedWatcher, RecommendedCache>,
+    _debouncer: Debouncer<RecommendedWatcher, RecommendedCache>,
     fs_ops: FsOpsHandle,
     on_event: Arc<dyn OnEvent>,
 }
@@ -46,7 +46,15 @@ pub struct Workspace {
 pub enum WorkspaceEvent {
     State(WorkspaceState),
     Error(WorkspaceError),
-    OtherMessage(String),
+}
+
+impl From<Result<WorkspaceState, WorkspaceError>> for WorkspaceEvent {
+    fn from(state: Result<WorkspaceState, WorkspaceError>) -> Self {
+        match state {
+            Ok(state) => WorkspaceEvent::State(state),
+            Err(err) => WorkspaceEvent::Error(err),
+        }
+    }
 }
 
 impl WorkspaceManager {
@@ -80,20 +88,20 @@ impl WorkspaceManager {
         let mut debouncer = new_debouncer(
             Duration::from_millis(250),
             None,
-            move |event: DebounceEventResult| {
+            move |events_result: DebounceEventResult| {
                 let id_clone = id.clone();
                 let manager_clone = manager_clone.clone();
 
                 // the debouncer runs on a separate vanilla thread
                 run_async_command(async move {
-                    let mut manager = manager_clone.lock().await;
-                    let manager = manager.as_mut().unwrap();
-                    match event {
-                        Ok(events) => {
-                            manager.handle_file_events(&id_clone, events).await;
-                        }
-                        Err(events) => {
-                            manager.handle_file_errors(&id_clone, events).await;
+                    if let Some(manager) = manager_clone.lock().await.as_mut() {
+                        match events_result {
+                            Ok(events) => {
+                                manager.handle_file_events(&id_clone, events).await;
+                            }
+                            Err(errors) => {
+                                manager.handle_file_errors(&id_clone, errors).await;
+                            }
                         }
                     }
                 });
@@ -106,14 +114,7 @@ impl WorkspaceManager {
             .await
             .map_err(|e| WorkspaceError::WorkspaceReadError(path.clone(), e.to_string()));
 
-        match &state {
-            Ok(state) => {
-                on_event(WorkspaceEvent::State(state.clone()));
-            }
-            Err(err) => {
-                on_event(WorkspaceEvent::Error(err.clone()));
-            }
-        }
+        on_event(state.clone().into());
 
         debouncer
             .watch(&path, RecursiveMode::Recursive)
@@ -122,7 +123,7 @@ impl WorkspaceManager {
         let ws = Workspace {
             state,
             path,
-            debouncer,
+            _debouncer: debouncer,
             fs_ops,
             on_event,
         };
@@ -179,35 +180,13 @@ impl WorkspaceManager {
     }
 
     async fn rescan_full_workspace(&mut self, workspace_id: &str) {
-        let workspace_path = self
-            .workspaces
-            .get(workspace_id)
-            .expect("Workspace not found")
-            .path
-            .clone();
+        let workspace = self.workspaces.get_mut(workspace_id).unwrap();
+        let workspace_path = workspace.path.clone();
         let new_state = WorkspaceState::new(workspace_id.to_string(), workspace_path.clone())
             .await
             .map_err(|e| WorkspaceError::WorkspaceReadError(workspace_path, e.to_string()));
 
-        let on_event = &self.workspaces.get_mut(workspace_id).unwrap().on_event;
-        match &new_state {
-            Ok(state) => {
-                on_event(WorkspaceEvent::State(state.clone()));
-            }
-            Err(err) => {
-                on_event(WorkspaceEvent::Error(err.clone()));
-            }
-        }
-
-        self.workspaces.get_mut(workspace_id).unwrap().state = new_state;
-    }
-
-    async fn rescan_runbook(&mut self, workspace_id: &str, runbook_path: &PathBuf) {
-        todo!()
-    }
-
-    async fn rescan_config(&mut self, workspace_id: &str) {
-        todo!()
+        workspace.state = new_state;
     }
 
     async fn handle_file_events(&mut self, workspace_id: &str, events: Vec<DebouncedEvent>) {
@@ -215,58 +194,44 @@ impl WorkspaceManager {
             return;
         }
 
+        let mut full_rescan = false;
+
         for event in events {
-            println!("Event: {:?}", event);
-            self.rescan_full_workspace(workspace_id).await;
-            // match event.event.kind {
-            //     EventKind::Create(_) => {
-            //         let relevant_files = event
-            //             .paths
-            //             .iter()
-            //             .map(|path| {
-            //                 path.strip_prefix(&self.workspaces.get(workspace_id).unwrap().path)
-            //                     .unwrap_or(path)
-            //                     .to_path_buf()
-            //             })
-            //             .filter(|path| {
-            //                 path.ends_with(".atrb")
-            //                     || path.to_str() == Some("atuin.toml")
-            //                     || path.is_dir()
-            //             })
-            //             .collect::<Vec<_>>();
+            // returns true if notify detects some events may have been missed
+            if event.need_rescan() {
+                full_rescan = true;
+                break;
+            }
 
-            //         let runbook_files = relevant_files
-            //             .iter()
-            //             .filter(|path| path.ends_with(".atrb"))
-            //             .collect::<Vec<_>>();
+            let has_relevant_paths = event.paths.iter().any(|path| is_relevant_file(path));
 
-            //         let config_changed = relevant_files
-            //             .iter()
-            //             .any(|path| path.to_str() == Some("atuin.toml"));
+            if !has_relevant_paths {
+                continue;
+            }
 
-            //         let has_new_dirs = relevant_files.iter().any(|path| path.is_dir());
-
-            //         if has_new_dirs {
-            //             self.rescan_full_workspace(workspace_id).await;
-            //         } else {
-            //             if config_changed {
-            //                 self.rescan_config(workspace_id).await;
-            //             }
-
-            //             for path in runbook_files {
-            //                 self.rescan_runbook(workspace_id, path).await;
-            //             }
-            //         }
-            //     }
-            //     _ => {}
-            // }
+            match event.event.kind {
+                EventKind::Access(_) => {}
+                _ => {
+                    // TODO: this could probably be smarter/more granular in the future,
+                    // but there are enough edge cases that for now we just do a full rescan
+                    full_rescan = true;
+                }
+            }
         }
+
+        if full_rescan {
+            // If an error occurs during the rescan, the `state` field will be set to an error
+            self.rescan_full_workspace(workspace_id).await;
+        }
+
+        let workspace = self.workspaces.get_mut(workspace_id).unwrap();
+        (workspace.on_event)(workspace.state.clone().into());
     }
 
     async fn handle_file_errors(
         &mut self,
         id: &str,
-        events: Vec<notify_debouncer_full::notify::Error>,
+        errors: Vec<notify_debouncer_full::notify::Error>,
     ) {
         if !self.workspaces.contains_key(id) {
             return;
@@ -278,4 +243,16 @@ impl WorkspaceManager {
     pub async fn shutdown(&mut self) {
         self.reset();
     }
+}
+
+fn is_relevant_file(path: &PathBuf) -> bool {
+    path.is_dir()
+        || path
+            .file_name()
+            .map(|f| f.to_string_lossy().eq_ignore_ascii_case("atuin.toml"))
+            .unwrap_or(false)
+        || path
+            .extension()
+            .map(|f| f.to_string_lossy().eq_ignore_ascii_case(".atrb"))
+            .unwrap_or(false)
 }

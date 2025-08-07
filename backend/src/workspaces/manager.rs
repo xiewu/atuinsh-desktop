@@ -179,14 +179,17 @@ impl WorkspaceManager {
             .map_err(|e| e.to_string())
     }
 
-    async fn rescan_full_workspace(&mut self, workspace_id: &str) {
+    async fn rescan_workspace(&mut self, workspace_id: &str) {
         let workspace = self.workspaces.get_mut(workspace_id).unwrap();
-        let workspace_path = workspace.path.clone();
-        let new_state = WorkspaceState::new(workspace_id.to_string(), workspace_path.clone())
-            .await
-            .map_err(|e| WorkspaceError::WorkspaceReadError(workspace_path, e.to_string()));
-
-        workspace.state = new_state;
+        match workspace.state.as_mut().unwrap().rescan().await {
+            Ok(_) => {}
+            Err(e) => {
+                workspace.state = Err(WorkspaceError::WorkspaceReadError(
+                    workspace.path.clone(),
+                    e.to_string(),
+                ));
+            }
+        }
     }
 
     async fn handle_file_events(&mut self, workspace_id: &str, events: Vec<DebouncedEvent>) {
@@ -215,16 +218,17 @@ impl WorkspaceManager {
                     // TODO: this could probably be smarter/more granular in the future,
                     // but there are enough edge cases that for now we just do a full rescan
                     full_rescan = true;
+                    break;
                 }
             }
         }
 
         if full_rescan {
             // If an error occurs during the rescan, the `state` field will be set to an error
-            self.rescan_full_workspace(workspace_id).await;
+            self.rescan_workspace(workspace_id).await;
         }
 
-        let workspace = self.workspaces.get_mut(workspace_id).unwrap();
+        let workspace = self.workspaces.get(workspace_id).unwrap();
         (workspace.on_event)(workspace.state.clone().into());
     }
 

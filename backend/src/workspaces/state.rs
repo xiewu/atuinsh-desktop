@@ -73,17 +73,7 @@ impl WorkspaceState {
         })
     }
 
-    pub fn update_runbook(&mut self, runbook: WorkspaceRunbook) {
-        self.runbooks.insert(runbook.id.clone(), runbook);
-    }
-
-    pub async fn rescan_entries(&mut self) -> Result<(), WorkspaceStateError> {
-        let entries = read_dir_recursive(&self.root).await?;
-        self.entries = entries;
-        Ok(())
-    }
-
-    pub async fn rescan_config(&mut self) -> Result<(), WorkspaceStateError> {
+    pub async fn rescan(&mut self) -> Result<(), WorkspaceStateError> {
         let config = WorkspaceConfig::from_file(self.root.join("atuin.toml")).await?;
         if config.workspace.id != self.id {
             return Err(WorkspaceStateError::InvalidWorkspaceManifest(
@@ -92,9 +82,29 @@ impl WorkspaceState {
             ));
         }
 
-        self.name = config.workspace.name;
-        self.id = config.workspace.id;
+        let entries = read_dir_recursive(&self.root).await?;
+        let runbooks = get_workspace_runbooks(&self.root, &entries).await?;
+
+        self.entries = entries;
+        self.runbooks.retain(|id, _| runbooks.contains_key(id));
+
+        for runbook in runbooks.values() {
+            self.update_runbook(&runbook);
+        }
+
         Ok(())
+    }
+
+    pub fn update_runbook(&mut self, runbook: &WorkspaceRunbook) {
+        self.runbooks
+            .entry(runbook.id.clone())
+            .and_modify(|r| {
+                r.name = runbook.name.clone();
+                r.version = runbook.version;
+                r.path = runbook.path.clone();
+                r.lastmod = runbook.lastmod;
+            })
+            .or_insert(runbook.clone());
     }
 }
 

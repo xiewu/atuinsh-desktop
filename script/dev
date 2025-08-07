@@ -70,15 +70,31 @@ EOF
 
     # Run Tauri with custom config and optional profile
     if [ -n "$PROFILE" ]; then
-        DEV_PREFIX="$PROFILE" NO_SYNC="$NO_SYNC" DEVTOOLS="$DEVTOOLS" pnpm run tauri dev --config "$CONFIG_FILE"
+        if [ -n "$DEVTOOLS" ]; then
+            DEV_PREFIX="$PROFILE" NO_SYNC="$NO_SYNC" DEVTOOLS="$DEVTOOLS" pnpm run tauri dev --config "$CONFIG_FILE"
+        else
+            DEV_PREFIX="$PROFILE" NO_SYNC="$NO_SYNC" pnpm run tauri dev --config "$CONFIG_FILE"
+        fi
     else
-        NO_SYNC="$NO_SYNC" DEVTOOLS="$DEVTOOLS" pnpm run tauri dev --config "$CONFIG_FILE"
+        if [ -n "$DEVTOOLS" ]; then
+            NO_SYNC="$NO_SYNC" DEVTOOLS="$DEVTOOLS" pnpm run tauri dev --config "$CONFIG_FILE"
+        else
+            NO_SYNC="$NO_SYNC" pnpm run tauri dev --config "$CONFIG_FILE"
+        fi
     fi
 else
     # Run Tauri with default config and optional profile
     if [ -n "$PROFILE" ]; then
-        DEV_PREFIX="$PROFILE" NO_SYNC="$NO_SYNC" DEVTOOLS="$DEVTOOLS" pnpm run tauri dev
+        if [ -n "$DEVTOOLS" ]; then
+            DEV_PREFIX="$PROFILE" NO_SYNC="$NO_SYNC" DEVTOOLS="$DEVTOOLS" pnpm run tauri dev
+        else
+            DEV_PREFIX="$PROFILE" NO_SYNC="$NO_SYNC" pnpm run tauri dev
+        fi
     else
-        NO_SYNC="$NO_SYNC" DEVTOOLS="$DEVTOOLS" pnpm run tauri dev
+        if [ -n "$DEVTOOLS" ]; then
+            NO_SYNC="$NO_SYNC" DEVTOOLS="$DEVTOOLS" pnpm run tauri dev
+        else
+            NO_SYNC="$NO_SYNC" pnpm run tauri dev
+        fi
     fi
 fi

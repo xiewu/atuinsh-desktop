@@ -13,7 +13,7 @@ import {
   createRunbookMenu,
   createWorkspaceMenu,
 } from "./menus";
-import { cn, timeoutPromise, useMemory, usePrevious } from "@/lib/utils";
+import { cn, usePrevious } from "@/lib/utils";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
 import InlineInput from "./TreeView/InlineInput";
 import { SharedStateManager } from "@/lib/shared_state/manager";
@@ -683,11 +683,65 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     },
   }));
 
+  function showWorkspaceError(errorType: string, errorText: string, helpText?: string) {
+    new DialogBuilder()
+      .title(errorType)
+      .icon("error")
+      .message(
+        <div>
+          <p>{errorText}</p>
+          {helpText && <p className="mt-2 text-sm text-muted-foreground">Tip: {helpText}</p>}
+        </div>,
+      )
+      .action({ label: "OK", value: "ok" })
+      .build();
+  }
+
+  let errorElem = <></>;
   if (!props.workspace.isOnline() && workspaceInfo.map((info) => info.isErr()).unwrapOr(false)) {
-    return (
-      <div>
-        There is an error in this workspace:
-        <pre>{JSON.stringify(workspaceInfo.unwrap().unwrapErr(), null, 2)}</pre>
+    let error = workspaceInfo.unwrap().unwrapErr();
+    let errorType;
+    let errorText;
+    let helpText: string | undefined;
+
+    switch (error.type) {
+      case "WorkspaceReadError":
+        errorType = "Workspace Read Error";
+        errorText = `The workspace at ${error.data[0]} could not be read: ${error.data[1]}`;
+        helpText =
+          "Ensure that atuin.toml exists at the root of the workspace directory and that the directory is readable.";
+        break;
+      case "WorkspaceNotWatched":
+        errorType = "Workspace Not Watched";
+        errorText = `The workspace is not being watched: ${error.data}`;
+        break;
+      case "WorkspaceAlreadyWatched": {
+        errorType = "Workspace Already Watched";
+        errorText = `The workspace is already being watched: ${error.data}`;
+        break;
+      }
+      case "WatchError":
+        errorType = "Watch Error";
+        errorText = `The workspace could not be watched: ${error.data[1]}`;
+        helpText =
+          "Ensure that the workspace directory and all its subdirectories and files are readable.";
+        break;
+      default:
+        errorType = "Unknown Error";
+        errorText = `An unknown error occurred: ${error.data}`;
+    }
+
+    errorElem = (
+      <div
+        className="border rounded-md w-full p-3 flex gap-2 cursor-pointer"
+        onClick={() => showWorkspaceError(errorType, errorText, helpText)}
+      >
+        <div>
+          <CircleAlertIcon className="w-8 h-8 stroke-gray-500 dark:stroke-gray-400" />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          There is an error with this workspace. Click to see more information.
+        </p>
       </div>
     );
   }
@@ -746,7 +800,9 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
           )}
         </div>
       )}
-      {hiddenWorkspaces[props.workspace.get("id")!] ? null : (
+      {hiddenWorkspaces[props.workspace.get("id")!] ? null : isError ? (
+        errorElem
+      ) : (
         <TreeView
           workspaceId={props.workspace.get("id")!}
           workspaceOnline={props.workspace.isOnline()}

@@ -2,4 +2,4 @@
 import type { DirEntry } from "./DirEntry";
 import type { WorkspaceRunbook } from "./WorkspaceRunbook";
 
-export type WorkspaceState = { id: string, name: string, entries: Array<DirEntry>, runbooks: { [key in string]?: WorkspaceRunbook }, };
+export type WorkspaceState = { id: string, name: string, root: string, entries: Array<DirEntry>, runbooks: { [key in string]?: WorkspaceRunbook }, };

@@ -10,17 +10,12 @@ use serde_json::{Number, Value};
 use tokio::{fs::File, io::BufReader};
 use ts_rs::TS;
 
-use crate::workspaces::{
-    fs_ops::{read_dir_recursive, DirEntry, WorkspaceConfig},
-    hash_history::HashHistory,
-};
+use crate::workspaces::fs_ops::{read_dir_recursive, DirEntry, WorkspaceConfig};
 
 #[derive(thiserror::Error, Debug)]
 pub enum WorkspaceStateError {
     #[error("Failed to read directory: {0}")]
     DirReadError(PathBuf),
-    #[error("Expected file or directory: {0}")]
-    BadFileType(PathBuf),
     #[error("Failed to read directory: {0}")]
     IoError(#[from] std::io::Error),
     #[error("Failed to parse workspace config: {0}")]
@@ -55,16 +50,17 @@ pub struct WorkspaceState {
     pub runbooks: HashMap<String, WorkspaceRunbook>,
 }
 
-#[derive(TS, Debug, Clone, Serialize)]
-#[serde(tag = "type", content = "data")]
-#[ts(export)]
-pub enum WorkspaceStateChange {
-    WorkspaceNameChanged(String),
-    DirEntriesChanged(Vec<DirEntry>),
-    RunbookAdded(WorkspaceRunbook),
-    RunbookUpdated(WorkspaceRunbook),
-    RunbookDeleted(String),
-}
+// TODO
+// #[derive(TS, Debug, Clone, Serialize)]
+// #[serde(tag = "type", content = "data")]
+// #[ts(export)]
+// pub enum WorkspaceStateChange {
+//     WorkspaceNameChanged(String),
+//     DirEntriesChanged(Vec<DirEntry>),
+//     RunbookAdded(WorkspaceRunbook),
+//     RunbookUpdated(WorkspaceRunbook),
+//     RunbookDeleted(String),
+// }
 
 impl WorkspaceState {
     pub async fn new(id: &str, root: impl AsRef<Path>) -> Result<Self, WorkspaceStateError> {
@@ -88,17 +84,18 @@ impl WorkspaceState {
         })
     }
 
-    pub fn update_runbook(&mut self, runbook: &WorkspaceRunbook) {
-        self.runbooks
-            .entry(runbook.id.clone())
-            .and_modify(|r| {
-                r.name = runbook.name.clone();
-                r.version = runbook.version;
-                r.path = runbook.path.clone();
-                r.lastmod = runbook.lastmod;
-            })
-            .or_insert(runbook.clone());
-    }
+    // TODO
+    // pub fn update_runbook(&mut self, runbook: &WorkspaceRunbook) {
+    //     self.runbooks
+    //         .entry(runbook.id.clone())
+    //         .and_modify(|r| {
+    //             r.name = runbook.name.clone();
+    //             r.version = runbook.version;
+    //             r.path = runbook.path.clone();
+    //             r.lastmod = runbook.lastmod;
+    //         })
+    //         .or_insert(runbook.clone());
+    // }
 }
 
 #[derive(TS, Debug, Clone, Serialize, PartialEq)]

@@ -15,6 +15,8 @@ use ts_rs::TS;
 pub enum FsOpsError {
     #[error("Failed to send instruction to filesystem operations actor: {0}")]
     SendError(#[from] SendError<FsOpsInstruction>),
+    #[error("File missing: {0}")]
+    FileMissingError(String),
     #[error("IO Operation failed: {0}")]
     IoError(#[from] std::io::Error),
     #[error("Failed to serialize workspace config: {0}")]
@@ -154,9 +156,7 @@ impl Drop for FsOpsHandle {
     }
 }
 
-pub struct FsOps {
-    //
-}
+pub struct FsOps {}
 
 impl FsOps {
     pub fn new() -> Self {
@@ -204,10 +204,7 @@ impl FsOps {
     ) -> Result<WorkspaceDirInfo, FsOpsError> {
         let config_path = path.as_ref().join("atuin.toml");
         if !config_path.exists() {
-            return Err(FsOpsError::IoError(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "Workspace config not found",
-            )));
+            return Err(FsOpsError::FileMissingError("atuin.toml".to_string()));
         }
 
         let mut contents = read_dir_recursive(path.as_ref()).await?;
@@ -227,7 +224,12 @@ impl FsOps {
         path: impl AsRef<Path>,
         name: &str,
     ) -> Result<(), FsOpsError> {
-        let config_text = tokio::fs::read_to_string(path.as_ref().join("atuin.toml")).await?;
+        let config_path = path.as_ref().join("atuin.toml");
+        if !config_path.exists() {
+            return Err(FsOpsError::FileMissingError("atuin.toml".to_string()));
+        }
+
+        let config_text = tokio::fs::read_to_string(config_path).await?;
         let mut config: WorkspaceConfig = toml::from_str(&config_text)?;
         config.workspace.name = name.to_string();
         let contents = toml::to_string(&config)?;

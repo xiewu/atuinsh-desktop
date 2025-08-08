@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use notify_debouncer_full::notify::Event;
-use tauri::{ipc::Channel, AppHandle, Manager, State};
+use serde_json::Value;
+use tauri::{ipc::Channel, State};
 
 use crate::{
     state::AtuinState,
@@ -78,8 +78,8 @@ pub async fn rename_workspace(
 }
 
 #[tauri::command]
-pub async fn delete_workspace(id: String) -> Result<(), WorkspaceError> {
-    Ok(())
+pub async fn delete_workspace(_id: String) -> Result<(), WorkspaceError> {
+    todo!()
 }
 
 #[tauri::command]
@@ -90,4 +90,20 @@ pub async fn read_dir(
     let mut manager = state.workspaces.lock().await;
     let manager = manager.as_mut().expect("Workspace not found in state");
     manager.get_dir_info(&workspace_id).await
+}
+
+#[tauri::command]
+pub async fn save_runbook(
+    workspace_id: String,
+    id: String,
+    name: String,
+    path: PathBuf,
+    content: Value,
+    state: State<'_, AtuinState>,
+) -> Result<(), WorkspaceError> {
+    let mut manager = state.workspaces.lock().await;
+    let manager = manager.as_mut().expect("Workspace not found in state");
+    manager
+        .save_runbook(&workspace_id, &id, &name, &path, content)
+        .await
 }

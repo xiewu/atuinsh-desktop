@@ -30,6 +30,7 @@ impl HashHistory {
         self.vec.front()
     }
 
+    #[allow(dead_code)] // todo
     pub fn contains(&self, item: impl AsRef<str>) -> bool {
         let item_str = item.as_ref();
         self.vec.iter().any(|s| s == item_str)

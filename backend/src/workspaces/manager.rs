@@ -20,7 +20,7 @@ use crate::{
     workspaces::{
         fs_ops::{FsOps, FsOpsHandle, WorkspaceDirInfo},
         hash_history::HashHistory,
-        state::{WorkspaceState, WorkspaceStateChange, WorkspaceStateError},
+        state::WorkspaceState,
     },
 };
 
@@ -138,7 +138,7 @@ impl Workspace {
 pub enum WorkspaceEvent {
     State(WorkspaceState),
     Error(WorkspaceError),
-    RunbookContent(String, Value),
+    // RunbookContent(String, Value),
 }
 
 impl From<Result<WorkspaceState, WorkspaceError>> for WorkspaceEvent {
@@ -316,7 +316,7 @@ impl WorkspaceManager {
             match self.rescan_workspace(workspace_id).await {
                 Ok(updated) => {
                     if let Some(workspace) = self.workspaces.get_mut(workspace_id) {
-                        todo!();
+                        // TODO
 
                         workspace.state = Ok(updated);
                         (workspace.on_event)(workspace.state.clone().into());
@@ -342,6 +342,7 @@ impl WorkspaceManager {
             return;
         }
 
+        eprintln!("handle_file_errors: {:?}", errors);
         todo!()
     }
 

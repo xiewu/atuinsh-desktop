@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use serde::Serialize;
 use ts_rs::TS;
 
-#[derive(TS, Debug, Clone, Serialize)]
+#[derive(TS, Debug, Clone, Serialize, PartialEq)]
 #[serde(into = "Vec<String>")]
 #[ts(as = "Vec<String>")]
 pub struct HashHistory {

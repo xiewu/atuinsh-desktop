@@ -5,11 +5,14 @@ use tauri::{ipc::Channel, AppHandle, Manager, State};
 
 use crate::{
     state::AtuinState,
-    workspaces::{fs_ops::WorkspaceDirInfo, manager::WorkspaceEvent},
+    workspaces::{
+        fs_ops::WorkspaceDirInfo,
+        manager::{WorkspaceError, WorkspaceEvent},
+    },
 };
 
 #[tauri::command]
-pub async fn reset_workspaces(state: State<'_, AtuinState>) -> Result<(), String> {
+pub async fn reset_workspaces(state: State<'_, AtuinState>) -> Result<(), WorkspaceError> {
     let mut manager = state.workspaces.lock().await;
     let manager = manager.as_mut().expect("Workspaces not found in state");
     manager.reset();
@@ -22,14 +25,14 @@ pub async fn watch_workspace(
     id: String,
     channel: Channel<WorkspaceEvent>,
     state: State<'_, AtuinState>,
-) -> Result<(), String> {
+) -> Result<(), WorkspaceError> {
     let workspaces_clone = state.workspaces.clone();
     let mut manager = state.workspaces.lock().await;
     let manager = manager.as_mut().expect("Workspaces not found in state");
     manager
         .watch_workspace(
             path,
-            id,
+            &id,
             move |event: WorkspaceEvent| match channel.send(event) {
                 Ok(_) => (),
                 Err(e) => {
@@ -39,14 +42,16 @@ pub async fn watch_workspace(
             workspaces_clone,
         )
         .await
-        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn unwatch_workspace(id: String, state: State<'_, AtuinState>) -> Result<(), String> {
+pub async fn unwatch_workspace(
+    id: String,
+    state: State<'_, AtuinState>,
+) -> Result<(), WorkspaceError> {
     let mut manager = state.workspaces.lock().await;
     let manager = manager.as_mut().expect("Workspaces not found in state");
-    manager.unwatch_workspace(id).await
+    manager.unwatch_workspace(&id).await
 }
 
 #[tauri::command]
@@ -55,10 +60,10 @@ pub async fn create_workspace(
     id: String,
     name: String,
     state: State<'_, AtuinState>,
-) -> Result<(), String> {
+) -> Result<(), WorkspaceError> {
     let mut manager = state.workspaces.lock().await;
     let manager = manager.as_mut().expect("Workspaces not found in state");
-    manager.create_workspace(path, id, name).await
+    manager.create_workspace(&path, &id, &name).await
 }
 
 #[tauri::command]
@@ -66,14 +71,14 @@ pub async fn rename_workspace(
     id: String,
     name: String,
     state: State<'_, AtuinState>,
-) -> Result<(), String> {
+) -> Result<(), WorkspaceError> {
     let mut manager = state.workspaces.lock().await;
     let manager = manager.as_mut().expect("Workspaces not found in state");
-    manager.rename_workspace(id, name).await
+    manager.rename_workspace(&id, &name).await
 }
 
 #[tauri::command]
-pub async fn delete_workspace(id: String) -> Result<(), String> {
+pub async fn delete_workspace(id: String) -> Result<(), WorkspaceError> {
     Ok(())
 }
 
@@ -81,8 +86,8 @@ pub async fn delete_workspace(id: String) -> Result<(), String> {
 pub async fn read_dir(
     workspace_id: String,
     state: State<'_, AtuinState>,
-) -> Result<WorkspaceDirInfo, String> {
+) -> Result<WorkspaceDirInfo, WorkspaceError> {
     let mut manager = state.workspaces.lock().await;
     let manager = manager.as_mut().expect("Workspace not found in state");
-    manager.get_dir_info(workspace_id).await
+    manager.get_dir_info(&workspace_id).await
 }

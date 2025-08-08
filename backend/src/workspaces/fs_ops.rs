@@ -1,4 +1,7 @@
-use std::{path::PathBuf, time::SystemTime};
+use std::{
+    path::{Path, PathBuf},
+    time::SystemTime,
+};
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::{
@@ -35,7 +38,7 @@ pub struct WorkspaceDirInfo {
     pub contents: Vec<DirEntry>,
 }
 
-#[derive(TS, Debug, Clone, Serialize, Deserialize)]
+#[derive(TS, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[ts(export)]
 pub struct DirEntry {
     pub name: String,
@@ -64,7 +67,7 @@ impl WorkspaceConfig {
         }
     }
 
-    pub async fn from_file(path: PathBuf) -> Result<Self, FsOpsError> {
+    pub async fn from_file(path: impl AsRef<Path>) -> Result<Self, FsOpsError> {
         let config_text = tokio::fs::read_to_string(path).await?;
         let config: WorkspaceConfig = toml::from_str(&config_text)?;
         Ok(config)
@@ -88,18 +91,32 @@ impl FsOpsHandle {
         Self { tx }
     }
 
-    pub async fn get_dir_info(&self, path: PathBuf) -> Result<WorkspaceDirInfo, FsOpsError> {
+    pub async fn get_dir_info(
+        &self,
+        path: impl AsRef<Path>,
+    ) -> Result<WorkspaceDirInfo, FsOpsError> {
         let (sender, receiver) = oneshot::channel();
         self.tx
-            .send(FsOpsInstruction::GetDirectoryInformation(path, sender))
+            .send(FsOpsInstruction::GetDirectoryInformation(
+                path.as_ref().to_path_buf(),
+                sender,
+            ))
             .await?;
         receiver.await.unwrap()
     }
 
-    pub async fn rename_workspace(&self, path: PathBuf, name: String) -> Result<(), FsOpsError> {
+    pub async fn rename_workspace(
+        &self,
+        path: impl AsRef<Path>,
+        name: &str,
+    ) -> Result<(), FsOpsError> {
         let (sender, receiver) = oneshot::channel();
         self.tx
-            .send(FsOpsInstruction::RenameWorkspace(path, name, sender))
+            .send(FsOpsInstruction::RenameWorkspace(
+                path.as_ref().to_path_buf(),
+                name.to_string(),
+                sender,
+            ))
             .await?;
         receiver.await.unwrap()
     }
@@ -126,18 +143,15 @@ impl FsOps {
     }
 
     pub async fn create_workspace(
-        path: PathBuf,
-        id: String,
-        name: String,
+        path: impl AsRef<Path>,
+        id: &str,
+        name: &str,
     ) -> Result<(), FsOpsError> {
-        let config = WorkspaceConfig::new(id, name);
-        let workspace_path = path.join("atuin.toml");
+        let config = WorkspaceConfig::new(id.to_string(), name.to_string());
+        let workspace_path = path.as_ref().join("atuin.toml");
         let contents = toml::to_string(&config)?;
         tokio::fs::write(workspace_path, contents).await?;
-        let dot_atuin_path = path.join(".atuin");
-        if !dot_atuin_path.exists() {
-            tokio::fs::create_dir_all(&dot_atuin_path).await?;
-        }
+
         Ok(())
     }
 
@@ -145,11 +159,11 @@ impl FsOps {
         while let Some(instruction) = rx.recv().await {
             match instruction {
                 FsOpsInstruction::GetDirectoryInformation(path, reply_to) => {
-                    let info = self.get_directory_information(path).await;
+                    let info = self.get_directory_information(&path).await;
                     let _ = reply_to.send(info);
                 }
                 FsOpsInstruction::RenameWorkspace(path, name, reply_to) => {
-                    let _ = self.rename_workspace(path, name).await;
+                    let _ = self.rename_workspace(&path, &name).await;
                     let _ = reply_to.send(Ok(()));
                 }
                 FsOpsInstruction::Shutdown => {
@@ -161,9 +175,9 @@ impl FsOps {
 
     async fn get_directory_information(
         &mut self,
-        path: PathBuf,
+        path: impl AsRef<Path>,
     ) -> Result<WorkspaceDirInfo, FsOpsError> {
-        let config_path = path.join("atuin.toml");
+        let config_path = path.as_ref().join("atuin.toml");
         if !config_path.exists() {
             return Err(FsOpsError::IoError(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
@@ -171,49 +185,113 @@ impl FsOps {
             )));
         }
 
-        let mut contents = read_dir_recursive(&path).await?;
+        let mut contents = read_dir_recursive(path.as_ref()).await?;
         contents.retain(|entry| entry.name.ends_with(".atrb"));
         let config_text = tokio::fs::read_to_string(config_path).await?;
         let config: WorkspaceConfig = toml::from_str(&config_text)?;
         Ok(WorkspaceDirInfo {
             id: config.workspace.id,
             name: config.workspace.name,
-            path,
+            path: path.as_ref().to_path_buf(),
             contents,
         })
     }
 
-    async fn rename_workspace(&mut self, path: PathBuf, name: String) -> Result<(), FsOpsError> {
-        let config_text = tokio::fs::read_to_string(path.join("atuin.toml")).await?;
+    async fn rename_workspace(
+        &mut self,
+        path: impl AsRef<Path>,
+        name: &str,
+    ) -> Result<(), FsOpsError> {
+        let config_text = tokio::fs::read_to_string(path.as_ref().join("atuin.toml")).await?;
         let mut config: WorkspaceConfig = toml::from_str(&config_text)?;
-        config.workspace.name = name;
+        config.workspace.name = name.to_string();
         let contents = toml::to_string(&config)?;
-        tokio::fs::write(path.join("atuin.toml"), contents).await?;
+        tokio::fs::write(path.as_ref().join("atuin.toml"), contents).await?;
         Ok(())
     }
 }
 
-pub async fn read_dir_recursive(path: &PathBuf) -> Result<Vec<DirEntry>, FsOpsError> {
+// Using an iterative approach here as recursing fails due to recursive Box::pin issues
+pub async fn read_dir_recursive(path: impl AsRef<Path>) -> Result<Vec<DirEntry>, FsOpsError> {
     let mut contents = Vec::new();
-    let mut dir = tokio::fs::read_dir(path).await?;
-    while let Some(entry) = dir.next_entry().await? {
-        let path = entry.path();
-        if path.is_dir() {
-            contents.push(DirEntry {
-                name: path.file_name().unwrap().to_string_lossy().to_string(),
-                is_dir: true,
-                path: path.clone(),
-                lastmod: entry.metadata().await?.modified().ok(),
-            });
-            contents.extend(Box::pin(read_dir_recursive(&path)).await?);
-        } else {
-            contents.push(DirEntry {
-                name: path.file_name().unwrap().to_string_lossy().to_string(),
-                is_dir: false,
-                path,
-                lastmod: entry.metadata().await?.modified().ok(),
-            });
+    let mut stack = vec![path.as_ref().to_path_buf()];
+
+    while let Some(current_path) = stack.pop() {
+        let mut dir = tokio::fs::read_dir(&current_path).await?;
+        while let Some(entry) = dir.next_entry().await? {
+            let mut path = entry.path();
+            if path.is_symlink() {
+                path = path.read_link()?;
+            }
+            let attrs = entry.metadata().await?;
+            let lastmod = attrs.modified().ok();
+
+            if path.is_dir() {
+                contents.push(DirEntry {
+                    name: path.file_name().unwrap().to_string_lossy().to_string(),
+                    is_dir: true,
+                    path: path.clone(),
+                    lastmod,
+                });
+                stack.push(path);
+            } else if path.is_file() {
+                contents.push(DirEntry {
+                    name: path.file_name().unwrap().to_string_lossy().to_string(),
+                    is_dir: false,
+                    path,
+                    lastmod,
+                });
+            }
         }
     }
+
     Ok(contents)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_read_dir_recursive() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempdir()?;
+        let base = temp.path();
+
+        // Create nested directory structure
+        let dir1 = base.join("dir1");
+        let dir2 = dir1.join("dir2");
+        let dir3 = dir1.join("dir3");
+        fs::create_dir_all(&dir2)?;
+        fs::create_dir_all(&dir3)?;
+
+        // Create some files
+        fs::write(dir1.join("file1.txt"), "content1")?;
+        fs::write(dir2.join("file2.txt"), "content2")?;
+        fs::write(dir3.join("file3.txt"), "content3")?;
+        fs::write(base.join("root.txt"), "root")?;
+
+        let entries = read_dir_recursive(base).await?;
+
+        // Verify we found all directories and files
+        assert_eq!(entries.len(), 7); // 3 dirs + 4 files
+
+        // Check for directories
+        let dirs: Vec<_> = entries.iter().filter(|e| e.is_dir).collect();
+        assert_eq!(dirs.len(), 3);
+        assert!(dirs.iter().any(|d| d.path == dir1));
+        assert!(dirs.iter().any(|d| d.path == dir2));
+        assert!(dirs.iter().any(|d| d.path == dir3));
+
+        // Check for files
+        let files: Vec<_> = entries.iter().filter(|e| !e.is_dir).collect();
+        assert_eq!(files.len(), 4);
+        assert!(files.iter().any(|f| f.path == base.join("root.txt")));
+        assert!(files.iter().any(|f| f.path == dir1.join("file1.txt")));
+        assert!(files.iter().any(|f| f.path == dir2.join("file2.txt")));
+        assert!(files.iter().any(|f| f.path == dir3.join("file3.txt")));
+
+        Ok(())
+    }
 }

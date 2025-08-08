@@ -241,13 +241,14 @@ impl WorkspaceManager {
 
     pub async fn save_runbook(
         &mut self,
-        workspace_id: String,
-        id: String,
-        name: String,
+        workspace_id: &str,
+        id: &str,
+        name: &str,
+        path: impl AsRef<Path>,
         content: Value,
     ) -> Result<(), WorkspaceError> {
-        let workspace = self.get_workspace(&workspace_id)?;
-        workspace.save_runbook(&id, &name, &content).await
+        let workspace = self.get_workspace(workspace_id)?;
+        workspace.save_runbook(id, name, path, &content).await
     }
 
     pub async fn get_dir_info(

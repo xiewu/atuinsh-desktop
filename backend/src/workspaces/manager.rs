@@ -42,6 +42,8 @@ pub enum WorkspaceError {
     WorkspaceRenameError(String, String),
     #[error("Failed to watch workspace")]
     WatchError(String, String),
+    #[error("Failed to rename folder")]
+    FolderRenameError(String, String, String),
 }
 
 pub trait OnEvent: Send + Sync + Fn(WorkspaceEvent) {}
@@ -68,6 +70,30 @@ impl Workspace {
             .rename_workspace(path, name)
             .await
             .map_err(|e| WorkspaceError::WorkspaceRenameError(self.id.clone(), e.to_string()))
+    }
+
+    pub async fn rename_folder(
+        &mut self,
+        folder_id: &str,
+        new_name: &str,
+    ) -> Result<(), WorkspaceError> {
+        let from = PathBuf::from(folder_id);
+        if let Some(parent) = from.parent() {
+            let to = parent.join(new_name);
+            self.fs_ops.rename_folder(&from, &to).await.map_err(|e| {
+                WorkspaceError::FolderRenameError(
+                    self.id.clone(),
+                    folder_id.to_string(),
+                    e.to_string(),
+                )
+            })
+        } else {
+            Err(WorkspaceError::FolderRenameError(
+                self.id.clone(),
+                folder_id.to_string(),
+                "Folder has no parent".to_string(),
+            ))
+        }
     }
 
     pub async fn save_runbook(
@@ -260,6 +286,16 @@ impl WorkspaceManager {
     ) -> Result<(), WorkspaceError> {
         let workspace = self.get_workspace(workspace_id)?;
         workspace.save_runbook(id, name, path, &content).await
+    }
+
+    pub async fn rename_folder(
+        &mut self,
+        workspace_id: &str,
+        folder_id: &str,
+        new_name: &str,
+    ) -> Result<(), WorkspaceError> {
+        let workspace = self.get_workspace(workspace_id)?;
+        workspace.rename_folder(folder_id, new_name).await
     }
 
     pub async fn get_dir_info(

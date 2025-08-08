@@ -3,51 +3,7 @@ import { Err, Ok, Result } from "@binarymuse/ts-stdlib";
 import { Channel, invoke } from "@tauri-apps/api/core";
 
 import type { WorkspaceEvent } from "@rust/WorkspaceEvent";
-
-// This type was created based on observations of events sent to
-// the frontend from the backend. There may be more events that
-// we don't represent here, but these seem to be the most relevant
-// ones. Note that there is an "attrs" field that always seems to be
-// empty, so is not included here.
-//
-// See: https://docs.rs/notify/latest/notify/struct.Event.html
-//
-// TODO: should we include "any" and "other" in all the cases??
-export type FsEvent =
-  | {
-      type: "create";
-      kind: "file" | "folder";
-      paths: [string];
-    }
-  | {
-      type: "modify";
-      kind: "rename";
-      mode: "both";
-      paths: [string, string];
-    }
-  | {
-      type: "modify";
-      kind: "rename";
-      mode: "any";
-      paths: [string];
-    }
-  | {
-      type: "modify";
-      kind: "metadata";
-      mode: "any" | "metadata" | "extended";
-      paths: [string];
-    }
-  | {
-      type: "modify";
-      kind: "data";
-      mode: "content";
-      paths: [string];
-    }
-  | {
-      type: "remove";
-      kind: "file" | "folder";
-      paths: [string];
-    };
+import { WorkspaceError } from "@/rs-bindings/WorkspaceError";
 
 export interface WorkspaceDirInfo {
   id: string;
@@ -109,5 +65,15 @@ export async function getWorkspaceInfo(
 ): Promise<Result<WorkspaceDirInfo, string>> {
   return promiseResult<WorkspaceDirInfo, string>(
     invoke<WorkspaceDirInfo>("read_dir", { workspaceId: workspace.get("id")! }),
+  );
+}
+
+export async function renameFolder(
+  workspaceId: string,
+  folderId: string,
+  newName: string,
+): Promise<Result<void, WorkspaceError>> {
+  return promiseResult<void, WorkspaceError>(
+    invoke("rename_folder", { workspaceId, folderId, newName }),
   );
 }

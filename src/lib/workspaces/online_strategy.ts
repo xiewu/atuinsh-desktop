@@ -1,9 +1,10 @@
 import Workspace from "@/state/runbooks/workspace";
-import WorkspaceStrategy from "./strategy";
+import WorkspaceStrategy, { DoFolderOp } from "./strategy";
 import Operation, {
   createRunbook,
   createWorkspace,
   renameWorkspace,
+  updateFolderName,
 } from "@/state/runbooks/operation";
 import { Err, None, Ok, Result, Some } from "@binarymuse/ts-stdlib";
 import Runbook from "@/state/runbooks/runbook";
@@ -12,6 +13,7 @@ import * as api from "@/api/api";
 import { useStore } from "@/state/store";
 import track_event from "@/tracking";
 import doWorkspaceFolderOp from "@/state/runbooks/workspace_folder_ops";
+import { WorkspaceError } from "@/rs-bindings/WorkspaceError";
 
 export default class OnlineStrategy implements WorkspaceStrategy {
   async createWorkspace(unsavedWorkspace: Workspace): Promise<Result<Workspace, string>> {
@@ -74,6 +76,26 @@ export default class OnlineStrategy implements WorkspaceStrategy {
     const rb = await Runbook.createUntitled(workspace, true);
     await this.onRunbookCreated(rb, parentFolderId);
     return Ok(rb);
+  }
+
+  async renameFolder(
+    doFolderOp: DoFolderOp,
+    workspaceId: string,
+    folderId: string,
+    newName: string,
+  ): Promise<Result<undefined, string>> {
+    let success = await doFolderOp(
+      (wsf) => wsf.renameFolder(folderId, newName),
+      (changeRef) => {
+        return Some(updateFolderName(workspaceId, folderId, newName, changeRef));
+      },
+    );
+
+    if (!success) {
+      return Err("Failed to rename folder");
+    }
+
+    return Ok(undefined);
   }
 
   private async onRunbookCreated(runbook: Runbook, parentFolderId: string | null): Promise<void> {

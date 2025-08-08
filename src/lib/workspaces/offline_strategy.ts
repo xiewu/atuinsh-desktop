@@ -1,12 +1,13 @@
 import Workspace from "@/state/runbooks/workspace";
-import WorkspaceStrategy from "./strategy";
+import WorkspaceStrategy, { DoFolderOp } from "./strategy";
 import { exists, stat, readDir, readTextFile, remove, writeTextFile } from "@tauri-apps/plugin-fs";
 import { join, resolve } from "@tauri-apps/api/path";
 import { Option, Some, None, Result, Ok, Err } from "@binarymuse/ts-stdlib";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
 import { uuidv7 } from "uuidv7";
 import Runbook from "@/state/runbooks/runbook";
-import { createWorkspace, renameWorkspace } from "./commands";
+import * as commands from "./commands";
+import { WorkspaceError } from "@/rs-bindings/WorkspaceError";
 
 interface WorkspaceFolderError {
   fatal: boolean;
@@ -146,11 +147,16 @@ export default class OfflineStrategy implements WorkspaceStrategy {
       }
     }
 
-    createWorkspace(
+    let result = await commands.createWorkspace(
       unsavedWorkspace.get("folder")!,
       unsavedWorkspace.get("id")!,
       unsavedWorkspace.get("name")!,
     );
+
+    if (result.isErr()) {
+      return Err(result.unwrapErr());
+    }
+
     return Ok(unsavedWorkspace);
   }
 
@@ -160,7 +166,10 @@ export default class OfflineStrategy implements WorkspaceStrategy {
     workspace.set("name", newName);
     await workspace.save();
 
-    renameWorkspace(workspace.get("id")!, newName);
+    let result = await commands.renameWorkspace(workspace.get("id")!, newName);
+    if (result.isErr()) {
+      return Err(result.unwrapErr());
+    }
 
     return Ok(undefined);
   }
@@ -174,6 +183,24 @@ export default class OfflineStrategy implements WorkspaceStrategy {
     parentFolderId: string | null,
   ): Promise<Result<Runbook, string>> {
     return Err("");
+  }
+
+  async renameFolder(
+    _doFolderOp: DoFolderOp,
+    workspaceId: string,
+    folderId: string,
+    newName: string,
+  ): Promise<Result<undefined, string>> {
+    let result = await commands.renameFolder(workspaceId, folderId, newName);
+    if (result.isErr()) {
+      if (result.unwrapErr().type === "FolderRenameError") {
+        return Err(`Failed to rename folder: ${result.unwrapErr().data[2]}`);
+      } else {
+        return Err("Failed to rename folder");
+      }
+    }
+
+    return Ok(undefined);
   }
 }
 

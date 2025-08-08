@@ -2,12 +2,7 @@ import Workspace from "@/state/runbooks/workspace";
 import useWorkspaceFolder from "@/lib/hooks/useWorkspaceFolder";
 import TreeView, { SortBy, TreeRowData } from "./TreeView";
 import { JSX, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import {
-  createFolder,
-  deleteFolder,
-  moveItems,
-  updateFolderName,
-} from "@/state/runbooks/operation";
+import { createFolder, deleteFolder, moveItems } from "@/state/runbooks/operation";
 import { uuidv7 } from "uuidv7";
 import { NodeApi, TreeApi } from "react-arborist";
 import Runbook from "@/state/runbooks/runbook";
@@ -26,15 +21,8 @@ import WorkspaceFolder, { ArboristTree, Folder } from "@/state/runbooks/workspac
 import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
 import { useDrop } from "react-dnd";
 import { actions } from "react-arborist/dist/module/state/dnd-slice";
-import { ChevronDownIcon, ChevronRightIcon, CloudOffIcon } from "lucide-react";
-import {
-  DirEntry,
-  FsEvent,
-  getWorkspaceInfo,
-  watchWorkspace,
-  WorkspaceDirInfo,
-} from "@/lib/workspaces/commands";
-import Logger from "@/lib/logger";
+import { ChevronDownIcon, ChevronRightIcon, CircleAlertIcon, CloudOffIcon } from "lucide-react";
+import { DirEntry } from "@/lib/workspaces/commands";
 import { getWorkspaceStrategy } from "@/lib/workspaces/strategy";
 import { useQuery } from "@tanstack/react-query";
 import { localWorkspaceInfo } from "@/lib/queries/workspaces";
@@ -148,7 +136,7 @@ function transformDirEntriesToArboristTree(
 
       if (!folder) {
         // Create new folder
-        const folderId = `folder-${basePath}/${currentPath}`;
+        const folderId = `${basePath}/${currentPath}`;
         folder = {
           id: folderId,
           name: folderName,
@@ -178,15 +166,14 @@ function transformDirEntriesToArboristTree(
     if (entry.is_dir) {
       // Check if folder already exists
       const existingFolder = findOrCreateFolder(pathParts);
-      if (existingFolder.id === `folder-${entry.path}`) {
+      if (existingFolder.id === entry.path) {
         // This is the same folder we're trying to create, skip
         continue;
       }
 
       // Create folder entry
-      const folderId = `folder-${entry.path}`;
       const folder = {
-        id: folderId,
+        id: entry.path,
         name: entry.name,
         type: "folder" as const,
         children: [],
@@ -248,6 +235,9 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
   });
 
   const { data: workspaceInfo } = useQuery(localWorkspaceInfo(props.workspace.get("id")!));
+  const isError = useMemo(() => {
+    return workspaceInfo.map((info) => info.isErr()).unwrapOr(false);
+  }, [workspaceInfo]);
 
   const [workspaceFolder, doFolderOp] = useWorkspaceFolder(props.workspace.get("id")!);
 
@@ -357,16 +347,23 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
   }
 
   async function handleRenameFolder(folderId: string, newName: string) {
-    doFolderOp(
-      (wsf) => wsf.renameFolder(folderId, newName),
-      (changeRef) => {
-        if (props.workspace.isOnline()) {
-          return Some(updateFolderName(props.workspace.get("id")!, folderId, newName, changeRef));
-        } else {
-          return None;
-        }
-      },
+    const strategy = getWorkspaceStrategy(props.workspace);
+    let result = await strategy.renameFolder(
+      doFolderOp,
+      props.workspace.get("id")!,
+      folderId,
+      newName,
     );
+
+    if (result.isErr()) {
+      new DialogBuilder()
+        .title("Error")
+        .icon("error")
+        .title("Error renaming folder")
+        .message(result.unwrapErr())
+        .action({ label: "OK", value: "ok" })
+        .build();
+    }
   }
 
   async function handleNewFolder(parentId: string | null) {
@@ -616,6 +613,10 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     evt.preventDefault();
     evt.stopPropagation();
 
+    if (isError) {
+      return;
+    }
+
     focusWorkspace();
 
     const menu = await createWorkspaceMenu({
@@ -715,12 +716,14 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
           title={`${props.workspace.get("name")}${
             props.workspace.isOnline() ? "" : " (Offline Workspace)"
           }`}
-          onDoubleClick={() =>
-            dispatchWorkspaceName({
-              type: "start_rename",
-              currentName: props.workspace.get("name")!,
-            })
-          }
+          onDoubleClick={() => {
+            if (!isError) {
+              dispatchWorkspaceName({
+                type: "start_rename",
+                currentName: props.workspace.get("name")!,
+              });
+            }
+          }}
         >
           <span className="shrink whitespace-nowrap text-ellipsis overflow-x-hidden">
             {hiddenWorkspaces[props.workspace.get("id")!] ? (

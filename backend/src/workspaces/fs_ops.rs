@@ -33,6 +33,7 @@ pub enum FsOpsInstruction {
     RenameWorkspace(PathBuf, String, Reply<()>),
     GetDirectoryInformation(PathBuf, Reply<WorkspaceDirInfo>),
     SaveRunbook(PathBuf, Value, Reply<()>),
+    RenameFolder(PathBuf, PathBuf, Reply<()>),
     Shutdown,
 }
 
@@ -144,6 +145,23 @@ impl FsOpsHandle {
         receiver.await.unwrap()
     }
 
+    pub async fn rename_folder(
+        &self,
+        from: impl AsRef<Path>,
+        to: impl AsRef<Path>,
+    ) -> Result<(), FsOpsError> {
+        let (sender, receiver) = oneshot::channel();
+
+        self.tx
+            .send(FsOpsInstruction::RenameFolder(
+                from.as_ref().to_path_buf(),
+                to.as_ref().to_path_buf(),
+                sender,
+            ))
+            .await?;
+        receiver.await.unwrap()
+    }
+
     pub async fn shutdown(&self) -> Result<(), FsOpsError> {
         self.tx.send(FsOpsInstruction::Shutdown).await?;
         Ok(())
@@ -189,6 +207,10 @@ impl FsOps {
                 }
                 FsOpsInstruction::SaveRunbook(path, content, reply_to) => {
                     let result = self.save_runbook(&path, content).await;
+                    let _ = reply_to.send(result);
+                }
+                FsOpsInstruction::RenameFolder(from, to, reply_to) => {
+                    let result = self.rename_folder(&from, &to).await;
                     let _ = reply_to.send(result);
                 }
                 FsOpsInstruction::Shutdown => {
@@ -244,6 +266,15 @@ impl FsOps {
     ) -> Result<(), FsOpsError> {
         let json_text = serde_json::to_string_pretty(&content)?;
         tokio::fs::write(path.as_ref(), json_text).await?;
+        Ok(())
+    }
+
+    async fn rename_folder(
+        &mut self,
+        from: impl AsRef<Path>,
+        to: impl AsRef<Path>,
+    ) -> Result<(), FsOpsError> {
+        tokio::fs::rename(from.as_ref(), to.as_ref()).await?;
         Ok(())
     }
 }

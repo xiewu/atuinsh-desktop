@@ -491,6 +491,7 @@ fn main() {
             commands::workspaces::delete_workspace,
             commands::workspaces::read_dir,
             commands::workspaces::save_runbook,
+            commands::workspaces::rename_folder,
             shared_state::get_shared_state_document,
             shared_state::push_optimistic_update,
             shared_state::update_shared_state_document,

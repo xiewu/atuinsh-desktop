@@ -4,6 +4,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tokio::sync::{
     mpsc::{channel, error::SendError, Receiver, Sender},
     oneshot,
@@ -17,7 +18,9 @@ pub enum FsOpsError {
     #[error("IO Operation failed: {0}")]
     IoError(#[from] std::io::Error),
     #[error("Failed to serialize workspace config: {0}")]
-    SerializeError(#[from] toml::ser::Error),
+    WorkspaceSerializeError(#[from] toml::ser::Error),
+    #[error("Failed to serialize runbook: {0}")]
+    RunbookSerializeError(#[from] serde_json::Error),
     #[error("Failed to deserialize workspace config: {0}")]
     DeserializeError(#[from] toml::de::Error),
 }
@@ -27,6 +30,7 @@ pub type Reply<T> = oneshot::Sender<Result<T, FsOpsError>>;
 pub enum FsOpsInstruction {
     RenameWorkspace(PathBuf, String, Reply<()>),
     GetDirectoryInformation(PathBuf, Reply<WorkspaceDirInfo>),
+    SaveRunbook(PathBuf, Value, Reply<()>),
     Shutdown,
 }
 
@@ -121,6 +125,23 @@ impl FsOpsHandle {
         receiver.await.unwrap()
     }
 
+    pub async fn save_runbook(
+        &self,
+        path: impl AsRef<Path>,
+        content: Value,
+    ) -> Result<(), FsOpsError> {
+        let (sender, receiver) = oneshot::channel();
+
+        self.tx
+            .send(FsOpsInstruction::SaveRunbook(
+                path.as_ref().to_path_buf(),
+                content,
+                sender,
+            ))
+            .await?;
+        receiver.await.unwrap()
+    }
+
     pub async fn shutdown(&self) -> Result<(), FsOpsError> {
         self.tx.send(FsOpsInstruction::Shutdown).await?;
         Ok(())
@@ -163,8 +184,12 @@ impl FsOps {
                     let _ = reply_to.send(info);
                 }
                 FsOpsInstruction::RenameWorkspace(path, name, reply_to) => {
-                    let _ = self.rename_workspace(&path, &name).await;
-                    let _ = reply_to.send(Ok(()));
+                    let result = self.rename_workspace(&path, &name).await;
+                    let _ = reply_to.send(result);
+                }
+                FsOpsInstruction::SaveRunbook(path, content, reply_to) => {
+                    let result = self.save_runbook(&path, content).await;
+                    let _ = reply_to.send(result);
                 }
                 FsOpsInstruction::Shutdown => {
                     break;
@@ -207,6 +232,16 @@ impl FsOps {
         config.workspace.name = name.to_string();
         let contents = toml::to_string(&config)?;
         tokio::fs::write(path.as_ref().join("atuin.toml"), contents).await?;
+        Ok(())
+    }
+
+    async fn save_runbook(
+        &mut self,
+        path: impl AsRef<Path>,
+        content: Value,
+    ) -> Result<(), FsOpsError> {
+        let json_text = serde_json::to_string_pretty(&content)?;
+        tokio::fs::write(path.as_ref(), json_text).await?;
         Ok(())
     }
 }

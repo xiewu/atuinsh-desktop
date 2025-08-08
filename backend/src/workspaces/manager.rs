@@ -12,7 +12,7 @@ use notify_debouncer_full::{
     DebounceEventResult, DebouncedEvent, Debouncer, RecommendedCache,
 };
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::{json, Value};
 use ts_rs::TS;
 
 use crate::{
@@ -74,6 +74,7 @@ impl Workspace {
         &mut self,
         id: &str,
         name: &str,
+        path: impl AsRef<Path>,
         content: &Value,
     ) -> Result<(), WorkspaceError> {
         if let Err(e) = &self.state {
@@ -83,7 +84,14 @@ impl Workspace {
             ));
         }
 
-        match digest_data(&content) {
+        let full_content = json!({
+            "id": id,
+            "name": name,
+            "version": 1,
+            "content": content,
+        });
+
+        match digest_data(&full_content) {
             Ok(digest) => {
                 if let Some(history) = self.histories.get(id) {
                     if history.latest() == Some(&digest) {
@@ -91,12 +99,15 @@ impl Workspace {
                     }
                 }
 
+                self.fs_ops
+                    .save_runbook(&path, full_content)
+                    .await
+                    .map_err(|e| WorkspaceError::RunbookSaveError(id.to_string(), e.to_string()))?;
+
                 self.histories
                     .entry(id.to_string())
                     .or_insert_with(|| HashHistory::new(5))
                     .push(digest);
-
-                todo!(); // actually save
 
                 Ok(())
             }

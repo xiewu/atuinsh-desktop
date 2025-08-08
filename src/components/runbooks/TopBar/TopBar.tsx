@@ -4,9 +4,9 @@ import SharePopover from "./SharePopover";
 import TagSelector from "./TagSelector";
 import ColorAvatar from "@/components/ColorAvatar";
 import { DateTime } from "luxon";
-import { Avatar, AvatarGroup, Button, Tooltip } from "@heroui/react";
+import { addToast, Avatar, AvatarGroup, Button, Tooltip } from "@heroui/react";
 import { RemoteRunbook } from "@/state/models";
-import { BookTextIcon, PencilOffIcon, TrashIcon } from "lucide-react";
+import { BookTextIcon, CopyIcon, PencilOffIcon, TrashIcon } from "lucide-react";
 import { PresenceUserInfo } from "@/lib/phoenix_provider";
 import { useQuery } from "@tanstack/react-query";
 import { workspaceById } from "@/lib/queries/workspaces";
@@ -15,6 +15,8 @@ import BlockBus from "@/lib/workflow/block_bus";
 import { invoke } from "@tauri-apps/api/core";
 import track_event from "@/tracking";
 import PlayButton from "@/lib/blocks/common/PlayButton";
+import AtuinEnv from "@/atuin_env";
+import { open } from "@tauri-apps/plugin-shell";
 
 type TopbarProps = {
   runbook: Runbook;
@@ -33,6 +35,11 @@ type TopbarProps = {
   onShareToHub: () => void;
   onDeleteFromHub: () => void;
 };
+
+function openHubRunbook(e: React.MouseEvent<HTMLAnchorElement>) {
+  e.preventDefault();
+  open(e.currentTarget.href);
+}
 
 export default function Topbar(props: TopbarProps) {
   let runbook = props.runbook;
@@ -94,7 +101,33 @@ export default function Topbar(props: TopbarProps) {
           )}
           {!remoteRunbook && <BookTextIcon size={24} className="mt-2 mr-2 ml-1 min-w-[26px]" />}
           <div className="flex-col truncate shrink">
-            <div className="hidden md:block mb-[-1px] whitespace-nowrap">{name}</div>
+            <div className="hidden md:flex mb-[-1px] whitespace-nowrap md:flex-row items-center">
+              {remoteRunbook ? (
+                <a href={AtuinEnv.url(remoteRunbook.nwo)} onClick={openHubRunbook}>
+                  {name}
+                </a>
+              ) : (
+                name
+              )}
+              {remoteRunbook && (
+                <Tooltip content="Copy runbook URL" placement="bottom" showArrow>
+                  <CopyIcon
+                    size={16}
+                    className="ml-2 cursor-pointer"
+                    onClick={() => {
+                      navigator.clipboard.writeText(AtuinEnv.url(remoteRunbook.nwo));
+                      addToast({
+                        title: "Runbook URL copied to clipboard",
+                        color: "success",
+                        radius: "sm",
+                        timeout: 2000,
+                        shouldShowTimeoutProgress: false,
+                      });
+                    }}
+                  />
+                </Tooltip>
+              )}
+            </div>
             <div className="hidden md:block text-gray-400 text-xs italic whitespace-nowrap">
               Updated <RelativeTime time={DateTime.fromJSDate(runbook.updated)} />
             </div>

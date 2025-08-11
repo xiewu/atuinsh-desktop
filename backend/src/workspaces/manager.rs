@@ -28,22 +28,26 @@ use crate::{
 #[serde(tag = "type", content = "data")]
 #[ts(export, tag = "type", content = "data")]
 pub enum WorkspaceError {
-    #[error("Failed to process workspace")]
+    #[error("Failed to process workspace at {0}: {1}")]
     WorkspaceReadError(PathBuf, String),
-    #[error("Failed to create workspace")]
+    #[error("Failed to create workspace {0}: {1}")]
     WorkspaceCreateError(String, String),
-    #[error("Workspace not watched")]
+    #[error("Workspace {0} not watched")]
     WorkspaceNotWatched(String),
-    #[error("Workspace already watched")]
+    #[error("Workspace {0} already watched")]
     WorkspaceAlreadyWatched(String),
-    #[error("Failed to save runbook")]
+    #[error("Failed to save runbook {0}: {1}")]
     RunbookSaveError(String, String),
-    #[error("Failed to rename workspace")]
+    #[error("Failed to rename workspace {0}: {1}")]
     WorkspaceRenameError(String, String),
-    #[error("Failed to watch workspace")]
+    #[error("Failed to watch workspace {0}: {1}")]
     WatchError(String, String),
-    #[error("Failed to rename folder")]
-    FolderRenameError(String, String, String),
+    #[error("Failed to rename folder {folder_id}: {message}")]
+    FolderRenameError {
+        workspace_id: String,
+        folder_id: String,
+        message: String,
+    },
 }
 
 pub trait OnEvent: Send + Sync + Fn(WorkspaceEvent) {}
@@ -81,18 +85,18 @@ impl Workspace {
         if let Some(parent) = from.parent() {
             let to = parent.join(new_name);
             self.fs_ops.rename_folder(&from, &to).await.map_err(|e| {
-                WorkspaceError::FolderRenameError(
-                    self.id.clone(),
-                    folder_id.to_string(),
-                    e.to_string(),
-                )
+                WorkspaceError::FolderRenameError {
+                    workspace_id: self.id.clone(),
+                    folder_id: folder_id.to_string(),
+                    message: e.to_string(),
+                }
             })
         } else {
-            Err(WorkspaceError::FolderRenameError(
-                self.id.clone(),
-                folder_id.to_string(),
-                "Folder has no parent".to_string(),
-            ))
+            Err(WorkspaceError::FolderRenameError {
+                workspace_id: self.id.clone(),
+                folder_id: folder_id.to_string(),
+                message: "Folder has no parent".to_string(),
+            })
         }
     }
 

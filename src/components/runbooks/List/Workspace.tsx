@@ -355,12 +355,21 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
       newName,
     );
 
+    let message;
+    if (result.isErr()) {
+      const err = result.unwrapErr();
+      if (err.type === "FolderRenameError") {
+        message = err.data.message;
+      }
+    } else {
+      message = "An unknown error occurred while renaming the folder.";
+    }
+
     if (result.isErr()) {
       new DialogBuilder()
-        .title("Error")
-        .icon("error")
         .title("Error renaming folder")
-        .message(result.unwrapErr())
+        .icon("error")
+        .message(message)
         .action({ label: "OK", value: "ok" })
         .build();
     }

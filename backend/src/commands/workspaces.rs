@@ -129,13 +129,21 @@ pub async fn rename_folder(
 ) -> Result<(), WorkspaceError> {
     let mut manager = state.workspaces.lock().await;
     let manager = manager.as_mut().expect("Workspace not found in state");
-
-    println!(
-        "rename_folder: {:?}, {:?}, {:?}",
-        workspace_id, folder_id, new_name
-    );
-
     manager
         .rename_folder(&workspace_id, &folder_id, &new_name)
+        .await
+}
+
+#[tauri::command]
+pub async fn move_items(
+    workspace_id: String,
+    item_ids: Vec<String>,
+    new_parent: Option<String>,
+    state: State<'_, AtuinState>,
+) -> Result<(), WorkspaceError> {
+    let mut manager = state.workspaces.lock().await;
+    let manager = manager.as_mut().expect("Workspace not found in state");
+    manager
+        .move_items(&workspace_id, &item_ids, new_parent.as_deref())
         .await
 }

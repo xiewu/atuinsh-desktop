@@ -304,31 +304,74 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     };
   } {
     const node = treeRef.current!.get(folderId);
-    const descendants = workspaceFolder.getDescendants(folderId);
-    const descendantsCount = descendants.reduce(
-      (acc, child) => {
-        if (child.getData().unwrap().type === "folder") {
-          acc.folders++;
-        } else {
-          acc.runbooks++;
+
+    if (props.workspace.isOnline()) {
+      const descendants = workspaceFolder.getDescendants(folderId);
+      const descendantsCount = descendants.reduce(
+        (acc, child) => {
+          if (child.getData().unwrap().type === "folder") {
+            acc.folders++;
+          } else {
+            acc.runbooks++;
+          }
+
+          return acc;
+        },
+        { folders: 0, runbooks: 0 },
+      );
+
+      return {
+        node: node,
+        descendents: {
+          nodes: descendants
+            .map((child) => treeRef.current!.get(child.id() as string))
+            .filter((item) => !!item),
+          folders: descendantsCount.folders,
+          runbooks: descendantsCount.runbooks,
+          total: descendantsCount.folders + descendantsCount.runbooks,
+        },
+      };
+    } else {
+      const getDescendentInfo = (node: NodeApi<TreeRowData> | null) => {
+        if (!node) {
+          return {
+            nodes: [],
+            folders: 0,
+            runbooks: 0,
+            total: 0,
+          };
         }
 
-        return acc;
-      },
-      { folders: 0, runbooks: 0 },
-    );
+        const info = {
+          nodes: [] as NodeApi<TreeRowData>[],
+          folders: 0,
+          runbooks: 0,
+          total: 0,
+        };
 
-    return {
-      node: node,
-      descendents: {
-        nodes: descendants
-          .map((child) => treeRef.current!.get(child.id() as string))
-          .filter((item) => !!item),
-        folders: descendantsCount.folders,
-        runbooks: descendantsCount.runbooks,
-        total: descendantsCount.folders + descendantsCount.runbooks,
-      },
-    };
+        for (const child of node.children || []) {
+          info.nodes.push(child);
+          if (child.data.type === "folder") {
+            info.folders++;
+            const childInfo = getDescendentInfo(child);
+            info.nodes.push(...childInfo.nodes);
+            info.folders += childInfo.folders;
+            info.runbooks += childInfo.runbooks;
+            info.total += childInfo.total;
+          } else {
+            info.runbooks++;
+          }
+          info.total++;
+        }
+
+        return info;
+      };
+
+      return {
+        node: node,
+        descendents: getDescendentInfo(node),
+      };
+    }
   }
 
   // **** HANDLERS *****
@@ -423,7 +466,11 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     );
 
     if (descendents.total > 0) {
-      const confirm = await confirmDeleteFolder({ node, descendents }, snippet);
+      const confirm = await confirmDeleteFolder(
+        !props.workspace.isOnline(),
+        { node, descendents },
+        snippet,
+      );
       if (confirm === "yes") {
         handleDeleteFolder(folderId);
       }
@@ -468,16 +515,22 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     index: number,
   ) {
     if (sourceWorkspaceId === props.workspace.get("id")!) {
-      doFolderOp(
-        (wsf) => wsf.moveItems(ids, parentId, index),
-        (changeRef) => {
-          if (props.workspace.isOnline()) {
-            return Some(moveItems(props.workspace.get("id")!, ids, parentId, index, changeRef));
-          } else {
-            return None;
-          }
-        },
-      );
+      const strategy = getWorkspaceStrategy(props.workspace);
+      const result = await strategy.moveItems(doFolderOp, ids, parentId, index);
+
+      if (result.isErr()) {
+        const err = result.unwrapErr();
+        let message = "An unknown error occurred while moving the items.";
+        if ("message" in err.data) {
+          message = err.data.message;
+        }
+
+        new DialogBuilder()
+          .title("Error moving items")
+          .message(message)
+          .action({ label: "OK", value: "ok" })
+          .build();
+      }
     } else {
       props.onStartMoveItemsToWorkspace(
         ids,
@@ -669,7 +722,11 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
         );
 
         if (descendents.total > 0) {
-          const confirm = await confirmDeleteFolder({ node, descendents }, snippet);
+          const confirm = await confirmDeleteFolder(
+            !props.workspace.isOnline(),
+            { node, descendents },
+            snippet,
+          );
           if (confirm === "yes") {
             handleDeleteWorkspace();
           }
@@ -842,6 +899,7 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
 }
 
 async function confirmDeleteFolder(
+  isFsWorkspace: boolean,
   info: {
     node: NodeApi<TreeRowData> | null;
     descendents: {
@@ -885,6 +943,12 @@ async function confirmDeleteFolder(
     <div>
       <p>Are you sure you want to delete {idSnippet}?</p>
       {countSnippet && <p>This will delete {countSnippet}.</p>}
+      {isFsWorkspace && (
+        <p className="mt-2">
+          <span className="text-warning">Note:</span> This will delete the files from your
+          filesystem.
+        </p>
+      )}
     </div>
   );
 

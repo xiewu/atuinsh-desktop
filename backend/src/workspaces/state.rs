@@ -84,6 +84,49 @@ impl WorkspaceState {
         })
     }
 
+    /// Calculates the top-level paths from a list of item IDs.
+    pub fn calculate_toplevel_paths(&self, item_ids: &[String]) -> Vec<PathBuf> {
+        let mut result = Vec::new();
+
+        for item_id in item_ids {
+            // Check if this item is a child of any other item in the list
+            let is_child = item_ids.iter().any(|other_id| {
+                if other_id == item_id {
+                    return false;
+                }
+
+                if let Some(ref current_path) = self.get_path_for_item(item_id) {
+                    if let Some(ref other_path) = self.get_path_for_item(other_id) {
+                        // Check if current_path is a child of other_path
+                        return current_path.starts_with(other_path) && current_path != other_path;
+                    }
+                }
+
+                false
+            });
+
+            // Only add if it's not a child of any other item
+            if !is_child {
+                result.push(self.get_path_for_item(item_id).unwrap());
+            }
+        }
+
+        result
+    }
+
+    fn get_path_for_item(&self, item_id: &str) -> Option<PathBuf> {
+        if let Some(runbook) = self.runbooks.get(item_id) {
+            return Some(runbook.path.clone());
+        }
+
+        let path_buf = PathBuf::from(item_id);
+        if self.entries.iter().any(|entry| entry.path == path_buf) {
+            Some(path_buf)
+        } else {
+            None
+        }
+    }
+
     // TODO
     // pub fn update_runbook(&mut self, runbook: &WorkspaceRunbook) {
     //     self.runbooks

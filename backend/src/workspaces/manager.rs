@@ -197,6 +197,16 @@ impl WorkspaceManager {
         workspace.rename_folder(folder_id, new_name).await
     }
 
+    pub async fn move_items(
+        &mut self,
+        workspace_id: &str,
+        item_ids: &[String],
+        new_parent: Option<&str>,
+    ) -> Result<(), WorkspaceError> {
+        let workspace = self.get_workspace(workspace_id)?;
+        workspace.move_items(item_ids, new_parent).await
+    }
+
     pub async fn get_dir_info(
         &mut self,
         workspace_id: &str,
@@ -302,6 +312,6 @@ fn is_relevant_file(path: &PathBuf) -> bool {
             .unwrap_or(false)
         || path
             .extension()
-            .map(|f| f.to_string_lossy().eq_ignore_ascii_case(".atrb"))
+            .map(|f| f.to_string_lossy().eq_ignore_ascii_case("atrb"))
             .unwrap_or(false)
 }

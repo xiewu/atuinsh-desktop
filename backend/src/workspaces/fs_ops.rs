@@ -37,6 +37,7 @@ pub enum FsOpsInstruction {
     SaveRunbook(PathBuf, Value, Reply<()>),
     CreateFolder(PathBuf, PathBuf, Reply<PathBuf>),
     RenameFolder(PathBuf, PathBuf, Reply<()>),
+    MoveItems(Vec<PathBuf>, PathBuf, Reply<()>),
     Shutdown,
 }
 
@@ -182,6 +183,23 @@ impl FsOpsHandle {
         receiver.await.unwrap()
     }
 
+    pub async fn move_items(
+        &self,
+        items: &[PathBuf],
+        new_parent: &PathBuf,
+    ) -> Result<(), FsOpsError> {
+        let (sender, receiver) = oneshot::channel();
+
+        self.tx
+            .send(FsOpsInstruction::MoveItems(
+                items.to_vec(),
+                new_parent.to_path_buf(),
+                sender,
+            ))
+            .await?;
+        receiver.await.unwrap()
+    }
+
     pub async fn shutdown(&self) -> Result<(), FsOpsError> {
         self.tx.send(FsOpsInstruction::Shutdown).await?;
         Ok(())
@@ -235,6 +253,10 @@ impl FsOps {
                 }
                 FsOpsInstruction::RenameFolder(from, to, reply_to) => {
                     let result = self.rename_folder(&from, &to).await;
+                    let _ = reply_to.send(result);
+                }
+                FsOpsInstruction::MoveItems(items, new_parent, reply_to) => {
+                    let result = self.move_items(&items, &new_parent).await;
                     let _ = reply_to.send(result);
                 }
                 FsOpsInstruction::Shutdown => {
@@ -327,6 +349,17 @@ impl FsOps {
         to: impl AsRef<Path>,
     ) -> Result<(), FsOpsError> {
         tokio::fs::rename(from.as_ref(), to.as_ref()).await?;
+        Ok(())
+    }
+
+    async fn move_items(
+        &mut self,
+        items: &[PathBuf],
+        new_parent: &PathBuf,
+    ) -> Result<(), FsOpsError> {
+        for item in items {
+            tokio::fs::rename(item, new_parent.join(item.file_name().unwrap())).await?;
+        }
         Ok(())
     }
 }

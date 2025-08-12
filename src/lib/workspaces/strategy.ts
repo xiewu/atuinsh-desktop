@@ -54,6 +54,12 @@ export default interface WorkspaceStrategy {
     folderId: string,
     newName: string,
   ): Promise<Result<undefined, WorkspaceError>>;
+  moveItems(
+    doFolderOp: DoFolderOp,
+    ids: string[],
+    parentId: string | null,
+    index: number,
+  ): Promise<Result<undefined, WorkspaceError>>;
 }
 
 export function getWorkspaceStrategy(workspace: Workspace): WorkspaceStrategy {

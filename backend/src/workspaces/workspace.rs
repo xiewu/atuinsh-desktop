@@ -56,6 +56,13 @@ pub enum WorkspaceError {
         folder_id: String,
         message: String,
     },
+    #[error("Failed to move items: {message}")]
+    ItemMoveError {
+        workspace_id: String,
+        item_ids: Vec<String>,
+        new_parent: PathBuf,
+        message: String,
+    },
 
     #[error("{message}")]
     GenericWorkspaceError { message: String },
@@ -119,6 +126,40 @@ impl Workspace {
                 message: "Folder has no parent".to_string(),
             })
         }
+    }
+
+    pub async fn move_items(
+        &mut self,
+        item_ids: &[String],
+        new_parent: Option<&str>,
+    ) -> Result<(), WorkspaceError> {
+        if let Err(e) = &self.state {
+            return Err(WorkspaceError::GenericWorkspaceError {
+                message: format!("Bad workspace state: {:?}", e),
+            });
+        }
+
+        let new_parent = new_parent
+            .map(|p| PathBuf::from(p))
+            .unwrap_or(self.path.clone());
+
+        let top_items = self
+            .state
+            .as_ref()
+            .unwrap()
+            .calculate_toplevel_paths(item_ids);
+
+        self.fs_ops
+            .move_items(&top_items, &new_parent)
+            .await
+            .map_err(|e| WorkspaceError::ItemMoveError {
+                workspace_id: self.id.clone(),
+                item_ids: item_ids.to_vec(),
+                new_parent: new_parent,
+                message: e.to_string(),
+            })?;
+
+        Ok(())
     }
 
     pub async fn save_runbook(

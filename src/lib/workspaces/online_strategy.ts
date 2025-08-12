@@ -4,6 +4,7 @@ import Operation, {
   createFolder,
   createRunbook,
   createWorkspace,
+  moveItems,
   renameWorkspace,
   updateFolderName,
 } from "@/state/runbooks/operation";
@@ -165,6 +166,22 @@ export default class OnlineStrategy implements WorkspaceStrategy {
         },
       } as WorkspaceError);
     }
+
+    return Ok(undefined);
+  }
+
+  async moveItems(
+    doFolderOp: DoFolderOp,
+    ids: string[],
+    parentId: string | null,
+    index: number,
+  ): Promise<Result<undefined, WorkspaceError>> {
+    doFolderOp(
+      (wsf) => wsf.moveItems(ids, parentId, index),
+      (changeRef) => {
+        return Some(moveItems(this.workspace.get("id")!, ids, parentId, index, changeRef));
+      },
+    );
 
     return Ok(undefined);
   }

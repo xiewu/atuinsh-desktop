@@ -493,6 +493,7 @@ fn main() {
             commands::workspaces::save_runbook,
             commands::workspaces::create_folder,
             commands::workspaces::rename_folder,
+            commands::workspaces::move_items,
             shared_state::get_shared_state_document,
             shared_state::push_optimistic_update,
             shared_state::update_shared_state_document,

@@ -278,6 +278,15 @@ export default class OfflineStrategy implements WorkspaceStrategy {
 
     return Ok(undefined);
   }
+
+  async moveItems(
+    _doFolderOp: DoFolderOp,
+    ids: string[],
+    parentId: string | null,
+    _index: number,
+  ): Promise<Result<undefined, WorkspaceError>> {
+    return commands.moveItems(this.workspace.get("id")!, ids, parentId);
+  }
 }
 
 function exhaustiveCheck(value: never): never {

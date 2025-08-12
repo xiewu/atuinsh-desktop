@@ -376,29 +376,38 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
   }
 
   async function handleNewFolder(parentId: string | null) {
-    const id = uuidv7();
-    await doFolderOp(
-      (wsf) => wsf.createFolder(id, "New Folder", parentId),
-      (changeRef) => {
-        if (props.workspace.isOnline()) {
-          return Some(
-            createFolder(props.workspace.get("id")!, parentId, id, "New Folder", changeRef),
-          );
-        } else {
-          return None;
-        }
-      },
-    );
+    const strategy = getWorkspaceStrategy(props.workspace);
+    let result = await strategy.createFolder(doFolderOp, parentId, "New Folder");
+    console.log("handleNewFolder", result);
 
+    if (result.isErr()) {
+      const err = result.unwrapErr();
+      let message = "An unknown error occurred while creating the folder.";
+      if ("message" in err.data) {
+        message = err.data.message;
+      }
+
+      new DialogBuilder()
+        .title("Error creating folder")
+        .message(message)
+        .action({ label: "OK", value: "ok" })
+        .build();
+      return;
+    }
+
+    const id = result.unwrap();
     let node: NodeApi<TreeRowData> | null = null;
-    while (!node) {
+    const start = Date.now();
+    while (!node && Date.now() - start < 5000) {
       node = treeRef.current!.get(id);
       if (!node) {
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
     }
 
-    node.edit();
+    if (node) {
+      node.edit();
+    }
   }
 
   /**
@@ -716,28 +725,28 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     switch (error.type) {
       case "WorkspaceReadError":
         errorType = "Workspace Read Error";
-        errorText = `The workspace at ${error.data[0]} could not be read: ${error.data[1]}`;
+        errorText = `The workspace at ${error.data.path} could not be read: ${error.data.message}`;
         helpText =
           "Ensure that atuin.toml exists at the root of the workspace directory and that the directory is readable.";
         break;
       case "WorkspaceNotWatched":
         errorType = "Workspace Not Watched";
-        errorText = `The workspace is not being watched: ${error.data}`;
+        errorText = `The workspace is not being watched: ${error.data.workspace_id}`;
         break;
       case "WorkspaceAlreadyWatched": {
         errorType = "Workspace Already Watched";
-        errorText = `The workspace is already being watched: ${error.data}`;
+        errorText = `The workspace is already being watched: ${error.data.workspace_id}`;
         break;
       }
       case "WatchError":
         errorType = "Watch Error";
-        errorText = `The workspace could not be watched: ${error.data[1]}`;
+        errorText = `The workspace could not be watched: ${error.data.message}`;
         helpText =
           "Ensure that the workspace directory and all its subdirectories and files are readable.";
         break;
       default:
         errorType = "Unknown Error";
-        errorText = `An unknown error occurred: ${error.data}`;
+        errorText = `An unknown error occurred: ${error.data.message}`;
     }
 
     errorElem = (

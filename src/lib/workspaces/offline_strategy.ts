@@ -88,7 +88,9 @@ async function checkWorkspaceFolder(folder: string): Promise<Option<WorkspaceFol
 }
 
 export default class OfflineStrategy implements WorkspaceStrategy {
-  async createWorkspace(unsavedWorkspace: Workspace): Promise<Result<Workspace, string>> {
+  constructor(private workspace: Workspace) {}
+
+  async createWorkspace(unsavedWorkspace: Workspace): Promise<Result<Workspace, WorkspaceError>> {
     if (!unsavedWorkspace.get("folder")) {
       throw new Error("You must select a folder to store your workspace locally.");
     }
@@ -108,7 +110,13 @@ export default class OfflineStrategy implements WorkspaceStrategy {
             .action({ label: "OK", value: "ok", variant: "flat", color: "primary" })
             .build();
           if (notEmptyAnswer === "cancel") {
-            return Err("Workspace creation cancelled.");
+            return Err({
+              type: "WorkspaceCreateError",
+              data: {
+                workspace_id: unsavedWorkspace.get("id")!,
+                message: "Workspace creation cancelled.",
+              },
+            } as WorkspaceError);
           }
           break;
         case "is_subdir_of_workspace":
@@ -123,15 +131,39 @@ export default class OfflineStrategy implements WorkspaceStrategy {
             .action({ label: "OK", value: "ok", variant: "flat", color: "primary" })
             .build();
           if (parentAnswer === "cancel") {
-            return Err("Workspace creation cancelled.");
+            return Err({
+              type: "WorkspaceCreateError",
+              data: {
+                workspace_id: unsavedWorkspace.get("id")!,
+                message: "Workspace creation cancelled.",
+              },
+            } as WorkspaceError);
           }
           break;
         case "not_directory":
-          return Err("Selected path is not a directory.");
+          return Err({
+            type: "WorkspaceCreateError",
+            data: {
+              workspace_id: unsavedWorkspace.get("id")!,
+              message: "Selected path is not a directory.",
+            },
+          } as WorkspaceError);
         case "not_exist":
-          return Err("Selected path does not exist.");
+          return Err({
+            type: "WorkspaceCreateError",
+            data: {
+              workspace_id: unsavedWorkspace.get("id")!,
+              message: "Selected path does not exist.",
+            },
+          } as WorkspaceError);
         case "not_writable":
-          return Err("Selected path is not writable.");
+          return Err({
+            type: "WorkspaceCreateError",
+            data: {
+              workspace_id: unsavedWorkspace.get("id")!,
+              message: "Selected path is not writable.",
+            },
+          } as WorkspaceError);
         default:
           exhaustiveCheck(type);
       }
@@ -141,9 +173,21 @@ export default class OfflineStrategy implements WorkspaceStrategy {
       await unsavedWorkspace.save();
     } catch (err) {
       if (err instanceof Error) {
-        return Err(err.message);
+        return Err({
+          type: "WorkspaceCreateError",
+          data: {
+            workspace_id: unsavedWorkspace.get("id")!,
+            message: err.message,
+          },
+        } as WorkspaceError);
       } else {
-        return Err("An unknown error occurred while saving the workspace.");
+        return Err({
+          type: "WorkspaceCreateError",
+          data: {
+            workspace_id: unsavedWorkspace.get("id")!,
+            message: "An unknown error occurred while saving the workspace.",
+          },
+        } as WorkspaceError);
       }
     }
 
@@ -160,7 +204,10 @@ export default class OfflineStrategy implements WorkspaceStrategy {
     return Ok(unsavedWorkspace);
   }
 
-  async renameWorkspace(workspace: Workspace, newName: string): Promise<Result<undefined, string>> {
+  async renameWorkspace(
+    workspace: Workspace,
+    newName: string,
+  ): Promise<Result<undefined, WorkspaceError>> {
     // Set the workspace name immediately as an "optimistic update."
     // TODO[mkt]: If a FS event comes through before we can flush to disk, the old name may briefly reappear.
     workspace.set("name", newName);
@@ -181,8 +228,22 @@ export default class OfflineStrategy implements WorkspaceStrategy {
   async createRunbook(
     workspaceId: string,
     parentFolderId: string | null,
-  ): Promise<Result<Runbook, string>> {
-    return Err("");
+  ): Promise<Result<Runbook, WorkspaceError>> {
+    return Err({
+      type: "WorkspaceReadError",
+      data: {
+        path: workspaceId,
+        message: "Workspace not found",
+      },
+    } as WorkspaceError);
+  }
+
+  async createFolder(
+    _doFolderOp: DoFolderOp,
+    parentId: string | null,
+    name: string,
+  ): Promise<Result<string, WorkspaceError>> {
+    return commands.createFolder(this.workspace.get("id")!, parentId, name);
   }
 
   async renameFolder(
@@ -190,13 +251,28 @@ export default class OfflineStrategy implements WorkspaceStrategy {
     workspaceId: string,
     folderId: string,
     newName: string,
-  ): Promise<Result<undefined, string>> {
+  ): Promise<Result<undefined, WorkspaceError>> {
     let result = await commands.renameFolder(workspaceId, folderId, newName);
     if (result.isErr()) {
-      if (result.unwrapErr().type === "FolderRenameError") {
-        return Err(`Failed to rename folder: ${result.unwrapErr().data[2]}`);
+      let err = result.unwrapErr();
+      if (err.type === "FolderRenameError") {
+        return Err({
+          type: "FolderRenameError",
+          data: {
+            workspace_id: workspaceId,
+            folder_id: folderId,
+            message: `Failed to rename folder: ${err.data.message}`,
+          },
+        } as WorkspaceError);
       } else {
-        return Err("Failed to rename folder");
+        return Err({
+          type: "FolderRenameError",
+          data: {
+            workspace_id: workspaceId,
+            folder_id: folderId,
+            message: "Failed to rename folder",
+          },
+        } as WorkspaceError);
       }
     }
 

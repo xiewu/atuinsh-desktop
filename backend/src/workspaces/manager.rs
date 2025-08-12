@@ -5,161 +5,29 @@ use std::{
     time::Duration,
 };
 
-use json_digest::digest_data;
 use notify_debouncer_full::{
     new_debouncer,
-    notify::{EventKind, RecommendedWatcher, RecursiveMode},
-    DebounceEventResult, DebouncedEvent, Debouncer, RecommendedCache,
+    notify::{EventKind, RecursiveMode},
+    DebounceEventResult, DebouncedEvent,
 };
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::Value;
 use ts_rs::TS;
 
 use crate::{
     run_async_command,
     workspaces::{
         fs_ops::{FsOps, FsOpsHandle, WorkspaceDirInfo},
-        hash_history::HashHistory,
         state::WorkspaceState,
+        workspace::{Workspace, WorkspaceError},
     },
 };
-
-#[derive(thiserror::Error, TS, Debug, Clone, Serialize)]
-#[serde(tag = "type", content = "data")]
-#[ts(export, tag = "type", content = "data")]
-pub enum WorkspaceError {
-    #[error("Failed to process workspace at {0}: {1}")]
-    WorkspaceReadError(PathBuf, String),
-    #[error("Failed to create workspace {0}: {1}")]
-    WorkspaceCreateError(String, String),
-    #[error("Workspace {0} not watched")]
-    WorkspaceNotWatched(String),
-    #[error("Workspace {0} already watched")]
-    WorkspaceAlreadyWatched(String),
-    #[error("Failed to save runbook {0}: {1}")]
-    RunbookSaveError(String, String),
-    #[error("Failed to rename workspace {0}: {1}")]
-    WorkspaceRenameError(String, String),
-    #[error("Failed to watch workspace {0}: {1}")]
-    WatchError(String, String),
-    #[error("Failed to rename folder {folder_id}: {message}")]
-    FolderRenameError {
-        workspace_id: String,
-        folder_id: String,
-        message: String,
-    },
-}
 
 pub trait OnEvent: Send + Sync + Fn(WorkspaceEvent) {}
 impl<F: Send + Sync + Fn(WorkspaceEvent)> OnEvent for F {}
 
 pub struct WorkspaceManager {
     workspaces: HashMap<String, Workspace>,
-}
-
-pub struct Workspace {
-    id: String,
-    state: Result<WorkspaceState, WorkspaceError>,
-    histories: HashMap<String, HashHistory>,
-    path: PathBuf,
-    _debouncer: Debouncer<RecommendedWatcher, RecommendedCache>,
-    fs_ops: FsOpsHandle,
-    on_event: Arc<dyn OnEvent>,
-}
-
-impl Workspace {
-    pub async fn rename(&mut self, name: &str) -> Result<(), WorkspaceError> {
-        let path = self.path.clone();
-        self.fs_ops
-            .rename_workspace(path, name)
-            .await
-            .map_err(|e| WorkspaceError::WorkspaceRenameError(self.id.clone(), e.to_string()))
-    }
-
-    pub async fn rename_folder(
-        &mut self,
-        folder_id: &str,
-        new_name: &str,
-    ) -> Result<(), WorkspaceError> {
-        let from = PathBuf::from(folder_id);
-        if let Some(parent) = from.parent() {
-            let to = parent.join(new_name);
-            self.fs_ops.rename_folder(&from, &to).await.map_err(|e| {
-                WorkspaceError::FolderRenameError {
-                    workspace_id: self.id.clone(),
-                    folder_id: folder_id.to_string(),
-                    message: e.to_string(),
-                }
-            })
-        } else {
-            Err(WorkspaceError::FolderRenameError {
-                workspace_id: self.id.clone(),
-                folder_id: folder_id.to_string(),
-                message: "Folder has no parent".to_string(),
-            })
-        }
-    }
-
-    pub async fn save_runbook(
-        &mut self,
-        id: &str,
-        name: &str,
-        path: impl AsRef<Path>,
-        content: &Value,
-    ) -> Result<(), WorkspaceError> {
-        if let Err(e) = &self.state {
-            return Err(WorkspaceError::RunbookSaveError(
-                id.to_string(),
-                format!("Bad workspace state: {:?}", e),
-            ));
-        }
-
-        let full_content = json!({
-            "id": id,
-            "name": name,
-            "version": 1,
-            "content": content,
-        });
-
-        match digest_data(&full_content) {
-            Ok(digest) => {
-                if let Some(history) = self.histories.get(id) {
-                    if history.latest() == Some(&digest) {
-                        return Ok(());
-                    }
-                }
-
-                self.fs_ops
-                    .save_runbook(&path, full_content)
-                    .await
-                    .map_err(|e| WorkspaceError::RunbookSaveError(id.to_string(), e.to_string()))?;
-
-                self.histories
-                    .entry(id.to_string())
-                    .or_insert_with(|| HashHistory::new(5))
-                    .push(digest);
-
-                Ok(())
-            }
-            Err(e) => Err(WorkspaceError::RunbookSaveError(
-                id.to_string(),
-                e.to_string(),
-            )),
-        }
-    }
-
-    pub async fn get_dir_info(&self) -> Result<WorkspaceDirInfo, WorkspaceError> {
-        self.fs_ops
-            .get_dir_info(self.path.clone())
-            .await
-            .map_err(|e| WorkspaceError::WorkspaceReadError(self.path.clone(), e.to_string()))
-    }
-
-    async fn rescan(&self) -> Result<WorkspaceState, WorkspaceError> {
-        WorkspaceState::new(&self.id, &self.path)
-            .await
-            .map_err(|e| WorkspaceError::WorkspaceReadError(self.path.clone(), e.to_string()))
-    }
 }
 
 #[derive(TS, Debug, Serialize)]
@@ -202,7 +70,9 @@ impl WorkspaceManager {
         manager_clone: Arc<tokio::sync::Mutex<Option<WorkspaceManager>>>,
     ) -> Result<(), WorkspaceError> {
         if self.workspaces.contains_key(id) {
-            return Err(WorkspaceError::WorkspaceAlreadyWatched(id.to_string()));
+            return Err(WorkspaceError::WorkspaceAlreadyWatched {
+                workspace_id: id.to_string(),
+            });
         }
 
         let on_event = Arc::new(on_event);
@@ -230,18 +100,28 @@ impl WorkspaceManager {
                 });
             },
         )
-        .map_err(|e| WorkspaceError::WatchError(id.to_string(), e.to_string()))?;
+        .map_err(|e| WorkspaceError::WatchError {
+            workspace_id: id.to_string(),
+            message: e.to_string(),
+        })?;
 
         let fs_ops = FsOpsHandle::new();
-        let state = WorkspaceState::new(&id, &path).await.map_err(|e| {
-            WorkspaceError::WorkspaceReadError(path.as_ref().to_path_buf(), e.to_string())
-        });
+        let state =
+            WorkspaceState::new(&id, &path)
+                .await
+                .map_err(|e| WorkspaceError::WorkspaceReadError {
+                    path: path.as_ref().to_path_buf(),
+                    message: e.to_string(),
+                });
 
         on_event(state.clone().into());
 
         debouncer
             .watch(&path, RecursiveMode::Recursive)
-            .map_err(|e| WorkspaceError::WatchError(id.to_string(), e.to_string()))?;
+            .map_err(|e| WorkspaceError::WatchError {
+                workspace_id: id.to_string(),
+                message: e.to_string(),
+            })?;
 
         let ws = Workspace {
             id: id.to_string(),
@@ -270,9 +150,12 @@ impl WorkspaceManager {
         id: &str,
         name: &str,
     ) -> Result<(), WorkspaceError> {
-        FsOps::create_workspace(path, id, name)
-            .await
-            .map_err(|e| WorkspaceError::WorkspaceCreateError(id.to_string(), e.to_string()))
+        FsOps::create_workspace(path, id, name).await.map_err(|e| {
+            WorkspaceError::WorkspaceCreateError {
+                workspace_id: id.to_string(),
+                message: e.to_string(),
+            }
+        })
     }
 
     pub async fn rename_workspace(&mut self, id: &str, name: &str) -> Result<(), WorkspaceError> {
@@ -290,6 +173,18 @@ impl WorkspaceManager {
     ) -> Result<(), WorkspaceError> {
         let workspace = self.get_workspace(workspace_id)?;
         workspace.save_runbook(id, name, path, &content).await
+    }
+
+    pub async fn create_folder(
+        &mut self,
+        workspace_id: &str,
+        parent_path: Option<&str>,
+        name: &str,
+    ) -> Result<PathBuf, WorkspaceError> {
+        let workspace = self.get_workspace(workspace_id)?;
+        workspace
+            .create_folder(parent_path.map(|p| Path::new(p)), name)
+            .await
     }
 
     pub async fn rename_folder(
@@ -314,9 +209,9 @@ impl WorkspaceManager {
         if let Some(workspace) = self.workspaces.get(workspace_id) {
             workspace.rescan().await
         } else {
-            Err(WorkspaceError::WorkspaceNotWatched(
-                workspace_id.to_string(),
-            ))
+            Err(WorkspaceError::WorkspaceNotWatched {
+                workspace_id: workspace_id.to_string(),
+            })
         }
     }
 
@@ -393,7 +288,9 @@ impl WorkspaceManager {
     fn get_workspace(&mut self, id: &str) -> Result<&mut Workspace, WorkspaceError> {
         self.workspaces
             .get_mut(id)
-            .ok_or(WorkspaceError::WorkspaceNotWatched(id.to_string()))
+            .ok_or(WorkspaceError::WorkspaceNotWatched {
+                workspace_id: id.to_string(),
+            })
     }
 }
 

@@ -27,8 +27,8 @@ async function promiseResult<T, E>(promise: Promise<T>): Promise<Result<T, E>> {
   }
 }
 
-export async function resetWorkspaces(): Promise<Result<void, string>> {
-  return promiseResult<void, string>(invoke("reset_workspaces"));
+export async function resetWorkspaces(): Promise<Result<void, WorkspaceError>> {
+  return promiseResult<void, WorkspaceError>(invoke("reset_workspaces"));
 }
 
 export async function watchWorkspace(
@@ -38,7 +38,7 @@ export async function watchWorkspace(
 ): Promise<() => void> {
   console.log("(coommand) Watching workspace", id);
   const channel = new Channel<WorkspaceEvent>(callback);
-  await promiseResult<void, string>(invoke("watch_workspace", { path, id, channel }));
+  await promiseResult<void, WorkspaceError>(invoke("watch_workspace", { path, id, channel }));
   return () => {
     invoke("unwatch_workspace", { id });
   };
@@ -48,12 +48,15 @@ export async function createWorkspace(
   path: string,
   id: string,
   name: string,
-): Promise<Result<void, string>> {
-  return promiseResult<void, string>(invoke("create_workspace", { path, id, name }));
+): Promise<Result<void, WorkspaceError>> {
+  return promiseResult<void, WorkspaceError>(invoke("create_workspace", { path, id, name }));
 }
 
-export async function renameWorkspace(id: string, name: string): Promise<Result<void, string>> {
-  return promiseResult<void, string>(invoke("rename_workspace", { id, name }));
+export async function renameWorkspace(
+  id: string,
+  name: string,
+): Promise<Result<void, WorkspaceError>> {
+  return promiseResult<void, WorkspaceError>(invoke("rename_workspace", { id, name }));
 }
 
 export async function deleteWorkspace(id: string): Promise<Result<void, string>> {
@@ -62,9 +65,19 @@ export async function deleteWorkspace(id: string): Promise<Result<void, string>>
 
 export async function getWorkspaceInfo(
   workspace: Workspace,
-): Promise<Result<WorkspaceDirInfo, string>> {
-  return promiseResult<WorkspaceDirInfo, string>(
+): Promise<Result<WorkspaceDirInfo, WorkspaceError>> {
+  return promiseResult<WorkspaceDirInfo, WorkspaceError>(
     invoke<WorkspaceDirInfo>("read_dir", { workspaceId: workspace.get("id")! }),
+  );
+}
+
+export async function createFolder(
+  workspaceId: string,
+  parentId: string | null,
+  name: string,
+): Promise<Result<string, WorkspaceError>> {
+  return promiseResult<string, WorkspaceError>(
+    invoke("create_folder", { workspaceId, parentPath: parentId, name }),
   );
 }
 

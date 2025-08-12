@@ -1,6 +1,7 @@
 import Workspace from "@/state/runbooks/workspace";
 import WorkspaceStrategy, { DoFolderOp } from "./strategy";
 import Operation, {
+  createFolder,
   createRunbook,
   createWorkspace,
   renameWorkspace,
@@ -14,9 +15,12 @@ import { useStore } from "@/state/store";
 import track_event from "@/tracking";
 import doWorkspaceFolderOp from "@/state/runbooks/workspace_folder_ops";
 import { WorkspaceError } from "@/rs-bindings/WorkspaceError";
+import { uuidv7 } from "uuidv7";
 
 export default class OnlineStrategy implements WorkspaceStrategy {
-  async createWorkspace(unsavedWorkspace: Workspace): Promise<Result<Workspace, string>> {
+  constructor(private workspace: Workspace) {}
+
+  async createWorkspace(unsavedWorkspace: Workspace): Promise<Result<Workspace, WorkspaceError>> {
     try {
       await unsavedWorkspace.save();
 
@@ -32,16 +36,31 @@ export default class OnlineStrategy implements WorkspaceStrategy {
       await op.save();
     } catch (err) {
       if (err instanceof Error) {
-        return Err(err.message);
+        return Err({
+          type: "WorkspaceCreateError",
+          data: {
+            workspace_id: unsavedWorkspace.get("id")!,
+            message: err.message,
+          },
+        } as WorkspaceError);
       } else {
-        return Err("An unknown error occurred while creating the workspace.");
+        return Err({
+          type: "WorkspaceCreateError",
+          data: {
+            workspace_id: unsavedWorkspace.get("id")!,
+            message: "An unknown error occurred while creating the workspace.",
+          },
+        } as WorkspaceError);
       }
     }
 
     return Ok(unsavedWorkspace);
   }
 
-  async renameWorkspace(workspace: Workspace, newName: string): Promise<Result<undefined, string>> {
+  async renameWorkspace(
+    workspace: Workspace,
+    newName: string,
+  ): Promise<Result<undefined, WorkspaceError>> {
     try {
       workspace.set("name", newName);
       await workspace.save();
@@ -53,9 +72,21 @@ export default class OnlineStrategy implements WorkspaceStrategy {
       return Ok(undefined);
     } catch (err) {
       if (err instanceof Error) {
-        return Err(err.message);
+        return Err({
+          type: "WorkspaceRenameError",
+          data: {
+            workspace_id: workspace.get("id")!,
+            message: err.message,
+          },
+        } as WorkspaceError);
       } else {
-        return Err("An unknown error occurred while renaming the workspace.");
+        return Err({
+          type: "WorkspaceRenameError",
+          data: {
+            workspace_id: workspace.get("id")!,
+            message: "An unknown error occurred while renaming the workspace.",
+          },
+        } as WorkspaceError);
       }
     }
   }
@@ -67,10 +98,16 @@ export default class OnlineStrategy implements WorkspaceStrategy {
   async createRunbook(
     workspaceId: string,
     parentFolderId: string | null,
-  ): Promise<Result<Runbook, string>> {
+  ): Promise<Result<Runbook, WorkspaceError>> {
     const workspace = await Workspace.get(workspaceId);
     if (!workspace) {
-      return Err("Workspace not found");
+      return Err({
+        type: "WorkspaceReadError",
+        data: {
+          path: workspaceId,
+          message: "Workspace not found",
+        },
+      } as WorkspaceError);
     }
 
     const rb = await Runbook.createUntitled(workspace, true);
@@ -78,12 +115,39 @@ export default class OnlineStrategy implements WorkspaceStrategy {
     return Ok(rb);
   }
 
+  async createFolder(
+    doFolderOp: DoFolderOp,
+    parentId: string | null,
+    name: string,
+  ): Promise<Result<string, WorkspaceError>> {
+    const id = uuidv7();
+    const success = await doFolderOp(
+      (wsf) => wsf.createFolder(id, "New Folder", parentId),
+      (changeRef) => {
+        return Some(createFolder(this.workspace.get("id")!, parentId, id, "New Folder", changeRef));
+      },
+    );
+
+    if (success) {
+      return Ok(id);
+    } else {
+      return Err({
+        type: "FolderCreateError",
+        data: {
+          workspace_id: this.workspace.get("id")!,
+          name: name,
+          message: "Failed to create folder",
+        },
+      } as WorkspaceError);
+    }
+  }
+
   async renameFolder(
     doFolderOp: DoFolderOp,
     workspaceId: string,
     folderId: string,
     newName: string,
-  ): Promise<Result<undefined, string>> {
+  ): Promise<Result<undefined, WorkspaceError>> {
     let success = await doFolderOp(
       (wsf) => wsf.renameFolder(folderId, newName),
       (changeRef) => {
@@ -92,7 +156,14 @@ export default class OnlineStrategy implements WorkspaceStrategy {
     );
 
     if (!success) {
-      return Err("Failed to rename folder");
+      return Err({
+        type: "FolderRenameError",
+        data: {
+          workspace_id: workspaceId,
+          folder_id: folderId,
+          message: "Failed to rename folder",
+        },
+      } as WorkspaceError);
     }
 
     return Ok(undefined);

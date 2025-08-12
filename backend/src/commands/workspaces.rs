@@ -5,10 +5,7 @@ use tauri::{ipc::Channel, State};
 
 use crate::{
     state::AtuinState,
-    workspaces::{
-        fs_ops::WorkspaceDirInfo,
-        manager::{WorkspaceError, WorkspaceEvent},
-    },
+    workspaces::{fs_ops::WorkspaceDirInfo, manager::WorkspaceEvent, workspace::WorkspaceError},
 };
 
 #[tauri::command]
@@ -106,6 +103,21 @@ pub async fn save_runbook(
     manager
         .save_runbook(&workspace_id, &id, &name, &path, content)
         .await
+}
+
+#[tauri::command]
+pub async fn create_folder(
+    workspace_id: String,
+    parent_path: Option<String>,
+    name: String,
+    state: State<'_, AtuinState>,
+) -> Result<String, WorkspaceError> {
+    let mut manager = state.workspaces.lock().await;
+    let manager = manager.as_mut().expect("Workspace not found in state");
+    manager
+        .create_folder(&workspace_id, parent_path.as_deref(), &name)
+        .await
+        .map(|path| path.to_string_lossy().to_string())
 }
 
 #[tauri::command]

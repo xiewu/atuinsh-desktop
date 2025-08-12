@@ -17,6 +17,8 @@ pub enum FsOpsError {
     SendError(#[from] SendError<FsOpsInstruction>),
     #[error("File missing: {0}")]
     FileMissingError(String),
+    #[error("File already exists: {0}")]
+    FileAlreadyExistsError(String),
     #[error("IO Operation failed: {0}")]
     IoError(#[from] std::io::Error),
     #[error("Failed to serialize workspace config: {0}")]
@@ -33,6 +35,7 @@ pub enum FsOpsInstruction {
     RenameWorkspace(PathBuf, String, Reply<()>),
     GetDirectoryInformation(PathBuf, Reply<WorkspaceDirInfo>),
     SaveRunbook(PathBuf, Value, Reply<()>),
+    CreateFolder(PathBuf, PathBuf, Reply<PathBuf>),
     RenameFolder(PathBuf, PathBuf, Reply<()>),
     Shutdown,
 }
@@ -145,6 +148,23 @@ impl FsOpsHandle {
         receiver.await.unwrap()
     }
 
+    pub async fn create_folder(
+        &self,
+        parent_path: impl AsRef<Path>,
+        name: impl AsRef<Path>,
+    ) -> Result<PathBuf, FsOpsError> {
+        let (sender, receiver) = oneshot::channel();
+
+        self.tx
+            .send(FsOpsInstruction::CreateFolder(
+                parent_path.as_ref().to_path_buf(),
+                name.as_ref().to_path_buf(),
+                sender,
+            ))
+            .await?;
+        receiver.await.unwrap()
+    }
+
     pub async fn rename_folder(
         &self,
         from: impl AsRef<Path>,
@@ -209,6 +229,10 @@ impl FsOps {
                     let result = self.save_runbook(&path, content).await;
                     let _ = reply_to.send(result);
                 }
+                FsOpsInstruction::CreateFolder(parent_path, name, reply_to) => {
+                    let result = self.create_folder(&parent_path, &name).await;
+                    let _ = reply_to.send(result);
+                }
                 FsOpsInstruction::RenameFolder(from, to, reply_to) => {
                     let result = self.rename_folder(&from, &to).await;
                     let _ = reply_to.send(result);
@@ -267,6 +291,34 @@ impl FsOps {
         let json_text = serde_json::to_string_pretty(&content)?;
         tokio::fs::write(path.as_ref(), json_text).await?;
         Ok(())
+    }
+
+    async fn create_folder(
+        &mut self,
+        parent_path: impl AsRef<Path>,
+        name: impl AsRef<Path>,
+    ) -> Result<PathBuf, FsOpsError> {
+        if !parent_path.as_ref().exists() {
+            return Err(FsOpsError::FileMissingError(
+                parent_path.as_ref().to_string_lossy().to_string(),
+            ));
+        }
+
+        let mut suffix: Option<u32> = None;
+        let mut target = parent_path.as_ref().join(name.as_ref());
+
+        while target.exists() {
+            suffix = Some(suffix.unwrap_or(0) + 1);
+            target = parent_path.as_ref().join(format!(
+                "{} {}",
+                name.as_ref().to_string_lossy(),
+                suffix.unwrap()
+            ));
+        }
+
+        tokio::fs::create_dir(&target).await?;
+
+        Ok(target)
     }
 
     async fn rename_folder(

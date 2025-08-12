@@ -79,7 +79,9 @@ impl WorkspaceManager {
 
         let id_clone = id.to_string();
         let mut debouncer = new_debouncer(
-            Duration::from_millis(250),
+            // 100ms is fast enough to make the UI feel responsive, but not too fast that
+            // we fail to debounce or combine events
+            Duration::from_millis(100),
             None,
             move |events_result: DebounceEventResult| {
                 let manager_clone = manager_clone.clone();

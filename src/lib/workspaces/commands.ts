@@ -91,6 +91,15 @@ export async function renameFolder(
   );
 }
 
+export async function deleteFolder(
+  workspaceId: string,
+  folderId: string,
+): Promise<Result<undefined, WorkspaceError>> {
+  return promiseResult<undefined, WorkspaceError>(
+    invoke("delete_folder", { workspaceId, folderId }),
+  );
+}
+
 export async function moveItems(
   workspaceId: string,
   ids: string[],

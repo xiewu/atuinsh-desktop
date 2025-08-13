@@ -199,6 +199,15 @@ impl WorkspaceManager {
         workspace.rename_folder(folder_id, new_name).await
     }
 
+    pub async fn delete_folder(
+        &mut self,
+        workspace_id: &str,
+        folder_id: &str,
+    ) -> Result<(), WorkspaceError> {
+        let workspace = self.get_workspace(workspace_id)?;
+        workspace.delete_folder(folder_id).await
+    }
+
     pub async fn move_items(
         &mut self,
         workspace_id: &str,
@@ -308,6 +317,7 @@ impl WorkspaceManager {
 
 fn is_relevant_file(path: &PathBuf) -> bool {
     path.is_dir()
+        || !path.exists() // If the file doesn't exist, we may have deleted it
         || path
             .file_name()
             .map(|f| f.to_string_lossy().eq_ignore_ascii_case("atuin.toml"))

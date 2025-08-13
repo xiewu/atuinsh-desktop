@@ -7,6 +7,8 @@ import WorkspaceFolder from "@/state/runbooks/workspace_folders";
 import { ChangeRef } from "../shared_state/types";
 import { OperationData } from "@/state/runbooks/operation";
 import { WorkspaceError } from "@/rs-bindings/WorkspaceError";
+import { NodeApi } from "react-arborist";
+import { TreeRowData } from "@/components/runbooks/List/TreeView";
 
 enum WorkspaceStrategyType {
   Online = "online",
@@ -53,6 +55,12 @@ export default interface WorkspaceStrategy {
     workspaceId: string,
     folderId: string,
     newName: string,
+  ): Promise<Result<undefined, WorkspaceError>>;
+  deleteFolder(
+    doFolderOp: DoFolderOp,
+    folderId: string,
+    // TODO[mkt]: depending on NodeApi is a slightly leaky abstraction
+    descendents: NodeApi<TreeRowData>[],
   ): Promise<Result<undefined, WorkspaceError>>;
   moveItems(
     doFolderOp: DoFolderOp,

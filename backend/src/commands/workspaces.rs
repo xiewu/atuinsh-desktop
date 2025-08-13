@@ -135,6 +135,17 @@ pub async fn rename_folder(
 }
 
 #[tauri::command]
+pub async fn delete_folder(
+    workspace_id: String,
+    folder_id: String,
+    state: State<'_, AtuinState>,
+) -> Result<(), WorkspaceError> {
+    let mut manager = state.workspaces.lock().await;
+    let manager = manager.as_mut().expect("Workspace not found in state");
+    manager.delete_folder(&workspace_id, &folder_id).await
+}
+
+#[tauri::command]
 pub async fn move_items(
     workspace_id: String,
     item_ids: Vec<String>,

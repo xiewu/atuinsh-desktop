@@ -8,6 +8,8 @@ import { uuidv7 } from "uuidv7";
 import Runbook from "@/state/runbooks/runbook";
 import * as commands from "./commands";
 import { WorkspaceError } from "@/rs-bindings/WorkspaceError";
+import { NodeApi } from "react-arborist";
+import { TreeRowData } from "@/components/runbooks/List/TreeView";
 
 interface WorkspaceFolderError {
   fatal: boolean;
@@ -271,6 +273,38 @@ export default class OfflineStrategy implements WorkspaceStrategy {
             workspace_id: workspaceId,
             folder_id: folderId,
             message: "Failed to rename folder",
+          },
+        } as WorkspaceError);
+      }
+    }
+
+    return Ok(undefined);
+  }
+
+  async deleteFolder(
+    _doFolderOp: DoFolderOp,
+    folderId: string,
+    _descendents: NodeApi<TreeRowData>[],
+  ): Promise<Result<undefined, WorkspaceError>> {
+    const result = await commands.deleteFolder(this.workspace.get("id")!, folderId);
+    if (result.isErr()) {
+      let err = result.unwrapErr();
+      if (err.type === "FolderDeleteError") {
+        return Err({
+          type: "FolderDeleteError",
+          data: {
+            workspace_id: this.workspace.get("id")!,
+            folder_id: folderId,
+            message: `Failed to delete folder: ${err.data.message}`,
+          },
+        } as WorkspaceError);
+      } else {
+        return Err({
+          type: "FolderRenameError",
+          data: {
+            workspace_id: this.workspace.get("id")!,
+            folder_id: folderId,
+            message: "Failed to delete folder",
           },
         } as WorkspaceError);
       }

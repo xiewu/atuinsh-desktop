@@ -56,6 +56,12 @@ pub enum WorkspaceError {
         folder_id: String,
         message: String,
     },
+    #[error("Failed to delete folder {folder_id}: {message}")]
+    FolderDeleteError {
+        workspace_id: String,
+        folder_id: String,
+        message: String,
+    },
     #[error("Failed to move items: {message}")]
     ItemMoveError {
         workspace_id: String,
@@ -126,6 +132,17 @@ impl Workspace {
                 message: "Folder has no parent".to_string(),
             })
         }
+    }
+
+    pub async fn delete_folder(&mut self, folder_id: &str) -> Result<(), WorkspaceError> {
+        self.fs_ops
+            .trash_folder(&PathBuf::from(folder_id))
+            .await
+            .map_err(|e| WorkspaceError::FolderDeleteError {
+                workspace_id: self.id.clone(),
+                folder_id: folder_id.to_string(),
+                message: e.to_string(),
+            })
     }
 
     pub async fn move_items(

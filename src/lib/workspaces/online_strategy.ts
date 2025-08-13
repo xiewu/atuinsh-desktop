@@ -4,6 +4,7 @@ import Operation, {
   createFolder,
   createRunbook,
   createWorkspace,
+  deleteFolder,
   moveItems,
   renameWorkspace,
   updateFolderName,
@@ -17,6 +18,8 @@ import track_event from "@/tracking";
 import doWorkspaceFolderOp from "@/state/runbooks/workspace_folder_ops";
 import { WorkspaceError } from "@/rs-bindings/WorkspaceError";
 import { uuidv7 } from "uuidv7";
+import { NodeApi } from "react-arborist";
+import { TreeRowData } from "@/components/runbooks/List/TreeView";
 
 export default class OnlineStrategy implements WorkspaceStrategy {
   constructor(private workspace: Workspace) {}
@@ -168,6 +171,47 @@ export default class OnlineStrategy implements WorkspaceStrategy {
     }
 
     return Ok(undefined);
+  }
+
+  async deleteFolder(
+    doFolderOp: DoFolderOp,
+    folderId: string,
+    descendents: NodeApi<TreeRowData>[],
+  ): Promise<Result<undefined, WorkspaceError>> {
+    const runbookIdsToDelete = descendents
+      .filter((child) => child.data.type === "runbook")
+      .map((child) => child.data.id);
+
+    const promises = runbookIdsToDelete.map(async (runbookId) => {
+      const runbook = await Runbook.load(runbookId);
+      if (runbook) {
+        return runbook.delete();
+      } else {
+        return Promise.resolve();
+      }
+    });
+
+    await Promise.allSettled(promises);
+
+    const success = await doFolderOp(
+      (wsf) => wsf.deleteFolder(folderId),
+      (changeRef) => {
+        return Some(deleteFolder(this.workspace.get("id")!, folderId, changeRef));
+      },
+    );
+
+    if (success) {
+      return Ok(undefined);
+    } else {
+      return Err({
+        type: "FolderDeleteError",
+        data: {
+          workspace_id: this.workspace.get("id")!,
+          folder_id: folderId,
+          message: "Failed to delete folder",
+        },
+      } as WorkspaceError);
+    }
   }
 
   async moveItems(

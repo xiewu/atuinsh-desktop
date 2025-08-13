@@ -472,40 +472,14 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
         snippet,
       );
       if (confirm === "yes") {
-        handleDeleteFolder(folderId);
+        handleDeleteFolder(folderId, descendents.nodes);
       }
-    } else {
-      handleDeleteFolder(folderId);
     }
   }
 
-  async function handleDeleteFolder(folderId: string) {
-    const descendants = workspaceFolder.getDescendants(folderId);
-    const runbookIdsToDelete = descendants
-      .filter((child) => child.getData().unwrap().type === "runbook")
-      .map((child) => child.getData().unwrap().id);
-
-    const promises = runbookIdsToDelete.map(async (runbookId) => {
-      const runbook = await Runbook.load(runbookId);
-      if (runbook) {
-        return runbook.delete();
-      } else {
-        return Promise.resolve();
-      }
-    });
-
-    await Promise.allSettled(promises);
-
-    await doFolderOp(
-      (wsf) => wsf.deleteFolder(folderId),
-      (changeRef) => {
-        if (props.workspace.isOnline()) {
-          return Some(deleteFolder(props.workspace.get("id")!, folderId, changeRef));
-        } else {
-          return None;
-        }
-      },
-    );
+  async function handleDeleteFolder(folderId: string, descendents: NodeApi<TreeRowData>[]) {
+    const strategy = getWorkspaceStrategy(props.workspace);
+    await strategy.deleteFolder(doFolderOp, folderId, descendents);
   }
 
   async function handleMoveItems(

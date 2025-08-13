@@ -9,6 +9,9 @@ use tokio::sync::{
     mpsc::{channel, error::SendError, Receiver, Sender},
     oneshot,
 };
+#[cfg(target_os = "macos")]
+use trash::macos::{DeleteMethod, TrashContextExtMacos};
+use trash::TrashContext;
 use ts_rs::TS;
 
 #[derive(thiserror::Error, Debug)]
@@ -27,6 +30,8 @@ pub enum FsOpsError {
     RunbookSerializeError(#[from] serde_json::Error),
     #[error("Failed to deserialize workspace config: {0}")]
     DeserializeError(#[from] toml::de::Error),
+    #[error("Failed to trash folder: {0}")]
+    TrashError(#[from] trash::Error),
 }
 
 pub type Reply<T> = oneshot::Sender<Result<T, FsOpsError>>;
@@ -37,6 +42,7 @@ pub enum FsOpsInstruction {
     SaveRunbook(PathBuf, Value, Reply<()>),
     CreateFolder(PathBuf, PathBuf, Reply<PathBuf>),
     RenameFolder(PathBuf, PathBuf, Reply<()>),
+    TrashFolder(PathBuf, Reply<()>),
     MoveItems(Vec<PathBuf>, PathBuf, Reply<()>),
     Shutdown,
 }
@@ -183,6 +189,17 @@ impl FsOpsHandle {
         receiver.await.unwrap()
     }
 
+    pub async fn trash_folder(&self, path: impl AsRef<Path>) -> Result<(), FsOpsError> {
+        let (sender, receiver) = oneshot::channel();
+        self.tx
+            .send(FsOpsInstruction::TrashFolder(
+                path.as_ref().to_path_buf(),
+                sender,
+            ))
+            .await?;
+        receiver.await.unwrap()
+    }
+
     pub async fn move_items(
         &self,
         items: &[PathBuf],
@@ -253,6 +270,10 @@ impl FsOps {
                 }
                 FsOpsInstruction::RenameFolder(from, to, reply_to) => {
                     let result = self.rename_folder(&from, &to).await;
+                    let _ = reply_to.send(result);
+                }
+                FsOpsInstruction::TrashFolder(path, reply_to) => {
+                    let result = self.trash_folder(&path).await;
                     let _ = reply_to.send(result);
                 }
                 FsOpsInstruction::MoveItems(items, new_parent, reply_to) => {
@@ -349,6 +370,29 @@ impl FsOps {
         to: impl AsRef<Path>,
     ) -> Result<(), FsOpsError> {
         tokio::fs::rename(from.as_ref(), to.as_ref()).await?;
+        Ok(())
+    }
+
+    async fn trash_folder(&mut self, path: &PathBuf) -> Result<(), FsOpsError> {
+        if !path.exists() {
+            return Err(FsOpsError::FileMissingError(
+                path.to_string_lossy().to_string(),
+            ));
+        }
+
+        let mut trash_ctx = TrashContext::default();
+
+        // By default, `trash` uses `DeleteMethod::Finder` on macOS, which
+        // requires extra permissions and produces the Finder "delete" sound.
+        // `NsFileManager` is faster, requires no extra permissions, and
+        // doesn't produce a sound. The only downside is that it doesn't add
+        // the "Put Back" option to the trash item on some systems.
+        //
+        // See https://github.com/Byron/trash-rs/blob/b80f7edb1e3db64ae029b02a26d77c11986d9f11/src/macos/mod.rs#L12-L43
+        #[cfg(target_os = "macos")]
+        trash_ctx.set_delete_method(DeleteMethod::NsFileManager);
+
+        trash_ctx.delete(path)?;
         Ok(())
     }
 

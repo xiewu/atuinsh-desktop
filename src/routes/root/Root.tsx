@@ -231,13 +231,18 @@ function App() {
     });
     const workspaceStrategy = getWorkspaceStrategy(unsavedWorkspace);
 
-    const result = await workspaceStrategy.createWorkspace(unsavedWorkspace);
+    const result = await workspaceStrategy.createWorkspace();
     if (result.isErr()) {
-      console.error(result.unwrapErr());
+      let err = result.unwrapErr();
+      let message = "Failed to create workspace";
+      if ("message" in err.data) {
+        message = err.data.message;
+      }
+
       new DialogBuilder()
         .title("Failed to create workspace")
         .icon("error")
-        .message(result.unwrapErr())
+        .message(message)
         .action({ label: "OK", value: "ok", variant: "flat" })
         .build();
       return;
@@ -507,10 +512,15 @@ function App() {
     if (!workspace) return Err("Workspace not found");
 
     const strategy = getWorkspaceStrategy(workspace);
-    const result = await strategy.createRunbook(workspaceId, parentFolderId);
+    const result = await strategy.createRunbook(parentFolderId);
     if (result.isErr()) {
-      console.error(result.unwrapErr());
-      return result;
+      let err = result.unwrapErr();
+      let message = "Failed to create runbook";
+      if ("message" in err.data) {
+        message = err.data.message;
+      }
+
+      return Err(message);
     }
 
     const rb = result.unwrap();

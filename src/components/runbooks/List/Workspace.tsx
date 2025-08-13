@@ -391,12 +391,7 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
 
   async function handleRenameFolder(folderId: string, newName: string) {
     const strategy = getWorkspaceStrategy(props.workspace);
-    let result = await strategy.renameFolder(
-      doFolderOp,
-      props.workspace.get("id")!,
-      folderId,
-      newName,
-    );
+    let result = await strategy.renameFolder(doFolderOp, folderId, newName);
 
     let message;
     if (result.isErr()) {
@@ -421,7 +416,6 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
   async function handleNewFolder(parentId: string | null) {
     const strategy = getWorkspaceStrategy(props.workspace);
     let result = await strategy.createFolder(doFolderOp, parentId, "New Folder");
-    console.log("handleNewFolder", result);
 
     if (result.isErr()) {
       const err = result.unwrapErr();
@@ -441,7 +435,9 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     const id = result.unwrap();
     let node: NodeApi<TreeRowData> | null = null;
     const start = Date.now();
-    while (!node && Date.now() - start < 5000) {
+    // Wait up to 2 seconds for the folder to appear in the tree
+    // and automatically start the rename when it does.
+    while (!node && Date.now() - start < 2000) {
       node = treeRef.current!.get(id);
       if (!node) {
         await new Promise((resolve) => setTimeout(resolve, 100));
@@ -526,7 +522,7 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     dispatchWorkspaceName({ type: "confirm_rename", newName });
 
     const strategy = getWorkspaceStrategy(props.workspace);
-    await strategy.renameWorkspace(props.workspace, newName);
+    await strategy.renameWorkspace(newName);
   }
 
   function handleToggleFolder(nodeId: string) {

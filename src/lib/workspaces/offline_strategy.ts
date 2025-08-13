@@ -92,12 +92,12 @@ async function checkWorkspaceFolder(folder: string): Promise<Option<WorkspaceFol
 export default class OfflineStrategy implements WorkspaceStrategy {
   constructor(private workspace: Workspace) {}
 
-  async createWorkspace(unsavedWorkspace: Workspace): Promise<Result<Workspace, WorkspaceError>> {
-    if (!unsavedWorkspace.get("folder")) {
+  async createWorkspace(): Promise<Result<Workspace, WorkspaceError>> {
+    if (!this.workspace.get("folder")) {
       throw new Error("You must select a folder to store your workspace locally.");
     }
 
-    const error = await checkWorkspaceFolder(unsavedWorkspace.get("folder")!);
+    const error = await checkWorkspaceFolder(this.workspace.get("folder")!);
     if (error.isSome()) {
       const type = error.unwrap().type;
       switch (type) {
@@ -115,7 +115,7 @@ export default class OfflineStrategy implements WorkspaceStrategy {
             return Err({
               type: "WorkspaceCreateError",
               data: {
-                workspace_id: unsavedWorkspace.get("id")!,
+                workspace_id: this.workspace.get("id")!,
                 message: "Workspace creation cancelled.",
               },
             } as WorkspaceError);
@@ -136,7 +136,7 @@ export default class OfflineStrategy implements WorkspaceStrategy {
             return Err({
               type: "WorkspaceCreateError",
               data: {
-                workspace_id: unsavedWorkspace.get("id")!,
+                workspace_id: this.workspace.get("id")!,
                 message: "Workspace creation cancelled.",
               },
             } as WorkspaceError);
@@ -146,7 +146,7 @@ export default class OfflineStrategy implements WorkspaceStrategy {
           return Err({
             type: "WorkspaceCreateError",
             data: {
-              workspace_id: unsavedWorkspace.get("id")!,
+              workspace_id: this.workspace.get("id")!,
               message: "Selected path is not a directory.",
             },
           } as WorkspaceError);
@@ -154,7 +154,7 @@ export default class OfflineStrategy implements WorkspaceStrategy {
           return Err({
             type: "WorkspaceCreateError",
             data: {
-              workspace_id: unsavedWorkspace.get("id")!,
+              workspace_id: this.workspace.get("id")!,
               message: "Selected path does not exist.",
             },
           } as WorkspaceError);
@@ -162,7 +162,7 @@ export default class OfflineStrategy implements WorkspaceStrategy {
           return Err({
             type: "WorkspaceCreateError",
             data: {
-              workspace_id: unsavedWorkspace.get("id")!,
+              workspace_id: this.workspace.get("id")!,
               message: "Selected path is not writable.",
             },
           } as WorkspaceError);
@@ -172,13 +172,13 @@ export default class OfflineStrategy implements WorkspaceStrategy {
     }
 
     try {
-      await unsavedWorkspace.save();
+      await this.workspace.save();
     } catch (err) {
       if (err instanceof Error) {
         return Err({
           type: "WorkspaceCreateError",
           data: {
-            workspace_id: unsavedWorkspace.get("id")!,
+            workspace_id: this.workspace.get("id")!,
             message: err.message,
           },
         } as WorkspaceError);
@@ -186,7 +186,7 @@ export default class OfflineStrategy implements WorkspaceStrategy {
         return Err({
           type: "WorkspaceCreateError",
           data: {
-            workspace_id: unsavedWorkspace.get("id")!,
+            workspace_id: this.workspace.get("id")!,
             message: "An unknown error occurred while saving the workspace.",
           },
         } as WorkspaceError);
@@ -194,28 +194,25 @@ export default class OfflineStrategy implements WorkspaceStrategy {
     }
 
     let result = await commands.createWorkspace(
-      unsavedWorkspace.get("folder")!,
-      unsavedWorkspace.get("id")!,
-      unsavedWorkspace.get("name")!,
+      this.workspace.get("folder")!,
+      this.workspace.get("id")!,
+      this.workspace.get("name")!,
     );
 
     if (result.isErr()) {
       return Err(result.unwrapErr());
     }
 
-    return Ok(unsavedWorkspace);
+    return Ok(this.workspace);
   }
 
-  async renameWorkspace(
-    workspace: Workspace,
-    newName: string,
-  ): Promise<Result<undefined, WorkspaceError>> {
+  async renameWorkspace(newName: string): Promise<Result<undefined, WorkspaceError>> {
     // Set the workspace name immediately as an "optimistic update."
     // TODO[mkt]: If a FS event comes through before we can flush to disk, the old name may briefly reappear.
-    workspace.set("name", newName);
-    await workspace.save();
+    this.workspace.set("name", newName);
+    await this.workspace.save();
 
-    let result = await commands.renameWorkspace(workspace.get("id")!, newName);
+    let result = await commands.renameWorkspace(this.workspace.get("id")!, newName);
     if (result.isErr()) {
       return Err(result.unwrapErr());
     }
@@ -223,19 +220,17 @@ export default class OfflineStrategy implements WorkspaceStrategy {
     return Ok(undefined);
   }
 
-  async deleteWorkspace(id: string): Promise<void> {
+  async deleteWorkspace(): Promise<void> {
     throw new Error("Method not implemented.");
   }
 
-  async createRunbook(
-    workspaceId: string,
-    parentFolderId: string | null,
-  ): Promise<Result<Runbook, WorkspaceError>> {
+  // TODO
+  async createRunbook(parentFolderId: string | null): Promise<Result<Runbook, WorkspaceError>> {
     return Err({
       type: "WorkspaceReadError",
       data: {
-        path: workspaceId,
-        message: "Workspace not found",
+        path: this.workspace.get("folder")!,
+        message: "Not implemented",
       },
     } as WorkspaceError);
   }
@@ -250,18 +245,17 @@ export default class OfflineStrategy implements WorkspaceStrategy {
 
   async renameFolder(
     _doFolderOp: DoFolderOp,
-    workspaceId: string,
     folderId: string,
     newName: string,
   ): Promise<Result<undefined, WorkspaceError>> {
-    let result = await commands.renameFolder(workspaceId, folderId, newName);
+    let result = await commands.renameFolder(this.workspace.get("id")!, folderId, newName);
     if (result.isErr()) {
       let err = result.unwrapErr();
       if (err.type === "FolderRenameError") {
         return Err({
           type: "FolderRenameError",
           data: {
-            workspace_id: workspaceId,
+            workspace_id: this.workspace.get("id")!,
             folder_id: folderId,
             message: `Failed to rename folder: ${err.data.message}`,
           },
@@ -270,7 +264,7 @@ export default class OfflineStrategy implements WorkspaceStrategy {
         return Err({
           type: "FolderRenameError",
           data: {
-            workspace_id: workspaceId,
+            workspace_id: this.workspace.get("id")!,
             folder_id: folderId,
             message: "Failed to rename folder",
           },

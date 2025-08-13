@@ -35,16 +35,10 @@ export type DoFolderOp = (
  * via `useWorkspaceFolder`. The offline strategy simply ignores this parameter.
  */
 export default interface WorkspaceStrategy {
-  createWorkspace(unsavedWorkspace: Workspace): Promise<Result<Workspace, WorkspaceError>>;
-  createRunbook(
-    workspaceId: string,
-    parentFolderId: string | null,
-  ): Promise<Result<Runbook, WorkspaceError>>;
-  renameWorkspace(
-    workspace: Workspace,
-    newName: string,
-  ): Promise<Result<undefined, WorkspaceError>>;
-  deleteWorkspace(id: string): Promise<void>;
+  createWorkspace(): Promise<Result<Workspace, WorkspaceError>>;
+  createRunbook(parentFolderId: string | null): Promise<Result<Runbook, WorkspaceError>>;
+  renameWorkspace(newName: string): Promise<Result<undefined, WorkspaceError>>;
+  deleteWorkspace(): Promise<void>;
   createFolder(
     doFolderOp: DoFolderOp,
     parentId: string | null,
@@ -52,7 +46,6 @@ export default interface WorkspaceStrategy {
   ): Promise<Result<string, WorkspaceError>>;
   renameFolder(
     doFolderOp: DoFolderOp,
-    workspaceId: string,
     folderId: string,
     newName: string,
   ): Promise<Result<undefined, WorkspaceError>>;

@@ -28,6 +28,12 @@ pub enum WorkspaceStateError {
     InvalidWorkspaceManifest(String, String),
     #[error("Invalid ATRB file: {0}")]
     InvalidAtrbFile(PathBuf),
+    #[error("Multiple files with duplicate runbook IDs: {0} and {1}")]
+    DuplicateRunbook(PathBuf, PathBuf),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum JsonParseError {
     #[error("Failed to parse JSON: {0}")]
     JsonError(#[from] actson::parser::ParserError),
     #[error("Failed to parse number: {0}")]
@@ -38,8 +44,12 @@ pub enum WorkspaceStateError {
     ParseStringError(#[from] actson::parser::InvalidStringValueError),
     #[error("Failed to read from file: {0}")]
     FillError(#[from] actson::feeder::FillError),
-    #[error("Multiple files with duplicate runbook IDs: {0} and {1}")]
-    DuplicateRunbook(PathBuf, PathBuf),
+    #[error("Invalid float value: {0}")]
+    InvalidFloatValueError(f64),
+    #[error("Missing keys: {0:?} in {1}")]
+    MissingKeysError(Vec<String>, PathBuf),
+    #[error("IO error: {0}")]
+    IoError(#[from] std::io::Error),
 }
 
 #[derive(TS, Debug, Clone, Serialize)]
@@ -179,7 +189,9 @@ impl WorkspaceRunbook {
         let stats = File::metadata(&file).await?;
         drop(file);
 
-        let info = get_json_keys(&path, &["id", "name", "version"]).await?;
+        let info = get_json_keys(&path, &["id", "name", "version"])
+            .await
+            .map_err(|_| WorkspaceStateError::InvalidAtrbFile(path.as_ref().to_path_buf()))?;
         let id = info
             .get("id")
             .and_then(|v| v.as_str())
@@ -244,7 +256,7 @@ async fn get_workspace_runbooks(
 async fn get_json_keys(
     atrb_path: impl AsRef<Path>,
     keys: &[&str],
-) -> Result<HashMap<String, Value>, WorkspaceStateError> {
+) -> Result<HashMap<String, Value>, JsonParseError> {
     let file = File::open(&atrb_path).await?;
     let reader = BufReader::with_capacity(1024, file);
     let feeder = AsyncBufReaderJsonFeeder::new(reader);
@@ -303,9 +315,8 @@ async fn get_json_keys(
 
                 if let ParseState::Expecting(field_name) = state {
                     let value = parser.current_float()?;
-                    let value = Number::from_f64(value).ok_or(
-                        WorkspaceStateError::InvalidAtrbFile(atrb_path.as_ref().to_path_buf()),
-                    )?;
+                    let value = Number::from_f64(value)
+                        .ok_or(JsonParseError::InvalidFloatValueError(value))?;
                     let value = Value::Number(value);
                     result.insert(field_name, value);
                     state = ParseState::None;
@@ -371,7 +382,8 @@ async fn get_json_keys(
     }
 
     if result.len() != keys.len() {
-        return Err(WorkspaceStateError::InvalidAtrbFile(
+        return Err(JsonParseError::MissingKeysError(
+            keys.iter().map(|k| k.to_string()).collect(),
             atrb_path.as_ref().to_path_buf(),
         ));
     }

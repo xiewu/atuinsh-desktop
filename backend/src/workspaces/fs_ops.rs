@@ -9,8 +9,6 @@ use tokio::sync::{
     mpsc::{channel, error::SendError, Receiver, Sender},
     oneshot,
 };
-#[cfg(target_os = "macos")]
-use trash::macos::{DeleteMethod, TrashContextExtMacos};
 use trash::TrashContext;
 use ts_rs::TS;
 
@@ -20,8 +18,6 @@ pub enum FsOpsError {
     SendError(#[from] SendError<FsOpsInstruction>),
     #[error("File missing: {0}")]
     FileMissingError(String),
-    #[error("File already exists: {0}")]
-    FileAlreadyExistsError(String),
     #[error("IO Operation failed: {0}")]
     IoError(#[from] std::io::Error),
     #[error("Failed to serialize workspace config: {0}")]
@@ -390,7 +386,10 @@ impl FsOps {
         //
         // See https://github.com/Byron/trash-rs/blob/b80f7edb1e3db64ae029b02a26d77c11986d9f11/src/macos/mod.rs#L12-L43
         #[cfg(target_os = "macos")]
-        trash_ctx.set_delete_method(DeleteMethod::NsFileManager);
+        {
+            use trash::macos::{DeleteMethod, TrashContextExtMacos};
+            trash_ctx.set_delete_method(DeleteMethod::NsFileManager);
+        }
 
         trash_ctx.delete(path)?;
         Ok(())

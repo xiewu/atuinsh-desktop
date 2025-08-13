@@ -20,8 +20,6 @@ pub enum WorkspaceStateError {
     IoError(#[from] std::io::Error),
     #[error("Failed to parse workspace config: {0}")]
     TomlError(#[from] toml::de::Error),
-    // #[error("Failed to parse workspace index: {0}")]
-    // IndexError(#[from] crate::workspaces::index::WorkspaceIndexError),
     #[error("Failed to read workspace info: {0}")]
     WorkspaceReadError(#[from] crate::workspaces::fs_ops::FsOpsError),
     #[error("Invalid workspace manifest: expected ID {0}, found ID {1}")]
@@ -61,18 +59,6 @@ pub struct WorkspaceState {
     pub entries: Vec<DirEntry>,
     pub runbooks: HashMap<String, WorkspaceRunbook>,
 }
-
-// TODO
-// #[derive(TS, Debug, Clone, Serialize)]
-// #[serde(tag = "type", content = "data")]
-// #[ts(export)]
-// pub enum WorkspaceStateChange {
-//     WorkspaceNameChanged(String),
-//     DirEntriesChanged(Vec<DirEntry>),
-//     RunbookAdded(WorkspaceRunbook),
-//     RunbookUpdated(WorkspaceRunbook),
-//     RunbookDeleted(String),
-// }
 
 impl WorkspaceState {
     pub async fn new(id: &str, root: impl AsRef<Path>) -> Result<Self, WorkspaceStateError> {
@@ -138,19 +124,6 @@ impl WorkspaceState {
             None
         }
     }
-
-    // TODO
-    // pub fn update_runbook(&mut self, runbook: &WorkspaceRunbook) {
-    //     self.runbooks
-    //         .entry(runbook.id.clone())
-    //         .and_modify(|r| {
-    //             r.name = runbook.name.clone();
-    //             r.version = runbook.version;
-    //             r.path = runbook.path.clone();
-    //             r.lastmod = runbook.lastmod;
-    //         })
-    //         .or_insert(runbook.clone());
-    // }
 }
 
 #[derive(TS, Debug, Clone, Serialize, PartialEq)]
@@ -382,8 +355,13 @@ async fn get_json_keys(
     }
 
     if result.len() != keys.len() {
+        let missing_keys: Vec<String> = keys
+            .iter()
+            .filter(|k| !result.contains_key(**k))
+            .map(|k| k.to_string())
+            .collect();
         return Err(JsonParseError::MissingKeysError(
-            keys.iter().map(|k| k.to_string()).collect(),
+            missing_keys,
             atrb_path.as_ref().to_path_buf(),
         ));
     }

@@ -36,7 +36,6 @@ pub struct WorkspaceManager {
 pub enum WorkspaceEvent {
     State(WorkspaceState),
     Error(WorkspaceError),
-    // RunbookContent(String, Value),
 }
 
 impl From<Result<WorkspaceState, WorkspaceError>> for WorkspaceEvent {
@@ -268,7 +267,6 @@ impl WorkspaceManager {
         }
 
         if full_rescan {
-            // If an error occurs during the rescan, the `state` field will be set to an error
             match self.rescan_workspace(workspace_id).await {
                 Ok(updated) => {
                     if let Some(workspace) = self.workspaces.get_mut(workspace_id) {

@@ -38,6 +38,8 @@ pub enum WorkspaceStateError {
     ParseStringError(#[from] actson::parser::InvalidStringValueError),
     #[error("Failed to read from file: {0}")]
     FillError(#[from] actson::feeder::FillError),
+    #[error("Multiple files with duplicate runbook IDs: {0} and {1}")]
+    DuplicateRunbook(PathBuf, PathBuf),
 }
 
 #[derive(TS, Debug, Clone, Serialize)]
@@ -211,7 +213,7 @@ enum ParseState {
 async fn get_workspace_runbooks(
     dir_entries: &[DirEntry],
 ) -> Result<HashMap<String, WorkspaceRunbook>, WorkspaceStateError> {
-    let mut runbooks = HashMap::new();
+    let mut runbooks: HashMap<String, WorkspaceRunbook> = HashMap::new();
     for entry in dir_entries {
         let name = entry
             .path
@@ -222,6 +224,13 @@ async fn get_workspace_runbooks(
 
         if name.ends_with(".atrb") {
             let runbook = WorkspaceRunbook::from_file(entry.path.clone()).await?;
+            if runbooks.contains_key(&runbook.id) {
+                return Err(WorkspaceStateError::DuplicateRunbook(
+                    entry.path.clone(),
+                    runbooks.get(&runbook.id).unwrap().path.clone(),
+                ));
+            }
+
             runbooks.insert(runbook.id.clone(), runbook);
         }
     }

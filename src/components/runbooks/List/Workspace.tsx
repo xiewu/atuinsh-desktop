@@ -245,7 +245,6 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     if (props.workspace.isOnline()) {
       return workspaceFolder.toArborist();
     } else {
-      console.log("Workspace info:", workspaceInfo);
       if (workspaceInfo.isNone() || workspaceInfo.unwrap().isErr()) {
         return [];
       }
@@ -466,6 +465,7 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
         !props.workspace.isOnline(),
         { node, descendents },
         snippet,
+        true,
       );
       if (confirm === "yes") {
         handleDeleteFolder(folderId, descendents.nodes);
@@ -879,6 +879,7 @@ async function confirmDeleteFolder(
     };
   },
   idSnippet: JSX.Element,
+  willDeleteFiles: boolean = false,
 ): Promise<"yes" | "no"> {
   const { descendents } = info;
 
@@ -913,7 +914,7 @@ async function confirmDeleteFolder(
     <div>
       <p>Are you sure you want to delete {idSnippet}?</p>
       {countSnippet && <p>This will delete {countSnippet}.</p>}
-      {isFsWorkspace && (
+      {isFsWorkspace && willDeleteFiles && (
         <p className="mt-2">
           <span className="text-warning">Note:</span> This will delete the files from your
           filesystem.

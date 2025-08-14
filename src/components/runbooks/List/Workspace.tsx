@@ -467,12 +467,31 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
       if (confirm === "yes") {
         handleDeleteFolder(folderId, descendents.nodes);
       }
+    } else {
+      handleDeleteFolder(folderId, descendents.nodes);
     }
   }
 
   async function handleDeleteFolder(folderId: string, descendents: NodeApi<TreeRowData>[]) {
     const strategy = getWorkspaceStrategy(props.workspace);
-    await strategy.deleteFolder(doFolderOp, folderId, descendents);
+    const result = await strategy.deleteFolder(doFolderOp, folderId, descendents);
+
+    if (result.isErr()) {
+      const err = result.unwrapErr();
+      if (err.type === "FolderDeleteError") {
+        new DialogBuilder()
+          .title("Error deleting folder")
+          .message(err.data.message)
+          .action({ label: "OK", value: "ok" })
+          .build();
+      } else {
+        new DialogBuilder()
+          .title("Error deleting folder")
+          .message("An unknown error occurred while deleting the folder.")
+          .action({ label: "OK", value: "ok" })
+          .build();
+      }
+    }
   }
 
   async function handleMoveItems(

@@ -182,17 +182,15 @@ function transformDirEntriesToArboristTree(
         const parentFolder = findOrCreateFolder(parentPathParts);
         parentFolder.children.push(folder);
       } else {
-        // Root level folder
         rootItems.push(folder);
       }
     } else {
       // Find runbook with matching path
       const runbook = Object.values(runbooks).find((r) => r!.path === entry.path);
       if (!runbook) {
-        throw new Error(`Runbook not found for path: ${entry.path}`);
+        continue;
       }
 
-      // Create file entry
       const file = {
         id: runbook.id,
         name: runbook.name,
@@ -205,7 +203,6 @@ function transformDirEntriesToArboristTree(
         const parentFolder = findOrCreateFolder(parentPathParts);
         parentFolder.children.push(file);
       } else {
-        // Root level file
         rootItems.push(file);
       }
     }

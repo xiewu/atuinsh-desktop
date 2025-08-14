@@ -20,16 +20,8 @@ import {
   PlusIcon,
   UsersIcon,
 } from "lucide-react";
-import Runbook from "@/state/runbooks/runbook";
 import { AtuinState, useStore } from "@/state/store";
-import {
-  forwardRef,
-  useContext,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from "react";
+import { forwardRef, useContext, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { PendingInvitations } from "./PendingInvitations";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -88,13 +80,10 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
   const selectedOrg = useStore((state: AtuinState) => state.selectedOrg);
   const setSelectedOrg = useStore((state: AtuinState) => state.setSelectedOrg);
 
-  const { data: workspaces } = useQuery(
-    selectedOrg ? orgWorkspaces(selectedOrg) : userOwnedWorkspaces(),
+  const { data: workspaces } = useQuery(orgWorkspaces(selectedOrg || null));
   );
 
-
-
-  const { activateRunbook, promptDeleteRunbook, runbookCreated } = useContext(RunbookContext);
+  const { activateRunbook, promptDeleteRunbook } = useContext(RunbookContext);
 
   const queryClient = useQueryClient();
 
@@ -459,7 +448,7 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
                 <Button
                   size="sm"
                   variant="flat"
-                  onPress={() => handleNewRunbook(workspaces?.[0]?.get("id")!, null)}
+                  onPress={() => handleNewRunbook(currentWorkspaceId, null)}
                 >
                   <Plus size={18} /> New Runbook
                 </Button>

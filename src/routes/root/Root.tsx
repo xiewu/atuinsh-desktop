@@ -162,16 +162,16 @@ function App() {
 
   useEffect(() => {
     (async () => {
-      const unlisten = await onOpenUrl((urls) => {
-        if (urls.length === 0) return;
-        handleDeepLink(urls[0], handleRunbookCreated);
-      });
-
-      DevConsole.addAppObject("handleDeepLink", (url: string) =>
-        handleDeepLink(url, handleRunbookCreated),
-      );
-
-      onOpenUrlListener.current = unlisten;
+      // TODO[mkt]: handle deep links with the new workspace setup
+      //
+      // const unlisten = await onOpenUrl((urls) => {
+      //   if (urls.length === 0) return;
+      //   handleDeepLink(urls[0], handleRunbookCreated);
+      // });
+      // DevConsole.addAppObject("handleDeepLink", (url: string) =>
+      //   handleDeepLink(url, handleRunbookCreated),
+      // );
+      // onOpenUrlListener.current = unlisten;
     })();
 
     return () => {

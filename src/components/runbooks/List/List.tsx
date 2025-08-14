@@ -57,6 +57,7 @@ export type ListApi = {
 
 interface NotesSidebarProps {
   importRunbooks: (workspaceId: string, parentFolderId: string | null) => Promise<void>;
+  onStartCreateRunbook: (workspaceId: string, parentFolderId: string | null) => void;
   onStartCreateWorkspace: () => void;
   moveItemsToWorkspace: (
     items: string[],
@@ -152,12 +153,7 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
   }, []);
 
   const handleNewRunbook = async (workspaceId: string, parentFolderId: string | null) => {
-    const workspace = workspaces?.find((ws) => ws.get("id") === workspaceId);
-    if (!workspace) return;
-
-    const rb = await Runbook.createUntitled(workspace, true);
-
-    runbookCreated(rb.id, workspaceId, parentFolderId, true);
+    props.onStartCreateRunbook(workspaceId, parentFolderId);
   };
 
   const handleImportRunbook = async (workspaceId: string | null, parentFolderId: string | null) => {
@@ -535,7 +531,6 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
           </div>
         </>
       )}
-
     </div>
   );
 });

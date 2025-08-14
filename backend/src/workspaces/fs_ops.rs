@@ -12,6 +12,8 @@ use tokio::sync::{
 use trash::TrashContext;
 use ts_rs::TS;
 
+use crate::run_async_command;
+
 #[derive(thiserror::Error, Debug)]
 pub enum FsOpsError {
     #[error("Failed to send instruction to filesystem operations actor: {0}")]
@@ -196,11 +198,7 @@ impl FsOpsHandle {
         receiver.await.unwrap()
     }
 
-    pub async fn move_items(
-        &self,
-        items: &[PathBuf],
-        new_parent: &PathBuf,
-    ) -> Result<(), FsOpsError> {
+    pub async fn move_items(&self, items: &[PathBuf], new_parent: &Path) -> Result<(), FsOpsError> {
         let (sender, receiver) = oneshot::channel();
 
         self.tx
@@ -221,7 +219,9 @@ impl FsOpsHandle {
 
 impl Drop for FsOpsHandle {
     fn drop(&mut self) {
-        let _ = self.shutdown();
+        run_async_command(async {
+            let _ = self.shutdown().await;
+        });
     }
 }
 
@@ -376,6 +376,7 @@ impl FsOps {
             ));
         }
 
+        #[allow(unused_mut)]
         let mut trash_ctx = TrashContext::default();
 
         // By default, `trash` uses `DeleteMethod::Finder` on macOS, which
@@ -395,11 +396,7 @@ impl FsOps {
         Ok(())
     }
 
-    async fn move_items(
-        &mut self,
-        items: &[PathBuf],
-        new_parent: &PathBuf,
-    ) -> Result<(), FsOpsError> {
+    async fn move_items(&mut self, items: &[PathBuf], new_parent: &Path) -> Result<(), FsOpsError> {
         for item in items {
             tokio::fs::rename(item, new_parent.join(item.file_name().unwrap())).await?;
         }

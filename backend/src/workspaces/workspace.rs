@@ -153,13 +153,11 @@ impl Workspace {
     ) -> Result<(), WorkspaceError> {
         if let Err(e) = &self.state {
             return Err(WorkspaceError::GenericWorkspaceError {
-                message: format!("Bad workspace state: {:?}", e),
+                message: format!("Bad workspace state: {e:?}"),
             });
         }
 
-        let new_parent = new_parent
-            .map(|p| PathBuf::from(p))
-            .unwrap_or(self.path.clone());
+        let new_parent = new_parent.map(PathBuf::from).unwrap_or(self.path.clone());
 
         let top_items = self
             .state
@@ -173,7 +171,7 @@ impl Workspace {
             .map_err(|e| WorkspaceError::ItemMoveError {
                 workspace_id: self.id.clone(),
                 item_ids: item_ids.to_vec(),
-                new_parent: new_parent,
+                new_parent,
                 message: e.to_string(),
             })?;
 
@@ -186,26 +184,26 @@ impl Workspace {
     ) -> Result<String, WorkspaceError> {
         let id = uuid_v7();
         let parent_folder = parent_folder_id
-            .map(|p| PathBuf::from(p))
+            .map(PathBuf::from)
             .unwrap_or(self.path.clone());
 
         let name = "Untitled";
         let mut suffix: Option<usize> = None;
-        let mut filename = format!("{}.atrb", name);
+        let mut filename = format!("{name}.atrb");
         let mut path = parent_folder.join(filename);
 
         while path.exists() {
             suffix = suffix.map(|s| s + 1).or(Some(1));
             filename = match suffix {
-                Some(suffix) => format!("{}-{}.atrb", name, suffix),
-                None => format!("{}.atrb", name),
+                Some(suffix) => format!("{name}-{suffix}.atrb"),
+                None => format!("{name}.atrb"),
             };
             path = parent_folder.join(filename);
         }
 
         let content = json!([]);
 
-        self.save_runbook(&id.to_string(), &name, &path, &content)
+        self.save_runbook(&id.to_string(), name, &path, &content)
             .await?;
 
         Ok(id.to_string())
@@ -221,7 +219,7 @@ impl Workspace {
         if let Err(e) = &self.state {
             return Err(WorkspaceError::RunbookSaveError {
                 runbook_id: id.to_string(),
-                message: format!("Bad workspace state: {:?}", e),
+                message: format!("Bad workspace state: {e:?}"),
             });
         }
 

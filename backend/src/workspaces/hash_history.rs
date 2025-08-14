@@ -37,9 +37,9 @@ impl HashHistory {
     }
 }
 
-impl Into<Vec<String>> for HashHistory {
-    fn into(self) -> Vec<String> {
-        self.vec.into_iter().collect()
+impl From<HashHistory> for Vec<String> {
+    fn from(hash_history: HashHistory) -> Self {
+        hash_history.vec.into_iter().collect()
     }
 }
 

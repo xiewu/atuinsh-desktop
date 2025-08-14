@@ -33,7 +33,7 @@ pub async fn watch_workspace(
             move |event: WorkspaceEvent| match channel.send(event) {
                 Ok(_) => (),
                 Err(e) => {
-                    println!("Error sending workspace event: {:?}", e);
+                    println!("Error sending workspace event: {e:?}");
                 }
             },
             workspaces_clone,

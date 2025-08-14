@@ -108,7 +108,7 @@ impl WorkspaceManager {
 
         let fs_ops = FsOpsHandle::new();
         let state =
-            WorkspaceState::new(&id, &path)
+            WorkspaceState::new(id, &path)
                 .await
                 .map_err(|e| WorkspaceError::WorkspaceReadError {
                     path: path.as_ref().to_path_buf(),
@@ -193,7 +193,7 @@ impl WorkspaceManager {
     ) -> Result<PathBuf, WorkspaceError> {
         let workspace = self.get_workspace(workspace_id)?;
         workspace
-            .create_folder(parent_path.map(|p| Path::new(p)), name)
+            .create_folder(parent_path.map(Path::new), name)
             .await
     }
 
@@ -230,7 +230,7 @@ impl WorkspaceManager {
         &mut self,
         workspace_id: &str,
     ) -> Result<WorkspaceDirInfo, WorkspaceError> {
-        let workspace = self.get_workspace(&workspace_id)?;
+        let workspace = self.get_workspace(workspace_id)?;
         workspace.get_dir_info().await
     }
 
@@ -258,7 +258,7 @@ impl WorkspaceManager {
                 break;
             }
 
-            let has_relevant_paths = event.paths.iter().any(|path| is_relevant_file(path));
+            let has_relevant_paths = event.paths.iter().any(is_relevant_file);
 
             if !has_relevant_paths {
                 continue;
@@ -305,7 +305,7 @@ impl WorkspaceManager {
             return;
         }
 
-        eprintln!("handle_file_errors: {:?}", errors);
+        eprintln!("handle_file_errors: {errors:?}");
         todo!()
     }
 
@@ -322,7 +322,8 @@ impl WorkspaceManager {
     }
 }
 
-fn is_relevant_file(path: &PathBuf) -> bool {
+fn is_relevant_file(path: impl AsRef<Path>) -> bool {
+    let path = path.as_ref();
     path.is_dir()
         || !path.exists() // If the file doesn't exist, we may have deleted it
         || path

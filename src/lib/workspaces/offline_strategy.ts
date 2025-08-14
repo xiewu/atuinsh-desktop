@@ -307,7 +307,7 @@ export default class OfflineStrategy implements WorkspaceStrategy {
         } as WorkspaceError);
       } else {
         return Err({
-          type: "FolderRenameError",
+          type: "FolderDeleteError",
           data: {
             workspace_id: this.workspace.get("id")!,
             folder_id: folderId,

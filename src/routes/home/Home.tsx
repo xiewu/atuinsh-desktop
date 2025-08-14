@@ -14,6 +14,7 @@ import { allRunbooks } from "@/lib/queries/runbooks";
 import Runbook from "@/state/runbooks/runbook";
 import RunbookContext from "@/context/runbook_context";
 import Workspace from "@/state/runbooks/workspace";
+import { getWorkspaceStrategy } from "@/lib/workspaces/strategy";
 
 const ActivityGraph = React.lazy(() => import("@/components/ActivityGraph/ActivityGraph"));
 const TopChart = React.lazy(() => import("@/components/TopCommands/TopCommands"));
@@ -43,11 +44,12 @@ export default function Home() {
   const refreshCalendar = useStore((state: AtuinState) => state.refreshCalendar);
   const refreshRunbooks = useStore((state: AtuinState) => state.refreshRunbooks);
   const currentWorkspaceId = useStore((state: AtuinState) => state.currentWorkspaceId);
-  const { runbookCreated } = useContext(RunbookContext);
 
   const [version, setVersion] = useState<string | null>(null);
 
   const { data: runbooks } = useQuery(allRunbooks());
+
+  const { activateRunbook } = useContext(RunbookContext);
 
   useEffect(() => {
     refreshHomeInfo();
@@ -95,11 +97,12 @@ export default function Home() {
                 description="Create an executable runbook"
                 startContent={<Terminal />}
                 onPress={async () => {
-                  const ws = await Workspace.get(currentWorkspaceId);
-                  if (!ws) return;
-
-                  const rb = await Runbook.createUntitled(ws);
-                  runbookCreated(rb.id, ws.get("id")!, null, true);
+                  const workspace = await Workspace.get(currentWorkspaceId);
+                  if (!workspace) return;
+                  const strategy = getWorkspaceStrategy(workspace);
+                  strategy.createRunbook(null, (runbookId) => {
+                    activateRunbook(runbookId);
+                  });
                 }}
               >
                 New runbook

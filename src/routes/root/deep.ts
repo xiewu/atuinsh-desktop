@@ -51,27 +51,6 @@ const handleDeepLink = (
   ) => void,
 ): void | null => {
   const routes: Routes = {
-    // Legacy "Open in desktop" from the hub
-    "^atuin://runbook/([\\w-]+)/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$":
-      async (params: string[]) => {
-        const [_username, id] = params;
-
-        let result = await createRunbookFromHub(id);
-
-        if (result.isSome() && result.unwrap().runbookId) {
-          let runbook = await Runbook.load(result.unwrap().runbookId);
-          if (!runbook) {
-            console.error("Unable to open runbook from hub");
-            return;
-          }
-          runbookCreated(runbook.id, runbook.workspaceId, null, true);
-
-          useStore.getState().refreshRunbooks();
-        } else {
-          console.error("Unable to open runbook from hub");
-        }
-      },
-
     // New "Open in desktop" from the hub
     "^atuin://runbook/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$": async (
       params: string[],

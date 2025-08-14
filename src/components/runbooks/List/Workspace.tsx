@@ -515,6 +515,7 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
           .build();
       }
     } else {
+      // TODO: handle moving between workspaces
       props.onStartMoveItemsToWorkspace(
         ids,
         sourceWorkspaceId,

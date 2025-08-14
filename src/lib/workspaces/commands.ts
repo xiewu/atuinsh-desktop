@@ -109,3 +109,12 @@ export async function moveItems(
     invoke("move_items", { workspaceId, itemIds: ids, newParent: parentId }),
   );
 }
+
+export async function createRunbook(
+  workspaceId: string,
+  parentFolderId: string | null,
+): Promise<Result<string, WorkspaceError>> {
+  return promiseResult<string, WorkspaceError>(
+    invoke("create_runbook", { workspaceId, parentFolderId }),
+  );
+}

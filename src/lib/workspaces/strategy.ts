@@ -36,7 +36,10 @@ export type DoFolderOp = (
  */
 export default interface WorkspaceStrategy {
   createWorkspace(): Promise<Result<Workspace, WorkspaceError>>;
-  createRunbook(parentFolderId: string | null): Promise<Result<Runbook, WorkspaceError>>;
+  createRunbook(
+    parentFolderId: string | null,
+    activateRunbook: (runbookId: string) => void,
+  ): Promise<Result<string, WorkspaceError>>;
   renameWorkspace(newName: string): Promise<Result<undefined, WorkspaceError>>;
   deleteWorkspace(): Promise<void>;
   createFolder(

@@ -507,12 +507,12 @@ function App() {
   async function handleStartCreateRunbook(
     workspaceId: string,
     parentFolderId: string | null,
-  ): Promise<Result<Runbook, string>> {
+  ): Promise<Result<undefined, string>> {
     const workspace = await Workspace.get(workspaceId);
     if (!workspace) return Err("Workspace not found");
 
     const strategy = getWorkspaceStrategy(workspace);
-    const result = await strategy.createRunbook(parentFolderId);
+    const result = await strategy.createRunbook(parentFolderId, handleRunbookActivate);
     if (result.isErr()) {
       let err = result.unwrapErr();
       let message = "Failed to create runbook";
@@ -523,12 +523,7 @@ function App() {
       return Err(message);
     }
 
-    const rb = result.unwrap();
-
-    // handleRunbookCreated(rb.id, workspaceId, parentFolderId, true);
-    await handleRunbookActivate(rb.id);
-
-    return Ok(rb);
+    return Ok(undefined);
   }
 
   // async function handleRunbookCreated(

@@ -224,15 +224,28 @@ export default class OfflineStrategy implements WorkspaceStrategy {
     throw new Error("Method not implemented.");
   }
 
-  // TODO
-  async createRunbook(parentFolderId: string | null): Promise<Result<Runbook, WorkspaceError>> {
-    return Err({
-      type: "WorkspaceReadError",
-      data: {
-        path: this.workspace.get("folder")!,
-        message: "Not implemented",
-      },
-    } as WorkspaceError);
+  async createRunbook(
+    parentFolderId: string | null,
+    activateRunbook: (runbookId: string) => void,
+  ): Promise<Result<string, WorkspaceError>> {
+    const result = await commands.createRunbook(this.workspace.get("id")!, parentFolderId);
+    if (result.isErr()) {
+      const err = result.unwrapErr();
+      let message = "Failed to create runbook";
+      if ("message" in err.data) {
+        message = `Failed to create runbook: ${err.data.message}`;
+      }
+      new DialogBuilder()
+        .title("Error creating runbook")
+        .message(message)
+        .action({ label: "OK", value: "ok" })
+        .build();
+      return Err(err);
+    }
+
+    const runbookId = result.unwrap();
+    activateRunbook(runbookId);
+    return Ok(runbookId);
   }
 
   async createFolder(

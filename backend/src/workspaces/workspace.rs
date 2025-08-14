@@ -4,6 +4,7 @@ use std::{
     sync::Arc,
 };
 
+use atuin_common::utils::uuid_v7;
 use json_digest::digest_data;
 use notify_debouncer_full::{notify::RecommendedWatcher, Debouncer, RecommendedCache};
 use serde::Serialize;
@@ -177,6 +178,37 @@ impl Workspace {
             })?;
 
         Ok(())
+    }
+
+    pub async fn create_runbook(
+        &mut self,
+        parent_folder_id: Option<&str>,
+    ) -> Result<String, WorkspaceError> {
+        let id = uuid_v7();
+        let parent_folder = parent_folder_id
+            .map(|p| PathBuf::from(p))
+            .unwrap_or(self.path.clone());
+
+        let name = "Untitled";
+        let mut suffix: Option<usize> = None;
+        let mut filename = format!("{}.atrb", name);
+        let mut path = parent_folder.join(filename);
+
+        while path.exists() {
+            suffix = suffix.map(|s| s + 1).or(Some(1));
+            filename = match suffix {
+                Some(suffix) => format!("{}-{}.atrb", name, suffix),
+                None => format!("{}.atrb", name),
+            };
+            path = parent_folder.join(filename);
+        }
+
+        let content = json!([]);
+
+        self.save_runbook(&id.to_string(), &name, &path, &content)
+            .await?;
+
+        Ok(id.to_string())
     }
 
     pub async fn save_runbook(

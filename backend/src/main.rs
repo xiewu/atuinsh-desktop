@@ -490,6 +490,7 @@ fn main() {
             commands::workspaces::rename_workspace,
             commands::workspaces::delete_workspace,
             commands::workspaces::read_dir,
+            commands::workspaces::create_runbook,
             commands::workspaces::save_runbook,
             commands::workspaces::create_folder,
             commands::workspaces::rename_folder,

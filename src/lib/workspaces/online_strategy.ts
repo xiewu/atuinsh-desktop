@@ -96,10 +96,13 @@ export default class OnlineStrategy implements WorkspaceStrategy {
     throw new Error("Method not implemented.");
   }
 
-  async createRunbook(parentFolderId: string | null): Promise<Result<Runbook, WorkspaceError>> {
+  async createRunbook(
+    parentFolderId: string | null,
+    activateRunbook: (runbookId: string) => void,
+  ): Promise<Result<string, WorkspaceError>> {
     const rb = await Runbook.createUntitled(this.workspace, true);
-    await this.onRunbookCreated(rb, parentFolderId);
-    return Ok(rb);
+    await this.onRunbookCreated(rb, parentFolderId, activateRunbook);
+    return Ok(rb.id);
   }
 
   async createFolder(
@@ -212,7 +215,11 @@ export default class OnlineStrategy implements WorkspaceStrategy {
     return Ok(undefined);
   }
 
-  private async onRunbookCreated(runbook: Runbook, parentFolderId: string | null): Promise<void> {
+  private async onRunbookCreated(
+    runbook: Runbook,
+    parentFolderId: string | null,
+    activateRunbook: (runbookId: string) => void,
+  ): Promise<void> {
     // NOTE [mkt]:
     // This API call is made here instead of through the operation processor
     // because we need to wait for the runbook to be created on the server
@@ -228,14 +235,14 @@ export default class OnlineStrategy implements WorkspaceStrategy {
       return;
     }
 
-    if (!runbook) {
-      new DialogBuilder()
-        .title("Could not load runbook")
-        .message("We were unable to load the runbook.")
-        .action({ label: "OK", value: "ok", variant: "flat" })
-        .build();
-      return;
-    }
+    // if (!runbook) {
+    //   new DialogBuilder()
+    //     .title("Could not load runbook")
+    //     .message("We were unable to load the runbook.")
+    //     .action({ label: "OK", value: "ok", variant: "flat" })
+    //     .build();
+    //   return;
+    // }
 
     let startedSyncIndicator = false;
     try {
@@ -269,8 +276,11 @@ export default class OnlineStrategy implements WorkspaceStrategy {
       }
     }
 
-    track_event("runbooks.create");
-    // TODO[mkt]: Activate the runbook here (callback?)
+    activateRunbook(runbook.id);
+
+    track_event("runbooks.create", {
+      workspacType: "online",
+    });
 
     doWorkspaceFolderOp(
       workspace.get("id")!,

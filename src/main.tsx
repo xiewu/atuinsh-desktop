@@ -140,7 +140,7 @@ const router = createHashRouter([
     children: [
       {
         index: true,
-        element: <LazyHome />,
+        element: <LazyRunbooks />,
       },
 
       {

@@ -328,15 +328,6 @@ function App() {
         title: "Personal",
         items: [
           {
-            key: "home",
-            icon: "solar:home-2-linear",
-            title: "Home",
-            onPress: () => {
-              navigate("/");
-            },
-          },
-
-          {
             key: "runbooks",
             icon: "solar:notebook-linear",
             title: "Runbooks",

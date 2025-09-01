@@ -67,14 +67,6 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
         title: "Personal",
         items: [
           {
-            key: "home",
-            icon: "solar:home-2-linear",
-            title: "Home",
-            onPress: () => {
-              navigate("/");
-            },
-          },
-          {
             key: "runbooks",
             icon: "solar:notebook-linear",
             title: "Runbooks",
@@ -95,7 +87,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     ];
 
     useEffect(() => {
-      if (location.pathname == "/runbooks") {
+      if (location.pathname == "/" || location.pathname == "/runbooks") {
         setSelected("runbooks");
       } else if (location.pathname == "/history") {
         setSelected("history");
@@ -106,7 +98,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       } else if (location.pathname == "/stats") {
         setSelected("stats");
       } else {
-        setSelected("home");
+        setSelected("runbooks");
       }
     }, [location]);
 

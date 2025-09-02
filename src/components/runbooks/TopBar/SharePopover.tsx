@@ -1,4 +1,4 @@
-import Runbook, { RunbookVisibility } from "@/state/runbooks/runbook";
+import Runbook, { OnlineRunbook, RunbookVisibility } from "@/state/runbooks/runbook";
 import { Button, Popover, PopoverContent, PopoverTrigger } from "@heroui/react";
 import { useEffect, useState } from "react";
 import { useStore } from "@/state/store";
@@ -67,7 +67,7 @@ export default function Share({
       // this is necessary to get the sidebar list to update icon colors.
       try {
         const remoteRb = await api.getRunbookID(vars.runbook.id);
-        if (remoteRb) {
+        if (remoteRb && vars.runbook instanceof OnlineRunbook) {
           vars.runbook.remoteInfo = JSON.stringify(remoteRb);
           await vars.runbook.save();
         }

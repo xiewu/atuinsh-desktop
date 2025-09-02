@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",
-    "@binarymuse/ts-stdlib": "^0.3.0",
+    "@binarymuse/ts-stdlib": "^0.4.0",
     "@blocknote/core": "^0.34.0",
     "@blocknote/mantine": "^0.34.0",
     "@blocknote/react": "^0.34.0",

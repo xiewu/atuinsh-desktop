@@ -5,7 +5,10 @@ use tauri::{ipc::Channel, State};
 
 use crate::{
     state::AtuinState,
-    workspaces::{fs_ops::WorkspaceDirInfo, manager::WorkspaceEvent, workspace::WorkspaceError},
+    workspaces::{
+        fs_ops::WorkspaceDirInfo, manager::WorkspaceEvent, offline_runbook::OfflineRunbook,
+        workspace::WorkspaceError,
+    },
 };
 
 #[tauri::command]
@@ -92,17 +95,27 @@ pub async fn read_dir(
 #[tauri::command]
 pub async fn save_runbook(
     workspace_id: String,
-    id: String,
+    runbook_id: String,
     name: String,
-    path: PathBuf,
     content: Value,
     state: State<'_, AtuinState>,
 ) -> Result<(), WorkspaceError> {
     let mut manager = state.workspaces.lock().await;
     let manager = manager.as_mut().expect("Workspace not found in state");
     manager
-        .save_runbook(&workspace_id, &id, &name, &path, content)
+        .save_runbook(&workspace_id, &runbook_id, &name, content)
         .await
+}
+
+#[tauri::command]
+pub async fn delete_runbook(
+    workspace_id: String,
+    runbook_id: String,
+    state: State<'_, AtuinState>,
+) -> Result<(), WorkspaceError> {
+    let mut manager = state.workspaces.lock().await;
+    let manager = manager.as_mut().expect("Workspace not found in state");
+    manager.delete_runbook(&workspace_id, &runbook_id).await
 }
 
 #[tauri::command]
@@ -170,4 +183,14 @@ pub async fn create_runbook(
     manager
         .create_runbook(&workspace_id, parent_folder_id.as_deref())
         .await
+}
+
+#[tauri::command]
+pub async fn get_runbook(
+    runbook_id: String,
+    state: State<'_, AtuinState>,
+) -> Result<OfflineRunbook, WorkspaceError> {
+    let mut manager = state.workspaces.lock().await;
+    let manager = manager.as_mut().expect("Workspace not found in state");
+    manager.get_runbook(&runbook_id).await
 }

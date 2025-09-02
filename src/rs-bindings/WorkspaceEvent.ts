@@ -2,4 +2,4 @@
 import type { WorkspaceError } from "./WorkspaceError";
 import type { WorkspaceState } from "./WorkspaceState";
 
-export type WorkspaceEvent = { "type": "State", "data": WorkspaceState } | { "type": "Error", "data": WorkspaceError };
+export type WorkspaceEvent = { "type": "State", "data": WorkspaceState } | { "type": "Error", "data": WorkspaceError } | { "type": "RunbookChanged", "data": string };

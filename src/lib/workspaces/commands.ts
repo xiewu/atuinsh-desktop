@@ -3,7 +3,8 @@ import { Err, Ok, Result } from "@binarymuse/ts-stdlib";
 import { Channel, invoke } from "@tauri-apps/api/core";
 
 import type { WorkspaceEvent } from "@rust/WorkspaceEvent";
-import { WorkspaceError } from "@/rs-bindings/WorkspaceError";
+import { WorkspaceError } from "@rust/WorkspaceError";
+import { RustOfflineRunbook } from "@/rs-bindings/RustOfflineRunbook";
 
 export interface WorkspaceDirInfo {
   id: string;
@@ -117,4 +118,30 @@ export async function createRunbook(
   return promiseResult<string, WorkspaceError>(
     invoke("create_runbook", { workspaceId, parentFolderId }),
   );
+}
+
+export async function deleteRunbook(
+  workspaceId: string,
+  runbookId: string,
+): Promise<Result<undefined, WorkspaceError>> {
+  return promiseResult<undefined, WorkspaceError>(
+    invoke("delete_runbook", { workspaceId, runbookId }),
+  );
+}
+
+export async function saveRunbook(
+  workspaceId: string,
+  runbookId: string,
+  name: string,
+  content: string,
+): Promise<Result<undefined, WorkspaceError>> {
+  return promiseResult<undefined, WorkspaceError>(
+    invoke("save_runbook", { workspaceId, runbookId, name, content }),
+  );
+}
+
+export async function getRunbook(
+  runbookId: string,
+): Promise<Result<RustOfflineRunbook, WorkspaceError>> {
+  return promiseResult<RustOfflineRunbook, WorkspaceError>(invoke("get_runbook", { runbookId }));
 }

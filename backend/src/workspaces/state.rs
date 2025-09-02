@@ -188,6 +188,16 @@ impl WorkspaceRunbook {
             stats.modified().ok(),
         ))
     }
+
+    pub fn default_filename(&self) -> String {
+        format!("{}.atrb", self.name)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum WorkspaceItem {
+    Runbook(String, String, PathBuf),
+    Folder(String, PathBuf),
 }
 
 enum ParseState {

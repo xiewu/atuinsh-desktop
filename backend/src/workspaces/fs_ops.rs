@@ -12,7 +12,7 @@ use tokio::sync::{
 use trash::TrashContext;
 use ts_rs::TS;
 
-use crate::run_async_command;
+use crate::{run_async_command, workspaces::offline_runbook::OfflineRunbookFile};
 
 #[derive(thiserror::Error, Debug)]
 pub enum FsOpsError {
@@ -37,7 +37,9 @@ pub type Reply<T> = oneshot::Sender<Result<T, FsOpsError>>;
 pub enum FsOpsInstruction {
     RenameWorkspace(PathBuf, String, Reply<()>),
     GetDirectoryInformation(PathBuf, Reply<WorkspaceDirInfo>),
-    SaveRunbook(PathBuf, Value, Reply<()>),
+    SaveRunbook(Option<PathBuf>, PathBuf, Value, Reply<()>),
+    DeleteRunbook(PathBuf, Reply<()>),
+    GetRunbook(PathBuf, Reply<OfflineRunbookFile>),
     CreateFolder(PathBuf, PathBuf, Reply<PathBuf>),
     RenameFolder(PathBuf, PathBuf, Reply<()>),
     TrashFolder(PathBuf, Reply<()>),
@@ -138,15 +140,42 @@ impl FsOpsHandle {
 
     pub async fn save_runbook(
         &self,
-        path: impl AsRef<Path>,
+        old_path: Option<impl AsRef<Path>>,
+        new_path: impl AsRef<Path>,
         content: Value,
     ) -> Result<(), FsOpsError> {
         let (sender, receiver) = oneshot::channel();
 
         self.tx
             .send(FsOpsInstruction::SaveRunbook(
-                path.as_ref().to_path_buf(),
+                old_path.map(|p| p.as_ref().to_path_buf()),
+                new_path.as_ref().to_path_buf(),
                 content,
+                sender,
+            ))
+            .await?;
+        receiver.await.unwrap()
+    }
+
+    pub async fn delete_runbook(&self, path: impl AsRef<Path>) -> Result<(), FsOpsError> {
+        let (sender, receiver) = oneshot::channel();
+        self.tx
+            .send(FsOpsInstruction::DeleteRunbook(
+                path.as_ref().to_path_buf(),
+                sender,
+            ))
+            .await?;
+        receiver.await.unwrap()
+    }
+
+    pub async fn get_runbook(
+        &self,
+        path: impl AsRef<Path>,
+    ) -> Result<OfflineRunbookFile, FsOpsError> {
+        let (sender, receiver) = oneshot::channel();
+        self.tx
+            .send(FsOpsInstruction::GetRunbook(
+                path.as_ref().to_path_buf(),
                 sender,
             ))
             .await?;
@@ -256,8 +285,18 @@ impl FsOps {
                     let result = self.rename_workspace(&path, &name).await;
                     let _ = reply_to.send(result);
                 }
-                FsOpsInstruction::SaveRunbook(path, content, reply_to) => {
-                    let result = self.save_runbook(&path, content).await;
+                FsOpsInstruction::SaveRunbook(old_path, new_path, content, reply_to) => {
+                    let result = self
+                        .save_runbook(old_path.as_ref(), &new_path, content)
+                        .await;
+                    let _ = reply_to.send(result);
+                }
+                FsOpsInstruction::DeleteRunbook(path, reply_to) => {
+                    let result = self.trash_path(&path).await;
+                    let _ = reply_to.send(result);
+                }
+                FsOpsInstruction::GetRunbook(path, reply_to) => {
+                    let result = self.get_runbook(&path).await;
                     let _ = reply_to.send(result);
                 }
                 FsOpsInstruction::CreateFolder(parent_path, name, reply_to) => {
@@ -269,7 +308,7 @@ impl FsOps {
                     let _ = reply_to.send(result);
                 }
                 FsOpsInstruction::TrashFolder(path, reply_to) => {
-                    let result = self.trash_folder(&path).await;
+                    let result = self.trash_path(&path).await;
                     let _ = reply_to.send(result);
                 }
                 FsOpsInstruction::MoveItems(items, new_parent, reply_to) => {
@@ -322,14 +361,42 @@ impl FsOps {
         Ok(())
     }
 
+    // TODO: there's a weird bug where sometimes the file will add a suffix even though its name isn't actually changing,
+    // like it's detected that its own file is a name conflict
     async fn save_runbook(
         &mut self,
-        path: impl AsRef<Path>,
+        old_path: Option<impl AsRef<Path>>,
+        new_path: impl AsRef<Path>,
         content: Value,
     ) -> Result<(), FsOpsError> {
+        // If the new path already exists, we need to find a new path with a unique numeric suffix
+        let new_path = find_unique_path(new_path.as_ref())?;
+
+        if let Some(old_path) = old_path {
+            if old_path.as_ref() != &new_path && old_path.as_ref().exists() {
+                tokio::fs::rename(old_path.as_ref(), &new_path).await?;
+            }
+        }
+
         let json_text = serde_json::to_string_pretty(&content)?;
-        tokio::fs::write(path.as_ref(), json_text).await?;
+        tokio::fs::write(new_path, json_text).await?;
+
         Ok(())
+    }
+
+    async fn get_runbook(
+        &mut self,
+        path: impl AsRef<Path>,
+    ) -> Result<OfflineRunbookFile, FsOpsError> {
+        let json_text = tokio::fs::read_to_string(path.as_ref()).await?;
+        let mut runbook: OfflineRunbookFile = serde_json::from_str(&json_text)?;
+        let metadata = tokio::fs::metadata(path.as_ref()).await?;
+        let created = metadata.created().ok();
+        let updated = metadata.modified().ok();
+        runbook.created = created;
+        runbook.updated = updated;
+
+        Ok(runbook)
     }
 
     async fn create_folder(
@@ -369,7 +436,7 @@ impl FsOps {
         Ok(())
     }
 
-    async fn trash_folder(&mut self, path: &PathBuf) -> Result<(), FsOpsError> {
+    async fn trash_path(&mut self, path: &PathBuf) -> Result<(), FsOpsError> {
         if !path.exists() {
             return Err(FsOpsError::FileMissingError(
                 path.to_string_lossy().to_string(),
@@ -398,7 +465,11 @@ impl FsOps {
 
     async fn move_items(&mut self, items: &[PathBuf], new_parent: &Path) -> Result<(), FsOpsError> {
         for item in items {
-            tokio::fs::rename(item, new_parent.join(item.file_name().unwrap())).await?;
+            let new_path = new_parent.join(item.file_name().unwrap());
+            let new_path = find_unique_path(&new_path)?;
+            if item.exists() {
+                tokio::fs::rename(item, &new_path).await?;
+            }
         }
         Ok(())
     }
@@ -439,6 +510,38 @@ pub async fn read_dir_recursive(path: impl AsRef<Path>) -> Result<Vec<DirEntry>,
     }
 
     Ok(contents)
+}
+
+fn find_unique_path(path: impl AsRef<Path>) -> Result<PathBuf, FsOpsError> {
+    let stem = path
+        .as_ref()
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .ok_or(FsOpsError::FileMissingError(
+            "path is not a file".to_string(),
+        ))?;
+    let extension = path
+        .as_ref()
+        .extension()
+        .map(|s| s.to_string_lossy().to_string())
+        .map(|s| format!(".{s}"))
+        .unwrap_or_default();
+    let parent = path.as_ref().parent().ok_or(FsOpsError::FileMissingError(
+        "path has no parent".to_string(),
+    ))?;
+
+    let mut suffix: Option<u32> = None;
+    let mut target = path.as_ref().to_path_buf();
+
+    while target.exists() {
+        suffix = Some(suffix.unwrap_or(0) + 1);
+        target = parent.join(format!(
+            "{stem}{}{extension}",
+            suffix.map_or(String::new(), |s| format!("-{s}"))
+        ));
+    }
+
+    Ok(target)
 }
 
 #[cfg(test)]
@@ -484,6 +587,36 @@ mod tests {
         assert!(files.iter().any(|f| f.path == dir1.join("file1.txt")));
         assert!(files.iter().any(|f| f.path == dir2.join("file2.txt")));
         assert!(files.iter().any(|f| f.path == dir3.join("file3.txt")));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_find_unique_path() -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempdir()?;
+        let base = temp.path();
+
+        // Test when file doesn't exist - should return same path
+        let test_path = base.join("test.txt");
+        let unique_path = find_unique_path(&test_path)?;
+        assert_eq!(unique_path, test_path);
+
+        // Create the file and test again - should return incremented path
+        fs::write(&test_path, "content")?;
+        let unique_path = find_unique_path(&test_path)?;
+        assert_eq!(unique_path, base.join("test-1.txt"));
+
+        // Create multiple files and verify incrementing behavior
+        fs::write(base.join("test-1.txt"), "content")?;
+        fs::write(base.join("test-2.txt"), "content")?;
+        let unique_path = find_unique_path(&test_path)?;
+        assert_eq!(unique_path, base.join("test-3.txt"));
+
+        // Test with file that has no extension
+        let no_ext = base.join("noext");
+        fs::write(&no_ext, "content")?;
+        let unique_path = find_unique_path(&no_ext)?;
+        assert_eq!(unique_path, base.join("noext-1"));
 
         Ok(())
     }

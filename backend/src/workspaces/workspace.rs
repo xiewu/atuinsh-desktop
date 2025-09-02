@@ -15,6 +15,7 @@ use crate::workspaces::{
     fs_ops::{FsOpsHandle, WorkspaceDirInfo},
     hash_history::HashHistory,
     manager::OnEvent,
+    offline_runbook::OfflineRunbook,
     state::WorkspaceState,
 };
 
@@ -35,6 +36,8 @@ pub enum WorkspaceError {
     WorkspaceAlreadyWatched { workspace_id: String },
     #[error("Failed to save runbook {runbook_id}: {message}")]
     RunbookSaveError { runbook_id: String, message: String },
+    #[error("Failed to delete runbook {runbook_id}: {message}")]
+    RunbookDeleteError { runbook_id: String, message: String },
     #[error("Failed to rename workspace {workspace_id}: {message}")]
     WorkspaceRenameError {
         workspace_id: String,
@@ -180,30 +183,15 @@ impl Workspace {
 
     pub async fn create_runbook(
         &mut self,
-        parent_folder_id: Option<&str>,
+        parent_folder_id: Option<&str>, // TODO
     ) -> Result<String, WorkspaceError> {
         let id = uuid_v7();
-        let parent_folder = parent_folder_id
-            .map(PathBuf::from)
-            .unwrap_or(self.path.clone());
-
         let name = "Untitled";
-        let mut suffix: Option<usize> = None;
-        let mut filename = format!("{name}.atrb");
-        let mut path = parent_folder.join(filename);
-
-        while path.exists() {
-            suffix = suffix.map(|s| s + 1).or(Some(1));
-            filename = match suffix {
-                Some(suffix) => format!("{name}-{suffix}.atrb"),
-                None => format!("{name}.atrb"),
-            };
-            path = parent_folder.join(filename);
-        }
-
         let content = json!([]);
 
-        self.save_runbook(&id.to_string(), name, &path, &content)
+        let parent_folder = parent_folder_id.map(|id| PathBuf::from(id));
+
+        self.save_runbook(&id.to_string(), name, &content, parent_folder.as_ref())
             .await?;
 
         Ok(id.to_string())
@@ -211,20 +199,42 @@ impl Workspace {
 
     pub async fn save_runbook(
         &mut self,
-        id: &str,
+        runbook_id: &str,
         name: &str,
-        path: impl AsRef<Path>,
         content: &Value,
+        parent_folder: Option<impl AsRef<Path>>,
     ) -> Result<(), WorkspaceError> {
         if let Err(e) = &self.state {
             return Err(WorkspaceError::RunbookSaveError {
-                runbook_id: id.to_string(),
+                runbook_id: runbook_id.to_string(),
                 message: format!("Bad workspace state: {e:?}"),
             });
         }
 
+        let current_path = parent_folder
+            .map(|p| p.as_ref().join(runbook_id))
+            .or_else(|| {
+                self.state
+                    .as_ref()
+                    .ok()
+                    .and_then(|s| s.runbooks.get(runbook_id).map(|r| r.path.clone()))
+            });
+
+        let new_filename = name_to_filename(name);
+        let new_filename = format!("{new_filename}.atrb");
+
+        let new_path = current_path
+            .as_ref()
+            .map(|p| p.with_file_name(new_filename.clone()))
+            .unwrap_or_else(|| self.path.join(new_filename));
+
+        let paths_match = current_path
+            .as_ref()
+            .map(|p| p == &new_path)
+            .unwrap_or(false);
+
         let full_content = json!({
-            "id": id,
+            "id": runbook_id,
             "name": name,
             "version": 1,
             "content": content,
@@ -232,32 +242,77 @@ impl Workspace {
 
         match digest_data(&full_content) {
             Ok(digest) => {
-                if let Some(history) = self.histories.get(id) {
-                    if history.latest() == Some(&digest) {
+                if let Some(history) = self.histories.get(runbook_id) {
+                    // If the hash hasn't changed, we don't need to save the runbook,
+                    // UNLESS the name has changed, in which case FsOps will handle the rename.
+                    if history.latest() == Some(&digest) && paths_match {
                         return Ok(());
                     }
                 }
 
                 self.fs_ops
-                    .save_runbook(&path, full_content)
+                    .save_runbook(current_path.as_ref(), &new_path, full_content)
                     .await
                     .map_err(|e| WorkspaceError::RunbookSaveError {
-                        runbook_id: id.to_string(),
+                        runbook_id: runbook_id.to_string(),
                         message: e.to_string(),
                     })?;
 
                 self.histories
-                    .entry(id.to_string())
+                    .entry(runbook_id.to_string())
                     .or_insert_with(|| HashHistory::new(5))
                     .push(digest);
 
                 Ok(())
             }
             Err(e) => Err(WorkspaceError::RunbookSaveError {
-                runbook_id: id.to_string(),
+                runbook_id: runbook_id.to_string(),
                 message: e.to_string(),
             }),
         }
+    }
+
+    pub async fn delete_runbook(&mut self, runbook_id: &str) -> Result<(), WorkspaceError> {
+        let runbook = self
+            .state
+            .as_ref()
+            .ok()
+            .and_then(|s| s.runbooks.get(runbook_id))
+            .ok_or(WorkspaceError::GenericWorkspaceError {
+                message: format!("Runbook {} not found", runbook_id),
+            })?;
+
+        self.fs_ops
+            .delete_runbook(&runbook.path)
+            .await
+            .map_err(|e| WorkspaceError::RunbookDeleteError {
+                runbook_id: runbook_id.to_string(),
+                message: e.to_string(),
+            })
+    }
+
+    pub async fn get_runbook(&self, id: &str) -> Result<OfflineRunbook, WorkspaceError> {
+        let path = if let Ok(state) = &self.state {
+            if let Some(runbook) = state.runbooks.get(id) {
+                Ok(runbook.path.clone())
+            } else {
+                Err(WorkspaceError::GenericWorkspaceError {
+                    message: format!("Runbook {} not found", id),
+                })
+            }
+        } else {
+            Err(WorkspaceError::GenericWorkspaceError {
+                message: "Workspace state is not loaded".to_string(),
+            })
+        }?;
+
+        self.fs_ops
+            .get_runbook(&path)
+            .await
+            .map(|file| OfflineRunbook::new(file, self.id.clone()))
+            .map_err(|e| WorkspaceError::GenericWorkspaceError {
+                message: e.to_string(),
+            })
     }
 
     pub async fn get_dir_info(&self) -> Result<WorkspaceDirInfo, WorkspaceError> {
@@ -277,5 +332,38 @@ impl Workspace {
                 path: self.path.clone(),
                 message: e.to_string(),
             })
+    }
+}
+
+fn name_to_filename(name: &str) -> String {
+    name.chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == ' ' || c == '_' || c == '-' {
+                Some(c)
+            } else {
+                None
+            }
+        })
+        .filter(|c| c.is_some())
+        .map(|c| c.unwrap())
+        .collect::<String>()
+        .split(' ')
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<&str>>()
+        .join(" ")
+        .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_name_to_filename() {
+        assert_eq!(name_to_filename(" Hello World! "), "Hello World");
+        assert_eq!(
+            name_to_filename("Wait, is this a file runbook!?"),
+            "Wait is this a file runbook"
+        );
     }
 }

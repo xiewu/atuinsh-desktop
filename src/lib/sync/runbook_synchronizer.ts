@@ -1,7 +1,7 @@
 import { RemoteRunbook, User } from "@/state/models";
 import Logger from "../logger";
 import WorkspaceSyncManager from "./workspace_sync_manager";
-import Runbook from "@/state/runbooks/runbook";
+import Runbook, { OnlineRunbook } from "@/state/runbooks/runbook";
 import Snapshot from "@/state/runbooks/snapshot";
 import * as api from "@/api/api";
 import * as Y from "yjs";
@@ -71,7 +71,7 @@ export default class RunbookSynchronizer {
       this.resolve = resolve;
       this.reject = reject;
 
-      let runbook = await Runbook.load(this.runbookId);
+      let runbook = (await OnlineRunbook.load(this.runbookId)) as OnlineRunbook;
       const snapshots = await Snapshot.findByRunbookId(this.runbookId);
 
       let remoteRunbook: RemoteRunbook;
@@ -121,7 +121,7 @@ export default class RunbookSynchronizer {
 
       if (!runbook) {
         created = true;
-        runbook = await Runbook.create(workspace, false);
+        runbook = await OnlineRunbook.create(workspace, false);
         runbook.id = remoteRunbook.id;
         runbook.name = remoteRunbook.name;
         runbook.source = AtuinEnv.hubRunbookSource;

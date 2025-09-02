@@ -72,8 +72,6 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
   const currentRunbookId = useStore((state: AtuinState) => state.currentRunbookId);
   const currentWorkspaceId = useStore((state: AtuinState) => state.currentWorkspaceId);
 
-
-
   const elRef = useRef<HTMLDivElement>(null);
   const user = useStore((state: AtuinState) => state.user);
   const userOrgs = useStore((state: AtuinState) => state.userOrgs);
@@ -81,7 +79,6 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
   const setSelectedOrg = useStore((state: AtuinState) => state.setSelectedOrg);
 
   const { data: workspaces } = useQuery(orgWorkspaces(selectedOrg || null));
-  );
 
   const { activateRunbook, promptDeleteRunbook } = useContext(RunbookContext);
 

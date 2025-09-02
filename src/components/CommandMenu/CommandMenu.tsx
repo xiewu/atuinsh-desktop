@@ -6,7 +6,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Dialog, DialogContent, DialogPortal } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogPortal, DialogTitle } from "@/components/ui/dialog";
 
 import { type SearchResultItem } from "./data";
 
@@ -18,6 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import { allRunbooks } from "@/lib/queries/runbooks";
 import { allWorkspaces } from "@/lib/queries/workspaces";
 import RunbookContext from "@/context/runbook_context";
+import { VisuallyHidden } from "@heroui/react";
 
 interface CommandMenuProps {
   index: RunbookIndexService;
@@ -138,6 +139,9 @@ export default function CommandMenu(props: CommandMenuProps) {
     >
       <DialogPortal>
         <DialogContent className="overflow-hidden p-0 data-[state=open]:animate-none data-[state=closed]:animate-none">
+          <VisuallyHidden>
+            <DialogTitle>Search Runbooks</DialogTitle>
+          </VisuallyHidden>
           <Command shouldFilter={false}>
             <CommandInput placeholder="Search Runbooks..." value={query} onValueChange={setQuery} />
             <CommandList>

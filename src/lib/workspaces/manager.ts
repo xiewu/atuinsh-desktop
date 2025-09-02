@@ -7,6 +7,7 @@ import type { WorkspaceError } from "@rust/WorkspaceError";
 import { watchWorkspace } from "./commands";
 import { localWorkspaceInfo } from "../queries/workspaces";
 import { useStore } from "@/state/store";
+import { allRunbookIds, allRunbooks, runbookById } from "../queries/runbooks";
 
 export default class WorkspaceManager {
   private static instance: WorkspaceManager;
@@ -34,6 +35,7 @@ export default class WorkspaceManager {
 
       await watchWorkspace(workspace.get("folder")!, workspace.get("id")!, async (event) => {
         console.log("Workspace event", event);
+        const queryClient = useStore.getState().queryClient;
         switch (event.type) {
           case "State":
             this.workspaces.set(workspace.get("id")!, Ok(event.data));
@@ -41,18 +43,19 @@ export default class WorkspaceManager {
               workspace.set("name", event.data.name);
               await workspace.save();
             }
-            useStore
-              .getState()
-              .queryClient.invalidateQueries(localWorkspaceInfo(workspace.get("id")!));
+            queryClient.invalidateQueries(localWorkspaceInfo(workspace.get("id")!));
+            queryClient.invalidateQueries(allRunbookIds());
+            queryClient.invalidateQueries(allRunbooks());
             break;
           case "Error":
             this.workspaces.set(workspace.get("id")!, Err(event.data));
-            useStore
-              .getState()
-              .queryClient.invalidateQueries(localWorkspaceInfo(workspace.get("id")!));
+            queryClient.invalidateQueries(localWorkspaceInfo(workspace.get("id")!));
+            queryClient.invalidateQueries(allRunbookIds());
+            queryClient.invalidateQueries(allRunbooks());
             break;
-          case "OtherMessage":
-            console.log("Workspace event", event.data);
+          case "RunbookChanged":
+            console.log("Runbook changed", event.data);
+            useStore.getState().queryClient.invalidateQueries(runbookById(event.data));
             break;
           default:
             const exhaustiveCheck: never = event;
@@ -71,6 +74,12 @@ export default class WorkspaceManager {
         throw new Error("Workspace not being watched");
       }
     }
+  }
+
+  public getWorkspaces(): WorkspaceState[] {
+    return Array.from(this.workspaces.values())
+      .filter((result) => result.isOk())
+      .map((result) => result.unwrap());
   }
 
   public getWorkspaceInfo(workspaceId: string): Option<Result<WorkspaceState, WorkspaceError>> {

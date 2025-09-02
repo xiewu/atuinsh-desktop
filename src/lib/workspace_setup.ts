@@ -2,7 +2,7 @@ import Workspace from "@/state/runbooks/workspace";
 import { useStore } from "@/state/store";
 import * as api from "@/api/api";
 import Operation from "@/state/runbooks/operation";
-import Runbook from "@/state/runbooks/runbook";
+import Runbook, { OnlineRunbook } from "@/state/runbooks/runbook";
 import LegacyWorkspace from "@/state/runbooks/legacy_workspace";
 import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
 import { SharedStateManager } from "./shared_state/manager";
@@ -90,10 +90,11 @@ export default async function doWorkspaceSetup(): Promise<void> {
     workspaces.push(workspace);
 
     // Set the workspace_id for ALL runbooks to the newly created workspace
-    await Runbook.updateAll({ workspaceId: workspace.get("id")! });
+    // TODO
+    // await Runbook.updateAll({ workspaceId: workspace.get("id")! });
 
     // Create the default organization structure based off the legacy workspaces
-    const runbooks = await Runbook.allInAllWorkspaces();
+    const runbooks = (await OnlineRunbook.allInAllWorkspaces()) as OnlineRunbook[];
 
     if (legacyWorkspaces.length > 0 || runbooks.length > 0) {
       const stateManager = SharedStateManager.getInstance<Folder>(
@@ -143,7 +144,8 @@ export default async function doWorkspaceSetup(): Promise<void> {
   const allRbIds = await Runbook.allIdsInAllWorkspaces();
   if (allRbIds.length === 0) {
     const workspace = workspaces[0];
-    let runbook = await Runbook.create(workspace);
+    // TODO ?????
+    let runbook = await OnlineRunbook.create(workspace);
 
     runbook.name = "Welcome to Atuin!";
     runbook.content = JSON.stringify(welcome);

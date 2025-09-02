@@ -40,6 +40,10 @@ export default interface WorkspaceStrategy {
     parentFolderId: string | null,
     activateRunbook: (runbookId: string) => void,
   ): Promise<Result<string, WorkspaceError>>;
+  deleteRunbook(
+    doFolderOp: DoFolderOp,
+    runbookId: string,
+  ): Promise<Result<undefined, WorkspaceError>>;
   renameWorkspace(newName: string): Promise<Result<undefined, WorkspaceError>>;
   deleteWorkspace(): Promise<void>;
   createFolder(

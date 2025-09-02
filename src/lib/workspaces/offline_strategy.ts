@@ -5,7 +5,7 @@ import { join, resolve } from "@tauri-apps/api/path";
 import { Option, Some, None, Result, Ok, Err } from "@binarymuse/ts-stdlib";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
 import { uuidv7 } from "uuidv7";
-import Runbook from "@/state/runbooks/runbook";
+import Runbook, { OfflineRunbook } from "@/state/runbooks/runbook";
 import * as commands from "./commands";
 import { WorkspaceError } from "@/rs-bindings/WorkspaceError";
 import { NodeApi } from "react-arborist";
@@ -228,7 +228,20 @@ export default class OfflineStrategy implements WorkspaceStrategy {
     parentFolderId: string | null,
     activateRunbook: (runbookId: string) => void,
   ): Promise<Result<string, WorkspaceError>> {
-    const result = await commands.createRunbook(this.workspace.get("id")!, parentFolderId);
+    let result = await Ok.from<Runbook | null, WorkspaceError>(
+      OfflineRunbook.create(this.workspace, parentFolderId),
+    );
+    console.log("createRunbook result", result);
+    if (result.isOk() && result.unwrap() === null) {
+      result = Err({
+        type: "WorkspaceCreateError",
+        data: {
+          workspace_id: this.workspace.get("id")!,
+          message: "Failed to create runbook",
+        },
+      } as WorkspaceError);
+    }
+
     if (result.isErr()) {
       const err = result.unwrapErr();
       let message = "Failed to create runbook";
@@ -243,9 +256,16 @@ export default class OfflineStrategy implements WorkspaceStrategy {
       return Err(err);
     }
 
-    const runbookId = result.unwrap();
-    activateRunbook(runbookId);
-    return Ok(runbookId);
+    const runbook = result.unwrap();
+    activateRunbook(runbook!.id);
+    return Ok(runbook!.id);
+  }
+
+  async deleteRunbook(
+    _doFolderOp: DoFolderOp,
+    runbookId: string,
+  ): Promise<Result<undefined, WorkspaceError>> {
+    return commands.deleteRunbook(this.workspace.get("id")!, runbookId);
   }
 
   async createFolder(

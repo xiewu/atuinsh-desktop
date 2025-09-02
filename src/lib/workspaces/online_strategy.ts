@@ -5,12 +5,13 @@ import Operation, {
   createRunbook,
   createWorkspace,
   deleteFolder,
+  deleteRunbook,
   moveItems,
   renameWorkspace,
   updateFolderName,
 } from "@/state/runbooks/operation";
 import { Err, None, Ok, Result, Some } from "@binarymuse/ts-stdlib";
-import Runbook from "@/state/runbooks/runbook";
+import Runbook, { OnlineRunbook } from "@/state/runbooks/runbook";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
 import * as api from "@/api/api";
 import { useStore } from "@/state/store";
@@ -100,9 +101,36 @@ export default class OnlineStrategy implements WorkspaceStrategy {
     parentFolderId: string | null,
     activateRunbook: (runbookId: string) => void,
   ): Promise<Result<string, WorkspaceError>> {
-    const rb = await Runbook.createUntitled(this.workspace, true);
+    const rb = await OnlineRunbook.createUntitled(this.workspace, true);
     await this.onRunbookCreated(rb, parentFolderId, activateRunbook);
     return Ok(rb.id);
+  }
+
+  async deleteRunbook(
+    doFolderOp: DoFolderOp,
+    runbookId: string,
+  ): Promise<Result<undefined, WorkspaceError>> {
+    const success = await doFolderOp(
+      (wsf) => {
+        return wsf.deleteRunbook(runbookId);
+      },
+      (changeRef) => {
+        return Some(deleteRunbook(this.workspace.get("id")!, runbookId, changeRef));
+      },
+    );
+
+    if (success) {
+      return Ok(undefined);
+    } else {
+      return Err({
+        type: "RunbookDeleteError",
+        data: {
+          workspace_id: this.workspace.get("id")!,
+          runbook_id: runbookId,
+          message: "Failed to delete runbook",
+        },
+      } as WorkspaceError);
+    }
   }
 
   async createFolder(
@@ -168,7 +196,7 @@ export default class OnlineStrategy implements WorkspaceStrategy {
       .map((child) => child.data.id);
 
     const promises = runbookIdsToDelete.map(async (runbookId) => {
-      const runbook = await Runbook.load(runbookId);
+      const runbook = await OnlineRunbook.load(runbookId);
       if (runbook) {
         return runbook.delete();
       } else {

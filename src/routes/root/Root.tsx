@@ -43,16 +43,10 @@ import RunbookIndexService from "@/state/runbooks/search";
 import { MailPlusIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
 import Workspace from "@/state/runbooks/workspace";
 import track_event from "@/tracking";
-import { Channel, invoke } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 import RunbookContext from "@/context/runbook_context";
 import { SET_RUNBOOK_TAG } from "@/state/store/runbook_state";
-import Operation, {
-  createRunbook,
-  createWorkspace,
-  deleteRunbook,
-  moveItemsToNewWorkspace,
-  OperationData,
-} from "@/state/runbooks/operation";
+import Operation, { moveItemsToNewWorkspace, OperationData } from "@/state/runbooks/operation";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
 import WorkspaceSyncManager from "@/lib/sync/workspace_sync_manager";
 import doWorkspaceFolderOp from "@/state/runbooks/workspace_folder_ops";
@@ -307,8 +301,10 @@ function App() {
 
     const runbookIds = await Promise.all(
       files.map(async (file) => {
-        const rb = await Runbook.importFile(file, workspace);
-        return rb.id;
+        // TODO
+        return "";
+        // const rb = await Runbook.importFile(file, workspace);
+        // return rb.id;
       }),
     );
 
@@ -489,19 +485,32 @@ function App() {
     }
 
     const workspace = await Workspace.get(workspaceId);
-    doWorkspaceFolderOp(
-      workspaceId,
-      (wsf) => {
-        return wsf.deleteRunbook(runbookId);
-      },
-      (changeRef) => {
-        if (workspace && workspace.isOnline()) {
-          return Some(deleteRunbook(workspaceId, runbookId, changeRef));
-        } else {
-          return None;
-        }
-      },
+
+    if (!workspace) {
+      // TODO
+      return;
+    }
+
+    const strategy = getWorkspaceStrategy(workspace);
+    const result = await strategy.deleteRunbook(
+      doWorkspaceFolderOp.bind(null, workspaceId),
+      runbookId,
     );
+
+    if (result.isErr()) {
+      const err = result.unwrapErr();
+      let message = "Failed to delete runbook";
+      if ("message" in err.data) {
+        message = err.data.message;
+      }
+
+      await new DialogBuilder()
+        .title("Failed to delete runbook")
+        .icon("error")
+        .message(message)
+        .action({ label: "OK", value: "ok", variant: "flat" })
+        .build();
+    }
   }
 
   async function handleStartCreateRunbook(

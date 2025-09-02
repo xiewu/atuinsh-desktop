@@ -396,15 +396,50 @@ impl WorkspaceManager {
 
     async fn handle_file_errors(
         &mut self,
-        id: &str,
+        workspace_id: &str,
         errors: Vec<notify_debouncer_full::notify::Error>,
     ) {
-        if !self.workspaces.contains_key(id) {
+        if !self.workspaces.contains_key(workspace_id) {
             return;
         }
 
-        eprintln!("handle_file_errors: {errors:?}");
-        todo!()
+        let mut changed_runbook_ids = HashSet::new();
+
+        match self.rescan_workspace(workspace_id).await {
+            Ok(updated) => {
+                if let Some(workspace) = self.workspaces.get_mut(workspace_id) {
+                    // since we're doing a full rescan, use runbook file metadata to figure out which changed
+                    for (id, runbook) in updated.runbooks.iter() {
+                        if let Some(workspace_runbook) =
+                            workspace.state.as_ref().unwrap().runbooks.get(id)
+                        {
+                            if workspace_runbook.lastmod != runbook.lastmod {
+                                changed_runbook_ids.insert(id.clone());
+                            }
+                        } else {
+                            // runbook is new to the workspace
+                            changed_runbook_ids.insert(id.clone());
+                        }
+                    }
+
+                    workspace.state = Ok(updated);
+                    (workspace.on_event)(workspace.state.clone().into());
+                }
+            }
+            Err(e) => {
+                if let Some(workspace) = self.workspaces.get_mut(workspace_id) {
+                    workspace.state = Err(e);
+
+                    (workspace.on_event)(workspace.state.clone().into());
+                }
+            }
+        }
+
+        for id in changed_runbook_ids {
+            if let Some(workspace) = self.workspaces.get_mut(workspace_id) {
+                (workspace.on_event)(WorkspaceEvent::RunbookChanged(id));
+            }
+        }
     }
 
     pub async fn shutdown(&mut self) {

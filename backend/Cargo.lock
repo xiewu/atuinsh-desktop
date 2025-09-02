@@ -475,7 +475,7 @@ dependencies = [
 
 [[package]]
 name = "atuin-desktop"
-version = "0.0.91"
+version = "0.0.93"
 dependencies = [
  "actson",
  "async-trait",

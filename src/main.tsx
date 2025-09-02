@@ -131,7 +131,6 @@ socketManager.onConnect(() => trackOnlineStatus());
 socketManager.onDisconnect(() => trackOnlineStatus());
 
 const LazyRoot = React.lazy(() => import("@/routes/root/Root"));
-const LazyHome = React.lazy(() => import("@/routes/home/Home"));
 const LazyRunbooks = React.lazy(() => import("@/routes/runbooks/Runbooks"));
 const LazyHistory = React.lazy(() => import("@/routes/history/History"));
 const LazyStats = React.lazy(() => import("@/routes/stats/Stats"));
@@ -144,7 +143,7 @@ const router = createHashRouter([
     children: [
       {
         index: true,
-        element: <LazyHome />,
+        element: <LazyRunbooks />,
       },
 
       {

@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { localQuery } from "./local_query";
-import Runbook from "@/state/runbooks/runbook";
+import Runbook, { OnlineRunbook } from "@/state/runbooks/runbook";
 import { getRunbookID, HttpResponseError } from "@/api/api";
 import AtuinEnv from "@/atuin_env";
 import { RemoteRunbook } from "@/state/models";
@@ -39,7 +39,8 @@ export function runbooksByLegacyWorkspaceId(legacyWorkspaceId: string | undefine
     queryKey: ["runbooks", "legacy_workspace", legacyWorkspaceId],
     queryFn: () => {
       if (legacyWorkspaceId) {
-        return Runbook.all(legacyWorkspaceId);
+        // Only online runbooks can have a legacy workspace ID
+        return OnlineRunbook.all(legacyWorkspaceId);
       } else {
         return Promise.resolve([]);
       }
@@ -89,9 +90,10 @@ export function remoteRunbook(runbook?: Runbook) {
         throw new Error("no runbook ID specified");
       }
     },
-    initialData: runbook?.remoteInfo
-      ? (JSON.parse(runbook.remoteInfo) as RemoteRunbook)
-      : undefined,
+    initialData:
+      runbook?.isOnline() && (runbook as OnlineRunbook).remoteInfo
+        ? (JSON.parse((runbook as OnlineRunbook).remoteInfo!) as RemoteRunbook)
+        : undefined,
     refetchOnMount: "always",
   });
 }

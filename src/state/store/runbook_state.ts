@@ -66,7 +66,7 @@ export const createRunbookState: StateCreator<AtuinRunbookState> = (
   refreshRunbooks: async () => {
     logger.debug("loading runbooks for WS", get().currentWorkspaceId);
 
-    let runbooks = await Runbook.all(get().currentWorkspaceId!);
+    let runbooks = await Runbook.allFromWorkspace(get().currentWorkspaceId!);
 
     set({ runbooks });
   },

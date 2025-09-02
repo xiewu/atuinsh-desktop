@@ -138,7 +138,6 @@ export default class RunbookEditor {
         }
       }
 
-      console.log("Raw content", this.runbook.content);
       let content = JSON.parse(this.runbook.content || "[]");
       // convert any block of type sql -> sqlite
       for (var i = 0; i < content.length; i++) {
@@ -149,13 +148,11 @@ export default class RunbookEditor {
 
       if (!this.isOnline) {
         let needsSave = false;
-        console.log("Checking content", content);
         if (content.length == 0) {
           content = untitledRunbook;
           needsSave = true;
         }
 
-        console.log("Creating local only editor", content);
         const editor = createLocalOnlyEditor(content);
         if (needsSave) {
           this.runbook.content = JSON.stringify(content);

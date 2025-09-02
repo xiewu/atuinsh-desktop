@@ -7,7 +7,7 @@ import {
   runbooksByLegacyWorkspaceId,
   runbooksByWorkspaceId,
 } from "./queries/runbooks";
-import Runbook from "@/state/runbooks/runbook";
+import Runbook, { OnlineRunbook } from "@/state/runbooks/runbook";
 import { useStore } from "@/state/store";
 import { InvalidateQueryFilters } from "@tanstack/react-query";
 import {
@@ -85,35 +85,43 @@ function getQueryKeys(kind: Model, action: Action, model: any): InvalidateQueryF
 }
 
 function getRunbookQueryKeys(action: Action, model: Runbook): InvalidateQueryFilters<any>[] {
+  let keys = [];
+
   switch (action) {
     case "create":
-      return [
+      keys = [
         allRunbookIds(),
         allRunbooks(),
-        // runbooksByLegacyWorkspaceId(model.legacyWorkspaceId),
         allLegacyWorkspaces(),
         runbooksByWorkspaceId(model.workspaceId),
         remoteRunbook(model),
         runbookById(model.id),
       ];
+      break;
     case "update":
-      return [
+      keys = [
         allRunbooks(),
         runbookById(model.id),
-        // runbooksByLegacyWorkspaceId(model.legacyWorkspaceId),
         runbooksByWorkspaceId(model.workspaceId),
         remoteRunbook(model),
       ];
+      break;
     case "delete":
-      return [
+      keys = [
         allRunbookIds(),
         allRunbooks(),
         runbookById(model.id),
-        // runbooksByLegacyWorkspaceId(model.legacyWorkspaceId),
         allLegacyWorkspaces(),
         runbooksByWorkspaceId(model.workspaceId),
       ];
+      break;
   }
+
+  if (model instanceof OnlineRunbook) {
+    keys.push(runbooksByLegacyWorkspaceId(model.legacyWorkspaceId));
+  }
+
+  return keys;
 }
 
 function getLegacyWorkspaceQueryKeys(

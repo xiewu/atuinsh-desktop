@@ -120,23 +120,6 @@ export default class WorkspaceFolder {
     });
   }
 
-  public importRunbooks(runbookIds: string[], parentId: string | null): boolean {
-    const parent = parentId ? this.root.getNode(parentId) : Some(this.root.root());
-
-    return parent
-      .orElse(() => Some(this.root.root()))
-      .map((p) => {
-        for (const id of runbookIds.toReversed()) {
-          p.createChild(id, 0).setData({
-            type: "runbook",
-            id,
-          });
-        }
-      })
-      .map(() => true)
-      .unwrapOr(false);
-  }
-
   public renameFolder(id: string, newName: string): boolean {
     const node = this.root.getNode(id);
     const data = node.andThen((n) => n.getData());

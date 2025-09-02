@@ -31,9 +31,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ImperativePanelHandle } from "react-resizable-panels";
 import { isAppleDevice } from "@react-aria/utils";
 import { useTauriEvent } from "@/lib/tauri";
-import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
+// import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 
-import handleDeepLink from "./deep";
+// import handleDeepLink from "./deep";
 import * as api from "@/api/api";
 import SocketManager from "@/socket";
 import type { ListApi } from "@/components/runbooks/List/List";
@@ -46,16 +46,15 @@ import track_event from "@/tracking";
 import { invoke } from "@tauri-apps/api/core";
 import RunbookContext from "@/context/runbook_context";
 import { SET_RUNBOOK_TAG } from "@/state/store/runbook_state";
-import Operation, { moveItemsToNewWorkspace, OperationData } from "@/state/runbooks/operation";
+import Operation, { moveItemsToNewWorkspace } from "@/state/runbooks/operation";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
 import WorkspaceSyncManager from "@/lib/sync/workspace_sync_manager";
 import doWorkspaceFolderOp from "@/state/runbooks/workspace_folder_ops";
 import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
 import { SharedStateManager } from "@/lib/shared_state/manager";
 import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
-import { Option, None, Rc, Some, Result, Err, Ok } from "@binarymuse/ts-stdlib";
 import { TraversalOrder } from "@/lib/tree";
-import DevConsole from "@/lib/dev/dev_console";
+// import DevConsole from "@/lib/dev/dev_console";
 import Sidebar, { SidebarItem } from "@/components/Sidebar";
 import InviteFriendsModal from "./InviteFriendsModal";
 import AtuinEnv from "@/atuin_env";
@@ -109,10 +108,7 @@ async function isOnboardingComplete(): Promise<boolean> {
 }
 
 function App() {
-  const cleanupImportListener = useRef<UnlistenFn | null>(null);
-
   const refreshUser = useStore((state: AtuinState) => state.refreshUser);
-  const importRunbooks = useStore((state: AtuinState) => state.importRunbooks);
   const refreshRunbooks = useStore((state: AtuinState) => state.refreshRunbooks);
   const currentWorkspaceId = useStore((state: AtuinState) => state.currentWorkspaceId);
   const setCurrentWorkspaceId = useStore((state: AtuinState) => state.setCurrentWorkspaceId);
@@ -265,10 +261,6 @@ function App() {
     await WorkspaceSyncManager.get(useStore).startSync();
   });
 
-  useTauriEvent("import-runbook", async () => {
-    handleImportRunbooks(currentWorkspaceId, null);
-  });
-
   useTauriEvent("new-runbook", async () => {
     handleStartCreateRunbook(currentWorkspaceId, null);
   });
@@ -288,48 +280,8 @@ function App() {
 
     check();
 
-    return () => {
-      if (cleanupImportListener.current) cleanupImportListener.current();
-    };
+    return () => {};
   }, []);
-
-  async function handleImportRunbooks(workspaceId: string, parentFolderId: string | null) {
-    const workspace = await Workspace.get(workspaceId);
-    if (!workspace) return;
-
-    let files = await importRunbooks();
-
-    const runbookIds = await Promise.all(
-      files.map(async (file) => {
-        // TODO
-        return "";
-        // const rb = await Runbook.importFile(file, workspace);
-        // return rb.id;
-      }),
-    );
-
-    doWorkspaceFolderOp(
-      workspaceId,
-      (wsf) => {
-        return wsf.importRunbooks(runbookIds, parentFolderId);
-      },
-      (changeRef) => {
-        if (workspace && workspace.isOnline()) {
-          return Some<OperationData>({
-            type: "workspace_import_runbooks",
-            workspaceId: workspace.get("id")!,
-            parentFolderId,
-            runbookIds,
-            changeRef,
-          });
-        } else {
-          return None;
-        }
-      },
-    );
-
-    handleRunbookActivate(runbookIds[0]);
-  }
 
   const navigation: SidebarItem[] = useMemo(
     () => [
@@ -1077,7 +1029,6 @@ function App() {
             >
               {sidebarOpen && (
                 <List
-                  importRunbooks={handleImportRunbooks}
                   onStartCreateWorkspace={() => setShowNewWorkspaceDialog(true)}
                   onStartCreateRunbook={handleStartCreateRunbook}
                   moveItemsToWorkspace={handleMoveItemsToWorkspace}

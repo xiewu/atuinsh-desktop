@@ -2,18 +2,12 @@ import OnlineStrategy from "./online_strategy";
 import OfflineStrategy from "./offline_strategy";
 import Workspace from "@/state/runbooks/workspace";
 import { Result } from "@binarymuse/ts-stdlib";
-import Runbook from "@/state/runbooks/runbook";
 import WorkspaceFolder from "@/state/runbooks/workspace_folders";
 import { ChangeRef } from "../shared_state/types";
 import { OperationData } from "@/state/runbooks/operation";
 import { WorkspaceError } from "@/rs-bindings/WorkspaceError";
 import { NodeApi } from "react-arborist";
 import { TreeRowData } from "@/components/runbooks/List/TreeView";
-
-enum WorkspaceStrategyType {
-  Online = "online",
-  Offline = "offline",
-}
 
 // TODO[mkt]: this could be refactored to not rely on passing `doFolderOp`
 // from `useWorkspaceFolder` to the strategy methods.

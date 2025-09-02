@@ -7,7 +7,6 @@ type Handler = () => void;
 
 type Actions = {
   onNewRunbook: (workspaceId: string, parentFolderId: string | null) => void;
-  onImportRunbook: (workspaceId: string | null, parentFolderId: string | null) => void;
   onNewWorkspace: () => void;
 };
 
@@ -36,10 +35,6 @@ export async function createNewRunbookMenu(
               .text("New Runbook Here")
               .action(() => actions.onNewRunbook(workspaceId, parentFolderId))
               .build(),
-            new ItemBuilder()
-              .text("Import Runbooks Here")
-              .action(() => actions.onImportRunbook(workspaceId, parentFolderId))
-              .build(),
           ];
         }),
       )
@@ -47,13 +42,6 @@ export async function createNewRunbookMenu(
   });
 
   const menu = await new MenuBuilder()
-    .item(
-      new ItemBuilder()
-        .text("Import Runbook")
-        .action(() => actions.onImportRunbook(null, null))
-        .accelerator("CmdOrCtrl+I"),
-    )
-    .separator()
     .items(workspaceItems)
     .separator()
     .item(

@@ -1,7 +1,7 @@
 import { RemoteRunbook, User } from "@/state/models";
 import Logger from "../logger";
 import WorkspaceSyncManager from "./workspace_sync_manager";
-import Runbook, { OnlineRunbook } from "@/state/runbooks/runbook";
+import { OnlineRunbook } from "@/state/runbooks/runbook";
 import Snapshot from "@/state/runbooks/snapshot";
 import * as api from "@/api/api";
 import * as Y from "yjs";

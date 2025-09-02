@@ -1,11 +1,8 @@
 import { GlobalSpec, Model, Persistence } from "ts-tiny-activerecord";
 import createTauriAdapter, { setTimestamps } from "@/lib/db/tauri-ar-adapter";
 import { DateEncoder, JSONEncoder } from "@/lib/db/encoders";
-import { SharedStateManager } from "@/lib/shared_state/manager";
-import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
 import { dbHook } from "@/lib/db_hooks";
 import { deleteSharedStateDocument } from "@/lib/shared_state/commands";
-import WorkspaceManager from "@/lib/workspaces/manager";
 
 export type WorkspaceAttrs = {
   id?: string;

@@ -1,4 +1,3 @@
-import { usePrevious } from "@/lib/utils";
 import WorkspaceManager from "@/lib/workspaces/manager";
 import Workspace from "@/state/runbooks/workspace";
 import { useEffect } from "react";
@@ -8,8 +7,6 @@ interface WorkspaceWatcherProps {
 }
 
 export default function WorkspaceWatcher({ workspace }: WorkspaceWatcherProps) {
-  const lastWorkspace = usePrevious(workspace);
-
   // TODO: check if any of the following changed:
   // - online
   // - folder

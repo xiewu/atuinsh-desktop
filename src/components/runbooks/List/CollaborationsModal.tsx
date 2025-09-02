@@ -1,6 +1,5 @@
 import * as api from "@/api/api";
 import AtuinEnv from "@/atuin_env";
-import RunbookContext from "@/context/runbook_context";
 import { allWorkspaces } from "@/lib/queries/workspaces";
 import RunbookSynchronizer from "@/lib/sync/runbook_synchronizer";
 import Workspace from "@/state/runbooks/workspace";
@@ -22,7 +21,7 @@ import {
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { open } from "@tauri-apps/plugin-shell";
 import { ChevronDownIcon } from "lucide-react";
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 interface CollaborationsModalProps {
   isOpen: boolean;

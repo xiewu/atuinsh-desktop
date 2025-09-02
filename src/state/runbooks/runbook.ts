@@ -7,7 +7,6 @@ import { readTextFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import { dbHook } from "@/lib/db_hooks";
 import Snapshot from "./snapshot";
-import { WorkspaceError } from "@/rs-bindings/WorkspaceError";
 import * as commands from "@/lib/workspaces/commands";
 import WorkspaceManager from "@/lib/workspaces/manager";
 import { timeoutPromise } from "@/lib/utils";
@@ -662,7 +661,6 @@ export class OfflineRunbook extends Runbook {
     }
 
     const idResult = await commands.createRunbook(workspace.get("id")!, parentFolderId);
-    console.log("idResult", idResult);
     if (idResult.isErr()) {
       console.error("Failed to create runbook", idResult.unwrapErr());
       return null;
@@ -705,7 +703,6 @@ export class OfflineRunbook extends Runbook {
           }),
       )
       .map((runbook) => {
-        console.log("fetched offline runbook", runbook);
         return runbook;
       })
       .unwrapOr(null);
@@ -732,7 +729,6 @@ export class OfflineRunbook extends Runbook {
   }
 
   public async save() {
-    console.log("Saving offline runbook", this.id, this.name, this.content);
     await commands.saveRunbook(this.workspaceId, this.id, this.name, JSON.parse(this.content));
   }
 
@@ -740,11 +736,11 @@ export class OfflineRunbook extends Runbook {
     // no op
   }
 
-  public async moveTo(targetWorkspace: Workspace): Promise<void> {
-    // no op
+  public async moveTo(_targetWorkspace: Workspace): Promise<void> {
+    // TODO
   }
 
-  public async updateRemoteInfo(remoteInfo: string | null): Promise<void> {
+  public async updateRemoteInfo(_remoteInfo: string | null): Promise<void> {
     // no op
   }
 

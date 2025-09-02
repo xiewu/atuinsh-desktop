@@ -52,7 +52,7 @@ export default function CollaborationsModal(props: CollaborationsModalProps) {
   }, [workspaces, currentWorkspaceId]);
   const [acceptIntoWs, setAcceptIntoWs] = useState<Record<string, Workspace>>({});
 
-  const { runbookCreated } = useContext(RunbookContext);
+  // const { runbookCreated } = useContext(RunbookContext);
 
   function setWorkspaceForCollab(collabId: string, workspace: Workspace) {
     setAcceptIntoWs((map) => {
@@ -71,7 +71,8 @@ export default function CollaborationsModal(props: CollaborationsModalProps) {
         .sync()
         .then(async (result) => {
           if (result.action === "created") {
-            runbookCreated(collaboration.runbook.id, workspaceId, null, false);
+            // TODO
+            // runbookCreated(collaboration.runbook.id, workspaceId, null, false);
           }
         });
     },

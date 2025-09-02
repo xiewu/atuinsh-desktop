@@ -7,6 +7,7 @@ import { usePtyStore } from "@/state/ptyStore";
 import { useRef } from "react";
 import { RemoteRunbook } from "@/state/models";
 import { useRunbook } from "@/lib/useRunbook";
+import { OnlineRunbook } from "@/state/runbooks/runbook";
 
 export interface RunbookRowData {
   type: "runbook";
@@ -81,8 +82,9 @@ export default function RunbookTreeRow(props: RunbookTreeRowProps) {
   let hubRunbookNotOwnedAndNoPermission = false;
   let RunbookIcon = BookTextIcon;
 
-  if (runbook && runbook.remoteInfo) {
-    const remoteInfo: RemoteRunbook = JSON.parse(runbook.remoteInfo);
+  if (runbook && runbook.isOnline() && (runbook as OnlineRunbook).remoteInfo) {
+    // TODO?
+    const remoteInfo: RemoteRunbook = JSON.parse((runbook as OnlineRunbook).remoteInfo || "{}");
     hubRunbookOwnedByUser = usernameFromNwo(remoteInfo.nwo) === useStore.getState().user?.username;
     hubRunbookNotOwnedButHasPermission =
       !hubRunbookOwnedByUser && remoteInfo.permissions.includes("update_content");

@@ -90,7 +90,7 @@ function getRunbookQueryKeys(action: Action, model: Runbook): InvalidateQueryFil
       return [
         allRunbookIds(),
         allRunbooks(),
-        runbooksByLegacyWorkspaceId(model.legacyWorkspaceId),
+        // runbooksByLegacyWorkspaceId(model.legacyWorkspaceId),
         allLegacyWorkspaces(),
         runbooksByWorkspaceId(model.workspaceId),
         remoteRunbook(model),
@@ -100,7 +100,7 @@ function getRunbookQueryKeys(action: Action, model: Runbook): InvalidateQueryFil
       return [
         allRunbooks(),
         runbookById(model.id),
-        runbooksByLegacyWorkspaceId(model.legacyWorkspaceId),
+        // runbooksByLegacyWorkspaceId(model.legacyWorkspaceId),
         runbooksByWorkspaceId(model.workspaceId),
         remoteRunbook(model),
       ];
@@ -109,7 +109,7 @@ function getRunbookQueryKeys(action: Action, model: Runbook): InvalidateQueryFil
         allRunbookIds(),
         allRunbooks(),
         runbookById(model.id),
-        runbooksByLegacyWorkspaceId(model.legacyWorkspaceId),
+        // runbooksByLegacyWorkspaceId(model.legacyWorkspaceId),
         allLegacyWorkspaces(),
         runbooksByWorkspaceId(model.workspaceId),
       ];

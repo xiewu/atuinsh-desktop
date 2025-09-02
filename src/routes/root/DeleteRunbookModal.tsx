@@ -1,5 +1,5 @@
 import { RemoteRunbook } from "@/state/models";
-import Runbook from "@/state/runbooks/runbook";
+import Runbook, { OnlineRunbook } from "@/state/runbooks/runbook";
 import { useStore } from "@/state/store";
 import * as api from "@/api/api";
 import {
@@ -140,8 +140,10 @@ export default function DeleteRunbookModal(props: DeleteRunbookModalProps) {
           // No runbook exists on the remote
           dispatch({ type: "set_missing", isMissingFromRemote: true });
         } else {
-          const remoteData = deleteState.runbook.remoteInfo;
-          if (remoteData) remoteRunbook = JSON.parse(remoteData) as RemoteRunbook;
+          if (deleteState.runbook.isOnline()) {
+            const remoteData = (deleteState.runbook as OnlineRunbook).remoteInfo;
+            if (remoteData) remoteRunbook = JSON.parse(remoteData) as RemoteRunbook;
+          }
         }
       }
 

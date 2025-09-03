@@ -1,5 +1,5 @@
 import { User } from "@/state/models";
-import Runbook, { OnlineRunbook } from "@/state/runbooks/runbook";
+import Runbook, { OfflineRunbook, OnlineRunbook } from "@/state/runbooks/runbook";
 import untitledRunbook from "@/state/runbooks/untitled.json";
 import { BlockNoteEditor } from "@blocknote/core";
 import track_event from "@/tracking";
@@ -107,6 +107,16 @@ export default class RunbookEditor {
       this.provider = null;
     }
     this.selectedTag = tag;
+  }
+
+  runbookUpdatedExternally(runbook: OfflineRunbook) {
+    if (runbook.id !== this.runbook.id) {
+      return;
+    }
+
+    this.editor?.then((editor) => {
+      editor.replaceBlocks(editor.document, JSON.parse(runbook.content));
+    });
   }
 
   setOnline(isOnline: boolean) {

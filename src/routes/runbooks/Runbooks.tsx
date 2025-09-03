@@ -17,6 +17,7 @@ import { ConnectionState } from "@/state/store/user_state";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
 import AppBus from "@/lib/app/app_bus";
 import { workspaceById } from "@/lib/queries/workspaces";
+import WorkspaceManager from "@/lib/workspaces/manager";
 
 const Editor = React.lazy(() => import("@/components/runbooks/editor/Editor"));
 const Topbar = React.lazy(() => import("@/components/runbooks/TopBar/TopBar"));
@@ -158,6 +159,15 @@ export default function Runbooks() {
     listenPtyBackend();
     return unlistenPtyBackend;
   }, []);
+
+  useEffect(() => {
+    const workspaceManager = WorkspaceManager.getInstance();
+    const unsub = workspaceManager.onRunbookChanged(async (runbook) => {
+      if (runbook.id === currentRunbook?.id) {
+        runbookEditor?.runbookUpdatedExternally(runbook);
+      }
+    });
+  }, [currentRunbook?.id, runbookEditor]);
 
   function handleSelectTag(tag: string | null) {
     if (!tag) tag = "latest";

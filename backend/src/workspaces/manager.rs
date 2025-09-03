@@ -32,13 +32,14 @@ pub struct WorkspaceManager {
     workspaces: HashMap<String, Workspace>,
 }
 
-#[derive(TS, Debug, Serialize)]
+#[derive(TS, Debug, Serialize, Eq, Hash, PartialEq)]
 #[serde(tag = "type", content = "data")]
 #[ts(tag = "type", content = "data", export)]
 pub enum WorkspaceEvent {
     State(WorkspaceState),
     Error(WorkspaceError),
     RunbookChanged(String),
+    RunbookDeleted(String),
 }
 
 impl From<Result<WorkspaceState, WorkspaceError>> for WorkspaceEvent {
@@ -299,7 +300,7 @@ impl WorkspaceManager {
             full_rescan = true;
         }
 
-        let mut changed_runbook_ids = HashSet::new();
+        let mut known_events = HashSet::new();
 
         for event in events {
             // break early if the workspace is in an error state
@@ -341,7 +342,8 @@ impl WorkspaceManager {
                                 .and_then(|s| s.runbooks.values().find(|r| r.path == *path));
 
                             if let Some(runbook) = matching_runbook {
-                                changed_runbook_ids.insert(runbook.id.clone());
+                                known_events
+                                    .insert(WorkspaceEvent::RunbookChanged(runbook.id.clone()));
                             }
                         }
                     }
@@ -356,69 +358,56 @@ impl WorkspaceManager {
         }
 
         if full_rescan {
-            match self.rescan_workspace(workspace_id).await {
-                Ok(updated) => {
-                    if let Some(workspace) = self.workspaces.get_mut(workspace_id) {
-                        // since we're doing a full rescan, use runbook file metadata to figure out which changed
-                        for (id, runbook) in updated.runbooks.iter() {
-                            if let Some(workspace_runbook) =
-                                workspace.state.as_ref().unwrap().runbooks.get(id)
-                            {
-                                if workspace_runbook.lastmod != runbook.lastmod {
-                                    changed_runbook_ids.insert(id.clone());
-                                }
-                            } else {
-                                // runbook is new to the workspace
-                                changed_runbook_ids.insert(id.clone());
-                            }
-                        }
-
-                        workspace.state = Ok(updated);
-                        (workspace.on_event)(workspace.state.clone().into());
-                    }
-                }
-                Err(e) => {
-                    if let Some(workspace) = self.workspaces.get_mut(workspace_id) {
-                        workspace.state = Err(e);
-
-                        (workspace.on_event)(workspace.state.clone().into());
-                    }
-                }
-            }
-        }
-
-        for id in changed_runbook_ids {
-            if let Some(workspace) = self.workspaces.get_mut(workspace_id) {
-                (workspace.on_event)(WorkspaceEvent::RunbookChanged(id));
-            }
+            self.rescan_and_notify(workspace_id, Some(known_events))
+                .await;
         }
     }
 
     async fn handle_file_errors(
         &mut self,
         workspace_id: &str,
-        errors: Vec<notify_debouncer_full::notify::Error>,
+        _errors: Vec<notify_debouncer_full::notify::Error>,
     ) {
         if !self.workspaces.contains_key(workspace_id) {
             return;
         }
 
-        let mut changed_runbook_ids = HashSet::new();
+        self.rescan_and_notify(workspace_id, None).await;
+    }
+
+    async fn rescan_and_notify(
+        &mut self,
+        workspace_id: &str,
+        known_events: Option<HashSet<WorkspaceEvent>>,
+    ) {
+        let mut known_events = known_events.unwrap_or_default();
 
         match self.rescan_workspace(workspace_id).await {
             Ok(updated) => {
                 if let Some(workspace) = self.workspaces.get_mut(workspace_id) {
-                    // since we're doing a full rescan, use runbook file metadata to figure out which changed
-                    for (id, runbook) in updated.runbooks.iter() {
-                        if let Some(workspace_runbook) =
-                            workspace.state.as_ref().unwrap().runbooks.get(id)
-                        {
-                            if workspace_runbook.lastmod != runbook.lastmod {
-                                changed_runbook_ids.insert(id.clone());
+                    if let Ok(state) = &workspace.state {
+                        // since we're doing a full rescan, use runbook file metadata to figure out which changed
+                        for (id, runbook) in updated.runbooks.iter() {
+                            if let Some(workspace_runbook) = state.runbooks.get(id) {
+                                if workspace_runbook.lastmod != runbook.lastmod {
+                                    known_events.insert(WorkspaceEvent::RunbookChanged(id.clone()));
+                                }
+                            } else {
+                                // runbook is new to the workspace
+                                known_events.insert(WorkspaceEvent::RunbookChanged(id.clone()));
                             }
-                        } else {
-                            // runbook is new to the workspace
-                            changed_runbook_ids.insert(id.clone());
+                        }
+
+                        for (id, _runbook) in state.runbooks.iter() {
+                            if updated.runbooks.get(id).is_none() {
+                                known_events.insert(WorkspaceEvent::RunbookDeleted(id.clone()));
+                            }
+                        }
+                    } else {
+                        // If the workspace was in an error state previously,
+                        // we should notify about every runbook that exists in the new state
+                        for (id, _runbook) in updated.runbooks.iter() {
+                            known_events.insert(WorkspaceEvent::RunbookChanged(id.clone()));
                         }
                     }
 
@@ -435,9 +424,9 @@ impl WorkspaceManager {
             }
         }
 
-        for id in changed_runbook_ids {
-            if let Some(workspace) = self.workspaces.get_mut(workspace_id) {
-                (workspace.on_event)(WorkspaceEvent::RunbookChanged(id));
+        if let Some(workspace) = self.workspaces.get_mut(workspace_id) {
+            for event in known_events {
+                (workspace.on_event)(event);
             }
         }
     }

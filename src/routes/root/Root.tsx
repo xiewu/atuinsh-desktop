@@ -65,6 +65,7 @@ import NewWorkspaceDialog from "./NewWorkspaceDialog";
 import { getWorkspaceStrategy } from "@/lib/workspaces/strategy";
 import { allWorkspaces } from "@/lib/queries/workspaces";
 import WorkspaceWatcher from "./WorkspaceWatcher";
+import WorkspaceManager from "@/lib/workspaces/manager";
 
 const Onboarding = React.lazy(() => import("@/components/Onboarding/Onboarding"));
 const UpdateNotifier = React.lazy(() => import("./UpdateNotifier"));
@@ -187,6 +188,17 @@ function App() {
       document.removeEventListener("keydown", onKeyDown);
     };
   }, []);
+
+  useEffect(() => {
+    const workspaceManager = WorkspaceManager.getInstance();
+    const unsub = workspaceManager.onRunbookDeleted(async (runbookId) => {
+      if (runbookId === currentRunbookId) {
+        handleStopAndNavigate(null);
+      }
+    });
+
+    return unsub;
+  }, [currentRunbookId]);
 
   async function doUpdateCheck() {
     // An available update will trigger a toast
@@ -399,9 +411,11 @@ function App() {
       runbook = await Runbook.load(runbookId);
     }
 
-    track_event("runbooks.open", {
-      total: await Runbook.count(),
-    });
+    if (runbookId) {
+      track_event("runbooks.open", {
+        total: await Runbook.count(),
+      });
+    }
 
     if (location.pathname !== "/runbooks") {
       navigate("/runbooks");

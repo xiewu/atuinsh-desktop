@@ -55,7 +55,7 @@ pub struct WorkspaceDirInfo {
     pub contents: Vec<DirEntry>,
 }
 
-#[derive(TS, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(TS, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[ts(export)]
 pub struct DirEntry {
     pub name: String,

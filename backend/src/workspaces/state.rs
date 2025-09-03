@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     path::{Path, PathBuf},
     time::SystemTime,
 };
@@ -50,14 +50,14 @@ pub enum JsonParseError {
     IoError(#[from] std::io::Error),
 }
 
-#[derive(TS, Debug, Clone, Serialize)]
+#[derive(TS, Debug, Clone, Serialize, PartialEq, Eq, Hash)]
 #[ts(export)]
 pub struct WorkspaceState {
     pub id: String,
     pub name: String,
     pub root: PathBuf,
     pub entries: Vec<DirEntry>,
-    pub runbooks: HashMap<String, WorkspaceRunbook>,
+    pub runbooks: BTreeMap<String, WorkspaceRunbook>,
 }
 
 impl WorkspaceState {
@@ -126,7 +126,7 @@ impl WorkspaceState {
     }
 }
 
-#[derive(TS, Debug, Clone, Serialize, PartialEq)]
+#[derive(TS, Debug, Clone, Serialize, PartialEq, Eq, Hash)]
 #[ts(export)]
 pub struct WorkspaceRunbook {
     pub id: String,
@@ -207,8 +207,8 @@ enum ParseState {
 
 async fn get_workspace_runbooks(
     dir_entries: &[DirEntry],
-) -> Result<HashMap<String, WorkspaceRunbook>, WorkspaceStateError> {
-    let mut runbooks: HashMap<String, WorkspaceRunbook> = HashMap::new();
+) -> Result<BTreeMap<String, WorkspaceRunbook>, WorkspaceStateError> {
+    let mut runbooks: BTreeMap<String, WorkspaceRunbook> = BTreeMap::new();
     for entry in dir_entries {
         let name = entry
             .path

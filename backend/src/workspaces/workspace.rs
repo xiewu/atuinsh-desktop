@@ -19,7 +19,7 @@ use crate::workspaces::{
     state::WorkspaceState,
 };
 
-#[derive(thiserror::Error, TS, Debug, Clone, Serialize)]
+#[derive(thiserror::Error, TS, Debug, Clone, Serialize, PartialEq, Eq, Hash)]
 #[serde(tag = "type", content = "data")]
 #[ts(export, tag = "type", content = "data")]
 pub enum WorkspaceError {

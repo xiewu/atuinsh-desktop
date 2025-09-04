@@ -429,6 +429,35 @@ impl WorkspaceManager {
                     }
                 }
                 EventKind::Create(_) | EventKind::Remove(_) => {
+                    // Handle directory creation/deletion
+                    if let Some(path) = event.paths.first() {
+                        match event.event.kind {
+                            EventKind::Create(_) if path.is_dir() => {
+                                if let Some(workspace) = self.workspaces.get(workspace_id) {
+                                    let gitignore = create_ignore_matcher(&workspace.path).ok();
+                                    if !should_ignore_path(path, &workspace.path, gitignore.as_ref()) {
+                                        // Add watcher for the new directory immediately
+                                        if let Some(workspace_mut) = self.workspaces.get_mut(workspace_id) {
+                                            log::debug!("Adding watcher for new directory: {}", path.display());
+                                            if let Err(e) = workspace_mut._debouncer.watch(path, RecursiveMode::NonRecursive) {
+                                                log::warn!("Failed to watch new directory {}: {}", path.display(), e);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            EventKind::Remove(_) => {
+                                // Remove watcher for deleted directory/file
+                                if let Some(workspace_mut) = self.workspaces.get_mut(workspace_id) {
+                                    log::debug!("Removing watcher for deleted path: {}", path.display());
+                                    if let Err(e) = workspace_mut._debouncer.unwatch(path) {
+                                        log::debug!("Failed to unwatch deleted path {} (this is normal): {}", path.display(), e);
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
                     full_rescan = true;
                     break;
                 }
@@ -574,17 +603,7 @@ impl WorkspaceManager {
         Ok(())
     }
 
-    fn should_watch_new_directory(&self, path: &Path, workspace_root: &Path) -> bool {
-        let walker = create_ignore_walker(workspace_root).build();
 
-        // Check if this specific path would be included by the ignore rules
-        for entry in walker.filter_map(Result::ok) {
-            if entry.path() == path {
-                return true;
-            }
-        }
-        false
-    }
 }
 
 fn is_relevant_file(path: impl AsRef<Path>) -> bool {

@@ -24,6 +24,7 @@ import { getWorkspaceStrategy } from "@/lib/workspaces/strategy";
 import { useQuery } from "@tanstack/react-query";
 import { localWorkspaceInfo } from "@/lib/queries/workspaces";
 import { WorkspaceRunbook } from "@/rs-bindings/WorkspaceRunbook";
+import { Button } from "@heroui/react";
 
 interface WorkspaceProps {
   workspace: Workspace;
@@ -234,9 +235,10 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
   }, [workspaceInfo]);
 
   const [workspaceFolder, doFolderOp] = useWorkspaceFolder(props.workspace.get("id")!);
+  console.log("workspaceFolder", workspaceFolder);
 
   const arboristData = useMemo(() => {
-    if (props.workspace.isOnline()) {
+    if (props.workspace.isOnline() || props.workspace.isLegacyHybrid()) {
       return workspaceFolder.toArborist();
     } else {
       if (workspaceInfo.isNone() || workspaceInfo.unwrap().isErr()) {
@@ -251,6 +253,7 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
       );
     }
   }, [workspaceFolder, workspaceInfo]);
+  console.log("abd", arboristData);
 
   useEffect(() => {
     // Update offline workspaces from the FS info
@@ -258,7 +261,8 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
       workspaceInfo.isNone() ||
       workspaceInfo.unwrap().isErr() ||
       props.workspace.get("id") !== workspaceInfo.unwrap().unwrap().id ||
-      props.workspace.isOnline()
+      props.workspace.isOnline() ||
+      props.workspace.isLegacyHybrid()
     ) {
       return;
     }
@@ -298,7 +302,7 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
   } {
     const node = treeRef.current!.get(folderId);
 
-    if (props.workspace.isOnline()) {
+    if (props.workspace.isOnline() || props.workspace.isLegacyHybrid()) {
       const descendants = workspaceFolder.getDescendants(folderId);
       const descendantsCount = descendants.reduce(
         (acc, child) => {
@@ -551,6 +555,11 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
 
     focusWorkspace();
 
+    console.log(props.workspace);
+    if (props.workspace.isLegacyHybrid()) {
+      return;
+    }
+
     const workspaces = await Workspace.all();
     const workspaceFolders = await Promise.all(
       workspaces.map(async (ws) => {
@@ -668,7 +677,7 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     evt.preventDefault();
     evt.stopPropagation();
 
-    if (isError) {
+    if (isError || props.workspace.isLegacyHybrid()) {
       return;
     }
 
@@ -805,6 +814,32 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     );
   }
 
+  let migrationElem = <></>;
+  if (props.workspace.isLegacyHybrid()) {
+    migrationElem = (
+      <div className="border rounded-md w-full p-3 flex gap-2 cursor-pointer">
+        <div>
+          <CircleAlertIcon className="w-8 h-8 stroke-gray-500 dark:stroke-gray-400" />
+          <p className="text-sm text-muted-foreground">
+            This workspace is a legacy hybrid workspace. It needs to be converted, and until it is,
+            is read-only.
+          </p>
+
+          <Button
+            variant="flat"
+            size="sm"
+            color="primary"
+            onClick={() => {
+              //
+            }}
+          >
+            Convert Workspace
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={dropRef as any}
@@ -862,21 +897,25 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
       {hiddenWorkspaces[props.workspace.get("id")!] ? null : isError ? (
         errorElem
       ) : (
-        <TreeView
-          workspaceId={props.workspace.get("id")!}
-          workspaceOnline={props.workspace.isOnline()}
-          onTreeApiReady={(api) => (treeRef.current = api)}
-          data={arboristData as any}
-          sortBy={props.sortBy}
-          selectedItemId={currentItemId}
-          initialOpenState={folderState[props.workspace.get("id")!] || {}}
-          onActivateItem={handleActivateItem}
-          onRenameFolder={handleRenameFolder}
-          onNewFolder={handleNewFolder}
-          onMoveItems={handleMoveItems}
-          onContextMenu={handleContextMenu}
-          onToggleFolder={handleToggleFolder}
-        />
+        <>
+          {migrationElem}
+          <TreeView
+            workspaceId={props.workspace.get("id")!}
+            workspaceOnline={props.workspace.isOnline()}
+            workspaceLegacyHybrid={props.workspace.isLegacyHybrid()}
+            onTreeApiReady={(api) => (treeRef.current = api)}
+            data={arboristData as any}
+            sortBy={props.sortBy}
+            selectedItemId={currentItemId}
+            initialOpenState={folderState[props.workspace.get("id")!] || {}}
+            onActivateItem={handleActivateItem}
+            onRenameFolder={handleRenameFolder}
+            onNewFolder={handleNewFolder}
+            onMoveItems={handleMoveItems}
+            onContextMenu={handleContextMenu}
+            onToggleFolder={handleToggleFolder}
+          />
+        </>
       )}
     </div>
   );

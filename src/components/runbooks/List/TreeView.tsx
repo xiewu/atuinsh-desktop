@@ -29,6 +29,7 @@ interface TreeViewProps {
   data: TreeRowData[];
   workspaceId?: string;
   workspaceOnline: boolean;
+  workspaceLegacyHybrid: boolean;
   sortBy: SortBy;
   selectedItemId: string | null;
   initialOpenState: Record<string, boolean>;
@@ -223,6 +224,10 @@ export default function TreeView(props: TreeViewProps) {
         onRename={handleRename}
         onToggle={handleToggle}
         dndManager={dragDropManager}
+        disableDrag={props.workspaceLegacyHybrid}
+        disableDrop={props.workspaceLegacyHybrid}
+        disableEdit={props.workspaceLegacyHybrid}
+        disableMultiSelection={props.workspaceLegacyHybrid}
       >
         {TreeRow}
       </Tree>

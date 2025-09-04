@@ -66,6 +66,10 @@ export default class Workspace extends Model<WorkspaceAttrs> {
     return this.get("orgId") !== null;
   }
 
+  isLegacyHybrid(): boolean {
+    return !this.isOnline() && !this.get("folder");
+  }
+
   isOnline(): boolean {
     return this.get("online") === 1;
   }

@@ -698,6 +698,7 @@ export class OfflineRunbook extends Runbook {
 
   public static async load(id: string): Promise<OfflineRunbook | null> {
     const runbook = await commands.getRunbook(id);
+    console.log("laoded offline runbook", runbook);
 
     return runbook
       .map(

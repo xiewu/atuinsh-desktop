@@ -7,8 +7,6 @@ import { watchWorkspace } from "./commands";
 import { localWorkspaceInfo } from "../queries/workspaces";
 import { useStore } from "@/state/store";
 import { allRunbookIds, allRunbooks, runbookById } from "../queries/runbooks";
-import { invoke } from "@tauri-apps/api/core";
-import { SET_RUNBOOK_TAG } from "@/state/store/runbook_state";
 import Emittery from "emittery";
 import { OfflineRunbook } from "@/state/runbooks/runbook";
 
@@ -29,8 +27,8 @@ export default class WorkspaceManager {
   }
 
   public async watchWorkspace(workspace: Workspace) {
-    if (workspace.isOnline()) {
-      SharedStateManager.startInstance(
+    if (workspace.isOnline() || workspace.isLegacyHybrid()) {
+      SharedStateManager.getInstance(
         `workspace-folder:${workspace.get("id")}`,
         new AtuinSharedStateAdapter(`workspace-folder:${workspace.get("id")}`),
       );
@@ -59,6 +57,7 @@ export default class WorkspaceManager {
             queryClient.invalidateQueries(allRunbooks());
             break;
           case "RunbookChanged":
+            console.log("runbook changed", event.data);
             useStore.getState().queryClient.invalidateQueries(runbookById(event.data));
             const runbook = await OfflineRunbook.load(event.data);
             this.emitter.emit("runbook-changed", runbook);
@@ -85,7 +84,7 @@ export default class WorkspaceManager {
   }
 
   public async unwatchWorkspace(workspace: Workspace) {
-    if (workspace.isOnline()) {
+    if (workspace.isOnline() || workspace.isLegacyHybrid()) {
       SharedStateManager.stopInstance(`workspace-folder:${workspace.get("id")}`);
     } else {
       if (!this.workspaces.has(workspace.get("id")!)) {

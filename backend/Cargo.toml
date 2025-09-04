@@ -73,6 +73,7 @@ font-kit = "0.14.2"
 log = "0.4.26"
 unicode-segmentation = "1.12.0"
 env_logger = "0.11.8"
+ignore = "0.4"
 russh = "0.45"
 russh-keys = "0.45"
 russh-config = "0.50.0" # For SSH config parsing with glob support

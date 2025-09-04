@@ -162,9 +162,9 @@ export default function Runbooks() {
 
   useEffect(() => {
     const workspaceManager = WorkspaceManager.getInstance();
-    const unsub = workspaceManager.onRunbookChanged(async (runbook, contentHash) => {
+    const unsub = workspaceManager.onRunbookChanged(async (runbook) => {
       if (runbook.id === currentRunbook?.id) {
-        runbookEditor?.runbookUpdatedExternally(runbook, contentHash);
+        runbookEditor?.runbookUpdatedExternally(runbook);
       }
     });
 

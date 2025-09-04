@@ -518,8 +518,13 @@ impl FsOps {
 
 // Using an iterative approach here as recursing fails due to recursive Box::pin issues
 pub async fn read_dir_recursive(path: impl AsRef<Path>) -> Result<Vec<DirEntry>, FsOpsError> {
+    use crate::workspaces::manager::{create_ignore_matcher, should_ignore_path};
+    
+    let workspace_root = path.as_ref();
+    let gitignore = create_ignore_matcher(workspace_root).ok();
+    
     let mut contents = Vec::new();
-    let mut stack = vec![path.as_ref().to_path_buf()];
+    let mut stack = vec![workspace_root.to_path_buf()];
 
     while let Some(current_path) = stack.pop() {
         let mut dir = tokio::fs::read_dir(&current_path).await?;
@@ -528,6 +533,12 @@ pub async fn read_dir_recursive(path: impl AsRef<Path>) -> Result<Vec<DirEntry>,
             if path.is_symlink() {
                 path = path.read_link()?;
             }
+            
+            // Use our shared ignore logic
+            if should_ignore_path(&path, workspace_root, gitignore.as_ref()) {
+                continue;
+            }
+            
             let attrs = entry.metadata().await?;
             let lastmod = attrs.modified().ok();
 

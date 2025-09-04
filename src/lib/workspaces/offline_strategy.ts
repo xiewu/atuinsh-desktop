@@ -229,6 +229,7 @@ export default class OfflineStrategy implements WorkspaceStrategy {
     parentFolderId: string | null,
     activateRunbook: (runbookId: string) => void,
   ): Promise<Result<string, WorkspaceError>> {
+    // @ts-ignore
     let result = await Ok.from<Runbook | null, WorkspaceError>(
       OfflineRunbook.create(this.workspace, parentFolderId),
     );

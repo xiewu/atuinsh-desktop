@@ -26,11 +26,11 @@ export type FolderItem =
 export default class WorkspaceFolder {
   private root: Node<FolderItem>;
 
-  static fromJS(data: TreeData<FolderItem>): WorkspaceFolder {
+  static fromJS(data: Folder): WorkspaceFolder {
     return new WorkspaceFolder(data);
   }
 
-  private constructor(data: TreeData<FolderItem>) {
+  private constructor(data: Folder) {
     this.root = Tree.fromJS<FolderItem>(data);
   }
 
@@ -39,7 +39,7 @@ export default class WorkspaceFolder {
   // by default, `jsondiffpatch` uses reference equality to determine
   // if two objects are the same, so we need to ensure that the same
   // object is returned for the same id unless it's actually changed.
-  public toJS(): TreeData<FolderItem> {
+  public toJS(): Folder {
     return this.root.toJS();
   }
 

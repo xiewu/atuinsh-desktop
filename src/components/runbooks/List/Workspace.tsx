@@ -817,25 +817,25 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
   let migrationElem = <></>;
   if (props.workspace.isLegacyHybrid()) {
     migrationElem = (
-      <div className="border rounded-md w-full p-3 flex gap-2 cursor-pointer">
-        <div>
-          <CircleAlertIcon className="w-8 h-8 stroke-gray-500 dark:stroke-gray-400" />
+      <div className="border rounded-md w-full p-3 flex flex-col gap-2 cursor-pointer">
+        <div className="flex flex-row gap-2">
+          <CircleAlertIcon className="w-8 h-8 stroke-gray-500 dark:stroke-gray-400 min-w-8" />
           <p className="text-sm text-muted-foreground">
             This workspace is a legacy hybrid workspace. It needs to be converted, and until it is,
             is read-only.
           </p>
-
-          <Button
-            variant="flat"
-            size="sm"
-            color="primary"
-            onClick={() => {
-              //
-            }}
-          >
-            Convert Workspace
-          </Button>
         </div>
+
+        <Button
+          variant="flat"
+          size="sm"
+          color="primary"
+          onClick={() => {
+            //
+          }}
+        >
+          Convert Workspace
+        </Button>
       </div>
     );
   }

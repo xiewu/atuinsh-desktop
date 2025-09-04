@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Button,
   Input,
@@ -15,6 +15,7 @@ import { Option, Some } from "@binarymuse/ts-stdlib";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/state/store";
 import { ConnectionState } from "@/state/store/user_state";
+import { exists, readDir } from "@tauri-apps/plugin-fs";
 
 interface NewWorkspaceDialogProps {
   onAccept: (name: string, online: boolean, folder: Option<string>) => void;
@@ -25,7 +26,24 @@ export default function NewWorkspaceDialog({ onAccept, onCancel }: NewWorkspaceD
   const [name, setName] = useState("New Workspace");
   const [isOnline, setIsOnline] = useState(true);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [folderHasContents, setFolderHasContents] = useState(false);
   const connectionState = useStore((state) => state.connectionState);
+
+  useEffect(() => {
+    if (!selectedFolder) return;
+    let active = true;
+    setFolderHasContents(false);
+
+    readDir(selectedFolder).then((dir) => {
+      if (dir.length > 0 && active) {
+        setFolderHasContents(true);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedFolder]);
 
   function closeAndReset() {
     onCancel();
@@ -116,14 +134,20 @@ export default function NewWorkspaceDialog({ onAccept, onCancel }: NewWorkspaceD
                   <span
                     className={cn(
                       !isOnline ? "text-foreground" : "text-muted",
-                      "overflow-x-scroll",
+                      "overflow-x-auto",
                       "whitespace-nowrap",
+                      "flex-grow",
                     )}
                   >
                     {!selectedFolder && "No folder selected"}
                     {selectedFolder && selectedFolder}
                   </span>
                 </div>
+                {selectedFolder && folderHasContents && (
+                  <span className="text-red-500 mt-2">
+                    The selected folder is not empty. Any conflicting files will be overwritten.
+                  </span>
+                )}
               </div>
             </div>
           </div>

@@ -116,7 +116,7 @@ export default class OfflineStrategy implements WorkspaceStrategy {
               type: "WorkspaceCreateError",
               data: {
                 workspace_id: this.workspace.get("id")!,
-                message: "Workspace creation cancelled.",
+                message: "Workspace creation canceled.",
               },
             } as WorkspaceError);
           }
@@ -137,7 +137,7 @@ export default class OfflineStrategy implements WorkspaceStrategy {
               type: "WorkspaceCreateError",
               data: {
                 workspace_id: this.workspace.get("id")!,
-                message: "Workspace creation cancelled.",
+                message: "Workspace creation canceled.",
               },
             } as WorkspaceError);
           }

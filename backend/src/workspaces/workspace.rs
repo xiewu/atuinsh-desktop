@@ -86,6 +86,13 @@ pub struct Workspace {
     pub _debouncer: Debouncer<RecommendedWatcher, RecommendedCache>,
     pub fs_ops: FsOpsHandle,
     pub on_event: Arc<dyn OnEvent>,
+    pub gitignore_matcher: Option<ignore::gitignore::Gitignore>,
+}
+
+impl Drop for Workspace {
+    fn drop(&mut self) {
+        log::debug!("Dropping workspace {}", self.id);
+    }
 }
 
 impl Workspace {

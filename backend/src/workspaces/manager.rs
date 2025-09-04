@@ -5,63 +5,72 @@ use std::{
     time::Duration,
 };
 
-use ignore::{WalkBuilder, gitignore::GitignoreBuilder};
+use ignore::gitignore::GitignoreBuilder;
 
 // Shared function to create a gitignore matcher with consistent ignore settings
-pub fn create_ignore_matcher(root_path: &Path) -> Result<ignore::gitignore::Gitignore, ignore::Error> {
+pub fn create_ignore_matcher(
+    root_path: &Path,
+) -> Result<ignore::gitignore::Gitignore, ignore::Error> {
     let mut builder = GitignoreBuilder::new(root_path);
-    
+
     // Add gitignore files from the workspace
     let gitignore_path = root_path.join(".gitignore");
     if gitignore_path.exists() {
         builder.add(&gitignore_path);
     }
-    
+
     builder.build()
 }
 
 // Check if a path should be ignored based on our rules
-pub fn should_ignore_path(path: &Path, workspace_root: &Path, gitignore: Option<&ignore::gitignore::Gitignore>) -> bool {
-    let name = path.file_name()
+pub fn should_ignore_path(
+    path: &Path,
+    workspace_root: &Path,
+    gitignore: Option<&ignore::gitignore::Gitignore>,
+) -> bool {
+    let name = path
+        .file_name()
         .and_then(|n| n.to_str())
-        .unwrap_or("");
-    
+        .unwrap_or_else(|| {
+            log::warn!("Non-UTF8 filename encountered: {:?}", path);
+            ""
+        });
+
     // Always ignore common directories
-    if matches!(name, "node_modules" | "target" | "dist" | "build" | "__pycache__" | "venv" | "env" | ".env") {
+    if matches!(
+        name,
+        "node_modules" | "target" | "dist" | "build" | "__pycache__" | "venv" | "env" | ".env"
+    ) {
         return true;
     }
-    
+
     // Always ignore hidden files/directories (except we might want some)
     if name.starts_with('.') && !matches!(name, ".atrb" | ".atuin") {
         return true;
     }
-    
+
     // Check gitignore rules if we have them
     if let Some(gitignore) = gitignore {
-        let relative_path = path.strip_prefix(workspace_root).unwrap_or(path);
+        let relative_path = match path.strip_prefix(workspace_root) {
+            Ok(rel_path) => rel_path,
+            Err(_) => {
+                log::warn!(
+                    "Path {:?} is outside workspace root {:?}, ignoring",
+                    path,
+                    workspace_root
+                );
+                return true; // Ignore paths outside the workspace
+            }
+        };
         let matched = gitignore.matched(relative_path, path.is_dir());
         if matched.is_ignore() {
             return true;
         }
     }
-    
+
     false
 }
 
-// Shared function to create WalkBuilder with consistent ignore settings (for file watching only)
-pub fn create_ignore_walker<P: AsRef<Path>>(root_path: P) -> WalkBuilder {
-    let root_path = root_path.as_ref();
-    let mut builder = WalkBuilder::new(root_path);
-    builder
-        .hidden(true)
-        .git_ignore(true)
-        .git_global(true)
-        .git_exclude(true)
-        .parents(true)
-        .ignore(true)
-        .follow_links(false);
-    builder
-}
 use notify_debouncer_full::{
     new_debouncer,
     notify::{event::ModifyKind, EventKind, RecursiveMode},
@@ -184,8 +193,26 @@ impl WorkspaceManager {
             }
         }
 
-        // Use selective watching with ignore patterns instead of recursive watching
-        self.setup_selective_watching(&mut debouncer, path.as_ref(), id)?;
+        log::debug!(
+            "Setting up recursive watching for workspace {} at {}",
+            id.to_string(),
+            path.as_ref().display(),
+        );
+
+        // Watch the root directory recursively - filtering happens in software
+        debouncer
+            .watch(path.as_ref(), RecursiveMode::Recursive)
+            .map_err(|e| WorkspaceError::WatchError {
+                workspace_id: id.to_string(),
+                message: format!("Failed to watch directory {}: {e}", path.as_ref().display()),
+            })?;
+
+        log::info!(
+            "Watching workspace {id} recursively at {}",
+            path.as_ref().display()
+        );
+
+        let gitignore_matcher = create_ignore_matcher(path.as_ref()).ok();
 
         let ws = Workspace {
             id: id.to_string(),
@@ -195,6 +222,7 @@ impl WorkspaceManager {
             _debouncer: debouncer,
             fs_ops,
             on_event,
+            gitignore_matcher,
         };
 
         self.workspaces.insert(id.to_string(), ws);
@@ -374,9 +402,8 @@ impl WorkspaceManager {
 
             let has_relevant_paths = event.paths.iter().any(|path| {
                 if let Some(workspace) = self.workspaces.get(workspace_id) {
-                    let gitignore = create_ignore_matcher(&workspace.path).ok();
-                    !should_ignore_path(path, &workspace.path, gitignore.as_ref()) &&
-                    is_relevant_file_content(path)
+                    !should_ignore_path(path, &workspace.path, workspace.gitignore_matcher.as_ref())
+                        && is_relevant_file(path)
                 } else {
                     false
                 }
@@ -422,19 +449,7 @@ impl WorkspaceManager {
                     }
                 }
                 EventKind::Create(_) | EventKind::Remove(_) => {
-                    // Handle directory creation/deletion by checking if we should watch new dirs
-                    if let Some(path) = event.paths.first() {
-                        if path.is_dir() {
-                            if let Some(workspace) = self.workspaces.get(workspace_id) {
-                                if matches!(event.event.kind, EventKind::Create(_))
-                                    && self.should_watch_new_directory(path, &workspace.path)
-                                {
-                                    // Note: We can't add to watcher here due to borrowing issues
-                                    // The full rescan will pick up the new directory
-                                }
-                            }
-                        }
-                    }
+                    // Directory creation/deletion requires full rescan
                     full_rescan = true;
                     break;
                 }
@@ -538,69 +553,11 @@ impl WorkspaceManager {
                 workspace_id: id.to_string(),
             })
     }
-
-    fn setup_selective_watching(
-        &self,
-        debouncer: &mut notify_debouncer_full::Debouncer<
-            notify_debouncer_full::notify::RecommendedWatcher,
-            notify_debouncer_full::FileIdMap,
-        >,
-        root_path: &Path,
-        workspace_id: &str,
-    ) -> Result<(), WorkspaceError> {
-        log::debug!(
-            "Setting up selective watching for workspace {} at {}",
-            workspace_id,
-            root_path.display()
-        );
-
-        // TODO: This is a single threaded walker. Investigate perf bonus of a parallel walker
-        let walker = create_ignore_walker(root_path).build();
-
-        let mut watched_count = 0;
-        for entry in walker.filter_map(Result::ok) {
-            let path = entry.path();
-            if path.is_dir() {
-                // Extra check to make sure we're not watching node_modules
-                if path.to_string_lossy().contains("node_modules") {
-                    log::warn!("SHOULD NOT BE WATCHING node_modules: {}", path.display());
-                    continue;
-                }
-                log::debug!("Watching directory: {}", path.display());
-                debouncer
-                    .watch(path, RecursiveMode::NonRecursive)
-                    .map_err(|e| WorkspaceError::WatchError {
-                        workspace_id: workspace_id.to_string(),
-                        message: format!("Failed to watch directory {}: {}", path.display(), e),
-                    })?;
-                watched_count += 1;
-            }
-        }
-
-        log::info!(
-            "Watching {} directories for workspace {}",
-            watched_count,
-            workspace_id
-        );
-        Ok(())
-    }
-
-    fn should_watch_new_directory(&self, path: &Path, workspace_root: &Path) -> bool {
-        let walker = create_ignore_walker(workspace_root).build();
-
-        // Check if this specific path would be included by the ignore rules
-        for entry in walker.filter_map(Result::ok) {
-            if entry.path() == path {
-                return true;
-            }
-        }
-        false
-    }
 }
 
-fn is_relevant_file_content(path: impl AsRef<Path>) -> bool {
+fn is_relevant_file(path: impl AsRef<Path>) -> bool {
     let path = path.as_ref();
-    
+
     // Only check if this is content we care about (not ignore logic)
     path.is_dir()
         || !path.exists() // If the file doesn't exist, we may have deleted it

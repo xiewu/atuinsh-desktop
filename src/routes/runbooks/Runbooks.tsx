@@ -167,6 +167,8 @@ export default function Runbooks() {
         runbookEditor?.runbookUpdatedExternally(runbook, contentHash);
       }
     });
+
+    return unsub;
   }, [currentRunbook?.id, runbookEditor]);
 
   function handleSelectTag(tag: string | null) {

@@ -3,6 +3,7 @@ use std::{
     time::SystemTime,
 };
 
+use json_digest::digest_json_str;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::{
@@ -36,6 +37,8 @@ pub enum FsOpsError {
     DeserializeError(#[from] toml::de::Error),
     #[error("Failed to trash folder: {0}")]
     TrashError(#[from] trash::Error),
+    #[error("Failed to digest runbook content: {0}")]
+    DigestError(String),
     #[error("Failed to get JSON keys: {0}")]
     GetJsonKeysError(#[from] crate::workspaces::state::JsonParseError),
 }
@@ -418,13 +421,13 @@ impl FsOps {
         path: impl AsRef<Path>,
     ) -> Result<OfflineRunbookFile, FsOpsError> {
         let json_text = tokio::fs::read_to_string(path.as_ref()).await?;
-        let mut runbook: OfflineRunbookFile = serde_json::from_str(&json_text)?;
+        let content_hash =
+            digest_json_str(&json_text).map_err(|e| FsOpsError::DigestError(e.to_string()))?;
+        let internal: OfflineRunbookFileInternal = serde_json::from_str(&json_text)?;
         let metadata = tokio::fs::metadata(path.as_ref()).await?;
         let created = metadata.created().ok();
         let updated = metadata.modified().ok();
-        runbook.created = created;
-        runbook.updated = updated;
-
+        let runbook = OfflineRunbookFile::new(internal, content_hash, created, updated);
         Ok(runbook)
     }
 

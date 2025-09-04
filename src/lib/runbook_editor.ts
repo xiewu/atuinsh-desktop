@@ -35,6 +35,7 @@ export default class RunbookEditor {
   private onPresenceLeave: (user: PresenceUserInfo) => void;
   private onClearPresences: () => void;
   private yDoc: Y.Doc;
+  private hashes: string[] = [];
 
   private editor: Promise<BlockNoteEditor> | null = null;
   private provider: PhoenixProvider | null = null;
@@ -63,6 +64,11 @@ export default class RunbookEditor {
     this.onPresenceLeave = onPresenceLeave;
     this.onClearPresences = onClearPresences;
     this.yDoc = new Y.Doc();
+
+    if (this.runbook instanceof OfflineRunbook) {
+      this.hashes.push(this.runbook.contentHash);
+    }
+
     if (
       this.runbook instanceof OnlineRunbook &&
       this.runbook.ydoc &&
@@ -109,8 +115,12 @@ export default class RunbookEditor {
     this.selectedTag = tag;
   }
 
-  runbookUpdatedExternally(runbook: OfflineRunbook) {
+  runbookUpdatedExternally(runbook: OfflineRunbook, contentHash: string) {
     if (runbook.id !== this.runbook.id) {
+      return;
+    }
+
+    if (this.hashes.length > 0 && this.hashes[this.hashes.length - 1] === contentHash) {
       return;
     }
 
@@ -290,7 +300,18 @@ export default class RunbookEditor {
       this.runbook.ydoc = Y.encodeStateAsUpdate(this.provider.doc);
     }
 
-    this.runbook.save();
+    // Hashes are only returned from `save` for offline runbooks
+    const maybeHash = await this.runbook.save();
+    if (
+      maybeHash &&
+      (this.hashes.length === 0 || this.hashes[this.hashes.length - 1] !== maybeHash)
+    ) {
+      this.hashes.push(maybeHash);
+      if (this.hashes.length > 5) {
+        this.hashes.shift();
+      }
+    }
+
     if (previousName !== this.runbook.name && this.isOnline) {
       const op = new Operation({
         operation: {

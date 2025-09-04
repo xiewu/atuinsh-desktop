@@ -134,8 +134,8 @@ export async function saveRunbook(
   runbookId: string,
   name: string,
   content: string,
-): Promise<Result<undefined, WorkspaceError>> {
-  return promiseResult<undefined, WorkspaceError>(
+): Promise<Result<string, WorkspaceError>> {
+  return promiseResult<string, WorkspaceError>(
     invoke("save_runbook", { workspaceId, runbookId, name, content }),
   );
 }

@@ -99,7 +99,7 @@ pub async fn save_runbook(
     name: String,
     content: Value,
     state: State<'_, AtuinState>,
-) -> Result<(), WorkspaceError> {
+) -> Result<String, WorkspaceError> {
     let mut manager = state.workspaces.lock().await;
     let manager = manager.as_mut().expect("Workspace not found in state");
     manager

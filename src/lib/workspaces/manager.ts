@@ -78,8 +78,10 @@ export default class WorkspaceManager {
     return this.emitter.on("runbook-deleted", callback);
   }
 
-  public onRunbookChanged(callback: (runbook: OfflineRunbook) => void) {
-    return this.emitter.on("runbook-changed", callback);
+  public onRunbookChanged(callback: (runbook: OfflineRunbook, contentHash: string) => void) {
+    return this.emitter.on("runbook-changed", (runbook) => {
+      callback(runbook, runbook.contentHash);
+    });
   }
 
   public async unwatchWorkspace(workspace: Workspace) {

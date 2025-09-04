@@ -126,7 +126,7 @@ export default abstract class Runbook {
   }
 
   public abstract isOnline(): boolean;
-  public abstract save(): Promise<void>;
+  public abstract save(): Promise<string | undefined>;
   public abstract clearRemoteInfo(): Promise<void>;
   public abstract moveTo(targetWorkspace: Workspace): Promise<void>;
   public abstract updateRemoteInfo(remoteInfo: string | null): Promise<void>;
@@ -456,7 +456,7 @@ export class OnlineRunbook extends Runbook {
     return runbooks;
   }
 
-  public async save() {
+  public async save(): Promise<string | undefined> {
     const db = await AtuinDB.load("runbooks");
     logger.info("Saving runbook", this.id, this.name, this._ydoc);
 
@@ -507,6 +507,8 @@ export class OnlineRunbook extends Runbook {
       dbHook("runbook", "update", this);
     }
     this.persisted = true;
+
+    return undefined;
   }
 
   public async clearRemoteInfo() {
@@ -620,10 +622,17 @@ function camelCaseToSnakeCase(str: string) {
 ///// OFFLINE
 
 export interface OfflineRunbookAttrs extends BaseRunbookAttrs {
-  //
+  contentHash: string;
 }
 
 export class OfflineRunbook extends Runbook {
+  contentHash: string;
+
+  constructor(attrs: OfflineRunbookAttrs, persisted: boolean = false) {
+    super(attrs, persisted);
+    this.contentHash = attrs.contentHash;
+  }
+
   get viewed_at(): Date | null {
     return new Date();
   }
@@ -697,6 +706,7 @@ export class OfflineRunbook extends Runbook {
             id: runbook.id,
             name: runbook.name,
             content: JSON.stringify(runbook.content),
+            contentHash: runbook.contentHash,
             workspaceId: runbook.workspaceId,
             created: convertSystemTime(runbook.created) ?? new Date(),
             updated: convertSystemTime(runbook.updated) ?? new Date(),
@@ -728,8 +738,18 @@ export class OfflineRunbook extends Runbook {
     return false;
   }
 
-  public async save() {
-    await commands.saveRunbook(this.workspaceId, this.id, this.name, JSON.parse(this.content));
+  public async save(): Promise<string | undefined> {
+    const result = await commands.saveRunbook(
+      this.workspaceId,
+      this.id,
+      this.name,
+      JSON.parse(this.content),
+    );
+    if (result.isErr()) {
+      throw result.unwrapErr();
+    } else {
+      return result.unwrap();
+    }
   }
 
   public async clearRemoteInfo(): Promise<void> {
@@ -753,6 +773,7 @@ export class OfflineRunbook extends Runbook {
       id: this.id,
       name: this.name,
       content: this.content,
+      contentHash: this.contentHash,
       workspaceId: this.workspaceId,
       created: this.created,
       updated: this.updated,

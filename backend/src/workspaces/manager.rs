@@ -12,7 +12,6 @@ use notify_debouncer_full::{
 };
 use serde::Serialize;
 use serde_json::Value;
-use tokio::sync::{Mutex, MutexGuard};
 use ts_rs::TS;
 
 use crate::{
@@ -189,7 +188,7 @@ impl WorkspaceManager {
         runbook_id: &str,
         name: &str,
         content: Value,
-    ) -> Result<(), WorkspaceError> {
+    ) -> Result<String, WorkspaceError> {
         let workspace = self.get_workspace(workspace_id)?;
         workspace
             .save_runbook(runbook_id, name, &content, None::<&Path>)
@@ -209,7 +208,7 @@ impl WorkspaceManager {
         &mut self,
         runbook_id: &str,
     ) -> Result<OfflineRunbook, WorkspaceError> {
-        let workspace = self.workspaces.values().find(|w| {
+        let workspace = self.workspaces.values_mut().find(|w| {
             w.state
                 .as_ref()
                 .map(|s| s.runbooks.contains_key(runbook_id))
@@ -360,6 +359,8 @@ impl WorkspaceManager {
         if full_rescan {
             self.rescan_and_notify(workspace_id, Some(known_events))
                 .await;
+        } else {
+            self.notify(workspace_id, known_events);
         }
     }
 
@@ -424,8 +425,12 @@ impl WorkspaceManager {
             }
         }
 
-        if let Some(workspace) = self.workspaces.get_mut(workspace_id) {
-            for event in known_events {
+        self.notify(workspace_id, known_events);
+    }
+
+    fn notify(&self, workspace_id: &str, events: HashSet<WorkspaceEvent>) {
+        if let Some(workspace) = self.workspaces.get(workspace_id) {
+            for event in events {
                 (workspace.on_event)(event);
             }
         }

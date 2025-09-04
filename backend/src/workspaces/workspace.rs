@@ -197,13 +197,15 @@ impl Workspace {
         Ok(id.to_string())
     }
 
+    /// Saves a runbook to the workspace if its hash has changed
+    /// and returns the hash of the saved runbook.
     pub async fn save_runbook(
         &mut self,
         runbook_id: &str,
         name: &str,
         content: &Value,
         parent_folder: Option<impl AsRef<Path>>,
-    ) -> Result<(), WorkspaceError> {
+    ) -> Result<String, WorkspaceError> {
         if let Err(e) = &self.state {
             return Err(WorkspaceError::RunbookSaveError {
                 runbook_id: runbook_id.to_string(),
@@ -266,9 +268,9 @@ impl Workspace {
                 self.histories
                     .entry(runbook_id.to_string())
                     .or_insert_with(|| HashHistory::new(5))
-                    .push(digest);
+                    .push(digest.clone());
 
-                Ok(())
+                Ok(digest)
             }
             Err(e) => Err(WorkspaceError::RunbookSaveError {
                 runbook_id: runbook_id.to_string(),
@@ -296,7 +298,7 @@ impl Workspace {
             })
     }
 
-    pub async fn get_runbook(&self, id: &str) -> Result<OfflineRunbook, WorkspaceError> {
+    pub async fn get_runbook(&mut self, id: &str) -> Result<OfflineRunbook, WorkspaceError> {
         let path = if let Ok(state) = &self.state {
             if let Some(runbook) = state.runbooks.get(id) {
                 Ok(runbook.path.clone())
@@ -311,13 +313,21 @@ impl Workspace {
             })
         }?;
 
-        self.fs_ops
+        let runbook = self
+            .fs_ops
             .get_runbook(&path)
             .await
             .map(|file| OfflineRunbook::new(file, self.id.clone()))
             .map_err(|e| WorkspaceError::GenericWorkspaceError {
                 message: e.to_string(),
-            })
+            })?;
+
+        self.histories
+            .entry(id.to_string())
+            .or_insert_with(|| HashHistory::new(5))
+            .push(runbook.file.content_hash.clone());
+
+        Ok(runbook)
     }
 
     pub async fn get_dir_info(&self) -> Result<WorkspaceDirInfo, WorkspaceError> {

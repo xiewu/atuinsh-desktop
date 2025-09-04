@@ -180,7 +180,7 @@ export default function TreeView(props: TreeViewProps) {
           preview: innerProps.preview,
           runbookId: innerProps.node.data.id,
           onContextMenu,
-          useProvidedName: !props.workspaceOnline,
+          useProvidedName: !props.workspaceOnline && !props.workspaceLegacyHybrid,
         };
         return <RunbookTreeRow key={innerProps.node.data.id} {...runbookProps} />;
       }

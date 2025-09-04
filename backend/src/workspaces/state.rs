@@ -236,7 +236,7 @@ async fn get_workspace_runbooks(
 /// The keys must be present in the JSON file, and must exist at the top level of the JSON object.
 /// The value of the key must be a primitive type: string, number, boolean, or null.
 /// The function returns a map of the keys to their values.
-async fn get_json_keys(
+pub async fn get_json_keys(
     atrb_path: impl AsRef<Path>,
     keys: &[&str],
 ) -> Result<HashMap<String, Value>, JsonParseError> {

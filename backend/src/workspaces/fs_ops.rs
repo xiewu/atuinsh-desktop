@@ -12,7 +12,13 @@ use tokio::sync::{
 use trash::TrashContext;
 use ts_rs::TS;
 
-use crate::{run_async_command, workspaces::offline_runbook::OfflineRunbookFile};
+use crate::{
+    run_async_command,
+    workspaces::{
+        offline_runbook::{OfflineRunbookFile, OfflineRunbookFileInternal},
+        state::get_json_keys,
+    },
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum FsOpsError {
@@ -30,6 +36,8 @@ pub enum FsOpsError {
     DeserializeError(#[from] toml::de::Error),
     #[error("Failed to trash folder: {0}")]
     TrashError(#[from] trash::Error),
+    #[error("Failed to get JSON keys: {0}")]
+    GetJsonKeysError(#[from] crate::workspaces::state::JsonParseError),
 }
 
 pub type Reply<T> = oneshot::Sender<Result<T, FsOpsError>>;
@@ -37,7 +45,7 @@ pub type Reply<T> = oneshot::Sender<Result<T, FsOpsError>>;
 pub enum FsOpsInstruction {
     RenameWorkspace(PathBuf, String, Reply<()>),
     GetDirectoryInformation(PathBuf, Reply<WorkspaceDirInfo>),
-    SaveRunbook(Option<PathBuf>, PathBuf, Value, Reply<()>),
+    SaveRunbook(String, Option<PathBuf>, PathBuf, Value, Reply<()>),
     DeleteRunbook(PathBuf, Reply<()>),
     GetRunbook(PathBuf, Reply<OfflineRunbookFile>),
     CreateFolder(PathBuf, PathBuf, Reply<PathBuf>),
@@ -140,6 +148,7 @@ impl FsOpsHandle {
 
     pub async fn save_runbook(
         &self,
+        runbook_id: &str,
         old_path: Option<impl AsRef<Path>>,
         new_path: impl AsRef<Path>,
         content: Value,
@@ -148,6 +157,7 @@ impl FsOpsHandle {
 
         self.tx
             .send(FsOpsInstruction::SaveRunbook(
+                runbook_id.to_string(),
                 old_path.map(|p| p.as_ref().to_path_buf()),
                 new_path.as_ref().to_path_buf(),
                 content,
@@ -285,9 +295,15 @@ impl FsOps {
                     let result = self.rename_workspace(&path, &name).await;
                     let _ = reply_to.send(result);
                 }
-                FsOpsInstruction::SaveRunbook(old_path, new_path, content, reply_to) => {
+                FsOpsInstruction::SaveRunbook(
+                    runbook_id,
+                    old_path,
+                    new_path,
+                    content,
+                    reply_to,
+                ) => {
                     let result = self
-                        .save_runbook(old_path.as_ref(), &new_path, content)
+                        .save_runbook(&runbook_id, old_path.as_ref(), &new_path, content)
                         .await;
                     let _ = reply_to.send(result);
                 }
@@ -365,12 +381,25 @@ impl FsOps {
     // like it's detected that its own file is a name conflict
     async fn save_runbook(
         &mut self,
+        runbook_id: &str,
         old_path: Option<impl AsRef<Path>>,
         new_path: impl AsRef<Path>,
         content: Value,
     ) -> Result<(), FsOpsError> {
-        // If the new path already exists, we need to find a new path with a unique numeric suffix
-        let new_path = find_unique_path(new_path.as_ref())?;
+        let mut needs_unique_path = false;
+        if new_path.as_ref().exists() {
+            // First, check to see if the file has the same ID as the runbook we're saving
+            let keys = get_json_keys(new_path.as_ref(), &["id"]).await?;
+            if !keys.contains_key("id") || keys.get("id").unwrap() != runbook_id {
+                needs_unique_path = true;
+            }
+        }
+
+        let new_path = if needs_unique_path {
+            find_unique_path(new_path.as_ref())?
+        } else {
+            new_path.as_ref().to_path_buf()
+        };
 
         if let Some(old_path) = old_path {
             if old_path.as_ref() != &new_path && old_path.as_ref().exists() {

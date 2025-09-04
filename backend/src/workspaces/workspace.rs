@@ -246,12 +246,17 @@ impl Workspace {
                     // If the hash hasn't changed, we don't need to save the runbook,
                     // UNLESS the name has changed, in which case FsOps will handle the rename.
                     if history.latest() == Some(&digest) && paths_match {
-                        return Ok(());
+                        return Ok(digest);
                     }
                 }
 
                 self.fs_ops
-                    .save_runbook(current_path.as_ref(), &new_path, full_content)
+                    .save_runbook(
+                        runbook_id,
+                        current_path.as_ref(),
+                        &new_path,
+                        full_content.clone(),
+                    )
                     .await
                     .map_err(|e| WorkspaceError::RunbookSaveError {
                         runbook_id: runbook_id.to_string(),

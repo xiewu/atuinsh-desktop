@@ -433,15 +433,26 @@ impl WorkspaceManager {
                     if let Some(path) = event.paths.first() {
                         match event.event.kind {
                             EventKind::Create(_) if path.is_dir() => {
-                                if let Some(workspace) = self.workspaces.get(workspace_id) {
+                                if let Some(workspace) = self.workspaces.get_mut(workspace_id) {
                                     let gitignore = create_ignore_matcher(&workspace.path).ok();
-                                    if !should_ignore_path(path, &workspace.path, gitignore.as_ref()) {
-                                        // Add watcher for the new directory immediately
-                                        if let Some(workspace_mut) = self.workspaces.get_mut(workspace_id) {
-                                            log::debug!("Adding watcher for new directory: {}", path.display());
-                                            if let Err(e) = workspace_mut._debouncer.watch(path, RecursiveMode::NonRecursive) {
-                                                log::warn!("Failed to watch new directory {}: {}", path.display(), e);
-                                            }
+                                    if !should_ignore_path(
+                                        path,
+                                        &workspace.path,
+                                        gitignore.as_ref(),
+                                    ) {
+                                        log::debug!(
+                                            "Adding watcher for new directory: {}",
+                                            path.display()
+                                        );
+                                        if let Err(e) = workspace
+                                            ._debouncer
+                                            .watch(path, RecursiveMode::NonRecursive)
+                                        {
+                                            log::warn!(
+                                                "Failed to watch new directory {}: {}",
+                                                path.display(),
+                                                e
+                                            );
                                         }
                                     }
                                 }
@@ -449,7 +460,10 @@ impl WorkspaceManager {
                             EventKind::Remove(_) => {
                                 // Remove watcher for deleted directory/file
                                 if let Some(workspace_mut) = self.workspaces.get_mut(workspace_id) {
-                                    log::debug!("Removing watcher for deleted path: {}", path.display());
+                                    log::debug!(
+                                        "Removing watcher for deleted path: {}",
+                                        path.display()
+                                    );
                                     if let Err(e) = workspace_mut._debouncer.unwatch(path) {
                                         log::debug!("Failed to unwatch deleted path {} (this is normal): {}", path.display(), e);
                                     }
@@ -566,7 +580,7 @@ impl WorkspaceManager {
         &self,
         debouncer: &mut notify_debouncer_full::Debouncer<
             notify_debouncer_full::notify::RecommendedWatcher,
-            notify_debouncer_full::FileIdMap,
+            notify_debouncer_full::RecommendedCache,
         >,
         root_path: &Path,
         workspace_id: &str,
@@ -595,15 +609,9 @@ impl WorkspaceManager {
             }
         }
 
-        log::info!(
-            "Watching {} directories for workspace {}",
-            watched_count,
-            workspace_id
-        );
+        log::info!("Watching {watched_count} directories for workspace {workspace_id}",);
         Ok(())
     }
-
-
 }
 
 fn is_relevant_file(path: impl AsRef<Path>) -> bool {

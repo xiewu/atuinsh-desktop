@@ -244,7 +244,8 @@ function getWorkspaceType(workspaceInfo: WorkspaceInfo): WorkspaceType {
   if (workspaceInfo.online.length === 0 && workspaceInfo.offline.length > 0) {
     return WorkspaceType.Offline;
   }
-  return WorkspaceType.Empty;
+
+  return WorkspaceType.Hybrid;
 }
 
 interface FolderInfo {

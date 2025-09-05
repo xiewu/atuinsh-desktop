@@ -203,32 +203,6 @@ export default class WorkspaceSyncManager {
         });
       }
     }
-
-    // Reattach orphaned runbooks to their workspace folders
-    const adapter = new OfflineSharedStateAdapter<any>();
-    const workspaces = await Workspace.all();
-    for (const workspace of workspaces) {
-      const stateId = `workspace-folder:${workspace.get("id")}`;
-      const runbooks = await Runbook.allFromWorkspace(workspace.get("id")!);
-      const manager = SharedStateManager.getInstance<Folder>(stateId, adapter);
-      const data = await manager.getDataOnce();
-      const workspaceFolder = WorkspaceFolder.fromJS(data);
-      for (const runbook of runbooks) {
-        const node = workspaceFolder.getNode(runbook.id);
-        if (node.isNone()) {
-          // Reattach runbook to the workspace folder
-          const changeRef = await manager.updateOptimistic(() => {
-            workspaceFolder.createRunbook(runbook.id, null);
-            return workspaceFolder.toJS();
-          });
-          if (changeRef) {
-            const opData = createRunbook(workspace.get("id")!, null, runbook.id, changeRef);
-            const op = new Operation({ operation: opData });
-            await op.save();
-          }
-        }
-      }
-    }
   }
 
   private shouldSync(): boolean {

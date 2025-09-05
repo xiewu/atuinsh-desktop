@@ -183,15 +183,15 @@ impl Workspace {
 
     pub async fn create_runbook(
         &mut self,
-        parent_folder_id: Option<&str>, // TODO
+        parent_folder_id: Option<&str>,
+        content: &Value,
     ) -> Result<String, WorkspaceError> {
         let id = uuid_v7();
         let name = "Untitled";
-        let content = json!([]);
 
         let parent_folder = parent_folder_id.map(|id| PathBuf::from(id));
 
-        self.save_runbook(&id.to_string(), name, &content, parent_folder.as_ref())
+        self.save_runbook(&id.to_string(), name, content, parent_folder.as_ref())
             .await?;
 
         Ok(id.to_string())

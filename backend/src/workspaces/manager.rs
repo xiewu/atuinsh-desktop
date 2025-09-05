@@ -177,9 +177,10 @@ impl WorkspaceManager {
         &mut self,
         workspace_id: &str,
         parent_folder_id: Option<&str>,
+        content: &Value,
     ) -> Result<String, WorkspaceError> {
         let workspace = self.get_workspace(workspace_id)?;
-        workspace.create_runbook(parent_folder_id).await
+        workspace.create_runbook(parent_folder_id, &content).await
     }
 
     pub async fn save_runbook(

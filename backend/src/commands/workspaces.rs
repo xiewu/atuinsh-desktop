@@ -176,12 +176,13 @@ pub async fn move_items(
 pub async fn create_runbook(
     workspace_id: String,
     parent_folder_id: Option<String>,
+    content: Value,
     state: State<'_, AtuinState>,
 ) -> Result<String, WorkspaceError> {
     let mut manager = state.workspaces.lock().await;
     let manager = manager.as_mut().expect("Workspace not found in state");
     manager
-        .create_runbook(&workspace_id, parent_folder_id.as_deref())
+        .create_runbook(&workspace_id, parent_folder_id.as_deref(), &content)
         .await
 }
 

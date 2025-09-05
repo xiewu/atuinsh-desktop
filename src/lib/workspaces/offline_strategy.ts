@@ -17,7 +17,7 @@ interface WorkspaceFolderError {
   extra?: string;
 }
 
-async function parentDir(folder: string): Promise<Option<string>> {
+export async function parentDir(folder: string): Promise<Option<string>> {
   const parent = await resolve(folder, "..");
   if (parent === folder) {
     return None;
@@ -25,7 +25,7 @@ async function parentDir(folder: string): Promise<Option<string>> {
   return Some(parent);
 }
 
-async function findParentWorkspace(folder: string): Promise<Option<string>> {
+export async function findParentWorkspace(folder: string): Promise<Option<string>> {
   try {
     const contents = await readDir(folder);
     if (
@@ -45,7 +45,7 @@ async function findParentWorkspace(folder: string): Promise<Option<string>> {
   return None;
 }
 
-async function checkWorkspaceFolder(folder: string): Promise<Option<WorkspaceFolderError>> {
+export async function checkWorkspaceFolder(folder: string): Promise<Option<WorkspaceFolderError>> {
   const doesExist = await exists(folder);
   if (!doesExist) {
     return Some<WorkspaceFolderError>({ fatal: true, type: "not_exist" });

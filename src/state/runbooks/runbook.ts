@@ -664,12 +664,13 @@ export class OfflineRunbook extends Runbook {
     workspace: Workspace,
     parentFolderId: string | null,
     persist: boolean = true,
+    content: any = [],
   ): Promise<OfflineRunbook | null> {
     if (!persist) {
       throw new Error("Cannot create offline runbook without persisting");
     }
 
-    const idResult = await commands.createRunbook(workspace.get("id")!, parentFolderId);
+    const idResult = await commands.createRunbook(workspace.get("id")!, parentFolderId, content);
     if (idResult.isErr()) {
       console.error("Failed to create runbook", idResult.unwrapErr());
       return null;

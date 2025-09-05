@@ -25,6 +25,7 @@ import { useQuery } from "@tanstack/react-query";
 import { localWorkspaceInfo } from "@/lib/queries/workspaces";
 import { WorkspaceRunbook } from "@/rs-bindings/WorkspaceRunbook";
 import { Button } from "@heroui/react";
+import ConvertWorkspaceDialog from "./ConvertWorkspaceDialog";
 
 interface WorkspaceProps {
   workspace: Workspace;
@@ -214,6 +215,7 @@ function transformDirEntriesToArboristTree(
 
 export default function WorkspaceComponent(props: WorkspaceProps) {
   const treeRef = useRef<TreeApi<TreeRowData> | null>(null);
+  const [showConvertWorkspaceDialog, setShowConvertWorkspaceDialog] = useState(false);
 
   const currentRunbookId = useStore((state) => state.currentRunbookId);
   const lastRunbookId = usePrevious(currentRunbookId);
@@ -830,8 +832,8 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
           variant="flat"
           size="sm"
           color="primary"
-          onClick={() => {
-            //
+          onPress={() => {
+            setShowConvertWorkspaceDialog(true);
           }}
         >
           Convert Workspace
@@ -899,6 +901,12 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
       ) : (
         <>
           {migrationElem}
+          {showConvertWorkspaceDialog && (
+            <ConvertWorkspaceDialog
+              workspace={props.workspace}
+              onClose={() => setShowConvertWorkspaceDialog(false)}
+            />
+          )}
           <TreeView
             workspaceId={props.workspace.get("id")!}
             workspaceOnline={props.workspace.isOnline()}

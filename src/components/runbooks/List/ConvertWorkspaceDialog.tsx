@@ -349,7 +349,7 @@ export default function ConvertWorkspaceDialog(props: ConvertWorkspaceDialogProp
     }
 
     const type = getWorkspaceType(workspaceInfo);
-    if (type in [WorkspaceType.Offline, WorkspaceType.Hybrid] && !folderInfo.path) {
+    if ([WorkspaceType.Offline, WorkspaceType.Hybrid].includes(type) && !folderInfo.path) {
       return;
     }
 

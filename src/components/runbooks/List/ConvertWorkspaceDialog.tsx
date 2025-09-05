@@ -184,7 +184,7 @@ async function migrateWorkspace(
       await commands.createRunbook(newWs.get("id")!, null, JSON.parse(oldRb!.content || "[]"));
     }
 
-    workspace.set("online", 0);
+    workspace.set("online", 1);
     await workspace.save();
   }
 }

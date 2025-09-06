@@ -440,7 +440,7 @@ impl WorkspaceManager {
                             EventKind::Create(_) if path.is_dir() => {
                                 if let Some(workspace) = self.workspaces.get_mut(workspace_id) {
                                     let parent_path = path.parent().unwrap_or(&workspace.path);
-                                    let gitignore = create_ignore_matcher(&parent_path).ok();
+                                    let gitignore = create_ignore_matcher(parent_path).ok();
                                     if !should_ignore_path(
                                         path,
                                         &workspace.path,

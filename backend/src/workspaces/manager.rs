@@ -1,8 +1,27 @@
+use notify_debouncer_full::{
+    new_debouncer,
+    notify::{event::ModifyKind, EventKind, RecursiveMode},
+    DebounceEventResult, DebouncedEvent,
+};
+use serde::Serialize;
+use serde_json::Value;
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
     sync::Arc,
     time::Duration,
+};
+
+use ts_rs::TS;
+
+use crate::{
+    run_async_command,
+    workspaces::{
+        fs_ops::{FsOps, FsOpsHandle, WorkspaceDirInfo},
+        offline_runbook::OfflineRunbook,
+        state::WorkspaceState,
+        workspace::{Workspace, WorkspaceError},
+    },
 };
 
 use ignore::{gitignore::GitignoreBuilder, WalkBuilder};
@@ -69,25 +88,6 @@ pub fn create_ignore_walker<P: AsRef<Path>>(root_path: P) -> WalkBuilder {
         .follow_links(false);
     builder
 }
-use notify_debouncer_full::{
-    new_debouncer,
-    notify::{event::ModifyKind, EventKind, RecursiveMode},
-    DebounceEventResult, DebouncedEvent,
-};
-use serde::Serialize;
-use serde_json::Value;
-
-use ts_rs::TS;
-
-use crate::{
-    run_async_command,
-    workspaces::{
-        fs_ops::{FsOps, FsOpsHandle, WorkspaceDirInfo},
-        offline_runbook::OfflineRunbook,
-        state::WorkspaceState,
-        workspace::{Workspace, WorkspaceError},
-    },
-};
 
 pub trait OnEvent: Send + Sync + Fn(WorkspaceEvent) {}
 impl<F: Send + Sync + Fn(WorkspaceEvent)> OnEvent for F {}
@@ -96,7 +96,7 @@ pub struct WorkspaceManager {
     workspaces: HashMap<String, Workspace>,
 }
 
-#[derive(TS, Debug, Serialize, Eq, Hash, PartialEq)]
+#[derive(TS, Debug, Serialize, Eq, Hash, PartialEq, Clone)]
 #[serde(tag = "type", content = "data")]
 #[ts(tag = "type", content = "data", export)]
 pub enum WorkspaceEvent {
@@ -634,4 +634,707 @@ fn is_relevant_file(path: impl AsRef<Path>) -> bool {
             .extension()
             .map(|f| f.to_string_lossy().eq_ignore_ascii_case("atrb"))
             .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{
+        path::{Path, PathBuf},
+        sync::Arc,
+        time::Duration,
+    };
+
+    use serde_json::json;
+    use tempfile::TempDir;
+    use tokio::sync::Mutex;
+    use tokio::time::sleep;
+
+    struct TestEventCollector {
+        events: Arc<Mutex<Vec<WorkspaceEvent>>>,
+    }
+
+    impl TestEventCollector {
+        fn new() -> Self {
+            Self {
+                events: Arc::new(Mutex::new(Vec::new())),
+            }
+        }
+
+        async fn get_events(&self) -> Vec<WorkspaceEvent> {
+            self.events.lock().await.clone()
+        }
+
+        async fn clear_events(&self) {
+            self.events.lock().await.clear();
+        }
+
+        async fn wait_for_events(
+            &self,
+            expected_count: usize,
+            timeout_ms: u64,
+        ) -> Vec<WorkspaceEvent> {
+            let start = std::time::Instant::now();
+            let timeout = Duration::from_millis(timeout_ms);
+
+            loop {
+                let events = self.get_events().await;
+                if events.len() >= expected_count || start.elapsed() > timeout {
+                    return events;
+                }
+                sleep(Duration::from_millis(10)).await;
+            }
+        }
+
+        fn create_handler(&self) -> impl Fn(WorkspaceEvent) + Send + Sync + 'static {
+            let events = self.events.clone();
+            move |event| {
+                let events = events.clone();
+                tokio::spawn(async move {
+                    events.lock().await.push(event);
+                });
+            }
+        }
+    }
+
+    async fn setup_test_workspace() -> (TempDir, PathBuf) {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let workspace_path = temp_dir.path().to_path_buf();
+
+        // Create atuin.toml
+        let config = toml::to_string(&crate::workspaces::fs_ops::WorkspaceConfig {
+            workspace: crate::workspaces::fs_ops::WorkspaceConfigDetails {
+                id: "test-workspace".to_string(),
+                name: "Test Workspace".to_string(),
+            },
+        })
+        .unwrap();
+
+        tokio::fs::write(workspace_path.join("atuin.toml"), config)
+            .await
+            .unwrap();
+
+        (temp_dir, workspace_path)
+    }
+
+    async fn create_test_runbook(path: &Path, name: &str, id: &str) {
+        let runbook_content = json!({
+            "id": id,
+            "name": name,
+            "version": 1,
+            "content": []
+        });
+
+        tokio::fs::write(
+            path.join(format!("{}.atrb", name)),
+            runbook_content.to_string(),
+        )
+        .await
+        .unwrap();
+    }
+
+    async fn create_gitignore(path: &Path, patterns: &[&str]) {
+        let content = patterns.join("\n");
+        tokio::fs::write(path.join(".gitignore"), content)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_folder_creation_and_runbook_operations() {
+        let (temp_dir, workspace_path) = setup_test_workspace().await;
+        let collector = TestEventCollector::new();
+        let manager = WorkspaceManager::new();
+        let manager_arc = Arc::new(Mutex::new(Some(manager)));
+
+        // Start watching the workspace
+        {
+            let mut manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_mut().unwrap();
+            manager
+                .watch_workspace(
+                    &workspace_path,
+                    "test-workspace",
+                    collector.create_handler(),
+                    manager_arc.clone(),
+                )
+                .await
+                .unwrap();
+        }
+
+        // Wait for initial state event
+        let initial_events = collector.wait_for_events(1, 1000).await;
+        assert!(!initial_events.is_empty());
+        collector.clear_events().await;
+
+        // Give the workspace manager time to set up file watching
+        sleep(Duration::from_millis(200)).await;
+
+        // Create a new folder
+        let folder_path = workspace_path.join("test_folder");
+        tokio::fs::create_dir(&folder_path).await.unwrap();
+
+        // Wait for folder creation to be detected
+        let folder_events = collector.wait_for_events(1, 1000).await;
+        assert!(!folder_events.is_empty());
+        collector.clear_events().await;
+
+        // Create a runbook in the new folder
+        create_test_runbook(&folder_path, "test_runbook", "test-runbook-id").await;
+
+        // Give a moment for the directory watcher to be set up
+        sleep(Duration::from_millis(200)).await;
+
+        // Wait for runbook creation to be detected
+        let runbook_events = collector.wait_for_events(1, 5000).await;
+        assert!(
+            !runbook_events.is_empty(),
+            "Expected runbook creation events, got: {:?}",
+            runbook_events
+        );
+        collector.clear_events().await;
+
+        // Verify the runbook was added to state
+        {
+            let manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_ref().unwrap();
+            if let Some(workspace) = manager.workspaces.get("test-workspace") {
+                if let Ok(state) = &workspace.state {
+                    assert!(
+                        state.runbooks.contains_key("test-runbook-id"),
+                        "Runbook not found in state. Available runbooks: {:?}",
+                        state.runbooks.keys().collect::<Vec<_>>()
+                    );
+                    let runbook = state.runbooks.get("test-runbook-id").unwrap();
+                    assert_eq!(runbook.name, "test_runbook");
+                    assert_eq!(runbook.id, "test-runbook-id");
+                } else {
+                    panic!("Workspace state should be Ok");
+                }
+            } else {
+                panic!("Workspace should exist");
+            }
+        }
+
+        // Remove the runbook
+        tokio::fs::remove_file(folder_path.join("test_runbook.atrb"))
+            .await
+            .unwrap();
+
+        // Wait for runbook deletion to be detected
+        tokio::time::sleep(Duration::from_millis(200)).await;
+
+        // Verify the runbook was removed from state
+        {
+            let manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_ref().unwrap();
+            if let Some(workspace) = manager.workspaces.get("test-workspace") {
+                if let Ok(state) = &workspace.state {
+                    assert!(!state.runbooks.contains_key("test-runbook-id"));
+                } else {
+                    panic!("Workspace state should be Ok");
+                }
+            } else {
+                panic!("Workspace should exist");
+            }
+        }
+
+        // Clean up
+        {
+            let mut manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_mut().unwrap();
+            manager.unwatch_workspace("test-workspace").await.unwrap();
+        }
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_common_directories_ignored() {
+        let (temp_dir, workspace_path) = setup_test_workspace().await;
+        let collector = TestEventCollector::new();
+        let manager = WorkspaceManager::new();
+        let manager_arc = Arc::new(Mutex::new(Some(manager)));
+
+        // Start watching the workspace
+        {
+            let mut manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_mut().unwrap();
+            manager
+                .watch_workspace(
+                    &workspace_path,
+                    "test-workspace",
+                    collector.create_handler(),
+                    manager_arc.clone(),
+                )
+                .await
+                .unwrap();
+        }
+
+        // Wait for initial state event
+        let initial_events = collector.wait_for_events(1, 1000).await;
+        assert!(!initial_events.is_empty());
+        collector.clear_events().await;
+
+        // Create common directories that should be ignored
+        let ignored_dirs = [
+            "node_modules",
+            "target",
+            "dist",
+            "build",
+            "__pycache__",
+            "venv",
+            "env",
+            ".env",
+        ];
+
+        for dir_name in &ignored_dirs {
+            let dir_path = workspace_path.join(dir_name);
+            tokio::fs::create_dir(&dir_path).await.unwrap();
+
+            // Create a runbook in the ignored directory
+            create_test_runbook(
+                &dir_path,
+                "ignored_runbook",
+                &format!("ignored-{}", dir_name),
+            )
+            .await;
+        }
+
+        // Wait a bit to ensure any events would have been processed
+        sleep(Duration::from_millis(200)).await;
+
+        // Check that no events were generated for ignored directories
+        let events = collector.get_events().await;
+        assert!(
+            events.is_empty(),
+            "No events should be generated for ignored directories"
+        );
+
+        // Verify that ignored directories and their contents are not in the workspace state
+        {
+            let manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_ref().unwrap();
+            if let Some(workspace) = manager.workspaces.get("test-workspace") {
+                if let Ok(state) = &workspace.state {
+                    for dir_name in &ignored_dirs {
+                        assert!(!state
+                            .runbooks
+                            .contains_key(&format!("ignored-{}", dir_name)));
+                    }
+                } else {
+                    panic!("Workspace state should be Ok");
+                }
+            } else {
+                panic!("Workspace should exist");
+            }
+        }
+
+        // Clean up
+        {
+            let mut manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_mut().unwrap();
+            manager.unwatch_workspace("test-workspace").await.unwrap();
+        }
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_gitignore_in_root_directory() {
+        let (temp_dir, workspace_path) = setup_test_workspace().await;
+        let collector = TestEventCollector::new();
+        let manager = WorkspaceManager::new();
+        let manager_arc = Arc::new(Mutex::new(Some(manager)));
+
+        // Create .gitignore in root
+        create_gitignore(
+            &workspace_path,
+            &["ignored_folder/", "*.tmp", "temp_file.atrb"],
+        )
+        .await;
+
+        // Start watching the workspace
+        {
+            let mut manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_mut().unwrap();
+            manager
+                .watch_workspace(
+                    &workspace_path,
+                    "test-workspace",
+                    collector.create_handler(),
+                    manager_arc.clone(),
+                )
+                .await
+                .unwrap();
+        }
+
+        // Wait for initial state event
+        let initial_events = collector.wait_for_events(1, 1000).await;
+        assert!(!initial_events.is_empty());
+        collector.clear_events().await;
+
+        // Create ignored folder and runbook
+        let ignored_folder = workspace_path.join("ignored_folder");
+        tokio::fs::create_dir(&ignored_folder).await.unwrap();
+        create_test_runbook(&ignored_folder, "ignored_runbook", "ignored-runbook-id").await;
+
+        // Create ignored file
+        create_test_runbook(&workspace_path, "temp_file", "temp-file-id").await;
+
+        // Create a temporary file that should be ignored
+        tokio::fs::write(workspace_path.join("test.tmp"), "temp content")
+            .await
+            .unwrap();
+
+        // Wait a bit to ensure any events would have been processed
+        sleep(Duration::from_millis(200)).await;
+
+        // Check that no events were generated for gitignored content
+        let events = collector.get_events().await;
+        assert!(
+            events.is_empty(),
+            "No events should be generated for gitignored content"
+        );
+
+        // Verify that gitignored content is not in the workspace state
+        {
+            let manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_ref().unwrap();
+            if let Some(workspace) = manager.workspaces.get("test-workspace") {
+                if let Ok(state) = &workspace.state {
+                    assert!(!state.runbooks.contains_key("ignored-runbook-id"));
+                    assert!(!state.runbooks.contains_key("temp-file-id"));
+                } else {
+                    panic!("Workspace state should be Ok");
+                }
+            } else {
+                panic!("Workspace should exist");
+            }
+        }
+
+        // Clean up
+        {
+            let mut manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_mut().unwrap();
+            manager.unwatch_workspace("test-workspace").await.unwrap();
+        }
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_gitignore_in_subdirectory() {
+        let (temp_dir, workspace_path) = setup_test_workspace().await;
+        let collector = TestEventCollector::new();
+        let manager = WorkspaceManager::new();
+        let manager_arc = Arc::new(Mutex::new(Some(manager)));
+
+        create_gitignore(&workspace_path, &["subdir/local_ignored/"]).await;
+
+        // Create a subdirectory
+        let subdir = workspace_path.join("subdir");
+        tokio::fs::create_dir(&subdir).await.unwrap();
+
+        // Create .gitignore in subdirectory
+        create_gitignore(&subdir, &["local_ignored/", "*.local.atrb"]).await;
+
+        // Start watching the workspace
+        {
+            let mut manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_mut().unwrap();
+            manager
+                .watch_workspace(
+                    &workspace_path,
+                    "test-workspace",
+                    collector.create_handler(),
+                    manager_arc.clone(),
+                )
+                .await
+                .unwrap();
+        }
+
+        // Wait for initial state event
+        let initial_events = collector.wait_for_events(1, 1000).await;
+        assert!(!initial_events.is_empty());
+        collector.clear_events().await;
+
+        // Create ignored folder in subdirectory
+        let ignored_subfolder = subdir.join("local_ignored");
+        tokio::fs::create_dir(&ignored_subfolder).await.unwrap();
+        create_test_runbook(&ignored_subfolder, "local_runbook", "local-runbook-id").await;
+
+        // Create ignored file in subdirectory
+        create_test_runbook(&subdir, "test.local", "local-file-id").await;
+
+        // Create a valid runbook in subdirectory (should not be ignored)
+        create_test_runbook(&subdir, "valid_runbook", "valid-runbook-id").await;
+
+        // Wait a bit to ensure any events would have been processed
+        sleep(Duration::from_millis(200)).await;
+
+        // Check that only the valid runbook generated events
+        let events = collector.get_events().await;
+        assert!(
+            !events.is_empty(),
+            "Events should be generated for valid runbook"
+        );
+
+        // Verify that only the valid runbook is in the workspace state
+        {
+            let manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_ref().unwrap();
+            if let Some(workspace) = manager.workspaces.get("test-workspace") {
+                if let Ok(state) = &workspace.state {
+                    assert!(!state.runbooks.contains_key("local-runbook-id"));
+                    assert!(!state.runbooks.contains_key("local-file-id"));
+                    assert!(state.runbooks.contains_key("valid-runbook-id"));
+                } else {
+                    panic!("Workspace state should be Ok");
+                }
+            } else {
+                panic!("Workspace should exist");
+            }
+        }
+
+        // Clean up
+        {
+            let mut manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_mut().unwrap();
+            manager.unwatch_workspace("test-workspace").await.unwrap();
+        }
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_gitignore_in_parent_directory() {
+        let (temp_dir, workspace_path) = setup_test_workspace().await;
+        let collector = TestEventCollector::new();
+        let manager = WorkspaceManager::new();
+        let manager_arc = Arc::new(Mutex::new(Some(manager)));
+
+        // Create .gitignore in parent directory (temp_dir)
+        create_gitignore(temp_dir.path(), &["parent_ignored/", "*.parent.atrb"]).await;
+
+        // Start watching the workspace
+        {
+            let mut manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_mut().unwrap();
+            manager
+                .watch_workspace(
+                    &workspace_path,
+                    "test-workspace",
+                    collector.create_handler(),
+                    manager_arc.clone(),
+                )
+                .await
+                .unwrap();
+        }
+
+        // Wait for initial state event
+        let initial_events = collector.wait_for_events(1, 1000).await;
+        assert!(!initial_events.is_empty());
+        collector.clear_events().await;
+
+        // Create ignored folder in workspace (should be ignored due to parent .gitignore)
+        let ignored_folder = workspace_path.join("parent_ignored");
+        tokio::fs::create_dir(&ignored_folder).await.unwrap();
+        create_test_runbook(&ignored_folder, "parent_runbook", "parent-runbook-id").await;
+
+        // Create ignored file in workspace
+        create_test_runbook(&workspace_path, "test.parent", "parent-file-id").await;
+
+        // Create a valid runbook (should not be ignored)
+        create_test_runbook(&workspace_path, "valid_runbook", "valid-runbook-id").await;
+
+        // Wait a bit to ensure any events would have been processed
+        sleep(Duration::from_millis(200)).await;
+
+        // Check that only the valid runbook generated events
+        let events = collector.get_events().await;
+        assert!(
+            !events.is_empty(),
+            "Events should be generated for valid runbook"
+        );
+
+        // Verify that only the valid runbook is in the workspace state
+        {
+            let manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_ref().unwrap();
+            if let Some(workspace) = manager.workspaces.get("test-workspace") {
+                if let Ok(state) = &workspace.state {
+                    assert!(!state.runbooks.contains_key("parent-runbook-id"));
+                    assert!(!state.runbooks.contains_key("parent-file-id"));
+                    assert!(state.runbooks.contains_key("valid-runbook-id"));
+                } else {
+                    panic!("Workspace state should be Ok");
+                }
+            } else {
+                panic!("Workspace should exist");
+            }
+        }
+
+        // Clean up
+        {
+            let mut manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_mut().unwrap();
+            manager.unwatch_workspace("test-workspace").await.unwrap();
+        }
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_hidden_files_ignored() {
+        let (temp_dir, workspace_path) = setup_test_workspace().await;
+        let collector = TestEventCollector::new();
+        let manager = WorkspaceManager::new();
+        let manager_arc = Arc::new(Mutex::new(Some(manager)));
+
+        // Start watching the workspace
+        {
+            let mut manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_mut().unwrap();
+            manager
+                .watch_workspace(
+                    &workspace_path,
+                    "test-workspace",
+                    collector.create_handler(),
+                    manager_arc.clone(),
+                )
+                .await
+                .unwrap();
+        }
+
+        // Wait for initial state event
+        let initial_events = collector.wait_for_events(1, 1000).await;
+        assert!(!initial_events.is_empty());
+        collector.clear_events().await;
+
+        // Create hidden directories and files (should be ignored)
+        let hidden_dirs = [".hidden_dir", ".git", ".vscode", ".idea"];
+        for dir_name in &hidden_dirs {
+            let dir_path = workspace_path.join(dir_name);
+            tokio::fs::create_dir(&dir_path).await.unwrap();
+            create_test_runbook(&dir_path, "hidden_runbook", &format!("hidden-{}", dir_name)).await;
+        }
+
+        // Create hidden files
+        create_test_runbook(&workspace_path, ".hidden_file", "hidden-file-id").await;
+
+        // Create a valid runbook (should not be ignored)
+        create_test_runbook(&workspace_path, "valid_runbook", "valid-runbook-id").await;
+
+        // Wait a bit to ensure any events would have been processed
+        sleep(Duration::from_millis(200)).await;
+
+        // Check that only the valid runbook generated events
+        let events = collector.get_events().await;
+        assert!(
+            !events.is_empty(),
+            "Events should be generated for valid runbook"
+        );
+
+        // Verify that only the valid runbook is in the workspace state
+        {
+            let manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_ref().unwrap();
+            if let Some(workspace) = manager.workspaces.get("test-workspace") {
+                if let Ok(state) = &workspace.state {
+                    for dir_name in &hidden_dirs {
+                        assert!(!state.runbooks.contains_key(&format!("hidden-{}", dir_name)));
+                    }
+                    assert!(!state.runbooks.contains_key("hidden-file-id"));
+                    assert!(state.runbooks.contains_key("valid-runbook-id"));
+                } else {
+                    panic!("Workspace state should be Ok");
+                }
+            } else {
+                panic!("Workspace should exist");
+            }
+        }
+
+        // Clean up
+        {
+            let mut manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_mut().unwrap();
+            manager.unwatch_workspace("test-workspace").await.unwrap();
+        }
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_debounced_events() {
+        let (temp_dir, workspace_path) = setup_test_workspace().await;
+        let collector = TestEventCollector::new();
+        let manager = WorkspaceManager::new();
+        let manager_arc = Arc::new(Mutex::new(Some(manager)));
+
+        // Start watching the workspace
+        {
+            let mut manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_mut().unwrap();
+            manager
+                .watch_workspace(
+                    &workspace_path,
+                    "test-workspace",
+                    collector.create_handler(),
+                    manager_arc.clone(),
+                )
+                .await
+                .unwrap();
+        }
+
+        // Wait for initial state event
+        let initial_events = collector.wait_for_events(1, 1000).await;
+        assert!(!initial_events.is_empty());
+        collector.clear_events().await;
+
+        // Rapidly create multiple runbooks to test debouncing
+        for i in 0..5 {
+            create_test_runbook(
+                &workspace_path,
+                &format!("runbook_{}", i),
+                &format!("runbook-{}", i),
+            )
+            .await;
+            // Small delay to ensure events are separate but within debounce window
+            sleep(Duration::from_millis(10)).await;
+        }
+
+        // Wait for debounced events to be processed
+        let events = collector.wait_for_events(1, 1000).await;
+        assert!(
+            !events.is_empty(),
+            "Events should be generated for runbook creation"
+        );
+
+        // Verify all runbooks are in the workspace state
+        {
+            let manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_ref().unwrap();
+            if let Some(workspace) = manager.workspaces.get("test-workspace") {
+                if let Ok(state) = &workspace.state {
+                    for i in 0..5 {
+                        assert!(state.runbooks.contains_key(&format!("runbook-{}", i)));
+                    }
+                } else {
+                    panic!("Workspace state should be Ok");
+                }
+            } else {
+                panic!("Workspace should exist");
+            }
+        }
+
+        // Clean up
+        {
+            let mut manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_mut().unwrap();
+            manager.unwatch_workspace("test-workspace").await.unwrap();
+        }
+
+        drop(temp_dir);
+    }
 }

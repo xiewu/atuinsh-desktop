@@ -1340,4 +1340,89 @@ mod tests {
 
         drop(temp_dir);
     }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_complex_rename() {
+        let (temp_dir, workspace_path) = setup_test_workspace().await;
+        let collector = TestEventCollector::new();
+        let manager = WorkspaceManager::new();
+        let manager_arc = Arc::new(Mutex::new(Some(manager)));
+
+        let subdir = workspace_path.join("subdir");
+        tokio::fs::create_dir(&subdir).await.unwrap();
+
+        create_gitignore(&subdir, &["test.atrb"]).await;
+
+        // Start watching the workspace
+        {
+            let mut manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_mut().unwrap();
+            manager
+                .watch_workspace(
+                    &workspace_path,
+                    "test-workspace",
+                    collector.create_handler(),
+                    manager_arc.clone(),
+                )
+                .await
+                .unwrap();
+        }
+
+        // Wait for initial state event
+        let initial_events = collector.wait_for_events(1, 1000).await;
+        assert!(!initial_events.is_empty());
+        collector.clear_events().await;
+
+        create_test_runbook(&workspace_path, "test", "test-runbook-id").await;
+        create_test_runbook(&workspace_path, "test2", "test-runbook-id2").await;
+
+        let events = collector.wait_for_events(1, 1000).await;
+        assert!(!events.is_empty());
+        collector.clear_events().await;
+
+        {
+            let manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_ref().unwrap();
+            if let Some(workspace) = manager.workspaces.get("test-workspace") {
+                if let Ok(state) = &workspace.state {
+                    assert!(state.runbooks.contains_key("test-runbook-id"));
+                    assert!(state.runbooks.contains_key("test-runbook-id2"));
+                }
+            }
+        }
+
+        // Rename makes this an ignored file
+        tokio::fs::rename(&workspace_path.join("test.atrb"), &subdir.join("test.atrb"))
+            .await
+            .unwrap();
+        tokio::fs::rename(
+            &workspace_path.join("test2.atrb"),
+            &subdir.join("test2.atrb"),
+        )
+        .await
+        .unwrap();
+
+        let events = collector.wait_for_events(1, 1000).await;
+        assert!(!events.is_empty());
+
+        {
+            let manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_ref().unwrap();
+            if let Some(workspace) = manager.workspaces.get("test-workspace") {
+                if let Ok(state) = &workspace.state {
+                    assert!(!state.runbooks.contains_key("test-runbook-id"));
+                    assert!(state.runbooks.contains_key("test-runbook-id2"));
+                }
+            }
+        }
+
+        // Clean up
+        {
+            let mut manager_guard = manager_arc.lock().await;
+            let manager = manager_guard.as_mut().unwrap();
+            manager.unwatch_workspace("test-workspace").await.unwrap();
+        }
+
+        drop(temp_dir);
+    }
 }

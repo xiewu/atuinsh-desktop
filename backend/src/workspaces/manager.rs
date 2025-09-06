@@ -409,6 +409,9 @@ impl WorkspaceManager {
                     }
 
                     if let Some(path) = event.paths.first() {
+                        // n.b. this is a hack to handle the case where a file is deleted
+                        // and it gets reported as a pair of modification events
+                        // (why does this happen??)
                         if !path.exists() {
                             full_rescan = true;
                             break;

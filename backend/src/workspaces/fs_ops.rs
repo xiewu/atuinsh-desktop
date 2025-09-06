@@ -521,7 +521,7 @@ impl FsOps {
 // Using an iterative approach here as recursing fails due to recursive Box::pin issues
 pub async fn read_dir_recursive(path: impl AsRef<Path>) -> Result<Vec<DirEntry>, FsOpsError> {
     let workspace_root = path.as_ref();
-    let gitignore = create_ignore_matcher(workspace_root).ok();
+    let mut gitignore = create_ignore_matcher(workspace_root).ok();
 
     let mut contents = Vec::new();
     let mut stack = vec![workspace_root.to_path_buf()];
@@ -532,6 +532,15 @@ pub async fn read_dir_recursive(path: impl AsRef<Path>) -> Result<Vec<DirEntry>,
             let mut path = entry.path();
             if path.is_symlink() {
                 path = path.read_link()?;
+            }
+
+            let containing_folder = path.parent().unwrap_or(workspace_root);
+            if !gitignore
+                .as_ref()
+                .map(|g| g.path() == containing_folder)
+                .unwrap_or(false)
+            {
+                gitignore = create_ignore_matcher(containing_folder).ok();
             }
 
             // Use our shared ignore logic

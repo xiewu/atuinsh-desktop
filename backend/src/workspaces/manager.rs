@@ -409,6 +409,11 @@ impl WorkspaceManager {
                     }
 
                     if let Some(path) = event.paths.first() {
+                        if !path.exists() {
+                            full_rescan = true;
+                            break;
+                        }
+
                         if let Some(workspace) = self.workspaces.get_mut(workspace_id) {
                             if workspace.path.join("atuin.toml") == *path {
                                 full_rescan = true;

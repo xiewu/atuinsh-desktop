@@ -15,7 +15,7 @@ import { Option, Some } from "@binarymuse/ts-stdlib";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/state/store";
 import { ConnectionState } from "@/state/store/user_state";
-import { exists, readDir } from "@tauri-apps/plugin-fs";
+import { readDir } from "@tauri-apps/plugin-fs";
 
 interface NewWorkspaceDialogProps {
   onAccept: (name: string, online: boolean, folder: Option<string>) => void;

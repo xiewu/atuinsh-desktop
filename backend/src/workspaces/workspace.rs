@@ -189,7 +189,7 @@ impl Workspace {
         let name = "Untitled";
         let content = json!([]);
 
-        let parent_folder = parent_folder_id.map(|id| PathBuf::from(id));
+        let parent_folder = parent_folder_id.map(PathBuf::from);
 
         self.save_runbook(&id.to_string(), name, &content, parent_folder.as_ref())
             .await?;
@@ -286,7 +286,7 @@ impl Workspace {
             .ok()
             .and_then(|s| s.runbooks.get(runbook_id))
             .ok_or(WorkspaceError::GenericWorkspaceError {
-                message: format!("Runbook {} not found", runbook_id),
+                message: format!("Runbook {runbook_id} not found"),
             })?;
 
         self.fs_ops
@@ -304,7 +304,7 @@ impl Workspace {
                 Ok(runbook.path.clone())
             } else {
                 Err(WorkspaceError::GenericWorkspaceError {
-                    message: format!("Runbook {} not found", id),
+                    message: format!("Runbook {id} not found"),
                 })
             }
         } else {
@@ -352,15 +352,13 @@ impl Workspace {
 
 fn name_to_filename(name: &str) -> String {
     name.chars()
-        .map(|c| {
+        .flat_map(|c| {
             if c.is_alphanumeric() || c == ' ' || c == '_' || c == '-' {
                 Some(c)
             } else {
                 None
             }
         })
-        .filter(|c| c.is_some())
-        .map(|c| c.unwrap())
         .collect::<String>()
         .split(' ')
         .filter(|s| !s.is_empty())

@@ -219,7 +219,7 @@ impl WorkspaceManager {
             workspace.get_runbook(runbook_id).await
         } else {
             Err(WorkspaceError::GenericWorkspaceError {
-                message: format!("Runbook {} not found", runbook_id),
+                message: format!("Runbook {runbook_id} not found"),
             })
         }
     }
@@ -400,7 +400,7 @@ impl WorkspaceManager {
                         }
 
                         for (id, _runbook) in state.runbooks.iter() {
-                            if updated.runbooks.get(id).is_none() {
+                            if !updated.runbooks.contains_key(id) {
                                 known_events.insert(WorkspaceEvent::RunbookDeleted(id.clone()));
                             }
                         }

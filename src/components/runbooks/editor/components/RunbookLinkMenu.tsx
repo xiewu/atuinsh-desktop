@@ -1,6 +1,6 @@
 import { DefaultReactSuggestionItem } from "@blocknote/react";
 import RunbookIndexService from "@/state/runbooks/search";
-import Runbook, { OnlineRunbook } from "@/state/runbooks/runbook";
+import Runbook from "@/state/runbooks/runbook";
 import { useStore } from "@/state/store";
 
 // Create a global search index instance
@@ -19,8 +19,8 @@ export function getRunbookLinkMenuItems(
       // Get runbooks from current organization only
       // TODO: support offline runbooks
       const runbooks = selectedOrg
-        ? await OnlineRunbook.allFromOrg(selectedOrg)
-        : await OnlineRunbook.allFromOrg(null); // fallback to all if no org selected
+        ? await Runbook.allFromOrg(selectedOrg)
+        : await Runbook.allFromOrg(null); // fallback to all if no org selected
 
       // Update search index with current runbooks
       searchIndex.bulkUpdateRunbooks(runbooks);

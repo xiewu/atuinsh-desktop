@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Input } from "@heroui/react";
 import { cn } from "@/lib/utils";
 import RunbookIndexService from "@/state/runbooks/search";
-import Runbook, { OnlineRunbook } from "@/state/runbooks/runbook";
+import Runbook from "@/state/runbooks/runbook";
 import { useStore } from "@/state/store";
 import { LinkIcon } from "lucide-react";
 
@@ -35,8 +35,8 @@ export function RunbookLinkPopup({
         const { selectedOrg } = useStore.getState();
         // TODO: support offline runbooks
         const allRunbooks = selectedOrg
-          ? await OnlineRunbook.allFromOrg(selectedOrg)
-          : await OnlineRunbook.allFromOrg(null);
+          ? await Runbook.allFromOrg(selectedOrg)
+          : await Runbook.allFromOrg(null);
 
         setRunbooks(allRunbooks);
         searchIndex.bulkUpdateRunbooks(allRunbooks);

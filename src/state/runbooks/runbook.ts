@@ -125,6 +125,12 @@ export default abstract class Runbook {
     }
   }
 
+  public static async allFromOrg(orgId: string | null): Promise<Runbook[]> {
+    const online = await OnlineRunbook.allFromOrg(orgId);
+    const offline = await OfflineRunbook.allFromOrg(orgId);
+    return [...online, ...offline];
+  }
+
   public abstract isOnline(): boolean;
   public abstract save(): Promise<string | undefined>;
   public abstract clearRemoteInfo(): Promise<void>;
@@ -652,6 +658,36 @@ export class OfflineRunbook extends Runbook {
     });
   }
 
+  public static async allFromOrg(orgId: string | null): Promise<Runbook[]> {
+    const workspaces = await Workspace.all({ orgId });
+    const promises = workspaces.map((workspace) => {
+      return OfflineRunbook.allFromWorkspace(workspace.get("id")!);
+    });
+
+    const resolved = await Promise.all(promises);
+    return resolved.flat();
+  }
+
+  public static async allFromWorkspace(workspaceId: string): Promise<Runbook[]> {
+    const manager = WorkspaceManager.getInstance();
+    const info = manager.getWorkspaceInfo(workspaceId);
+    const ids = info
+      .andThen((info) => info.ok())
+      .map((info) => info.runbooks)
+      .map((runbooks) => {
+        return Object.values(runbooks).map((runbook) => {
+          return runbook!.id;
+        });
+      })
+      .unwrapOr([] as string[]);
+
+    const runbooks = await Promise.allSettled(ids.map((id) => OfflineRunbook.load(id)));
+    return runbooks
+      .filter((result) => result.status === "fulfilled")
+      .map((result) => result.value)
+      .filter((result) => result !== null);
+  }
+
   public static async count(): Promise<number> {
     const manager = WorkspaceManager.getInstance();
     const workspaces = manager.getWorkspaces();
@@ -717,22 +753,6 @@ export class OfflineRunbook extends Runbook {
         return runbook;
       })
       .unwrapOr(null);
-  }
-
-  public static async allFromWorkspace(workspaceId: string): Promise<Runbook[]> {
-    const manager = WorkspaceManager.getInstance();
-    const workspaceOpt = manager.getWorkspaceInfo(workspaceId);
-    if (workspaceOpt.isNone() || workspaceOpt.unwrap().isErr()) {
-      return [];
-    }
-
-    const workspace = workspaceOpt.unwrap().unwrap();
-    const runbooks = workspace.runbooks;
-    const promises = Object.values(runbooks).map((runbook) => {
-      return OfflineRunbook.load(runbook!.id);
-    });
-    const results = await Promise.all(promises);
-    return results.filter((result) => result !== null);
   }
 
   public isOnline(): boolean {

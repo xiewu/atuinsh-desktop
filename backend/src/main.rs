@@ -488,7 +488,6 @@ fn main() {
             commands::workspaces::unwatch_workspace,
             commands::workspaces::create_workspace,
             commands::workspaces::rename_workspace,
-            commands::workspaces::delete_workspace,
             commands::workspaces::read_dir,
             commands::workspaces::create_runbook,
             commands::workspaces::delete_runbook,

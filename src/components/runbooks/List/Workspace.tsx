@@ -300,7 +300,7 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
       total: number;
     };
   } {
-    const node = treeRef.current!.get(folderId);
+    let node = treeRef.current!.get(folderId);
 
     if (props.workspace.isOnline() || props.workspace.isLegacyHybrid()) {
       const descendants = workspaceFolder.getDescendants(folderId);
@@ -363,6 +363,10 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
 
         return info;
       };
+
+      if (!node) {
+        node = treeRef.current!.root;
+      }
 
       return {
         node: node,
@@ -530,10 +534,8 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
   }
 
   async function handleDeleteWorkspace() {
-    const workspace = await Workspace.get(props.workspace.get("id")!);
-    if (workspace) {
-      await workspace.del();
-    }
+    const strategy = getWorkspaceStrategy(props.workspace);
+    await strategy.deleteWorkspace();
   }
 
   async function handleRenameWorkspace(newName: string) {
@@ -697,16 +699,6 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
         dispatchWorkspaceName({ type: "start_rename", currentName: props.workspace.get("name")! });
       },
       onDeleteWorkspace: async () => {
-        const userWorkspaces = await Workspace.all({ orgId: props.workspace.get("orgId") });
-        if (userWorkspaces.length === 1) {
-          new DialogBuilder()
-            .title("Cannot Delete Last Workspace")
-            .message("You must have at least one workspace.")
-            .action({ label: "OK", value: "ok" })
-            .build();
-          return;
-        }
-
         const { node, descendents } = folderInfo(null);
         const snippet = (
           <span>
@@ -969,8 +961,14 @@ async function confirmDeleteFolder(
       {countSnippet && <p>This will delete {countSnippet}.</p>}
       {isFsWorkspace && willDeleteFiles && (
         <p className="mt-2">
-          <span className="text-warning">Note:</span> This will delete the files from your
-          filesystem.
+          <span className="text-warning">Note:</span> This <strong>will</strong> delete the files
+          from your filesystem.
+        </p>
+      )}
+      {isFsWorkspace && !willDeleteFiles && (
+        <p className="mt-2">
+          <span className="text-warning">Note:</span> This <strong>will not</strong> delete the
+          files from your filesystem.
         </p>
       )}
     </div>

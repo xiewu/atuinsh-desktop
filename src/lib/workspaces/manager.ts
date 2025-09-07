@@ -3,7 +3,7 @@ import { SharedStateManager } from "../shared_state/manager";
 import { AtuinSharedStateAdapter } from "../shared_state/adapter";
 import type { WorkspaceState } from "@rust/WorkspaceState";
 import type { WorkspaceError } from "@rust/WorkspaceError";
-import { watchWorkspace } from "./commands";
+import { watchWorkspace, unwatchWorkspace } from "./commands";
 import { localWorkspaceInfo } from "../queries/workspaces";
 import { useStore } from "@/state/store";
 import { allRunbookIds, allRunbooks, runbookById } from "../queries/runbooks";
@@ -90,6 +90,9 @@ export default class WorkspaceManager {
       if (!this.workspaces.has(workspace.get("id")!)) {
         throw new Error("Workspace not being watched");
       }
+
+      await unwatchWorkspace(workspace.get("id")!);
+      this.workspaces.delete(workspace.get("id")!);
     }
   }
 

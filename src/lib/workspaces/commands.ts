@@ -45,6 +45,10 @@ export async function watchWorkspace(
   };
 }
 
+export async function unwatchWorkspace(id: string): Promise<Result<undefined, WorkspaceError>> {
+  return promiseResult<undefined, WorkspaceError>(invoke("unwatch_workspace", { id }));
+}
+
 export async function createWorkspace(
   path: string,
   id: string,
@@ -58,10 +62,6 @@ export async function renameWorkspace(
   name: string,
 ): Promise<Result<undefined, WorkspaceError>> {
   return promiseResult<undefined, WorkspaceError>(invoke("rename_workspace", { id, name }));
-}
-
-export async function deleteWorkspace(id: string): Promise<Result<undefined, string>> {
-  return promiseResult<undefined, string>(invoke("delete_workspace", { id }));
 }
 
 export async function getWorkspaceInfo(

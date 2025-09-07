@@ -94,7 +94,7 @@ export default class OnlineStrategy implements WorkspaceStrategy {
   }
 
   async deleteWorkspace(): Promise<void> {
-    throw new Error("Method not implemented.");
+    this.workspace.del();
   }
 
   async createRunbook(

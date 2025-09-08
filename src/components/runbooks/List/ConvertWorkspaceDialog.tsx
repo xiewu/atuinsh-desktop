@@ -119,7 +119,15 @@ async function migrateWorkspace(
         continue;
       }
 
-      await commands.createRunbook(workspace.get("id")!, null, JSON.parse(oldRb!.content || "[]"));
+      const result = await commands.createRunbook(
+        workspace.get("id")!,
+        null,
+        JSON.parse(oldRb!.content || "[]"),
+      );
+      if (result.isErr()) {
+        console.error("Failed to create runbook during conversion", result.unwrapErr());
+        continue;
+      }
     }
 
     workspace.set("online", 0);

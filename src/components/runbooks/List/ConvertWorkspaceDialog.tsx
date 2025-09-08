@@ -254,6 +254,7 @@ interface FolderInfo {
   hasContents: boolean;
   isAlreadyWorkspace: boolean;
   isChildOfWorkspace: boolean;
+  checksComplete: boolean;
 }
 
 type FolderInfoAction =
@@ -261,7 +262,8 @@ type FolderInfoAction =
   | { type: "setExists"; exists: boolean }
   | { type: "setHasContents"; hasContents: boolean }
   | { type: "setIsAlreadyWorkspace"; isAlreadyWorkspace: boolean }
-  | { type: "setIsChildOfWorkspace"; isChildOfWorkspace: boolean };
+  | { type: "setIsChildOfWorkspace"; isChildOfWorkspace: boolean }
+  | { type: "checksComplete" };
 
 function folderInfoReducer(state: FolderInfo, action: FolderInfoAction): FolderInfo {
   switch (action.type) {
@@ -273,6 +275,7 @@ function folderInfoReducer(state: FolderInfo, action: FolderInfoAction): FolderI
         hasContents: false,
         isAlreadyWorkspace: false,
         isChildOfWorkspace: false,
+        checksComplete: false,
       };
     case "setExists":
       return { ...state, exists: action.exists };
@@ -282,6 +285,8 @@ function folderInfoReducer(state: FolderInfo, action: FolderInfoAction): FolderI
       return { ...state, isAlreadyWorkspace: action.isAlreadyWorkspace };
     case "setIsChildOfWorkspace":
       return { ...state, isChildOfWorkspace: action.isChildOfWorkspace };
+    case "checksComplete":
+      return { ...state, checksComplete: true };
   }
 }
 
@@ -295,6 +300,7 @@ export default function ConvertWorkspaceDialog(props: ConvertWorkspaceDialogProp
     hasContents: false,
     isAlreadyWorkspace: false,
     isChildOfWorkspace: false,
+    checksComplete: false,
   });
 
   const connectionState = useStore((state) => state.connectionState);
@@ -316,10 +322,16 @@ export default function ConvertWorkspaceDialog(props: ConvertWorkspaceDialogProp
     if (!folderInfo.path) return;
     let active = true;
 
-    const promises = [readDir(folderInfo.path), findParentWorkspace(folderInfo.path)] as const;
+    const readDirPromise = readDir(folderInfo.path);
+    const findParentWorkspacePromise = findParentWorkspace(folderInfo.path);
 
-    Promise.all(promises)
-      .then(([dir, parentWorkspace]) => {
+    const promises = [readDirPromise, findParentWorkspacePromise] as const;
+    Promise.all(promises).then(() => {
+      dispatchFolderInfo({ type: "checksComplete" });
+    });
+
+    readDirPromise
+      .then((dir) => {
         if (!active) return;
 
         if (dir.length > 0 && active) {
@@ -329,13 +341,21 @@ export default function ConvertWorkspaceDialog(props: ConvertWorkspaceDialogProp
         if (dir.some((f) => f.isFile && f.name.toLowerCase() === "atuin.toml")) {
           dispatchFolderInfo({ type: "setIsAlreadyWorkspace", isAlreadyWorkspace: true });
         }
+      })
+      .catch((err) => {
+        console.error("Failed to read directory", err);
+      });
+
+    findParentWorkspacePromise
+      .then((parentWorkspace) => {
+        if (!active) return;
 
         if (parentWorkspace.isSome()) {
           dispatchFolderInfo({ type: "setIsChildOfWorkspace", isChildOfWorkspace: true });
         }
       })
-      .catch(() => {
-        dispatchFolderInfo({ type: "setExists", exists: false });
+      .catch((err) => {
+        console.error("Failed to find parent workspace", err);
       });
 
     return () => {
@@ -382,7 +402,8 @@ export default function ConvertWorkspaceDialog(props: ConvertWorkspaceDialogProp
     pathIsMissing ||
     !folderInfo.exists ||
     folderInfo.isAlreadyWorkspace ||
-    folderInfo.isChildOfWorkspace;
+    folderInfo.isChildOfWorkspace ||
+    !folderInfo.checksComplete;
 
   return (
     <Modal
@@ -460,6 +481,25 @@ export default function ConvertWorkspaceDialog(props: ConvertWorkspaceDialogProp
           )}
 
           {loading && <Spinner />}
+          {folderInfo.checksComplete && (
+            <>
+              {!folderInfo.exists && (
+                <p>The selected folder does not exist. Please choose a different folder.</p>
+              )}
+              {folderInfo.exists && folderInfo.hasContents && folderInfo.isAlreadyWorkspace && (
+                <p>
+                  The selected folder already contains a workspace. Please choose a different
+                  folder.
+                </p>
+              )}
+              {folderInfo.exists && folderInfo.hasContents && folderInfo.isChildOfWorkspace && (
+                <p>
+                  The selected folder is a child of an existing workspace. Please choose a different
+                  folder.
+                </p>
+              )}
+            </>
+          )}
         </ModalBody>
         <ModalFooter>
           <Button onPress={props.onClose} variant="flat" isDisabled={converting}>

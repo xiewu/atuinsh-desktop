@@ -78,11 +78,6 @@ pub async fn rename_workspace(
 }
 
 #[tauri::command]
-pub async fn delete_workspace(_id: String) -> Result<(), WorkspaceError> {
-    todo!()
-}
-
-#[tauri::command]
 pub async fn read_dir(
     workspace_id: String,
     state: State<'_, AtuinState>,

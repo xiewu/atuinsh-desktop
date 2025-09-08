@@ -221,7 +221,8 @@ export default class OfflineStrategy implements WorkspaceStrategy {
   }
 
   async deleteWorkspace(): Promise<void> {
-    throw new Error("Method not implemented.");
+    // `WorkspaceWatcher` unmount will handle unwatching the workspace
+    this.workspace.del();
   }
 
   async createRunbook(

@@ -23,8 +23,8 @@ use crate::{
 
 #[derive(thiserror::Error, Debug)]
 pub enum FsOpsError {
-    #[error("Failed to send instruction to filesystem operations actor: {0}")]
-    SendError(#[from] SendError<FsOpsInstruction>),
+    #[error("Failed to send instruction to filesystem operations actor")]
+    SendError,
     #[error("File missing: {0}")]
     FileMissingError(String),
     #[error("IO Operation failed: {0}")]
@@ -41,6 +41,15 @@ pub enum FsOpsError {
     DigestError(String),
     #[error("Failed to get JSON keys: {0}")]
     GetJsonKeysError(#[from] crate::workspaces::state::JsonParseError),
+}
+
+// Manual impl for `SendError` since using the `#[from]` attribute
+// causes any `Result` that may contain a `FsOpsError` to be rather large
+// due to the size of the `FsOpsInstruction` enum
+impl From<SendError<FsOpsInstruction>> for FsOpsError {
+    fn from(_error: SendError<FsOpsInstruction>) -> Self {
+        FsOpsError::SendError
+    }
 }
 
 pub type Reply<T> = oneshot::Sender<Result<T, FsOpsError>>;
@@ -405,7 +414,7 @@ impl FsOps {
         };
 
         if let Some(old_path) = old_path {
-            if old_path.as_ref() != &new_path && old_path.as_ref().exists() {
+            if old_path.as_ref() != new_path && old_path.as_ref().exists() {
                 tokio::fs::rename(old_path.as_ref(), &new_path).await?;
             }
         }

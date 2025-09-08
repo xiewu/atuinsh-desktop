@@ -334,6 +334,8 @@ export default function ConvertWorkspaceDialog(props: ConvertWorkspaceDialogProp
       .then((dir) => {
         if (!active) return;
 
+        dispatchFolderInfo({ type: "setExists", exists: true });
+
         if (dir.length > 0 && active) {
           dispatchFolderInfo({ type: "setHasContents", hasContents: true });
         }

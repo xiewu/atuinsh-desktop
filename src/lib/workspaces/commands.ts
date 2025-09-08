@@ -114,10 +114,11 @@ export async function moveItems(
 export async function createRunbook(
   workspaceId: string,
   parentFolderId: string | null,
+  name: string = "Untitled",
   content: any = [],
 ): Promise<Result<string, WorkspaceError>> {
   return promiseResult<string, WorkspaceError>(
-    invoke("create_runbook", { workspaceId, parentFolderId, content }),
+    invoke("create_runbook", { workspaceId, parentFolderId, name, content }),
   );
 }
 

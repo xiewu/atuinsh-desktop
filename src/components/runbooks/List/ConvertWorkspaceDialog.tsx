@@ -130,6 +130,7 @@ async function migrateWorkspace(
       const result = await commands.createRunbook(
         workspace.get("id")!,
         null,
+        oldRb!.name || "Untitled",
         JSON.parse(oldRb!.content || "[]"),
       );
       if (result.isErr()) {
@@ -193,7 +194,12 @@ async function migrateWorkspace(
       }
 
       // Create the runbook in the new workspace
-      await commands.createRunbook(newWs.get("id")!, null, JSON.parse(oldRb!.content || "[]"));
+      await commands.createRunbook(
+        newWs.get("id")!,
+        null,
+        oldRb!.name || "Untitled",
+        JSON.parse(oldRb!.content || "[]"),
+      );
     }
 
     workspace.set("online", 1);

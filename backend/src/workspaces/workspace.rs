@@ -184,10 +184,10 @@ impl Workspace {
     pub async fn create_runbook(
         &mut self,
         parent_folder_id: Option<&str>,
+        name: &str,
         content: &Value,
     ) -> Result<String, WorkspaceError> {
         let id = uuid_v7();
-        let name = "Untitled";
 
         let parent_folder = parent_folder_id.map(PathBuf::from);
 

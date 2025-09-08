@@ -26,6 +26,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import * as commands from "@/lib/workspaces/commands";
 import { findParentWorkspace } from "@/lib/workspaces/offline_strategy";
 import { uuidv7 } from "uuidv7";
+import WorkspaceManager from "@/lib/workspaces/manager";
 interface ConvertWorkspaceDialogProps {
   workspace: Workspace;
   onClose: () => void;
@@ -107,6 +108,13 @@ async function migrateWorkspace(
       throw result.unwrapErr();
     }
 
+    workspace.set("online", 0);
+    workspace.set("folder", selectedPath!);
+    await workspace.save();
+
+    const manager = WorkspaceManager.getInstance();
+    await manager.watchWorkspace(workspace);
+
     for (const rbId of workspaceInfo.offline) {
       const oldRb = await Runbook.load(rbId);
       if (!oldRb) {
@@ -129,10 +137,6 @@ async function migrateWorkspace(
         continue;
       }
     }
-
-    workspace.set("online", 0);
-    workspace.set("folder", selectedPath!);
-    await workspace.save();
   } else if (workspaceType === WorkspaceType.Hybrid) {
     if (!selectedPath) {
       throw new Error("Selected path is required for converting hybrid workspaces");

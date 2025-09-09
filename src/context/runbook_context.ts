@@ -7,7 +7,7 @@ function stub() {
 interface API {
   activateRunbook: (runbookId: string | null) => void;
   promptDeleteRunbook: (runbookId: string) => void;
-  runbookDeleted: (workspaceId: string, runbookId: string) => void;
+  // runbookDeleted: (workspaceId: string, runbookId: string) => void;
   runbookMoved: (
     runbookId: string,
     newWorkspaceId: string,
@@ -18,7 +18,7 @@ interface API {
 const RunbookContext = createContext<API>({
   activateRunbook: stub,
   promptDeleteRunbook: stub,
-  runbookDeleted: stub,
+  // runbookDeleted: stub,
   runbookMoved: stub,
 });
 

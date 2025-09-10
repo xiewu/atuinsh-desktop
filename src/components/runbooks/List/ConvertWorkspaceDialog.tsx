@@ -158,9 +158,10 @@ async function migrateWorkspace(
     }
 
     // First create the new offline workspace on disk
+    const newWorkspaceId = uuidv7();
     const result = await commands.createWorkspace(
       selectedPath,
-      workspace.get("id")!,
+      newWorkspaceId,
       workspace.get("name")! + " (Offline)",
     );
     if (result.isErr()) {
@@ -169,7 +170,7 @@ async function migrateWorkspace(
 
     // Next, create the new workspace in the database
     const newWs = new Workspace({
-      id: uuidv7(),
+      id: newWorkspaceId,
       name: workspace.get("name")! + " (Offline)",
       online: 0,
       folder: selectedPath,

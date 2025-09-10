@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use serde_json::Value;
+use serde_yaml::Value;
 use tauri::{ipc::Channel, State};
 
 use crate::{

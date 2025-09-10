@@ -3,9 +3,9 @@ use std::{
     time::SystemTime,
 };
 
-use json_digest::digest_json_str;
+use json_digest;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_yaml::Value;
 use tokio::sync::{
     mpsc::{channel, error::SendError, Receiver, Sender},
     oneshot,
@@ -15,10 +15,7 @@ use ts_rs::TS;
 
 use crate::{
     run_async_command,
-    workspaces::{
-        offline_runbook::{OfflineRunbookFile, OfflineRunbookFileInternal},
-        state::get_json_keys,
-    },
+    workspaces::offline_runbook::{OfflineRunbookFile, OfflineRunbookFileInternal},
 };
 
 use crate::workspaces::manager::{create_ignore_matcher, should_ignore_path};
@@ -34,15 +31,13 @@ pub enum FsOpsError {
     #[error("Failed to serialize workspace config: {0}")]
     WorkspaceSerializeError(#[from] toml::ser::Error),
     #[error("Failed to serialize runbook: {0}")]
-    RunbookSerializeError(#[from] serde_json::Error),
+    RunbookSerializeError(#[from] serde_yaml::Error),
     #[error("Failed to deserialize workspace config: {0}")]
     DeserializeError(#[from] toml::de::Error),
     #[error("Failed to trash folder: {0}")]
     TrashError(#[from] trash::Error),
     #[error("Failed to digest runbook content: {0}")]
     DigestError(String),
-    #[error("Failed to get JSON keys: {0}")]
-    GetJsonKeysError(#[from] crate::workspaces::state::JsonParseError),
 }
 
 // Manual impl for `SendError` since using the `#[from]` attribute
@@ -403,9 +398,21 @@ impl FsOps {
         let mut needs_unique_path = false;
         if new_path.as_ref().exists() {
             // First, check to see if the file has the same ID as the runbook we're saving
-            let keys = get_json_keys(new_path.as_ref(), &["id"]).await?;
-            if !keys.contains_key("id") || keys.get("id").unwrap() != runbook_id {
-                needs_unique_path = true;
+            // Read the existing YAML file and check the ID
+            match tokio::fs::read_to_string(new_path.as_ref()).await {
+                Ok(yaml_text) => match serde_yaml::from_str::<Value>(&yaml_text) {
+                    Ok(value) => {
+                        if let Some(id) = value.get("id").and_then(|v| v.as_str()) {
+                            if id != runbook_id {
+                                needs_unique_path = true;
+                            }
+                        } else {
+                            needs_unique_path = true;
+                        }
+                    }
+                    Err(_) => needs_unique_path = true,
+                },
+                Err(_) => needs_unique_path = true,
             }
         }
 
@@ -421,8 +428,8 @@ impl FsOps {
             }
         }
 
-        let json_text = serde_json::to_string_pretty(&content)?;
-        tokio::fs::write(new_path, json_text).await?;
+        let yaml_text = serde_yaml::to_string(&content)?;
+        tokio::fs::write(new_path, yaml_text).await?;
 
         Ok(())
     }
@@ -431,10 +438,19 @@ impl FsOps {
         &mut self,
         path: impl AsRef<Path>,
     ) -> Result<OfflineRunbookFile, FsOpsError> {
-        let json_text = tokio::fs::read_to_string(path.as_ref()).await?;
-        let content_hash =
-            digest_json_str(&json_text).map_err(|e| FsOpsError::DigestError(e.to_string()))?;
-        let internal: OfflineRunbookFileInternal = serde_json::from_str(&json_text)?;
+        let yaml_text = tokio::fs::read_to_string(path.as_ref()).await?;
+        let yaml_value: Value = serde_yaml::from_str(&yaml_text)?;
+
+        // Convert to JSON for canonical hashing to match save_runbook behavior
+        let json_value: serde_json::Value =
+            serde_yaml::from_value(yaml_value.clone()).map_err(|_| {
+                FsOpsError::DigestError("Failed to convert YAML to JSON for hashing".to_string())
+            })?;
+
+        let content_hash = json_digest::digest_data(&json_value)
+            .map_err(|e| FsOpsError::DigestError(format!("Failed to hash content: {}", e)))?;
+
+        let internal: OfflineRunbookFileInternal = serde_yaml::from_value(yaml_value)?;
         let metadata = tokio::fs::metadata(path.as_ref()).await?;
         let created = metadata.created().ok();
         let updated = metadata.modified().ok();

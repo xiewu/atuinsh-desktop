@@ -1,0 +1,55 @@
+id: 01993608-039d-7f92-a56d-bb80db802ac9
+name: Hello world
+version: 1
+content:
+- id: f6596d68-4414-48f3-b502-eb54c9a00b17
+  type: heading
+  props:
+    textColor: default
+    backgroundColor: default
+    textAlignment: left
+    level: 1
+    isToggleable: false
+  content:
+  - type: text
+    text: Hello world
+    styles: {}
+  children: []
+- id: 94de8b2b-e05c-4de7-99c9-282e46f653a0
+  type: paragraph
+  props:
+    textColor: default
+    backgroundColor: default
+    textAlignment: left
+  content:
+  - type: text
+    text: Test
+    styles: {}
+  children: []
+- id: 308e7c5f-be22-4a72-8445-2d57c4e2c57d
+  type: run
+  props:
+    type: bash
+    name: Terminal 1
+    code: foo
+    pty: ''
+    global: false
+    outputVisible: true
+    dependency: '{}'
+  children: []
+- id: 9c704d71-3bc7-442d-bc6a-349ccb5c4f6d
+  type: paragraph
+  props:
+    textColor: default
+    backgroundColor: default
+    textAlignment: left
+  content: []
+  children: []
+- id: 30bd3f34-0288-43fe-9045-c58b71305e9d
+  type: paragraph
+  props:
+    textColor: default
+    backgroundColor: default
+    textAlignment: left
+  content: []
+  children: []

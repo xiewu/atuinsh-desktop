@@ -11,10 +11,9 @@ import {
   ModalHeader,
   Spinner,
 } from "@heroui/react";
-import { useContext, useEffect, useMemo, useReducer } from "react";
+import { useEffect, useMemo, useReducer } from "react";
 import { None, Option, Some, usernameFromNwo } from "@/lib/utils";
 import { ConnectionState } from "@/state/store/user_state";
-import RunbookContext from "@/context/runbook_context";
 import Workspace from "@/state/runbooks/workspace";
 
 interface DeleteRunbookModalProps {

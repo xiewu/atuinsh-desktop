@@ -3,16 +3,11 @@ import Logger from "../logger";
 import Mutex from "../std/mutex";
 import { User } from "@/state/models";
 import { DateTime } from "luxon";
-import Runbook from "@/state/runbooks/runbook";
 import { autobind } from "../decorators";
 import * as api from "@/api/api";
 import { processUnprocessedOperations } from "@/state/runbooks/operation_processor";
 import { ConnectionState } from "@/state/store/user_state";
 import Workspace from "@/state/runbooks/workspace";
-import { SharedStateManager } from "../shared_state/manager";
-import { OfflineSharedStateAdapter } from "../shared_state/adapter";
-import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
-import Operation, { createRunbook } from "@/state/runbooks/operation";
 import { getGlobalOptions } from "../global_options";
 import ServerNotificationManager from "@/server_notification_manager";
 
@@ -201,32 +196,6 @@ export default class WorkspaceSyncManager {
           org_id: workspace.get("orgId")!,
           workspace_id: workspace.get("id")!,
         });
-      }
-    }
-
-    // Reattach orphaned runbooks to their workspace folders
-    const adapter = new OfflineSharedStateAdapter<any>();
-    const workspaces = await Workspace.all();
-    for (const workspace of workspaces) {
-      const stateId = `workspace-folder:${workspace.get("id")}`;
-      const runbooks = await Runbook.allFromWorkspace(workspace.get("id")!);
-      const manager = SharedStateManager.getInstance<Folder>(stateId, adapter);
-      const data = await manager.getDataOnce();
-      const workspaceFolder = WorkspaceFolder.fromJS(data);
-      for (const runbook of runbooks) {
-        const node = workspaceFolder.getNode(runbook.id);
-        if (node.isNone()) {
-          // Reattach runbook to the workspace folder
-          const changeRef = await manager.updateOptimistic(() => {
-            workspaceFolder.createRunbook(runbook.id, null);
-            return workspaceFolder.toJS();
-          });
-          if (changeRef) {
-            const opData = createRunbook(workspace.get("id")!, null, runbook.id, changeRef);
-            const op = new Operation({ operation: opData });
-            await op.save();
-          }
-        }
       }
     }
   }

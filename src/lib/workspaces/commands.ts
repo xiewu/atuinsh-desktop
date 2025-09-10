@@ -114,9 +114,11 @@ export async function moveItems(
 export async function createRunbook(
   workspaceId: string,
   parentFolderId: string | null,
+  name: string = "Untitled",
+  content: any = [],
 ): Promise<Result<string, WorkspaceError>> {
   return promiseResult<string, WorkspaceError>(
-    invoke("create_runbook", { workspaceId, parentFolderId }),
+    invoke("create_runbook", { workspaceId, parentFolderId, name, content }),
   );
 }
 
@@ -133,7 +135,7 @@ export async function saveRunbook(
   workspaceId: string,
   runbookId: string,
   name: string,
-  content: string,
+  content: any[],
 ): Promise<Result<string, WorkspaceError>> {
   return promiseResult<string, WorkspaceError>(
     invoke("save_runbook", { workspaceId, runbookId, name, content }),

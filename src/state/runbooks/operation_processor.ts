@@ -290,7 +290,7 @@ async function processWorkspaceCreated(
     return true;
   }
 
-  if (workspace.get("online") !== 1) {
+  if (!workspace.isOnline() && !workspace.isLegacyHybrid()) {
     // Offline workspace; don't send to server
     return true;
   }

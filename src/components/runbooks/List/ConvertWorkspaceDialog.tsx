@@ -20,13 +20,14 @@ import { useStore } from "@/state/store";
 import { ConnectionState } from "@/state/store/user_state";
 import { RemoteRunbook } from "@/state/models";
 import { readDir } from "@tauri-apps/plugin-fs";
-import Operation, { createWorkspace } from "@/state/runbooks/operation";
+import Operation, { createWorkspace, deleteRunbook } from "@/state/runbooks/operation";
 import { FolderIcon } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import * as commands from "@/lib/workspaces/commands";
 import { findParentWorkspace } from "@/lib/workspaces/offline_strategy";
 import { uuidv7 } from "uuidv7";
 import WorkspaceManager from "@/lib/workspaces/manager";
+import { doFolderOp } from "@/state/runbooks/workspace_folder_ops";
 interface ConvertWorkspaceDialogProps {
   workspace: Workspace;
   onClose: () => void;
@@ -182,13 +183,24 @@ async function migrateWorkspace(
       `workspace-folder:${workspace.get("id")}`,
       new AtuinSharedStateAdapter(`workspace-folder:${workspace.get("id")}`),
     );
-    const data = await manager.getDataOnce();
-    const wsf = WorkspaceFolder.fromJS(data);
 
     for (const rbId of workspaceInfo.offline) {
       const oldRb = await Runbook.load(rbId);
       // Remove the runbook from the old workspace's shared state
-      wsf.deleteRunbook(rbId);
+      try {
+        const result = await doFolderOp(
+          manager.updateOptimistic,
+          (wsf) => {
+            return wsf.deleteRunbook(rbId);
+          },
+          (changeRef) => Some(deleteRunbook(workspace.get("id")!, rbId, changeRef)),
+        );
+        if (!result.success && result.changeRef) {
+          await manager.expireOptimisticUpdates([result.changeRef]);
+        }
+      } catch (err) {
+        console.error("Failed to delete runbook during conversion", err);
+      }
 
       if (!oldRb) {
         continue;

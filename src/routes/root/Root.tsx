@@ -31,9 +31,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ImperativePanelHandle } from "react-resizable-panels";
 import { isAppleDevice } from "@react-aria/utils";
 import { useTauriEvent } from "@/lib/tauri";
-import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
+// import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 
-import handleDeepLink from "./deep";
+// import handleDeepLink from "./deep";
 import * as api from "@/api/api";
 import SocketManager from "@/socket";
 import type { ListApi } from "@/components/runbooks/List/List";
@@ -46,27 +46,26 @@ import track_event from "@/tracking";
 import { invoke } from "@tauri-apps/api/core";
 import RunbookContext from "@/context/runbook_context";
 import { SET_RUNBOOK_TAG } from "@/state/store/runbook_state";
-import Operation, {
-  createRunbook,
-  createWorkspace,
-  deleteRunbook,
-  moveItemsToNewWorkspace,
-} from "@/state/runbooks/operation";
+import Operation, { moveItemsToNewWorkspace } from "@/state/runbooks/operation";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
 import WorkspaceSyncManager from "@/lib/sync/workspace_sync_manager";
 import doWorkspaceFolderOp from "@/state/runbooks/workspace_folder_ops";
 import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
 import { SharedStateManager } from "@/lib/shared_state/manager";
 import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
-import { Rc } from "@binarymuse/ts-stdlib";
 import { TraversalOrder } from "@/lib/tree";
-import DevConsole from "@/lib/dev/dev_console";
+// import DevConsole from "@/lib/dev/dev_console";
 import Sidebar, { SidebarItem } from "@/components/Sidebar";
 import InviteFriendsModal from "./InviteFriendsModal";
 import AtuinEnv from "@/atuin_env";
 import { ConnectionState } from "@/state/store/user_state";
 import { processUnprocessedOperations } from "@/state/runbooks/operation_processor";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import NewWorkspaceDialog from "./NewWorkspaceDialog";
+import { getWorkspaceStrategy } from "@/lib/workspaces/strategy";
+import { allWorkspaces } from "@/lib/queries/workspaces";
+import WorkspaceWatcher from "./WorkspaceWatcher";
+import WorkspaceManager from "@/lib/workspaces/manager";
 
 const Onboarding = React.lazy(() => import("@/components/Onboarding/Onboarding"));
 const UpdateNotifier = React.lazy(() => import("./UpdateNotifier"));
@@ -110,10 +109,7 @@ async function isOnboardingComplete(): Promise<boolean> {
 }
 
 function App() {
-  const cleanupImportListener = useRef<UnlistenFn | null>(null);
-
   const refreshUser = useStore((state: AtuinState) => state.refreshUser);
-  const importRunbooks = useStore((state: AtuinState) => state.importRunbooks);
   const refreshRunbooks = useStore((state: AtuinState) => state.refreshRunbooks);
   const currentWorkspaceId = useStore((state: AtuinState) => state.currentWorkspaceId);
   const setCurrentWorkspaceId = useStore((state: AtuinState) => state.setCurrentWorkspaceId);
@@ -127,6 +123,7 @@ function App() {
   const [runbookIdToDelete, setRunbookIdToDelete] = useState<string | null>(null);
   const selectedOrg = useStore((state: AtuinState) => state.selectedOrg);
   const connectionState = useStore((state: AtuinState) => state.connectionState);
+  const { data: workspaces } = useQuery(allWorkspaces());
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -134,6 +131,8 @@ function App() {
   const user = useStore((state: AtuinState) => state.user);
   const isLoggedIn = useStore((state: AtuinState) => state.isLoggedIn);
   const showDesktopConnect = useStore((state: AtuinState) => state.proposedDesktopConnectUser);
+
+  const [showNewWorkspaceDialog, setShowNewWorkspaceDialog] = useState(false);
 
   const listRef = useRef<ListApi>(null);
 
@@ -154,16 +153,16 @@ function App() {
 
   useEffect(() => {
     (async () => {
-      const unlisten = await onOpenUrl((urls) => {
-        if (urls.length === 0) return;
-        handleDeepLink(urls[0], handleRunbookCreated);
-      });
-
-      DevConsole.addAppObject("handleDeepLink", (url: string) =>
-        handleDeepLink(url, handleRunbookCreated),
-      );
-
-      onOpenUrlListener.current = unlisten;
+      // TODO[mkt]: handle deep links with the new workspace setup
+      //
+      // const unlisten = await onOpenUrl((urls) => {
+      //   if (urls.length === 0) return;
+      //   handleDeepLink(urls[0], handleRunbookCreated);
+      // });
+      // DevConsole.addAppObject("handleDeepLink", (url: string) =>
+      //   handleDeepLink(url, handleRunbookCreated),
+      // );
+      // onOpenUrlListener.current = unlisten;
     })();
 
     return () => {
@@ -190,6 +189,17 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const workspaceManager = WorkspaceManager.getInstance();
+    const unsub = workspaceManager.onRunbookDeleted(async (runbookId) => {
+      if (runbookId === currentRunbookId) {
+        handleStopAndNavigate(null);
+      }
+    });
+
+    return unsub;
+  }, [currentRunbookId]);
+
   async function doUpdateCheck() {
     // An available update will trigger a toast
     let updateAvailable = await checkForAppUpdates(true);
@@ -206,31 +216,46 @@ function App() {
     }
   }
 
-  async function createNewWorkspace() {
-    const workspace = new Workspace({
-      name: "Untitled Workspace",
-    });
+  function handleAcceptNewWorkspace(name: string, online: boolean, folder: Option<string>) {
+    setShowNewWorkspaceDialog(false);
 
-    if (selectedOrg) {
-      workspace.set("orgId", selectedOrg);
+    createNewWorkspace(name, online, folder).then(() => {
+      console.log("workspace created");
+    });
+  }
+
+  async function createNewWorkspace(name: string, online: boolean, folder: Option<string>) {
+    const unsavedWorkspace = new Workspace({
+      name,
+      online: online ? 1 : 0,
+      orgId: selectedOrg || null,
+      folder: online ? undefined : folder.expect("folder is required for offline workspaces"),
+    });
+    const workspaceStrategy = getWorkspaceStrategy(unsavedWorkspace);
+
+    const result = await workspaceStrategy.createWorkspace();
+    if (result.isErr()) {
+      let err = result.unwrapErr();
+      let message = "Failed to create workspace";
+      if ("message" in err.data) {
+        message = err.data.message;
+      }
+
+      new DialogBuilder()
+        .title("Failed to create workspace")
+        .icon("error")
+        .message(message)
+        .action({ label: "OK", value: "ok", variant: "flat" })
+        .build();
+      return;
     }
 
-    await workspace.save();
+    const workspace = result.unwrap();
 
-    console.log("workspace saved", workspace);
     track_event("workspace.create");
 
     setCurrentWorkspaceId(workspace.get("id")!);
     navigate(`/runbooks`);
-
-    const op = new Operation({
-      operation: createWorkspace(
-        workspace.get("id")!,
-        workspace.get("name")!,
-        selectedOrg ? { type: "org", orgId: selectedOrg } : { type: "user" },
-      ),
-    });
-    await op.save();
 
     listRef.current?.scrollWorkspaceIntoView(workspace.get("id")!);
   }
@@ -248,29 +273,12 @@ function App() {
     await WorkspaceSyncManager.get(useStore).startSync();
   });
 
-  useTauriEvent("import-runbook", async () => {
-    handleImportRunbooks(currentWorkspaceId, null);
-  });
-
   useTauriEvent("new-runbook", async () => {
-    // Consider the case where we are already on the runbooks page
-    if (location.pathname === "/runbooks") {
-      let workspace = await Workspace.get(currentWorkspaceId);
-      if (!workspace) {
-        const workspaces = await Workspace.all();
-        workspace = workspaces[0];
-        setCurrentWorkspaceId(workspace.get("id")!);
-      }
-      let runbook = await Runbook.createUntitled(workspace);
-      handleRunbookCreated(runbook.id, workspace.get("id")!, null);
-      handleRunbookActivate(runbook.id);
-
-      return;
-    }
+    handleStartCreateRunbook(currentWorkspaceId, null);
   });
 
   useTauriEvent("new-workspace", async () => {
-    createNewWorkspace();
+    setShowNewWorkspaceDialog(true);
   });
 
   useEffect(() => {
@@ -284,42 +292,8 @@ function App() {
 
     check();
 
-    return () => {
-      if (cleanupImportListener.current) cleanupImportListener.current();
-    };
+    return () => {};
   }, []);
-
-  async function handleImportRunbooks(workspaceId: string, parentFolderId: string | null) {
-    const workspace = await Workspace.get(workspaceId);
-    if (!workspace) return;
-
-    let files = await importRunbooks();
-
-    const runbookIds = await Promise.all(
-      files.map(async (file) => {
-        const rb = await Runbook.importFile(file, workspace);
-        return rb.id;
-      }),
-    );
-
-    doWorkspaceFolderOp(
-      workspaceId,
-      (wsf) => {
-        return wsf.importRunbooks(runbookIds, parentFolderId);
-      },
-      (changeRef) => {
-        return {
-          type: "workspace_import_runbooks",
-          workspaceId: workspace.get("id")!,
-          parentFolderId,
-          runbookIds,
-          changeRef,
-        };
-      },
-    );
-
-    handleRunbookActivate(runbookIds[0]);
-  }
 
   const navigation: SidebarItem[] = useMemo(
     () => [
@@ -437,9 +411,11 @@ function App() {
       runbook = await Runbook.load(runbookId);
     }
 
-    track_event("runbooks.open", {
-      total: await Runbook.count(),
-    });
+    if (runbookId) {
+      track_event("runbooks.open", {
+        total: await Runbook.count(),
+      });
+    }
 
     if (location.pathname !== "/runbooks") {
       navigate("/runbooks");
@@ -453,108 +429,79 @@ function App() {
   const handlePromptDeleteRunbook = async (runbookId: string) => {
     const runbook = await Runbook.load(runbookId);
     if (!runbook) {
-      handleRunbookDeleted(currentWorkspaceId, runbookId);
+      doDeleteRunbook(currentWorkspaceId, runbookId);
       return;
     }
 
     setRunbookIdToDelete(runbookId);
   };
 
-  async function handleRunbookDeleted(workspaceId: string, runbookId: string) {
+  async function doDeleteRunbook(workspaceId: string, runbookId: string) {
     if (serialExecution === runbookId) {
       await invoke("workflow_stop", { id: runbookId });
     }
 
-    doWorkspaceFolderOp(
-      workspaceId,
-      (wsf) => {
-        return wsf.deleteRunbook(runbookId);
-      },
-      (changeRef) => {
-        return deleteRunbook(workspaceId, runbookId, changeRef);
-      },
+    const workspace = await Workspace.get(workspaceId);
+
+    if (!workspace) {
+      // TODO
+      return;
+    }
+
+    if (runbookId === currentRunbookId) handleRunbookActivate(null);
+
+    const strategy = getWorkspaceStrategy(workspace);
+    const result = await strategy.deleteRunbook(
+      doWorkspaceFolderOp.bind(null, workspaceId),
+      runbookId,
     );
+
+    if (result.isErr()) {
+      const err = result.unwrapErr();
+      let message = "Failed to delete runbook";
+      if ("message" in err.data) {
+        message = err.data.message;
+      }
+
+      await new DialogBuilder()
+        .title("Failed to delete runbook")
+        .icon("error")
+        .message(message)
+        .action({ label: "OK", value: "ok", variant: "flat" })
+        .build();
+    }
   }
 
-  async function handleRunbookCreated(
-    runbookId: string,
+  async function handleStartCreateRunbook(
     workspaceId: string,
     parentFolderId: string | null,
-    activate: boolean = false,
-  ) {
-    // NOTE [mkt]:
-    // This API call is made here instead of through the operation processor
-    // because we need to wait for the runbook to be created on the server
-    // before opening it; this is so the server observer doesn't create an
-    // observer for the runbook and cause a YJS sync conflict.
-    //
-    // Note that this requires `currentRunbookId` to be set synchronously,
-    // so that we create a PhoenixProvider via RunbookEditor,
-    // which is why we call `handleRunbookActivate` before updating
-    // the workspace folder (which would trigger the server observer).
+  ): Promise<Result<undefined, string>> {
     const workspace = await Workspace.get(workspaceId);
-    // TODO: remove check for org once all runbooks are online by default
-    if (workspace && workspace.isOrgOwned()) {
-      const runbook = await Runbook.load(runbookId);
-      if (!runbook) {
-        new DialogBuilder()
-          .title("Could not load runbook")
-          .message("We were unable to load the runbook.")
-          .action({ label: "OK", value: "ok", variant: "flat" })
-          .build();
-        return;
+    if (!workspace) return Err("Workspace not found");
+
+    const strategy = getWorkspaceStrategy(workspace);
+    const result = await strategy.createRunbook(parentFolderId, handleRunbookActivate);
+    if (result.isErr()) {
+      let err = result.unwrapErr();
+      let message = "Failed to create runbook";
+      if ("message" in err.data) {
+        message = err.data.message;
       }
 
-      let startedSyncIndicator = false;
-      try {
-        // TODO: use sync increment/decrement???
-        if (!useStore.getState().isSyncing) {
-          startedSyncIndicator = true;
-          useStore.getState().setIsSyncing(true);
-        }
-
-        await api.createRunbook(runbook, runbook.id, "private");
-      } catch (err) {
-        if (err instanceof api.HttpResponseError) {
-          new DialogBuilder()
-            .title("Failed to create Org runbook")
-            .message("The API request to create the runbook for the Org failed.")
-            .action({ label: "OK", value: "ok", variant: "flat" })
-            .build();
-        } else {
-          new DialogBuilder()
-            .title("Failed to create Org runbook")
-            .message("You may be offline, or the server may be down.")
-            .action({ label: "OK", value: "ok", variant: "flat" })
-            .build();
-        }
-        console.error(err);
-        runbook.delete();
-        return;
-      } finally {
-        if (startedSyncIndicator) {
-          useStore.getState().setIsSyncing(false);
-        }
-      }
+      return Err(message);
     }
 
-    if (activate) {
-      handleRunbookActivate(runbookId);
-    }
-
-    track_event("runbooks.create");
-
-    doWorkspaceFolderOp(
-      workspaceId,
-      (wsf) => {
-        wsf.createRunbook(runbookId, parentFolderId);
-        return true;
-      },
-      (changeRef) => {
-        return createRunbook(workspaceId, parentFolderId, runbookId, changeRef);
-      },
-    );
+    return Ok(undefined);
   }
+
+  // async function handleRunbookCreated(
+  //   runbookId: string,
+  //   workspaceId: string,
+  //   parentFolderId: string | null,
+  //   activate: boolean = false,
+  // ) {
+  //   //
+  // }
 
   async function handleMoveItemsToWorkspace(
     items: string[],
@@ -931,14 +878,19 @@ function App() {
         value={{
           activateRunbook: handleRunbookActivate,
           promptDeleteRunbook: handlePromptDeleteRunbook,
-          runbookDeleted: handleRunbookDeleted,
-          runbookCreated: handleRunbookCreated,
+          // runbookDeleted: doDeleteRunbook,
+          // runbookCreated: handleRunbookCreated,
           runbookMoved: () => {},
         }}
       >
         <CommandMenu index={runbookIndex} />
         <RunbookSearchIndex index={runbookIndex} />
         <UpdateNotifier />
+        <>
+          {workspaces?.map((workspace) => (
+            <WorkspaceWatcher key={workspace.get("id")} workspace={workspace} />
+          ))}
+        </>
 
         <div className="flex w-full">
           <div className="relative flex flex-col !border-r-small border-divider transition-width pb-6 pt-4 items-center select-none">
@@ -1093,8 +1045,8 @@ function App() {
             >
               {sidebarOpen && (
                 <List
-                  importRunbooks={handleImportRunbooks}
-                  onStartCreateWorkspace={createNewWorkspace}
+                  onStartCreateWorkspace={() => setShowNewWorkspaceDialog(true)}
+                  onStartCreateRunbook={handleStartCreateRunbook}
                   moveItemsToWorkspace={handleMoveItemsToWorkspace}
                   ref={listRef}
                 />
@@ -1112,6 +1064,12 @@ function App() {
 
           {showDesktopConnect && <DesktopConnect />}
           {showOnboarding && <Onboarding />}
+          {showNewWorkspaceDialog && (
+            <NewWorkspaceDialog
+              onAccept={handleAcceptNewWorkspace}
+              onCancel={() => setShowNewWorkspaceDialog(false)}
+            />
+          )}
           <InviteFriendsModal
             isOpen={showInviteFriends}
             onClose={() => setShowInviteFriends(false)}
@@ -1123,7 +1081,7 @@ function App() {
           <DeleteRunbookModal
             runbookId={runbookIdToDelete}
             onClose={() => setRunbookIdToDelete(null)}
-            onRunbookDeleted={handleRunbookDeleted}
+            doDeleteRunbook={doDeleteRunbook}
           />
         )}
       </RunbookContext.Provider>

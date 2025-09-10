@@ -29,6 +29,7 @@ mod state;
 mod stats;
 mod store;
 mod templates;
+mod workspaces;
 
 // If this works out ergonomically, we should move all the commands into a single module
 // Separate the implementation from the command as much as we can
@@ -482,6 +483,20 @@ fn main() {
             commands::mysql::mysql_query,
             commands::mysql::mysql_execute,
             commands::kubernetes::kubernetes_get_execute,
+            commands::workspaces::reset_workspaces,
+            commands::workspaces::watch_workspace,
+            commands::workspaces::unwatch_workspace,
+            commands::workspaces::create_workspace,
+            commands::workspaces::rename_workspace,
+            commands::workspaces::read_dir,
+            commands::workspaces::create_runbook,
+            commands::workspaces::delete_runbook,
+            commands::workspaces::save_runbook,
+            commands::workspaces::get_runbook,
+            commands::workspaces::create_folder,
+            commands::workspaces::rename_folder,
+            commands::workspaces::delete_folder,
+            commands::workspaces::move_items,
             shared_state::get_shared_state_document,
             shared_state::push_optimistic_update,
             shared_state::update_shared_state_document,
@@ -540,9 +555,9 @@ fn main() {
 }
 
 /// Allows blocking on async code without creating a nested runtime.
-fn run_async_command<F: std::future::Future>(cmd: F) -> F::Output {
-    if tokio::runtime::Handle::try_current().is_ok() {
-        tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(cmd))
+pub fn run_async_command<F: std::future::Future>(cmd: F) -> F::Output {
+    if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+        tokio::task::block_in_place(|| runtime.block_on(cmd))
     } else {
         tauri::async_runtime::block_on(cmd)
     }

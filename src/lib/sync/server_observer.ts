@@ -162,8 +162,8 @@ class PersonalOrgObserver {
   }
 
   private async init() {
-    const workspaces = await Workspace.all({ orgId: null });
-    for (const workspace of workspaces) {
+    const personalOnlineWorkspaces = await Workspace.all({ orgId: null, online: 1 });
+    for (const workspace of personalOnlineWorkspaces) {
       this.workspaceObservers.set(
         workspace.get("id")!,
         new OrgWorkspaceObserver(workspace.get("id")!, this.store, this.notifications),
@@ -238,7 +238,7 @@ class OrgObserver {
   }
 
   private async init() {
-    const workspaces = await Workspace.all({ orgId: this.orgId });
+    const workspaces = await Workspace.all({ orgId: this.orgId, online: 1 });
     for (const workspace of workspaces) {
       this.workspaceObservers.set(
         workspace.get("id")!,

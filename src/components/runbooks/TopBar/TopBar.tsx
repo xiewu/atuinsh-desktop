@@ -133,7 +133,7 @@ export default function Topbar(props: TopbarProps) {
             </div>
           </div>
           <div className="mt-[7px] inline-block">
-            {(props.tags.length > 0 || props.canEditTags) && (
+            {props.runbook.isOnline() && (props.tags.length > 0 || props.canEditTags) && (
               <TagSelector
                 runbookId={runbook.id}
                 isOpen={props.showTagMenu}
@@ -195,7 +195,8 @@ export default function Topbar(props: TopbarProps) {
               />
             ))}
           </AvatarGroup>
-          {((!remoteRunbook && workspace?.isUserOwned()) || owner?.type === "user") && (
+          {((!remoteRunbook && workspace?.isUserOwned() && runbook.isOnline()) ||
+            owner?.type === "user") && (
             <SharePopover
               onShareToHub={props.onShareToHub}
               onDeleteFromHub={props.onDeleteFromHub}

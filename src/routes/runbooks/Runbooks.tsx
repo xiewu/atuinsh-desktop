@@ -16,6 +16,8 @@ import Operation from "@/state/runbooks/operation";
 import { ConnectionState } from "@/state/store/user_state";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
 import AppBus from "@/lib/app/app_bus";
+import { workspaceById } from "@/lib/queries/workspaces";
+import WorkspaceManager from "@/lib/workspaces/manager";
 
 const Editor = React.lazy(() => import("@/components/runbooks/editor/Editor"));
 const Topbar = React.lazy(() => import("@/components/runbooks/TopBar/TopBar"));
@@ -37,6 +39,7 @@ export default function Runbooks() {
   const getLastTagForRunbook = useStore((store) => store.getLastTagForRunbook);
   const setLastTagForRunbook = useStore((store) => store.selectTag);
   const currentRunbook = useCurrentRunbook();
+  const { data: runbookWorkspace } = useQuery(workspaceById(currentRunbook?.workspaceId || null));
   const lastRunbookRef = useMemory(currentRunbook);
   const [presences, setPresences] = useState<PresenceUserInfo[]>([]);
   const [runbookEditor, setRunbookEditor] = useState<RunbookEditor | null>(null);
@@ -157,6 +160,17 @@ export default function Runbooks() {
     return unlistenPtyBackend;
   }, []);
 
+  useEffect(() => {
+    const workspaceManager = WorkspaceManager.getInstance();
+    const unsub = workspaceManager.onRunbookChanged(async (runbook, contentHash) => {
+      if (runbook.id === currentRunbook?.id) {
+        runbookEditor?.runbookUpdatedExternally(runbook, contentHash);
+      }
+    });
+
+    return unsub;
+  }, [currentRunbook?.id, runbookEditor]);
+
   function handleSelectTag(tag: string | null) {
     if (!tag) tag = "latest";
     setSelectedTag(tag);
@@ -271,7 +285,7 @@ export default function Runbooks() {
       setRunbookEditor(null);
     }
 
-    if (!currentRunbook) {
+    if (!currentRunbook || !runbookWorkspace) {
       return;
     }
 
@@ -279,6 +293,7 @@ export default function Runbooks() {
       currentRunbook,
       user,
       selectedTag,
+      runbookWorkspace.isOnline(),
       onPresenceJoin,
       onPresenceLeave,
       onClearPresences,
@@ -286,7 +301,7 @@ export default function Runbooks() {
     lastRunbookEditor.current = newRunbookEditor;
     setEditorKey((prev) => !prev);
     setRunbookEditor(newRunbookEditor);
-  }, [currentRunbook?.id]);
+  }, [currentRunbook?.id, runbookWorkspace?.get("id")]);
 
   useEffect(() => {
     if (!currentRunbook || !runbookEditor) return;
@@ -296,8 +311,9 @@ export default function Runbooks() {
     runbookEditor.updateRunbook(currentRunbook);
     runbookEditor.updateUser(user);
     runbookEditor.updateSelectedTag(selectedTag);
+    runbookEditor.setOnline(runbookWorkspace?.isOnline() || false);
     setRunbookEditor(runbookEditor);
-  }, [runbookEditor, currentRunbook, user, selectedTag]);
+  }, [runbookEditor, currentRunbook, user, selectedTag, runbookWorkspace?.isOnline()]);
 
   const editable = !remoteRunbook || remoteRunbook?.permissions.includes("update_content");
   const canEditTags = !remoteRunbook || remoteRunbook?.permissions.includes("update");

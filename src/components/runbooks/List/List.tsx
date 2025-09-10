@@ -20,16 +20,8 @@ import {
   PlusIcon,
   UsersIcon,
 } from "lucide-react";
-import Runbook from "@/state/runbooks/runbook";
 import { AtuinState, useStore } from "@/state/store";
-import {
-  forwardRef,
-  useContext,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from "react";
+import { forwardRef, useContext, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { PendingInvitations } from "./PendingInvitations";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -56,7 +48,7 @@ export type ListApi = {
 };
 
 interface NotesSidebarProps {
-  importRunbooks: (workspaceId: string, parentFolderId: string | null) => Promise<void>;
+  onStartCreateRunbook: (workspaceId: string, parentFolderId: string | null) => void;
   onStartCreateWorkspace: () => void;
   moveItemsToWorkspace: (
     items: string[],
@@ -79,21 +71,15 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
   const currentRunbookId = useStore((state: AtuinState) => state.currentRunbookId);
   const currentWorkspaceId = useStore((state: AtuinState) => state.currentWorkspaceId);
 
-
-
   const elRef = useRef<HTMLDivElement>(null);
   const user = useStore((state: AtuinState) => state.user);
   const userOrgs = useStore((state: AtuinState) => state.userOrgs);
   const selectedOrg = useStore((state: AtuinState) => state.selectedOrg);
   const setSelectedOrg = useStore((state: AtuinState) => state.setSelectedOrg);
 
-  const { data: workspaces } = useQuery(
-    selectedOrg ? orgWorkspaces(selectedOrg) : userOwnedWorkspaces(),
-  );
+  const { data: workspaces } = useQuery(orgWorkspaces(selectedOrg || null));
 
-
-
-  const { activateRunbook, promptDeleteRunbook, runbookCreated } = useContext(RunbookContext);
+  const { activateRunbook, promptDeleteRunbook } = useContext(RunbookContext);
 
   const queryClient = useQueryClient();
 
@@ -152,17 +138,7 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
   }, []);
 
   const handleNewRunbook = async (workspaceId: string, parentFolderId: string | null) => {
-    const workspace = workspaces?.find((ws) => ws.get("id") === workspaceId);
-    if (!workspace) return;
-
-    const rb = await Runbook.createUntitled(workspace, true);
-
-    runbookCreated(rb.id, workspaceId, parentFolderId, true);
-  };
-
-  const handleImportRunbook = async (workspaceId: string | null, parentFolderId: string | null) => {
-    const wsId = workspaceId ?? currentWorkspaceId;
-    props.importRunbooks(wsId, parentFolderId);
+    props.onStartCreateRunbook(workspaceId, parentFolderId);
   };
 
   const handleOpenSearch = async () => {
@@ -252,9 +228,6 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
       {
         onNewRunbook: (workspaceId: string, parentFolderId: string | null) => {
           handleNewRunbook(workspaceId, parentFolderId);
-        },
-        onImportRunbook: (workspaceId: string | null, parentFolderId: string | null) => {
-          handleImportRunbook(workspaceId, parentFolderId);
         },
         onNewWorkspace: () => {
           props.onStartCreateWorkspace();
@@ -463,7 +436,7 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
                 <Button
                   size="sm"
                   variant="flat"
-                  onPress={() => handleNewRunbook(workspaces?.[0]?.get("id")!, null)}
+                  onPress={() => handleNewRunbook(currentWorkspaceId, null)}
                 >
                   <Plus size={18} /> New Runbook
                 </Button>
@@ -535,7 +508,6 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
           </div>
         </>
       )}
-
     </div>
   );
 });

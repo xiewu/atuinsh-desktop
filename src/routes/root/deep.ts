@@ -1,7 +1,8 @@
 import { me, HttpResponseError, getRunbookID } from "@/api/api";
-import RunbookSynchronizer from "@/lib/sync/runbook_synchronizer";
+import RunbookSynchronizer, { SyncResult } from "@/lib/sync/runbook_synchronizer";
 import Runbook from "@/state/runbooks/runbook";
 import { useStore } from "@/state/store";
+import { None, Option, Some } from "@binarymuse/ts-stdlib";
 
 interface RouteHandler {
   (params: string[]): void;
@@ -11,15 +12,24 @@ interface Routes {
   [pattern: string]: RouteHandler;
 }
 
-async function createRunbookFromHub(id: string) {
+async function createRunbookFromHub(id: string): Promise<Option<SyncResult>> {
   try {
+    // If the runbook already exists locally, just return it
+    const runbook = await Runbook.load(id);
+    if (runbook) {
+      return Some<SyncResult>({
+        runbookId: runbook.id,
+        action: "nothing",
+      });
+    }
+
     await getRunbookID(id);
     // It exists; kick off a sync
     const user = useStore.getState().user;
     const currentWorkspaceId = useStore.getState().currentWorkspaceId;
     const sync = new RunbookSynchronizer(id, currentWorkspaceId, user);
-    const runbook = await sync.sync();
-    return runbook;
+    const syncedRunbook = await sync.sync();
+    return Some(syncedRunbook);
   } catch (err) {
     if (err instanceof HttpResponseError) {
       console.error("Failed to fetch runbook from hub:", err.code);
@@ -27,6 +37,8 @@ async function createRunbookFromHub(id: string) {
       console.error("Failed to fetch runbook from hub:", err);
     }
   }
+
+  return None;
 }
 
 const handleDeepLink = (
@@ -39,27 +51,6 @@ const handleDeepLink = (
   ) => void,
 ): void | null => {
   const routes: Routes = {
-    // Legacy "Open in desktop" from the hub
-    "^atuin://runbook/([\\w-]+)/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$":
-      async (params: string[]) => {
-        const [_username, id] = params;
-
-        let result = await createRunbookFromHub(id);
-
-        if (result && result.runbookId) {
-          let runbook = await Runbook.load(result?.runbookId);
-          if (!runbook) {
-            console.error("Unable to open runbook from hub");
-            return;
-          }
-          runbookCreated(runbook.id, runbook.workspaceId, null, true);
-
-          useStore.getState().refreshRunbooks();
-        } else {
-          console.error("Unable to open runbook from hub");
-        }
-      },
-
     // New "Open in desktop" from the hub
     "^atuin://runbook/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$": async (
       params: string[],
@@ -68,8 +59,8 @@ const handleDeepLink = (
 
       let result = await createRunbookFromHub(id);
 
-      if (result) {
-        let runbook = await Runbook.load(result?.runbookId);
+      if (result.isSome()) {
+        let runbook = await Runbook.load(result.unwrap().runbookId);
         if (!runbook) {
           console.error("Unable to open runbook from hub");
           return;

@@ -7,3 +7,4 @@ pub(crate) mod ssh_pool;
 pub(crate) mod stats;
 pub(crate) mod template;
 pub(crate) mod workflow;
+pub(crate) mod workspaces;

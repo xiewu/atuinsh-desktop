@@ -19,6 +19,7 @@ export interface AtuinUiState {
   // Consumed by React Arborist;
   // { [workspaceId]: { [folderId]: isOpen }}
   folderState: Record<string, Record<string, boolean>>;
+  hiddenWorkspaces: Record<string, boolean>;
   sidebarWidth: number;
   sidebarOpen: boolean;
   sidebarClickStyle: "link" | "explorer";
@@ -49,6 +50,7 @@ export interface AtuinUiState {
 
   getFolderState: (workspaceId: string) => Option<Record<string, boolean>>;
   toggleFolder: (workspaceId: string, folderId: string) => void;
+  toggleWorkspaceVisibility: (workspaceId: string) => void;
   // updateFolderState: (workspaceId: string, state: Record<string, boolean>) => void;
   deleteWorkspaceFolderState: (workspaceId: string) => void;
   deleteFolderState: (workspaceId: string, folderId: string) => void;
@@ -64,6 +66,7 @@ export const persistUiKeys: (keyof AtuinUiState)[] = [
   "sidebarClickStyle",
   "lightModeEditorTheme",
   "darkModeEditorTheme",
+  "hiddenWorkspaces",
 ];
 
 export const createUiState: StateCreator<AtuinUiState> = (set, get, _store): AtuinUiState => ({
@@ -80,6 +83,7 @@ export const createUiState: StateCreator<AtuinUiState> = (set, get, _store): Atu
   updating: None,
   showedUpdatePrompt: false,
   folderState: {},
+  hiddenWorkspaces: {},
   sidebarWidth: 250,
   sidebarOpen: true,
   sidebarClickStyle: "link",
@@ -121,6 +125,16 @@ export const createUiState: StateCreator<AtuinUiState> = (set, get, _store): Atu
         currentState[folderId] = !currentState[folderId];
       }
       return { folderState: { ...state.folderState, [workspaceId]: currentState } };
+    });
+  },
+  toggleWorkspaceVisibility: (workspaceId: string) => {
+    set((state) => {
+      if (state.hiddenWorkspaces[workspaceId]) {
+        delete state.hiddenWorkspaces[workspaceId];
+      } else {
+        state.hiddenWorkspaces[workspaceId] = true;
+      }
+      return state;
     });
   },
   // updateFolderState: (workspaceId: string, state: Record<string, boolean>) => {

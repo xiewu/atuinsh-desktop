@@ -2,6 +2,9 @@ window.addEventListener("unhandledrejection", (event) => {
   console.error("Unhandled rejection", event);
 });
 
+// Initialize global types
+import "./global";
+
 // import sentry before anything else
 import { init_tracking } from "./tracking";
 import track_event from "./tracking";
@@ -28,7 +31,6 @@ import debounce from "lodash.debounce";
 import { getGlobalOptions } from "./lib/global_options";
 import Workspace from "./state/runbooks/workspace";
 import { SharedStateManager } from "./lib/shared_state/manager";
-import { AtuinSharedStateAdapter } from "./lib/shared_state/adapter";
 import { startup as startupOperationProcessor } from "./state/runbooks/operation_processor";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
@@ -41,6 +43,7 @@ import Operation from "./state/runbooks/operation";
 import EditorBus from "./lib/buses/editor";
 import BlockBus from "./lib/workflow/block_bus";
 import { generateBlocks } from "./lib/ai/block_generator";
+import WorkspaceManager from "./lib/workspaces/manager";
 
 (async () => {
   try {
@@ -91,6 +94,7 @@ DevConsole.addAppObject("invoke", invoke)
   .addAppObject("socketManager", socketManager)
   .addAppObject("notificationManager", notificationManager)
   .addAppObject("workspaceSyncManager", workspaceSyncManager)
+  .addAppObject("workspaceManager", WorkspaceManager.getInstance())
   .addAppObject("queryClient", queryClient)
   .addAppObject("AppBus", AppBus.get())
   .addAppObject("SSHBus", SSHBus.get())
@@ -189,23 +193,6 @@ function Application() {
   }, [online, user]);
 
   useEffect(() => {
-    // Start up listeners for all known workspaces
-    Workspace.all()
-      .then((workspaces) => {
-        for (const workspace of workspaces) {
-          SharedStateManager.startInstance(
-            `workspace-folder:${workspace.get("id")}`,
-            new AtuinSharedStateAdapter(`workspace-folder:${workspace.get("id")}`),
-          );
-        }
-      })
-      .catch((err: any) => {
-        console.error("Error starting shared state managers");
-        console.error(err);
-      });
-  }, []);
-
-  useEffect(() => {
     startupOperationProcessor();
   }, []);
 
@@ -235,6 +222,7 @@ function Application() {
 }
 
 async function setup() {
+  invoke<void>("reset_workspaces");
   const currentVersion = await invoke<string>("get_app_version");
   useStore.getState().setCurrentVersion(currentVersion);
 }

@@ -11,16 +11,15 @@ import {
   ModalHeader,
   Spinner,
 } from "@heroui/react";
-import { useContext, useEffect, useMemo, useReducer } from "react";
+import { useEffect, useMemo, useReducer } from "react";
 import { None, Option, Some, usernameFromNwo } from "@/lib/utils";
 import { ConnectionState } from "@/state/store/user_state";
-import RunbookContext from "@/context/runbook_context";
 import Workspace from "@/state/runbooks/workspace";
 
 interface DeleteRunbookModalProps {
   runbookId: string;
   onClose: () => void;
-  onRunbookDeleted: (workspaceId: string, runbookId: string) => void;
+  doDeleteRunbook: (workspaceId: string, runbookId: string) => void;
 }
 
 type Ownership = "local" | "none" | "owner" | "collaborator" | "org";
@@ -83,9 +82,7 @@ export default function DeleteRunbookModal(props: DeleteRunbookModalProps) {
 
   const user = useStore((store) => store.user);
   const connectionState = useStore((store) => store.connectionState);
-  const currentRunbookId = useStore((store) => store.currentRunbookId);
   const refreshRunbooks = useStore((store) => store.refreshRunbooks);
-  const { activateRunbook } = useContext(RunbookContext);
 
   const [deleteState, dispatch] = useReducer(reducer, INITIAL_STATE);
 
@@ -174,11 +171,7 @@ export default function DeleteRunbookModal(props: DeleteRunbookModalProps) {
     const { runbook, remoteRunbook } = deleteState;
     if (!runbook || !remoteRunbook) return;
 
-    if (runbook.id === currentRunbookId) activateRunbook(null);
-    const id = runbook.id;
-    const workspaceId = runbook.workspaceId;
-    await runbook.delete();
-    props.onRunbookDeleted(workspaceId, id);
+    props.doDeleteRunbook(runbook.workspaceId, runbook.id);
     refreshRunbooks();
   }
 
@@ -264,12 +257,12 @@ export default function DeleteRunbookModal(props: DeleteRunbookModalProps) {
             <ModalFooter>
               <Button
                 color="danger"
-                onClick={confirmDeleteRunbook}
+                onPress={confirmDeleteRunbook}
                 disabled={deleteState.isDeleting}
               >
                 Delete
               </Button>
-              <Button onClick={onClose} disabled={deleteState.isDeleting}>
+              <Button onPress={onClose} disabled={deleteState.isDeleting}>
                 Cancel
               </Button>
             </ModalFooter>

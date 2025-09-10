@@ -12,7 +12,6 @@ on:
       - ".github/**"
 
   pull_request:
-    branches: [main]
     paths:
       - "backend/**"
       - ".github/**"

@@ -429,14 +429,14 @@ function App() {
   const handlePromptDeleteRunbook = async (runbookId: string) => {
     const runbook = await Runbook.load(runbookId);
     if (!runbook) {
-      handleRunbookDeleted(currentWorkspaceId, runbookId);
+      doDeleteRunbook(currentWorkspaceId, runbookId);
       return;
     }
 
     setRunbookIdToDelete(runbookId);
   };
 
-  async function handleRunbookDeleted(workspaceId: string, runbookId: string) {
+  async function doDeleteRunbook(workspaceId: string, runbookId: string) {
     if (serialExecution === runbookId) {
       await invoke("workflow_stop", { id: runbookId });
     }
@@ -447,6 +447,8 @@ function App() {
       // TODO
       return;
     }
+
+    if (runbookId === currentRunbookId) handleRunbookActivate(null);
 
     const strategy = getWorkspaceStrategy(workspace);
     const result = await strategy.deleteRunbook(
@@ -876,7 +878,7 @@ function App() {
         value={{
           activateRunbook: handleRunbookActivate,
           promptDeleteRunbook: handlePromptDeleteRunbook,
-          runbookDeleted: handleRunbookDeleted,
+          // runbookDeleted: doDeleteRunbook,
           // runbookCreated: handleRunbookCreated,
           runbookMoved: () => {},
         }}
@@ -1079,7 +1081,7 @@ function App() {
           <DeleteRunbookModal
             runbookId={runbookIdToDelete}
             onClose={() => setRunbookIdToDelete(null)}
-            onRunbookDeleted={handleRunbookDeleted}
+            doDeleteRunbook={doDeleteRunbook}
           />
         )}
       </RunbookContext.Provider>

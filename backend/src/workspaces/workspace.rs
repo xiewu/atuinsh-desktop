@@ -8,7 +8,7 @@ use atuin_common::utils::uuid_v7;
 use json_digest::digest_data;
 use notify_debouncer_full::{notify::RecommendedWatcher, Debouncer, RecommendedCache};
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_yaml::Value;
 use ts_rs::TS;
 
 use crate::workspaces::{
@@ -235,14 +235,39 @@ impl Workspace {
             .map(|p| p == &new_path)
             .unwrap_or(false);
 
-        let full_content = json!({
-            "id": runbook_id,
-            "name": name,
-            "version": 1,
-            "content": content,
-        });
+        let mut map = serde_yaml::Mapping::new();
+        map.insert(
+            Value::String("id".to_string()),
+            Value::String(runbook_id.to_string()),
+        );
+        map.insert(
+            Value::String("name".to_string()),
+            Value::String(name.to_string()),
+        );
+        map.insert(
+            Value::String("version".to_string()),
+            Value::Number(1.into()),
+        );
+        map.insert(
+            Value::String("content".to_string()),
+            serde_yaml::to_value(content).unwrap(),
+        );
+        let map = Value::Mapping(map);
 
-        match digest_data(&full_content) {
+        // Create a canonical hash by converting to JSON first, then using json-digest
+        // This ensures consistent hashing regardless of YAML serialization order
+        let json_value: serde_json::Value =
+            serde_yaml::from_value(map.clone()).map_err(|e| WorkspaceError::RunbookSaveError {
+                runbook_id: runbook_id.to_string(),
+                message: format!("Failed to convert YAML to JSON for hashing: {e}"),
+            })?;
+
+        let digest = digest_data(&json_value).map_err(|e| WorkspaceError::RunbookSaveError {
+            runbook_id: runbook_id.to_string(),
+            message: format!("Failed to hash runbook content: {e}"),
+        })?;
+
+        match Ok::<String, WorkspaceError>(digest.clone()) {
             Ok(digest) => {
                 if let Some(history) = self.histories.get(runbook_id) {
                     // If the hash hasn't changed, we don't need to save the runbook,
@@ -253,12 +278,7 @@ impl Workspace {
                 }
 
                 self.fs_ops
-                    .save_runbook(
-                        runbook_id,
-                        current_path.as_ref(),
-                        &new_path,
-                        full_content.clone(),
-                    )
+                    .save_runbook(runbook_id, current_path.as_ref(), &new_path, map.clone())
                     .await
                     .map_err(|e| WorkspaceError::RunbookSaveError {
                         runbook_id: runbook_id.to_string(),

@@ -4,7 +4,7 @@ use notify_debouncer_full::{
     DebounceEventResult, DebouncedEvent,
 };
 use serde::Serialize;
-use serde_json::Value;
+use serde_yaml::Value;
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},

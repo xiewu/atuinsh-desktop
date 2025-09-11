@@ -21,8 +21,9 @@ import { ConnectionState } from "@/state/store/user_state";
 import { RemoteRunbook } from "@/state/models";
 import { readDir } from "@tauri-apps/plugin-fs";
 import Operation, { createWorkspace, deleteRunbook } from "@/state/runbooks/operation";
-import { FolderIcon } from "lucide-react";
+import { FolderIcon, InfoIcon } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { open as openUrl } from "@tauri-apps/plugin-shell";
 import * as commands from "@/lib/workspaces/commands";
 import { findParentWorkspace } from "@/lib/workspaces/offline_strategy";
 import { uuidv7 } from "uuidv7";
@@ -438,6 +439,11 @@ export default function ConvertWorkspaceDialog(props: ConvertWorkspaceDialogProp
 
   const disabled = converting || loading || pathIsMissing;
 
+  function handleLearnMore(e: React.MouseEvent<HTMLAnchorElement>) {
+    e.preventDefault();
+    openUrl("https://forum.atuin.sh/t/file-based-runbooks-are-coming/1304");
+  }
+
   return (
     <Modal
       size="lg"
@@ -452,7 +458,12 @@ export default function ConvertWorkspaceDialog(props: ConvertWorkspaceDialogProp
         <ModalBody className="flex gap-4">
           <p>
             The workspace {props.workspace.get("name")} is a legacy workspace and needs to be
-            converted.
+            converted.{" "}
+            <a href="#" className="text-sm text-blue-500" onClick={handleLearnMore}>
+              <Tooltip content="Learn more">
+                <InfoIcon className="w-4 h-4 inline-block mr-1 mb-1" />
+              </Tooltip>
+            </a>
           </p>
 
           {connectionState !== ConnectionState.Online && (

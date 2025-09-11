@@ -399,20 +399,15 @@ impl FsOps {
         if new_path.as_ref().exists() {
             // First, check to see if the file has the same ID as the runbook we're saving
             // Read the existing YAML file and check the ID
-            match tokio::fs::read_to_string(new_path.as_ref()).await {
-                Ok(yaml_text) => match serde_yaml::from_str::<Value>(&yaml_text) {
-                    Ok(value) => {
-                        if let Some(id) = value.get("id").and_then(|v| v.as_str()) {
-                            if id != runbook_id {
-                                needs_unique_path = true;
-                            }
-                        } else {
-                            needs_unique_path = true;
-                        }
-                    }
-                    Err(_) => needs_unique_path = true,
-                },
-                Err(_) => needs_unique_path = true,
+            let yaml_text = tokio::fs::read_to_string(new_path.as_ref()).await?;
+            let value = serde_yaml::from_str::<Value>(&yaml_text)?;
+            if let Some(id) = value.get("id").and_then(|v| v.as_str()) {
+                if id != runbook_id {
+                    needs_unique_path = true;
+                }
+            } else {
+                // If there's no ID field, we can savely create a new file with that ID
+                needs_unique_path = true;
             }
         }
 

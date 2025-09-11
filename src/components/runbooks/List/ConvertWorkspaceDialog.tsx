@@ -428,15 +428,15 @@ export default function ConvertWorkspaceDialog(props: ConvertWorkspaceDialogProp
     props.onClose();
   }, [props.workspace, workspaceInfo, folderInfo.path, props.onClose]);
 
-  const pathIsMissing = (workspaceInfo?.offline.length ?? 0) > 0 && !folderInfo.path;
-  const disabled =
-    converting ||
-    loading ||
-    pathIsMissing ||
-    !folderInfo.exists ||
-    folderInfo.isAlreadyWorkspace ||
-    folderInfo.isChildOfWorkspace ||
-    !folderInfo.checksComplete;
+  const pathIsMissing =
+    (workspaceInfo?.offline.length ?? 0) > 0 &&
+    (!folderInfo.path ||
+      !folderInfo.exists ||
+      folderInfo.isAlreadyWorkspace ||
+      folderInfo.isChildOfWorkspace ||
+      !folderInfo.checksComplete);
+
+  const disabled = converting || loading || pathIsMissing;
 
   return (
     <Modal
@@ -514,25 +514,6 @@ export default function ConvertWorkspaceDialog(props: ConvertWorkspaceDialogProp
           )}
 
           {loading && <Spinner />}
-          {folderInfo.checksComplete && (
-            <>
-              {!folderInfo.exists && (
-                <p>The selected folder does not exist. Please choose a different folder.</p>
-              )}
-              {folderInfo.exists && folderInfo.hasContents && folderInfo.isAlreadyWorkspace && (
-                <p>
-                  The selected folder already contains a workspace. Please choose a different
-                  folder.
-                </p>
-              )}
-              {folderInfo.exists && folderInfo.hasContents && folderInfo.isChildOfWorkspace && (
-                <p>
-                  The selected folder is a child of an existing workspace. Please choose a different
-                  folder.
-                </p>
-              )}
-            </>
-          )}
         </ModalBody>
         <ModalFooter>
           <Button onPress={props.onClose} variant="flat" isDisabled={converting}>
@@ -597,7 +578,7 @@ function FolderPicker(props: FolderPickerProps) {
           The selected folder already contains a workspace. Please choose a different folder.
         </span>
       )}
-      {props.selectedPath && props.folderIsChildOfWorkspace && (
+      {props.selectedPath && !props.folderIsAlreadyWorkspace && props.folderIsChildOfWorkspace && (
         <span className="text-red-500 mt-2">
           The selected folder is a child of an existing workspace. Please choose a different folder.
         </span>

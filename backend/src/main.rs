@@ -556,9 +556,8 @@ fn main() {
 
 /// Allows blocking on async code without creating a nested runtime.
 pub fn run_async_command<F: std::future::Future>(cmd: F) -> F::Output {
-    if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-        tokio::task::block_in_place(|| runtime.block_on(cmd))
-    } else {
-        tauri::async_runtime::block_on(cmd)
+    match tokio::runtime::Handle::try_current() {
+        Ok(runtime) => tokio::task::block_in_place(|| runtime.block_on(cmd)),
+        _ => tauri::async_runtime::block_on(cmd),
     }
 }

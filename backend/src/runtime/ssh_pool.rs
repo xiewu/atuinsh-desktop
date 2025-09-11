@@ -463,7 +463,7 @@ impl SshPool {
                 );
 
                 log::debug!("Opening PTY for {channel}");
-                if let Err(e) = session
+                match session
                     .open_pty(
                         channel,
                         width,
@@ -475,10 +475,13 @@ impl SshPool {
                     )
                     .await
                 {
-                    log::error!("Failed to open PTY: {e:?}");
-                    let _ = reply_to.send(Err(e));
-                } else {
-                    let _ = reply_to.send(Ok((input_tx, resize_tx)));
+                    Err(e) => {
+                        log::error!("Failed to open PTY: {e:?}");
+                        let _ = reply_to.send(Err(e));
+                    }
+                    _ => {
+                        let _ = reply_to.send(Ok((input_tx, resize_tx)));
+                    }
                 }
             }
             SshPoolMessage::PtyWrite {

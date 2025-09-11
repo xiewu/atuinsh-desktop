@@ -693,7 +693,7 @@ mod tests {
             }
         }
 
-        fn create_handler(&self) -> impl Fn(WorkspaceEvent) + Send + Sync + 'static {
+        fn create_handler(&self) -> impl Fn(WorkspaceEvent) + Send + Sync + 'static + use<> {
             let events = self.events.clone();
             move |event| {
                 let events = events.clone();

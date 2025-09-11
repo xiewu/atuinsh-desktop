@@ -37,17 +37,18 @@ impl Pool {
     ) -> Result<Arc<Session>> {
         let username = username.unwrap_or("root");
 
-        if let Some(session) = self.get(host, username) {
-            Ok(session)
-        } else {
-            let mut session = Session::open(host).await?;
-            session.authenticate(auth, Some(username)).await?;
+        match self.get(host, username) {
+            Some(session) => Ok(session),
+            _ => {
+                let mut session = Session::open(host).await?;
+                session.authenticate(auth, Some(username)).await?;
 
-            let session = Arc::new(session);
-            let key = format!("{username}@{host}");
-            self.connections.insert(key, session.clone());
+                let session = Arc::new(session);
+                let key = format!("{username}@{host}");
+                self.connections.insert(key, session.clone());
 
-            Ok(session)
+                Ok(session)
+            }
         }
     }
 

@@ -15,14 +15,14 @@ importers:
         specifier: ^0.4.0
         version: 0.4.0
       '@blocknote/core':
-        specifier: ^0.36.1
-        version: 0.36.1(@types/hast@3.0.4)(highlight.js@11.11.1)
+        specifier: ^0.37.0
+        version: 0.37.0(@types/hast@3.0.4)(highlight.js@11.11.1)
       '@blocknote/mantine':
-        specifier: ^0.36.1
-        version: 0.36.1(@types/hast@3.0.4)(@types/react@19.1.0)(highlight.js@11.11.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        specifier: ^0.37.0
+        version: 0.37.0(@types/hast@3.0.4)(@types/react@19.1.0)(highlight.js@11.11.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@blocknote/react':
-        specifier: ^0.36.1
-        version: 0.36.1(@types/hast@3.0.4)(highlight.js@11.11.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        specifier: ^0.37.0
+        version: 0.37.0(@types/hast@3.0.4)(highlight.js@11.11.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@clickhouse/client-web':
         specifier: ^1.10.1
         version: 1.10.1
@@ -529,22 +529,22 @@ packages:
   '@binarymuse/ts-stdlib@0.4.0':
     resolution: {integrity: sha512-+IHJf0j79Q3I8oqBSvJnJGVOGmZ9nUyMMMQ6/IDUdFxJbGALBoTglrh94hEh8EJuCs1o7P0ep31DJOpKsRGcGw==}
 
-  '@blocknote/core@0.36.1':
-    resolution: {integrity: sha512-g8y6x4XUqZq1Io5EfXqv8DVLyHU4obI/8XopsTMw5kvkRw9ot9FNB3tE+Ip375LkVZqosfDtYmOPnP3RljaJNQ==}
+  '@blocknote/core@0.37.0':
+    resolution: {integrity: sha512-OEi377PyRjmeM6hMlxxKJliC2W1YrwCtZSibJCfqe7n5Vh+NRaaGB8VafeIT53boW7l+siEVEq0K5P8qIdJQHw==}
     peerDependencies:
       '@hocuspocus/provider': ^2.15.2
     peerDependenciesMeta:
       '@hocuspocus/provider':
         optional: true
 
-  '@blocknote/mantine@0.36.1':
-    resolution: {integrity: sha512-1abG9E7faXiPUIyXf0L85hwKZAOzxjkf2uDRHPW+yGiKhGFouU4ykY1MiDTcav8h8dV/pPsTnjflsTAHHzmKUQ==}
+  '@blocknote/mantine@0.37.0':
+    resolution: {integrity: sha512-sAOMNuE9DsGKfh7mCRxa2Qaep9RgoTDZZlZVQbUo9M4piZ8cGbvYezUIwtowz53Hx2Jyul7d6l3pLUoVQQnj+Q==}
     peerDependencies:
       react: ^18.0 || ^19.0 || >= 19.0.0-rc
       react-dom: ^18.0 || ^19.0 || >= 19.0.0-rc
 
-  '@blocknote/react@0.36.1':
-    resolution: {integrity: sha512-9M8jUej9rtEPS/SsCbfogfYyvpAlIKv/bShWnJVbvN8eBmOStNnByvdtp9rLd1cUaE6L+ptpeeHnYf1FOc5iAQ==}
+  '@blocknote/react@0.37.0':
+    resolution: {integrity: sha512-ep0ZXErKC3AO5QJipU4uRXGiLHpF/qKfst4tbalp5RJBbeMzr2nSHGa88voQwg9noPTHCvEOXCAcSgykwnr/fA==}
     peerDependencies:
       react: ^18.0 || ^19.0 || >= 19.0.0-rc
       react-dom: ^18.0 || ^19.0 || >= 19.0.0-rc
@@ -5691,7 +5691,7 @@ snapshots:
 
   '@binarymuse/ts-stdlib@0.4.0': {}
 
-  '@blocknote/core@0.36.1(@types/hast@3.0.4)(highlight.js@11.11.1)':
+  '@blocknote/core@0.37.0(@types/hast@3.0.4)(highlight.js@11.11.1)':
     dependencies:
       '@emoji-mart/data': 1.2.1
       '@shikijs/types': 3.2.1
@@ -5741,10 +5741,10 @@ snapshots:
       - sugar-high
       - supports-color
 
-  '@blocknote/mantine@0.36.1(@types/hast@3.0.4)(@types/react@19.1.0)(highlight.js@11.11.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
+  '@blocknote/mantine@0.37.0(@types/hast@3.0.4)(@types/react@19.1.0)(highlight.js@11.11.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
-      '@blocknote/core': 0.36.1(@types/hast@3.0.4)(highlight.js@11.11.1)
-      '@blocknote/react': 0.36.1(@types/hast@3.0.4)(highlight.js@11.11.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@blocknote/core': 0.37.0(@types/hast@3.0.4)(highlight.js@11.11.1)
+      '@blocknote/react': 0.37.0(@types/hast@3.0.4)(highlight.js@11.11.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@mantine/core': 7.17.8(@mantine/hooks@7.17.8(react@19.1.0))(@types/react@19.1.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@mantine/hooks': 7.17.8(react@19.1.0)
       '@mantine/utils': 6.0.22(react@19.1.0)
@@ -5761,9 +5761,9 @@ snapshots:
       - sugar-high
       - supports-color
 
-  '@blocknote/react@0.36.1(@types/hast@3.0.4)(highlight.js@11.11.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
+  '@blocknote/react@0.37.0(@types/hast@3.0.4)(highlight.js@11.11.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
-      '@blocknote/core': 0.36.1(@types/hast@3.0.4)(highlight.js@11.11.1)
+      '@blocknote/core': 0.37.0(@types/hast@3.0.4)(highlight.js@11.11.1)
       '@emoji-mart/data': 1.2.1
       '@floating-ui/react': 0.26.28(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@tiptap/core': 2.26.1(@tiptap/pm@2.26.1)

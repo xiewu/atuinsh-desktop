@@ -405,6 +405,9 @@ impl FsOps {
                 if id != runbook_id {
                     needs_unique_path = true;
                 }
+            } else {
+                // If there's no ID field, we can savely create a new file with that ID
+                needs_unique_path = true;
             }
         }
 

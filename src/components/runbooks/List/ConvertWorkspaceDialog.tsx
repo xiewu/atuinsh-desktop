@@ -366,6 +366,8 @@ export default function ConvertWorkspaceDialog(props: ConvertWorkspaceDialogProp
       .then((dir) => {
         if (!active) return;
 
+        dir = dir.filter((f) => f.name.toLowerCase() !== ".ds_store");
+
         dispatchFolderInfo({ type: "setExists", exists: true });
 
         if (dir.length > 0 && active) {

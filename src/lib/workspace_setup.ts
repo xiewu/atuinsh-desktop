@@ -139,7 +139,10 @@ export default async function doWorkspaceSetup(): Promise<void> {
     // TODO ?????
     let runbook = await OfflineRunbook.create(workspace, null, true, "Welcome to Atuin!", welcome);
 
-    if (runbook === null) throw new Error("Failed to create welcome runbook");
+    if (runbook === null) {
+      console.error("Failed to create welcome runbook");
+      return;
+    }
 
     await runbook?.save();
     setCurrentRunbookId(runbook.id, SET_RUNBOOK_TAG);

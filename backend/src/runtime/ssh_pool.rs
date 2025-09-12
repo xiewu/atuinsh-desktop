@@ -344,12 +344,25 @@ impl SshPool {
                 interval.tick().await;
 
                 // Send health check message to the main actor
-                let (reply_tx, _) = oneshot::channel();
+                let (reply_tx, recv) = oneshot::channel();
                 let msg = SshPoolMessage::HealthCheck { reply_to: reply_tx };
 
                 if sender.send(msg).await.is_err() {
                     log::debug!("SSH pool shut down, stopping health check task");
                     break;
+                }
+
+                let resp = recv.await;
+                match resp {
+                    Ok(Ok(())) => {
+                        log::debug!("Scheduled SSH health check successful");
+                    }
+                    Ok(Err(err)) => {
+                        log::error!("Scheduled SSH health check failed: {err}");
+                    }
+                    Err(_) => {
+                        log::error!("Scheduled SSH health check response failure");
+                    }
                 }
             }
         })

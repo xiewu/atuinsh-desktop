@@ -2,7 +2,7 @@ import Workspace from "@/state/runbooks/workspace";
 import { useStore } from "@/state/store";
 import * as api from "@/api/api";
 import Operation from "@/state/runbooks/operation";
-import Runbook, { OnlineRunbook } from "@/state/runbooks/runbook";
+import Runbook, { OfflineRunbook, OnlineRunbook } from "@/state/runbooks/runbook";
 import LegacyWorkspace from "@/state/runbooks/legacy_workspace";
 import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
 import { SharedStateManager } from "./shared_state/manager";
@@ -12,6 +12,11 @@ import Logger from "./logger";
 import { Rc } from "@binarymuse/ts-stdlib";
 import welcome from "@/state/runbooks/welcome.json";
 import { SET_RUNBOOK_TAG } from "@/state/store/runbook_state";
+import { documentDir } from "@tauri-apps/api/path";
+import { exists, mkdir } from "@tauri-apps/plugin-fs";
+import { join } from "@tauri-apps/api/path";
+import { createWorkspace } from "./workspaces/commands";
+
 const logger = new Logger("WorkspaceMigration");
 
 let resolve: (() => void) | null = null;
@@ -53,38 +58,25 @@ export default async function doWorkspaceSetup(): Promise<void> {
     } catch (err) {
       logger.info("Unable to fetch workspaces from server; creating default workspace");
 
-      workspace = new Workspace({
-        id: uuidv7(),
-        name: "Default Workspace",
-        online: 1,
-      });
-      await workspace.save();
+      const documentsPath = await documentDir();
+      const defaultFolder = await join(documentsPath, "Atuin Runbooks", "Welcome Workspace");
 
-      // Create an operation so that we eventually sync our default workspace's ID
-      // with the users's default workspace created on the server.
-      //
-      // This is only necessary if the user already has legacy workspaces locally.
-      // Otherwise, the user's new local workspace will be pushed to the server,
-      // and the client will pull down the server's workspace.
-      if (legacyWorkspaces.length > 0) {
-        const op = new Operation({
-          operation: {
-            type: "workspace_created_default",
-            workspaceId: workspace.get("id")!,
-          },
-        });
-        await op.save();
-      } else {
-        const op = new Operation({
-          operation: {
-            type: "workspace_created",
-            workspaceId: workspace.get("id")!,
-            workspaceName: workspace.get("name")!,
-            workspaceOwner: { type: "user" },
-          },
-        });
-        await op.save();
+      const folderExists = await exists(defaultFolder);
+
+      if (!folderExists) {
+        await mkdir(defaultFolder, { recursive: true });
       }
+
+      let name = "Welcome to Atuin";
+      let id = uuidv7();
+      workspace = new Workspace({
+        id: id,
+        name: name,
+        folder: defaultFolder,
+        online: 0,
+      });
+      await createWorkspace(defaultFolder, id, name);
+      await workspace.save();
     }
 
     workspaces.push(workspace);
@@ -145,38 +137,14 @@ export default async function doWorkspaceSetup(): Promise<void> {
   if (allRbIds.length === 0) {
     const workspace = workspaces[0];
     // TODO ?????
-    let runbook = await OnlineRunbook.create(workspace);
+    let runbook = await OfflineRunbook.create(workspace, null, true, "Welcome to Atuin!", welcome);
 
-    runbook.name = "Welcome to Atuin!";
-    runbook.content = JSON.stringify(welcome);
-    await runbook.save();
+    if (runbook === null) throw new Error("Failed to create welcome runbook");
+
+    await runbook?.save();
     setCurrentRunbookId(runbook.id, SET_RUNBOOK_TAG);
 
-    const manager = SharedStateManager.getInstance<Folder>(
-      `workspace-folder:${workspace.get("id")}`,
-      new AtuinSharedStateAdapter(`workspace-folder:${workspace.get("id")}`),
-    );
-
-    const changeRef = await manager.updateOptimistic((data) => {
-      const folder = WorkspaceFolder.fromJS(data);
-      folder.createRunbook(runbook.id, null);
-      return folder.toJS();
-    });
-
-    const op = new Operation({
-      operation: {
-        type: "workspace_runbook_created",
-        workspaceId: workspace.get("id")!,
-        parentId: null,
-        runbookId: runbook.id,
-        changeRef: changeRef!,
-      },
-    });
-    await op.save();
-
-    Rc.dispose(manager);
+    useStore.getState().refreshRunbooks();
+    resolve?.();
   }
-
-  useStore.getState().refreshRunbooks();
-  resolve?.();
 }

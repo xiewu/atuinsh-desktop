@@ -135,17 +135,23 @@ export default async function doWorkspaceSetup(): Promise<void> {
 
   const allRbIds = await Runbook.allIdsInAllWorkspaces();
   if (allRbIds.length === 0) {
-    const workspace = workspaces[0];
-    // TODO ?????
-    let runbook = await OfflineRunbook.create(workspace, null, true, "Welcome to Atuin!", welcome);
+    const workspace = workspaces.filter((ws) => !ws.isOnline() && !!ws.get("folder"))[0];
+    if (workspace) {
+      let runbook = await OfflineRunbook.create(
+        workspace,
+        null,
+        true,
+        "Welcome to Atuin!",
+        welcome,
+      );
 
-    if (runbook === null) {
-      console.error("Failed to create welcome runbook");
-      return;
+      if (runbook === null) {
+        console.error("Failed to create welcome runbook");
+        return;
+      }
+
+      setCurrentRunbookId(runbook.id, SET_RUNBOOK_TAG);
     }
-
-    await runbook?.save();
-    setCurrentRunbookId(runbook.id, SET_RUNBOOK_TAG);
 
     useStore.getState().refreshRunbooks();
     resolve?.();

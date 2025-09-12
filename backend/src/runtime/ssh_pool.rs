@@ -366,22 +366,24 @@ impl SshPool {
                     .connect(&host, Some(username.as_str()), None)
                     .await;
 
-                if let Err(e) = session {
-                    if let Err(e) = reply_to.send(Err(e)) {
-                        log::error!("Failed to send error to reply_to: {e:?}");
+                let session = match session {
+                    Ok(session) => session,
+                    Err(e) => {
+                        log::error!("Failed to connect to SSH host {}: {}", host, e);
+                        if let Err(e) = reply_to.send(Err(e)) {
+                            log::error!("Failed to send error to reply_to: {e:?}");
+                        }
+                        return;
                     }
-                    return;
-                }
-
-                let session = session.unwrap();
+                };
 
                 let (cancel_tx, cancel_rx) = oneshot::channel();
 
                 self.channels.insert(
                     channel.clone(),
                     ChannelMeta {
-                        host,
-                        username,
+                        host: host.clone(),
+                        username: username.clone(),
                         cancel_tx,
                         result_tx,
                         pty_input_tx: None,
@@ -454,8 +456,8 @@ impl SshPool {
                 self.channels.insert(
                     channel.clone(),
                     ChannelMeta {
-                        host,
-                        username,
+                        host: host.clone(),
+                        username: username.clone(),
                         cancel_tx,
                         result_tx,
                         pty_input_tx: Some(input_tx.clone()),
@@ -463,9 +465,9 @@ impl SshPool {
                 );
 
                 log::debug!("Opening PTY for {channel}");
-                match session
+                let pty_result = session
                     .open_pty(
-                        channel,
+                        channel.clone(),
                         width,
                         height,
                         resize_rx,

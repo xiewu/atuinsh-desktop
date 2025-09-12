@@ -4,14 +4,15 @@
 use bytes::Bytes;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::sync::{mpsc::Sender, oneshot};
+use tokio::time::timeout;
 
 use eyre::Result;
 use russh::client::Handle;
 use russh::*;
 use russh_config::*;
-use russh_keys::*;
 
 use crate::runtime::ssh_pool::SshPoolHandle;
 
@@ -286,7 +287,7 @@ impl Session {
             .authenticate_password(username, password)
             .await?;
 
-        if !auth_res {
+        if !matches!(auth_res, russh::client::AuthResult::Success) {
             return Err(eyre::eyre!("Password authentication failed"));
         }
 
@@ -295,14 +296,17 @@ impl Session {
 
     /// Public key authentication
     pub async fn key_auth(&mut self, username: &str, key_path: PathBuf) -> Result<()> {
-        let key_pair = load_secret_key(&key_path, None)?;
+        let key_pair = russh::keys::load_secret_key(&key_path, None)?;
 
         let auth_res = self
             .session
-            .authenticate_publickey(username, Arc::new(key_pair))
+            .authenticate_publickey(
+                username,
+                russh::keys::PrivateKeyWithHashAlg::new(Arc::new(key_pair), None),
+            )
             .await?;
 
-        if !auth_res {
+        if !matches!(auth_res, russh::client::AuthResult::Success) {
             return Err(eyre::eyre!("Public key authentication failed"));
         }
 
@@ -314,13 +318,14 @@ impl Session {
         let agent_result = if let Some(ref identity_agent) = self.ssh_config.identity_agent {
             log::debug!("Using custom IdentityAgent: {identity_agent}");
             // Connect to custom agent socket
-            match tokio::net::UnixStream::connect(identity_agent).await {
-                Ok(stream) => Ok(russh_keys::agent::client::AgentClient::connect(stream)),
-                Err(e) => Err(russh_keys::Error::IO(e)),
-            }
+            russh::keys::agent::client::AgentClient::connect_uds(identity_agent)
+                .await
+                .map_err(|_| russh::Error::NotAuthenticated)
         } else {
             // Use default SSH agent from environment
-            russh_keys::agent::client::AgentClient::connect_env().await
+            russh::keys::agent::client::AgentClient::connect_env()
+                .await
+                .map_err(|_| russh::Error::NotAuthenticated)
         };
 
         match agent_result {
@@ -328,16 +333,16 @@ impl Session {
                 Ok(keys) => {
                     log::debug!("Found {} keys in SSH agent", keys.len());
                     for key in keys {
-                        let (returned_agent, auth_result) =
-                            self.session.authenticate_future(username, key, agent).await;
-                        agent = returned_agent;
-
-                        match auth_result {
-                            Ok(true) => {
+                        match self
+                            .session
+                            .authenticate_publickey_with(username, key.clone(), None, &mut agent)
+                            .await
+                        {
+                            Ok(russh::client::AuthResult::Success) => {
                                 log::debug!("Successfully authenticated with SSH agent key");
                                 return Ok(true);
                             }
-                            Ok(false) => {
+                            Ok(_) => {
                                 log::debug!("SSH agent key rejected by server");
                                 continue;
                             }

@@ -29,6 +29,7 @@ impl Pool {
 
     /// Connect to a host and return a session
     /// If the session already exists, return it
+    /// If the existing session is dead, remove it and create a new one
     pub async fn connect(
         &mut self,
         host: &str,

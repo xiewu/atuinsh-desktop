@@ -46,13 +46,13 @@ impl Pool {
                 return Ok(session);
             } else {
                 // Connection is dead, remove it from the pool
-                log::debug!("Removing dead SSH connection for {}", key);
+                log::debug!("Removing dead SSH connection for {key}");
                 self.connections.remove(&key);
             }
         }
 
         // Create a new connection
-        log::debug!("Creating new SSH connection for {}", key);
+        log::debug!("Creating new SSH connection for {key}");
         let mut session = Session::open(host).await?;
         session.authenticate(auth, Some(username)).await?;
 

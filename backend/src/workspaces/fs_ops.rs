@@ -443,7 +443,7 @@ impl FsOps {
             })?;
 
         let content_hash = json_digest::digest_data(&json_value)
-            .map_err(|e| FsOpsError::DigestError(format!("Failed to hash content: {}", e)))?;
+            .map_err(|e| FsOpsError::DigestError(format!("Failed to hash content: {e}")))?;
 
         let internal: OfflineRunbookFileInternal = serde_yaml::from_value(yaml_value)?;
         let metadata = tokio::fs::metadata(path.as_ref()).await?;

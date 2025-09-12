@@ -733,7 +733,7 @@ mod tests {
         });
 
         tokio::fs::write(
-            path.join(format!("{}.atrb", name)),
+            path.join(format!("{name}.atrb")),
             runbook_content.to_string(),
         )
         .await
@@ -796,8 +796,7 @@ mod tests {
         let runbook_events = collector.wait_for_events(1, 5000).await;
         assert!(
             !runbook_events.is_empty(),
-            "Expected runbook creation events, got: {:?}",
-            runbook_events
+            "Expected runbook creation events, got: {runbook_events:?}"
         );
         collector.clear_events().await;
 
@@ -900,12 +899,7 @@ mod tests {
             tokio::fs::create_dir(&dir_path).await.unwrap();
 
             // Create a runbook in the ignored directory
-            create_test_runbook(
-                &dir_path,
-                "ignored_runbook",
-                &format!("ignored-{}", dir_name),
-            )
-            .await;
+            create_test_runbook(&dir_path, "ignored_runbook", &format!("ignored-{dir_name}")).await;
         }
 
         // Wait a bit to ensure any events would have been processed
@@ -925,9 +919,7 @@ mod tests {
             if let Some(workspace) = manager.workspaces.get("test-workspace") {
                 if let Ok(state) = &workspace.state {
                     for dir_name in &ignored_dirs {
-                        assert!(!state
-                            .runbooks
-                            .contains_key(&format!("ignored-{}", dir_name)));
+                        assert!(!state.runbooks.contains_key(&format!("ignored-{dir_name}")));
                     }
                 } else {
                     panic!("Workspace state should be Ok");
@@ -1224,7 +1216,7 @@ mod tests {
         for dir_name in &hidden_dirs {
             let dir_path = workspace_path.join(dir_name);
             tokio::fs::create_dir(&dir_path).await.unwrap();
-            create_test_runbook(&dir_path, "hidden_runbook", &format!("hidden-{}", dir_name)).await;
+            create_test_runbook(&dir_path, "hidden_runbook", &format!("hidden-{dir_name}")).await;
         }
 
         // Create hidden files
@@ -1250,7 +1242,7 @@ mod tests {
             if let Some(workspace) = manager.workspaces.get("test-workspace") {
                 if let Ok(state) = &workspace.state {
                     for dir_name in &hidden_dirs {
-                        assert!(!state.runbooks.contains_key(&format!("hidden-{}", dir_name)));
+                        assert!(!state.runbooks.contains_key(&format!("hidden-{dir_name}")));
                     }
                     assert!(!state.runbooks.contains_key("hidden-file-id"));
                     assert!(state.runbooks.contains_key("valid-runbook-id"));
@@ -1303,8 +1295,8 @@ mod tests {
         for i in 0..5 {
             create_test_runbook(
                 &workspace_path,
-                &format!("runbook_{}", i),
-                &format!("runbook-{}", i),
+                &format!("runbook_{i}"),
+                &format!("runbook-{i}"),
             )
             .await;
             // Small delay to ensure events are separate but within debounce window
@@ -1325,7 +1317,7 @@ mod tests {
             if let Some(workspace) = manager.workspaces.get("test-workspace") {
                 if let Ok(state) = &workspace.state {
                     for i in 0..5 {
-                        assert!(state.runbooks.contains_key(&format!("runbook-{}", i)));
+                        assert!(state.runbooks.contains_key(&format!("runbook-{i}")));
                     }
                 } else {
                     panic!("Workspace state should be Ok");

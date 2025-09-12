@@ -46,15 +46,13 @@ pub struct Client;
 impl russh::client::Handler for Client {
     type Error = russh::Error;
 
-    fn check_server_key(
+    async fn check_server_key(
         &mut self,
         _server_public_key: &russh::keys::PublicKey,
-    ) -> impl std::future::Future<Output = Result<bool, Self::Error>> + Send {
-        async {
-            // For now, accept all server keys
-            // In production, you'd want to implement proper host key verification
-            Ok(true)
-        }
+    ) -> Result<bool, Self::Error> {
+        // For now, accept all server keys
+        // In production, you'd want to implement proper host key verification
+        Ok(true)
     }
 }
 

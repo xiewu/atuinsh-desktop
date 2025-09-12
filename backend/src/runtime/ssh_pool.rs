@@ -416,7 +416,7 @@ impl SshPool {
                 let session = match session {
                     Ok(session) => session,
                     Err(e) => {
-                        log::error!("Failed to connect to SSH host {}: {}", host, e);
+                        log::error!("Failed to connect to SSH host {host}: {e}");
                         if let Err(e) = reply_to.send(Err(e)) {
                             log::error!("Failed to send error to reply_to: {e:?}");
                         }
@@ -460,11 +460,11 @@ impl SshPool {
                         || error_str.contains("connection")
                         || error_str.contains("broken pipe")
                     {
-                        log::debug!("Removing SSH connection due to connection error: {}", key);
+                        log::debug!("Removing SSH connection due to connection error: {key}");
                         self.pool.connections.remove(&key);
                     } else if let Some(session) = self.pool.connections.get(&key) {
                         if !session.send_keepalive().await {
-                            log::debug!("Removing dead SSH connection after exec failure: {}", key);
+                            log::debug!("Removing dead SSH connection after exec failure: {key}");
                             self.pool.connections.remove(&key);
                         }
                     }
@@ -508,7 +508,7 @@ impl SshPool {
                 let session = match session {
                     Ok(session) => session,
                     Err(e) => {
-                        log::error!("Failed to connect to SSH host {}: {}", host, e);
+                        log::error!("Failed to connect to SSH host {host}: {e}");
                         if let Err(e) = reply_to.send(Err(e)) {
                             log::error!("Failed to send error to reply_to: {e:?}");
                         }
@@ -551,31 +551,23 @@ impl SshPool {
                 match pty_result {
                     Err(e) => {
                         log::error!("Failed to open PTY: {e:?}");
-
                         // Check if connection is dead and remove it
-<<<<<<< HEAD
-                        let key = format!("{}@{}", username, host);
-                        // Check if the error indicates a connection issue and remove the connection
-=======
                         let key = format!("{username}@{host}");
 
                         // TODO: use a proper error enum
->>>>>>> 61b5948 (one loop)
                         let error_str = e.to_string().to_lowercase();
                         if error_str.contains("timeout")
                             || error_str.contains("connection")
                             || error_str.contains("broken pipe")
                         {
                             log::debug!(
-                                "Removing SSH connection due to PTY connection error: {}",
-                                key
+                                "Removing SSH connection due to PTY connection error: {key}"
                             );
                             self.pool.connections.remove(&key);
                         } else if let Some(session) = self.pool.connections.get(&key) {
                             if !session.send_keepalive().await {
                                 log::debug!(
-                                    "Removing dead SSH connection after PTY failure: {}",
-                                    key
+                                    "Removing dead SSH connection after PTY failure: {key}"
                                 );
                                 self.pool.connections.remove(&key);
                             }
@@ -619,35 +611,30 @@ impl SshPool {
             SshPoolMessage::HealthCheck { reply_to } => {
                 let connection_count = self.pool.connections.len();
                 log::debug!(
-                    "Running SSH connection health check with keepalives on {} connections",
-                    connection_count
+                    "Running SSH connection health check with keepalives on {connection_count} connections"
                 );
-                let mut dead_count = 0;
+                let mut dead_connections = Vec::new();
 
                 // Check all connections for liveness using actual keepalives
                 for (key, session) in &self.pool.connections {
                     if !session.send_keepalive().await {
-<<<<<<< HEAD
-                        log::debug!("SSH keepalive failed for connection: {}", key);
-                        dead_connections.push(key.clone());
-=======
                         log::debug!("SSH keepalive failed for connection: {key}");
-                        self.pool.connections.remove(&key);
-                        dead_count += 1;
->>>>>>> 61b5948 (one loop)
+                        dead_connections.push(key.clone());
                     }
                 }
 
+                let dead_count = dead_connections.len();
+                for key in &dead_connections {
+                    self.pool.connections.remove(key);
+                }
                 if dead_count > 0 {
                     log::debug!(
-                        "Health check removed {} dead connections, {} remaining",
-                        dead_count,
+                        "Health check removed {dead_count} dead connections, {} remaining",
                         self.pool.connections.len()
                     );
                 } else if connection_count > 0 {
                     log::debug!(
-                        "Health check completed, all {} connections responded to keepalive",
-                        connection_count
+                        "Health check completed, all {connection_count} connections responded to keepalive"
                     );
                 }
 

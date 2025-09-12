@@ -43,21 +43,58 @@ pub enum Authentication {
 /// SSH client implementation for russh
 pub struct Client;
 
-#[async_trait::async_trait]
 impl russh::client::Handler for Client {
     type Error = russh::Error;
 
-    async fn check_server_key(
+    fn check_server_key(
         &mut self,
-        _server_public_key: &key::PublicKey,
-    ) -> Result<bool, Self::Error> {
-        // For now, accept all server keys
-        // In production, you'd want to implement proper host key verification
-        Ok(true)
+        _server_public_key: &russh::keys::PublicKey,
+    ) -> impl std::future::Future<Output = Result<bool, Self::Error>> + Send {
+        async {
+            // For now, accept all server keys
+            // In production, you'd want to implement proper host key verification
+            Ok(true)
+        }
     }
 }
 
 impl Session {
+    /// Send a keepalive to test if the SSH connection is still active and responsive
+    /// Uses a lightweight exec command that actually tests network connectivity
+    pub async fn send_keepalive(&self) -> bool {
+        const KEEPALIVE_TIMEOUT: Duration = Duration::from_secs(5);
+
+        let keepalive_check = async {
+            let mut channel = self.session.channel_open_session().await.ok()?;
+            channel.exec(true, "true").await.ok()?;
+
+            let mut success = false;
+            while let Some(msg) = channel.wait().await {
+                match msg {
+                    ChannelMsg::ExitStatus { .. } => {
+                        success = true;
+                        break;
+                    }
+                    ChannelMsg::Close => break,
+                    ChannelMsg::Eof => break,
+                    _ => continue,
+                }
+            }
+
+            let _ = channel.close().await;
+            Some(success)
+        };
+
+        match timeout(KEEPALIVE_TIMEOUT, keepalive_check).await {
+            Ok(Some(success)) => success,
+            Ok(None) => false,
+            Err(_) => {
+                log::debug!("SSH keepalive timed out");
+                false
+            }
+        }
+    }
+
     /// Parse IdentityAgent from SSH config manually (since russh-config doesn't support it)
     fn parse_identity_agent(host: &str) -> Option<String> {
         Self::parse_identity_agent_from_path(host, &dirs::home_dir()?.join(".ssh").join("config"))
@@ -547,11 +584,16 @@ impl Session {
         output_stream: Sender<String>,
         mut cancel_rx: oneshot::Receiver<()>,
     ) -> Result<()> {
-        let mut channel = self.session.channel_open_session().await?;
+        const SSH_OPERATION_TIMEOUT: Duration = Duration::from_secs(10);
+
+        let mut channel = timeout(SSH_OPERATION_TIMEOUT, self.session.channel_open_session())
+            .await
+            .map_err(|_| eyre::eyre!("Timeout opening SSH channel for PTY"))??;
 
         // Request PTY
-        channel
-            .request_pty(
+        timeout(
+            SSH_OPERATION_TIMEOUT,
+            channel.request_pty(
                 true,
                 "xterm-256color",
                 width as u32,
@@ -559,11 +601,15 @@ impl Session {
                 0,
                 0,
                 &[],
-            )
-            .await?;
+            ),
+        )
+        .await
+        .map_err(|_| eyre::eyre!("Timeout requesting PTY"))??;
 
         // Start shell
-        channel.request_shell(true).await?;
+        timeout(SSH_OPERATION_TIMEOUT, channel.request_shell(true))
+            .await
+            .map_err(|_| eyre::eyre!("Timeout starting shell"))??;
 
         tokio::task::spawn(async move {
             loop {

@@ -1,10 +1,12 @@
 // An actor for managing SSH connections
 
 use std::collections::HashMap;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use bytes::Bytes;
 use tokio::sync::{mpsc, oneshot};
+use tokio::time::interval;
 
 use crate::pty::PtyMetadata;
 use crate::runtime::ssh::pool::Pool;
@@ -108,6 +110,9 @@ pub enum SshPoolMessage {
     PtyWrite {
         channel: String,
         input: Bytes,
+        reply_to: oneshot::Sender<Result<()>>,
+    },
+    HealthCheck {
         reply_to: oneshot::Sender<Result<()>>,
     },
 }
@@ -314,11 +319,40 @@ impl SshPool {
     }
 
     async fn run(&mut self) {
+        // Start the health check task
+        let health_check_handle = self.start_health_check_task();
+
         while let Some(msg) = self.receiver.recv().await {
             self.handle_message(msg).await;
 
             log::debug!("SshPool Message handled");
         }
+
+        // Clean up health check task when the pool shuts down
+        health_check_handle.abort();
+    }
+
+    /// Start the background health checking task
+    fn start_health_check_task(&self) -> tokio::task::JoinHandle<()> {
+        let sender = self.sender.clone();
+
+        tokio::spawn(async move {
+            // Health check every 2 minutes to avoid excessive network traffic
+            let mut interval = interval(Duration::from_secs(120));
+
+            loop {
+                interval.tick().await;
+
+                // Send health check message to the main actor
+                let (reply_tx, _) = oneshot::channel();
+                let msg = SshPoolMessage::HealthCheck { reply_to: reply_tx };
+
+                if sender.send(msg).await.is_err() {
+                    log::debug!("SSH pool shut down, stopping health check task");
+                    break;
+                }
+            }
+        })
     }
 
     async fn handle_message(&mut self, message: SshPoolMessage) {
@@ -394,13 +428,35 @@ impl SshPool {
                 let result = session
                     .exec(
                         self.handle(),
-                        channel,
+                        channel.clone(),
                         output_stream,
                         cancel_rx,
                         interpreter.as_str(),
                         command.as_str(),
                     )
                     .await;
+
+                // Handle exec failures - if the session failed, remove it from the pool
+                if let Err(ref e) = result {
+                    log::error!("SSH exec failed for {host}: {e}");
+                    let key = format!("{username}@{host}");
+
+                    // TODO: use a proper error enum
+                    let error_str = e.to_string().to_lowercase();
+                    if error_str.contains("timeout")
+                        || error_str.contains("connection")
+                        || error_str.contains("broken pipe")
+                    {
+                        log::debug!("Removing SSH connection due to connection error: {}", key);
+                        self.pool.connections.remove(&key);
+                    } else if let Some(session) = self.pool.connections.get(&key) {
+                        if !session.send_keepalive().await {
+                            log::debug!("Removing dead SSH connection after exec failure: {}", key);
+                            self.pool.connections.remove(&key);
+                        }
+                    }
+                }
+
                 if let Err(e) = reply_to.send(result) {
                     log::error!("Failed to send result to reply_to: {e:?}");
                 }
@@ -436,14 +492,16 @@ impl SshPool {
                     .connect(&host, Some(username.as_str()), None)
                     .await;
 
-                if let Err(e) = session {
-                    if let Err(e) = reply_to.send(Err(e)) {
-                        log::error!("Failed to send error to reply_to: {e:?}");
+                let session = match session {
+                    Ok(session) => session,
+                    Err(e) => {
+                        log::error!("Failed to connect to SSH host {}: {}", host, e);
+                        if let Err(e) = reply_to.send(Err(e)) {
+                            log::error!("Failed to send error to reply_to: {e:?}");
+                        }
+                        return;
                     }
-                    return;
-                }
-
-                let session = session.unwrap();
+                };
 
                 // Create a channel to send input to the pty
                 let (input_tx, input_rx) = mpsc::channel::<Bytes>(100);
@@ -475,13 +533,44 @@ impl SshPool {
                         output_stream,
                         cancel_rx,
                     )
-                    .await
-                {
+                    .await;
+
+                match pty_result {
                     Err(e) => {
                         log::error!("Failed to open PTY: {e:?}");
+
+                        // Check if connection is dead and remove it
+<<<<<<< HEAD
+                        let key = format!("{}@{}", username, host);
+                        // Check if the error indicates a connection issue and remove the connection
+=======
+                        let key = format!("{username}@{host}");
+
+                        // TODO: use a proper error enum
+>>>>>>> 61b5948 (one loop)
+                        let error_str = e.to_string().to_lowercase();
+                        if error_str.contains("timeout")
+                            || error_str.contains("connection")
+                            || error_str.contains("broken pipe")
+                        {
+                            log::debug!(
+                                "Removing SSH connection due to PTY connection error: {}",
+                                key
+                            );
+                            self.pool.connections.remove(&key);
+                        } else if let Some(session) = self.pool.connections.get(&key) {
+                            if !session.send_keepalive().await {
+                                log::debug!(
+                                    "Removing dead SSH connection after PTY failure: {}",
+                                    key
+                                );
+                                self.pool.connections.remove(&key);
+                            }
+                        }
+
                         let _ = reply_to.send(Err(e));
                     }
-                    _ => {
+                    Ok(_) => {
                         let _ = reply_to.send(Ok((input_tx, resize_tx)));
                     }
                 }
@@ -513,6 +602,43 @@ impl SshPool {
                 if let Some(meta) = self.channels.remove(&channel) {
                     let _ = meta.cancel_tx.send(());
                 }
+            }
+            SshPoolMessage::HealthCheck { reply_to } => {
+                let connection_count = self.pool.connections.len();
+                log::debug!(
+                    "Running SSH connection health check with keepalives on {} connections",
+                    connection_count
+                );
+                let mut dead_count = 0;
+
+                // Check all connections for liveness using actual keepalives
+                for (key, session) in &self.pool.connections {
+                    if !session.send_keepalive().await {
+<<<<<<< HEAD
+                        log::debug!("SSH keepalive failed for connection: {}", key);
+                        dead_connections.push(key.clone());
+=======
+                        log::debug!("SSH keepalive failed for connection: {key}");
+                        self.pool.connections.remove(&key);
+                        dead_count += 1;
+>>>>>>> 61b5948 (one loop)
+                    }
+                }
+
+                if dead_count > 0 {
+                    log::debug!(
+                        "Health check removed {} dead connections, {} remaining",
+                        dead_count,
+                        self.pool.connections.len()
+                    );
+                } else if connection_count > 0 {
+                    log::debug!(
+                        "Health check completed, all {} connections responded to keepalive",
+                        connection_count
+                    );
+                }
+
+                let _ = reply_to.send(Ok(()));
             }
         }
     }

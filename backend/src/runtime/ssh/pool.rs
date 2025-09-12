@@ -37,20 +37,29 @@ impl Pool {
         auth: Option<Authentication>,
     ) -> Result<Arc<Session>> {
         let username = username.unwrap_or("root");
+        let key = format!("{username}@{host}");
 
-        match self.get(host, username) {
-            Some(session) => Ok(session),
-            _ => {
-                let mut session = Session::open(host).await?;
-                session.authenticate(auth, Some(username)).await?;
-
-                let session = Arc::new(session);
-                let key = format!("{username}@{host}");
-                self.connections.insert(key, session.clone());
-
-                Ok(session)
+        // Check if we have an existing connection
+        if let Some(session) = self.get(host, username) {
+            // Test if the connection is still alive
+            if session.send_keepalive().await {
+                return Ok(session);
+            } else {
+                // Connection is dead, remove it from the pool
+                log::debug!("Removing dead SSH connection for {}", key);
+                self.connections.remove(&key);
             }
         }
+
+        // Create a new connection
+        log::debug!("Creating new SSH connection for {}", key);
+        let mut session = Session::open(host).await?;
+        session.authenticate(auth, Some(username)).await?;
+
+        let session = Arc::new(session);
+        self.connections.insert(key, session.clone());
+
+        Ok(session)
     }
 
     pub fn get(&self, host: &str, username: &str) -> Option<Arc<Session>> {

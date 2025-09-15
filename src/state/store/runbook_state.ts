@@ -15,6 +15,8 @@ export interface AtuinRunbookState {
   serialExecution: string | null;
   currentRunbookId: string | null;
   lastTagForRunbook: { [key: string]: string };
+  backgroundSync: boolean;
+  syncConcurrency: number;
 
   importRunbooks: () => Promise<string[]>;
   refreshRunbooks: () => Promise<void>;
@@ -27,12 +29,17 @@ export interface AtuinRunbookState {
 
   currentWorkspaceId: string;
   setCurrentWorkspaceId: (id: string) => void;
+
+  setBackgroundSync: (backgroundSync: boolean) => void;
+  setSyncConcurrency: (syncConcurrency: number) => void;
 }
 
 export const persistRunbookKeys: (keyof AtuinRunbookState)[] = [
   "currentRunbookId",
   "lastTagForRunbook",
   "currentWorkspaceId",
+  "backgroundSync",
+  "syncConcurrency",
 ];
 
 export const createRunbookState: StateCreator<AtuinRunbookState> = (
@@ -44,6 +51,8 @@ export const createRunbookState: StateCreator<AtuinRunbookState> = (
   currentRunbookId: null,
   lastTagForRunbook: {},
   serialExecution: null,
+  backgroundSync: true,
+  syncConcurrency: 1,
 
   importRunbooks: async (): Promise<string[]> => {
     let filePath = await open({
@@ -112,5 +121,13 @@ export const createRunbookState: StateCreator<AtuinRunbookState> = (
 
   setCurrentWorkspaceId: (id: string) => {
     set({ currentWorkspaceId: id });
+  },
+
+  setBackgroundSync: (backgroundSync: boolean) => {
+    set({ backgroundSync });
+  },
+
+  setSyncConcurrency: (syncConcurrency: number) => {
+    set({ syncConcurrency });
   },
 });

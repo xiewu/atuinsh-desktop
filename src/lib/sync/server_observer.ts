@@ -1,6 +1,6 @@
 import ServerNotificationManager from "@/server_notification_manager";
 import { UserOrg } from "@/state/models";
-import { AtuinStore } from "@/state/store";
+import { AtuinStore, useStore } from "@/state/store";
 import { SharedStateManager } from "../shared_state/manager";
 import { AtuinSharedStateAdapter } from "../shared_state/adapter";
 import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
@@ -17,7 +17,8 @@ import AppBus from "../app/app_bus";
 
 const USER_SYNC_INTERVAL = 1000 * 60 * 1;
 
-const queue = new AsyncQueue(5);
+const concurrency = useStore.getState().syncConcurrency;
+const queue = new AsyncQueue(concurrency);
 
 export default class ServerObserver {
   private readonly store: AtuinStore;
@@ -460,6 +461,11 @@ class OrgRunbookObserver {
   }
 
   private async syncRunbook(priority: number = 0) {
+    if (!useStore.getState().backgroundSync) {
+      this.logger.debug("Background sync is disabled, skipping");
+      return;
+    }
+
     if (this.syncing) {
       if (!this.isShutdown) {
         this.syncAfterSync = true;

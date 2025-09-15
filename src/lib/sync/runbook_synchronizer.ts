@@ -205,8 +205,12 @@ export default class RunbookSynchronizer {
         } else {
           this.logger.debug("YJS sync completed with type:", syncType);
           runbook.ydoc = Y.encodeStateAsUpdate(doc);
-          const blocks = await ydocToBlocknote(doc);
-          runbook.content = JSON.stringify(blocks);
+          try {
+            const blocks = await ydocToBlocknote(doc);
+            runbook.content = JSON.stringify(blocks);
+          } catch (err) {
+            this.logger.error("Failed to convert YJS document to BlockNote", err);
+          }
         }
       }
 

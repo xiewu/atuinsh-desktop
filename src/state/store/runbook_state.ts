@@ -51,8 +51,8 @@ export const createRunbookState: StateCreator<AtuinRunbookState> = (
   currentRunbookId: null,
   lastTagForRunbook: {},
   serialExecution: null,
-  backgroundSync: true,
-  syncConcurrency: 5,
+  backgroundSync: false,
+  syncConcurrency: 1,
 
   importRunbooks: async (): Promise<string[]> => {
     let filePath = await open({

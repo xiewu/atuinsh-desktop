@@ -134,7 +134,13 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
   });
 
   useEffect(() => {
+    if (useStore.getState().didSidebarSetup) {
+      setPendingWorkspaceMigration(false);
+      return;
+    }
+
     doWorkspaceSetup().then(() => {
+      useStore.setState({ didSidebarSetup: true });
       queryClient.invalidateQueries(userOwnedWorkspaces());
       setPendingWorkspaceMigration(false);
     });

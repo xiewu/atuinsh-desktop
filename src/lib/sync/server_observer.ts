@@ -14,6 +14,7 @@ import Runbook from "@/state/runbooks/runbook";
 import { ConnectionState } from "@/state/store/user_state";
 import { autobind } from "../decorators";
 import AppBus from "../app/app_bus";
+import { TabUri } from "@/state/store/ui_state";
 
 const USER_SYNC_INTERVAL = 1000 * 60 * 1;
 
@@ -374,9 +375,10 @@ class OrgWorkspaceObserver {
       await runbook.delete();
     }
 
-    if (this.store.getState().currentRunbookId === runbookId) {
-      this.store.setState({ currentRunbookId: null });
-    }
+    this.store.getState().closeTabs((tab) => {
+      const uri = new TabUri(tab.url);
+      return uri.isRunbook() && uri.getRunbookId() === runbookId;
+    });
   }
 }
 
@@ -494,7 +496,13 @@ class OrgRunbookObserver {
     try {
       const user = this.store.getState().user;
       const rbs = new RunbookSynchronizer(this.runbookId, this.workspaceId, user);
-      const result = await rbs.sync(this.runbookId !== this.store.getState().currentRunbookId);
+
+      const tabsMatch = this.store.getState().tabs.some((tab) => {
+        const uri = new TabUri(tab.url);
+        return uri.isRunbook() && uri.getRunbookId() === this.runbookId;
+      });
+
+      const result = await rbs.sync(!tabsMatch);
       if (result.action === "created") {
         // Hack to reset the editor, including the Phoenix Provider
         AppBus.get().emitResetEditor(this.runbookId);

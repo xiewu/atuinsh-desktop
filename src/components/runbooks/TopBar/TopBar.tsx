@@ -45,7 +45,8 @@ export default function Topbar(props: TopbarProps) {
   let runbook = props.runbook;
   let remoteRunbook = props.remoteRunbook;
   let serialExecution = useStore((state) => state.serialExecution);
-  let setSerialExecution = useStore((state) => state.setSerialExecution);
+  let startSerialExecution = useStore((state) => state.startSerialExecution);
+  let stopSerialExecution = useStore((state) => state.stopSerialExecution);
   let { data: workspace } = useQuery(workspaceById(runbook.workspaceId));
 
   let name: string;
@@ -207,15 +208,16 @@ export default function Topbar(props: TopbarProps) {
         </div>
         <PlayButton
           className="mt-1 ml-2"
-          isRunning={serialExecution === runbook.id}
+          isRunning={serialExecution.includes(runbook.id)}
+          disabled={serialExecution.length > 0 && !serialExecution.includes(runbook.id)}
           cancellable={true}
           onPlay={() => {
             track_event("runbooks.serial.execute");
             BlockBus.get().startWorkflow(runbook.id);
-            setSerialExecution(runbook.id);
+            startSerialExecution(runbook.id);
 
             const onStop = () => {
-              setSerialExecution(null);
+              stopSerialExecution(runbook.id);
               BlockBus.get().unsubscribeWorkflowFinished(runbook.id, onStop);
             };
 

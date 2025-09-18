@@ -11,7 +11,6 @@ import { Dialog, DialogContent, DialogPortal, DialogTitle } from "@/components/u
 import { type SearchResultItem } from "./data";
 
 import { AtuinState, useStore } from "@/state/store";
-import { useNavigate } from "react-router-dom";
 import { NotebookIcon } from "lucide-react";
 import RunbookIndexService from "@/state/runbooks/search";
 import { useQuery } from "@tanstack/react-query";
@@ -35,7 +34,6 @@ export default function CommandMenu(props: CommandMenuProps) {
   const currentWorkspaceId = useStore((store: AtuinState) => store.currentWorkspaceId);
   const setCurrentWorkspaceId = useStore((store: AtuinState) => store.setCurrentWorkspaceId);
   const [results, setResults] = useState<SearchResultItem[]>([]);
-  const navigate = useNavigate();
   const { activateRunbook } = useContext(RunbookContext);
 
   const onClose = useCallback(() => {
@@ -97,13 +95,12 @@ export default function CommandMenu(props: CommandMenuProps) {
     (item: SearchResultItem) => {
       onClose();
       setQuery("");
-      navigate("/runbooks");
       if (item.workspaceId) {
         setCurrentWorkspaceId(item.workspaceId);
       }
       activateRunbook(item.id);
     },
-    [onClose, navigate, setCurrentWorkspaceId, activateRunbook],
+    [onClose, setCurrentWorkspaceId, activateRunbook],
   );
 
   const renderSearchItem = useCallback(

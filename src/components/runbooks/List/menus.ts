@@ -3,7 +3,7 @@
 import { MenuBuilder, ItemBuilder, AtuinMenuItem } from "@/lib/menu_builder";
 import Workspace from "@/state/runbooks/workspace";
 import { ArboristNode, ArboristTree } from "@/state/runbooks/workspace_folders";
-import { MenuOptions } from "@tauri-apps/api/menu";
+import { Menu, MenuOptions } from "@tauri-apps/api/menu";
 
 type Handler = () => void;
 
@@ -344,6 +344,84 @@ export async function createRootMenu(actions: { onNewWorkspace: Handler }) {
         .text("New Workspace")
         .action(() => actions.onNewWorkspace())
         .accelerator("CmdOrCtrl+N"),
+    )
+    .build();
+
+  return menu;
+}
+
+export type TabMenuActions = {
+  type:
+    | "close_tab"
+    | "close_other_tabs"
+    | "close_left_tabs"
+    | "close_right_tabs"
+    | "undo_close_tab"
+    | "close_all_tabs";
+};
+
+export async function createTabMenu(callback: (action: TabMenuActions) => void): Promise<Menu> {
+  const menu = await new MenuBuilder()
+    .item(
+      new ItemBuilder()
+        .text("Close Tab")
+        .action(() => callback({ type: "close_tab" }))
+        .accelerator("CmdOrCtrl+W"),
+    )
+    .separator()
+    .item(
+      new ItemBuilder()
+        .text("Close All Tabs")
+        .action(() => callback({ type: "close_all_tabs" }))
+        .accelerator("CmdOrCtrl+Shift+W"),
+    )
+    .item(
+      new ItemBuilder()
+        .text("Close Other Tabs")
+        .action(() => callback({ type: "close_other_tabs" })),
+    )
+    .item(
+      new ItemBuilder()
+        .text("Close Tabs to the Left")
+        .action(() => callback({ type: "close_left_tabs" })),
+    )
+    .item(
+      new ItemBuilder()
+        .text("Close Tabs to the Right")
+        .action(() => callback({ type: "close_right_tabs" })),
+    )
+    .separator()
+    .item(
+      new ItemBuilder()
+        .text("Undo Close Tab")
+        .action(() => callback({ type: "undo_close_tab" }))
+        .accelerator("CmdOrCtrl+Shift+T"),
+    )
+    .build();
+
+  return menu;
+}
+
+export type TabBarMenuActions = {
+  type: "undo_close_tab" | "close_all_tabs";
+};
+
+export async function createTabBarMenu(
+  callback: (action: TabBarMenuActions) => void,
+): Promise<Menu> {
+  const menu = await new MenuBuilder()
+    .item(
+      new ItemBuilder()
+        .text("Close All Tabs")
+        .action(() => callback({ type: "close_all_tabs" }))
+        .accelerator("CmdOrCtrl+W"),
+    )
+    .separator()
+    .item(
+      new ItemBuilder()
+        .text("Undo Close Tab")
+        .action(() => callback({ type: "undo_close_tab" }))
+        .accelerator("CmdOrCtrl+Shift+T"),
     )
     .build();
 

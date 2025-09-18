@@ -27,6 +27,7 @@ import InterpreterSelector, {
   buildInterpreterCommand,
 } from "@/lib/blocks/common/InterpreterSelector.tsx";
 import RunbookBus from "@/lib/app/runbook_bus";
+import { useCurrentRunbookId } from "@/context/runbook_id_context";
 
 // Helper to parse and display option nicely
 const parseOption = (option: string) => {
@@ -262,7 +263,7 @@ const Dropdown = ({
   isEditable,
   onCodeMirrorFocus,
 }: DropdownProps) => {
-  const currentRunbookId = useStore((store) => store.currentRunbookId);
+  const currentRunbookId = useCurrentRunbookId();
   const [selected, setSelected] = useState(value);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [comboboxOpen, setComboboxOpen] = useState(false);

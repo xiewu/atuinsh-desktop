@@ -3,9 +3,8 @@ import useRemoteRunbook from "@/lib/useRemoteRunbook";
 import { usePtyStore } from "@/state/ptyStore";
 import { useStore } from "@/state/store";
 import Snapshot from "@/state/runbooks/snapshot";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useMemory } from "@/lib/utils";
-import { useCurrentRunbook } from "@/lib/useRunbook";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { timeoutPromise, useMemory } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "@/api/api";
 import { snapshotByRunbookAndTag, snapshotsByRunbook } from "@/lib/queries/snapshots";
@@ -18,6 +17,11 @@ import { DialogBuilder } from "@/components/Dialogs/dialog";
 import AppBus from "@/lib/app/app_bus";
 import { workspaceById } from "@/lib/queries/workspaces";
 import WorkspaceManager from "@/lib/workspaces/manager";
+import { runbookById } from "@/lib/queries/runbooks";
+import { useParams } from "react-router-dom";
+import { TabsContext } from "../root/Tabs";
+import RunbookIdContext from "@/context/runbook_id_context";
+import { invoke } from "@tauri-apps/api/core";
 
 const Editor = React.lazy(() => import("@/components/runbooks/editor/Editor"));
 const Topbar = React.lazy(() => import("@/components/runbooks/TopBar/TopBar"));
@@ -33,18 +37,23 @@ function useMarkRunbookRead(runbook: Runbook | null, refreshRunbooks: () => void
 }
 
 export default function Runbooks() {
+  const { runbookId } = useParams();
+
   const user = useStore((store) => store.user);
   const connectionState = useStore((store) => store.connectionState);
   const refreshRunbooks = useStore((store) => store.refreshRunbooks);
   const getLastTagForRunbook = useStore((store) => store.getLastTagForRunbook);
   const setLastTagForRunbook = useStore((store) => store.selectTag);
-  const currentRunbook = useCurrentRunbook();
+  const { data: currentRunbook } = useQuery(runbookById(runbookId));
   const { data: runbookWorkspace } = useQuery(workspaceById(currentRunbook?.workspaceId || null));
   const lastRunbookRef = useMemory(currentRunbook);
   const [presences, setPresences] = useState<PresenceUserInfo[]>([]);
   const [runbookEditor, setRunbookEditor] = useState<RunbookEditor | null>(null);
   const lastRunbookEditor = useRef<RunbookEditor | null>(runbookEditor);
   const serialExecution = useStore((store) => store.serialExecution);
+  const stopSerialExecution = useStore((store) => store.stopSerialExecution);
+  const { setTitle, tab } = useContext(TabsContext);
+  const registerTabOnClose = useStore((store) => store.registerTabOnClose);
 
   // Key used to re-render editor when making major changes to runbook
   const [editorKey, setEditorKey] = useState<boolean>(false);
@@ -55,6 +64,59 @@ export default function Runbooks() {
 
     return tag;
   });
+
+  useEffect(() => {
+    if (!tab || !currentRunbook) {
+      return;
+    }
+
+    return registerTabOnClose(tab.id, async () => {
+      const serialExecution = useStore.getState().serialExecution;
+
+      if (serialExecution.includes(currentRunbook.id)) {
+        const answer = await new DialogBuilder()
+          .title(`Cancel workflow execution?`)
+          .icon("question")
+          .message(
+            `You are currently executing a workflow in the Runbook "${currentRunbook.name}". Closing this tab will stop the workflow.`,
+          )
+          .action({
+            label: "Cancel",
+            value: "cancel",
+          })
+          .action({
+            label: "Stop and Close",
+            value: "ok",
+            color: "danger",
+          })
+          .build();
+
+        if (answer === "ok") {
+          try {
+            await invoke("workflow_stop", { id: currentRunbook.id });
+          } catch (error) {
+            console.error("Error stopping workflow", error);
+            return false;
+          }
+          await timeoutPromise(250, undefined);
+          stopSerialExecution(currentRunbook.id);
+          return true;
+        } else {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [currentRunbook?.id, tab?.id]);
+
+  useEffect(() => {
+    if (currentRunbook) {
+      setTitle(currentRunbook.name);
+    }
+  }, [currentRunbook?.name]);
+
+  useMarkRunbookRead(currentRunbook || null, refreshRunbooks);
 
   const listenPtyBackend = usePtyStore((state) => state.listenBackend);
   const unlistenPtyBackend = usePtyStore((state) => state.unlistenBackend);
@@ -152,8 +214,6 @@ export default function Runbooks() {
       setSelectedTag(tags[0]?.value || null);
     }
   }, [selectedTag, snapshots, tags, snapshotsFetching]);
-
-  useMarkRunbookRead(currentRunbook, refreshRunbooks);
 
   useEffect(() => {
     listenPtyBackend();
@@ -264,7 +324,7 @@ export default function Runbooks() {
   }, [currentRunbook?.id]);
 
   function handleShowTagMenu() {
-    if (serialExecution) {
+    if (currentRunbook && serialExecution.includes(currentRunbook.id)) {
       new DialogBuilder()
         .title("Cannot switch tags")
         .message("You cannot switch tags while a runbook is executing a workflow.")
@@ -327,49 +387,51 @@ export default function Runbooks() {
       (selectedTag == null && hasNoTags));
 
   return (
-    <div className="flex !w-full !max-w-full flex-row overflow-hidden">
-      {currentRunbook && readyToRender && (
-        <div className="flex w-full max-w-full overflow-hidden flex-col">
-          <Topbar
-            runbook={currentRunbook}
-            remoteRunbook={remoteRunbook || undefined}
-            tags={tags}
-            presences={presences}
-            showTagMenu={showTagMenu}
-            onOpenTagMenu={handleShowTagMenu}
-            onCloseTagMenu={() => setShowTagMenu(false)}
-            currentTag={selectedTag}
-            onSelectTag={handleSelectTag}
-            canEditTags={canEditTags}
-            canInviteCollaborators={!!canInviteCollabs}
-            onCreateTag={handleCreateTag}
-            onDeleteTag={handleDeleteTag}
-            onShareToHub={handleSharedToHub}
-            onDeleteFromHub={handleDeletedFromHub}
-          />
-          <Sentry.ErrorBoundary showDialog={false}>
-            {!hasNoTags && (
-              <Editor
-                key={editorKey ? "1" : "2"}
-                runbook={currentRunbook}
-                runbookEditor={runbookEditor}
-                editable={editable && selectedTag == "latest"}
-              />
-            )}
-            {hasNoTags && (
-              <div className="flex align-middle justify-center flex-col h-screen w-full">
-                <h1 className="text-center">This runbook has no published tags</h1>
-              </div>
-            )}
-          </Sentry.ErrorBoundary>
-        </div>
-      )}
+    <RunbookIdContext.Provider value={currentRunbook?.id || null}>
+      <div className="flex !w-full !max-w-full flex-row overflow-hidden h-full">
+        {currentRunbook && readyToRender && (
+          <div className="flex w-full max-w-full overflow-hidden flex-col">
+            <Topbar
+              runbook={currentRunbook}
+              remoteRunbook={remoteRunbook || undefined}
+              tags={tags}
+              presences={presences}
+              showTagMenu={showTagMenu}
+              onOpenTagMenu={handleShowTagMenu}
+              onCloseTagMenu={() => setShowTagMenu(false)}
+              currentTag={selectedTag}
+              onSelectTag={handleSelectTag}
+              canEditTags={canEditTags}
+              canInviteCollaborators={!!canInviteCollabs}
+              onCreateTag={handleCreateTag}
+              onDeleteTag={handleDeleteTag}
+              onShareToHub={handleSharedToHub}
+              onDeleteFromHub={handleDeletedFromHub}
+            />
+            <Sentry.ErrorBoundary showDialog={false}>
+              {!hasNoTags && (
+                <Editor
+                  key={editorKey ? "1" : "2"}
+                  runbook={currentRunbook}
+                  runbookEditor={runbookEditor}
+                  editable={editable && selectedTag == "latest"}
+                />
+              )}
+              {hasNoTags && (
+                <div className="flex align-middle justify-center flex-col h-screen w-full">
+                  <h1 className="text-center">This runbook has no published tags</h1>
+                </div>
+              )}
+            </Sentry.ErrorBoundary>
+          </div>
+        )}
 
-      {!currentRunbook && (
-        <div className="flex align-middle justify-center flex-col h-screen w-full">
-          <h1 className="text-center">Select or create a runbook</h1>
-        </div>
-      )}
-    </div>
+        {!currentRunbook && (
+          <div className="flex align-middle justify-center flex-col h-screen w-full">
+            <h1 className="text-center">Select or create a runbook</h1>
+          </div>
+        )}
+      </div>
+    </RunbookIdContext.Provider>
   );
 }

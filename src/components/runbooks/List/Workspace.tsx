@@ -5,7 +5,7 @@ import { JSX, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { NodeApi, TreeApi } from "react-arborist";
 import { useStore } from "@/state/store";
 import { createFolderMenu, createRunbookMenu, createWorkspaceMenu } from "./menus";
-import { cn, usePrevious } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
 import InlineInput from "./TreeView/InlineInput";
 import { SharedStateManager } from "@/lib/shared_state/manager";
@@ -21,12 +21,13 @@ import { localWorkspaceInfo } from "@/lib/queries/workspaces";
 import { WorkspaceRunbook } from "@/rs-bindings/WorkspaceRunbook";
 import { Button } from "@heroui/react";
 import ConvertWorkspaceDialog from "./ConvertWorkspaceDialog";
+import { useRunbook } from "@/lib/useRunbook";
+import { useCurrentTabRunbookId } from "@/lib/hooks/useCurrentTab";
 
 interface WorkspaceProps {
   workspace: Workspace;
   focused: boolean;
   sortBy: SortBy;
-  currentRunbookId: string | null;
   onActivateRunbook: (runbookId: string) => void;
   onStartCreateRunbook: (workspaceId: string, parentFolderId: string | null) => void;
   onStartCreateWorkspace: () => void;
@@ -212,15 +213,15 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
   const treeRef = useRef<TreeApi<TreeRowData> | null>(null);
   const [showConvertWorkspaceDialog, setShowConvertWorkspaceDialog] = useState(false);
 
-  const currentRunbookId = useStore((state) => state.currentRunbookId);
-  const lastRunbookId = usePrevious(currentRunbookId);
   const currentWorkspaceId = useStore((state) => state.currentWorkspaceId);
+  const currentTabRunbookId = useCurrentTabRunbookId();
+  const currentTabRunbook = useRunbook(currentTabRunbookId || undefined);
   const setCurrentWorkspaceId = useStore((state) => state.setCurrentWorkspaceId);
   const toggleFolder = useStore((state) => state.toggleFolder);
   const toggleWorkspaceVisibility = useStore((state) => state.toggleWorkspaceVisibility);
   const folderState = useStore((state) => state.folderState);
   const hiddenWorkspaces = useStore((state) => state.hiddenWorkspaces);
-  const [currentItemId, setCurrentItemId] = useState<string | null>(currentRunbookId);
+  const [currentItemId, setCurrentItemId] = useState<string | null>(null);
   const [workspaceNameState, dispatchWorkspaceName] = useReducer(workspaceNameReducer, {
     isEditing: false,
     newName: props.workspace.get("name")!,
@@ -272,15 +273,17 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
   }, [workspaceInfo, props.workspace.get("id")]);
 
   useEffect(() => {
-    // If the current runbook ID changes and we have the previous runbook selected, update the selection.
-    // Otherwise, keep the selection the same.
+    // If the current runbook ID changes, update the selection.
     if (!treeRef.current) return;
+    if (!currentTabRunbook) return;
+    if (currentTabRunbook.workspaceId !== props.workspace.get("id")) return;
 
-    const selection = [...treeRef.current!.selectedIds];
-    if (selection.length === 0 || (selection.length === 1 && selection[0] === lastRunbookId)) {
-      setCurrentItemId(currentRunbookId);
+    setCurrentItemId(currentTabRunbook.id);
+    const element = document.getElementById(`${currentTabRunbook.id}-runbook-tree-row`);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
-  }, [currentRunbookId, lastRunbookId]);
+  }, [currentTabRunbook?.id]);
 
   // ***** UTILITIES *****
 

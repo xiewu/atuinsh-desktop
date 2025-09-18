@@ -1,9 +1,9 @@
 // @ts-ignore
-import { createReactBlockSpec, useEditorChange, useEditorContentOrSelectionChange } from "@blocknote/react";
+import { createReactBlockSpec } from "@blocknote/react";
 
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 
-import { AtuinState, useStore } from "@/state/store.ts";
+import { useStore } from "@/state/store.ts";
 import { addToast, Button, Input, Tooltip } from "@heroui/react";
 import { FileTerminalIcon, Eye, EyeOff, TriangleAlertIcon } from "lucide-react";
 import EditableHeading from "@/components/EditableHeading/index.tsx";
@@ -38,6 +38,7 @@ import CodeEditor, { TabAutoComplete } from "@/lib/blocks/common/CodeEditor/Code
 import Block from "@/lib/blocks/common/Block.tsx";
 import InterpreterSelector, { buildInterpreterCommand, supportedShells } from "@/lib/blocks/common/InterpreterSelector.tsx";
 import { exportPropMatter } from "@/lib/utils";
+import { useCurrentRunbookId } from "@/context/runbook_id_context";
 
 interface ScriptBlockProps {
   onChange: (val: string) => void;
@@ -88,7 +89,7 @@ const ScriptBlock = ({
 
   const colorMode = useStore((state) => state.functionalColorMode);
   const terminalRef = useRef<HTMLDivElement>(null);
-  const [currentRunbookId] = useStore((store: AtuinState) => [store.currentRunbookId]);
+  const currentRunbookId = useCurrentRunbookId();
   const [parentBlock, setParentBlock] = useState<BlockType | null>(null);
   const channelRef = useRef<string | null>(null);
   const elementRef = useRef<HTMLDivElement>(null);

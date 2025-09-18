@@ -11,11 +11,11 @@ import { uuidv7 } from "uuidv7";
 import Logger from "./logger";
 import { Rc } from "@binarymuse/ts-stdlib";
 import welcome from "@/state/runbooks/welcome.json";
-import { SET_RUNBOOK_TAG } from "@/state/store/runbook_state";
 import { documentDir } from "@tauri-apps/api/path";
 import { exists, mkdir } from "@tauri-apps/plugin-fs";
 import { join } from "@tauri-apps/api/path";
 import { createWorkspace } from "./workspaces/commands";
+import { TabIcon } from "@/state/store/ui_state";
 
 const logger = new Logger("WorkspaceMigration");
 
@@ -33,7 +33,7 @@ export default async function doWorkspaceSetup(): Promise<void> {
     resolve = res;
   });
 
-  const { currentWorkspaceId, setCurrentWorkspaceId, setCurrentRunbookId } = useStore.getState();
+  const { currentWorkspaceId, setCurrentWorkspaceId } = useStore.getState();
 
   // Ensure at least one workspace exists
   const workspaces = await Workspace.all();
@@ -150,7 +150,7 @@ export default async function doWorkspaceSetup(): Promise<void> {
         return;
       }
 
-      setCurrentRunbookId(runbook.id, SET_RUNBOOK_TAG);
+      useStore.getState().openTab(`/runbook/${runbook.id}`, runbook.name, TabIcon.RUNBOOKS);
     }
 
     useStore.getState().refreshRunbooks();

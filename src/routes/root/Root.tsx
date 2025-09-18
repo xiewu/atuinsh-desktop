@@ -3,7 +3,6 @@ import "./Root.css";
 import debounce from "lodash.debounce";
 
 import { AtuinState, useStore } from "@/state/store";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { Toaster } from "@/components/ui/toaster";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
@@ -27,7 +26,7 @@ import {
   User,
 } from "@heroui/react";
 import { UnlistenFn } from "@tauri-apps/api/event";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ImperativePanelHandle } from "react-resizable-panels";
 import { isAppleDevice } from "@react-aria/utils";
 import { useTauriEvent } from "@/lib/tauri";
@@ -40,12 +39,18 @@ import type { ListApi } from "@/components/runbooks/List/List";
 import { KVStore } from "@/state/kv";
 import Runbook from "@/state/runbooks/runbook";
 import RunbookIndexService from "@/state/runbooks/search";
-import { MailPlusIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
+import {
+  ChartBarBigIcon,
+  HistoryIcon,
+  MailPlusIcon,
+  PanelLeftCloseIcon,
+  PanelLeftOpenIcon,
+  SettingsIcon,
+} from "lucide-react";
 import Workspace from "@/state/runbooks/workspace";
 import track_event from "@/tracking";
 import { invoke } from "@tauri-apps/api/core";
 import RunbookContext from "@/context/runbook_context";
-import { SET_RUNBOOK_TAG } from "@/state/store/runbook_state";
 import Operation, { moveItemsToNewWorkspace } from "@/state/runbooks/operation";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
 import WorkspaceSyncManager from "@/lib/sync/workspace_sync_manager";
@@ -55,7 +60,6 @@ import { SharedStateManager } from "@/lib/shared_state/manager";
 import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
 import { TraversalOrder } from "@/lib/tree";
 // import DevConsole from "@/lib/dev/dev_console";
-import Sidebar, { SidebarItem } from "@/components/Sidebar";
 import InviteFriendsModal from "./InviteFriendsModal";
 import AtuinEnv from "@/atuin_env";
 import { ConnectionState } from "@/state/store/user_state";
@@ -66,6 +70,8 @@ import { getWorkspaceStrategy } from "@/lib/workspaces/strategy";
 import { allWorkspaces } from "@/lib/queries/workspaces";
 import WorkspaceWatcher from "./WorkspaceWatcher";
 import WorkspaceManager from "@/lib/workspaces/manager";
+import Tabs from "./Tabs";
+import { TabIcon, TabUri } from "@/state/store/ui_state";
 
 const Onboarding = React.lazy(() => import("@/components/Onboarding/Onboarding"));
 const UpdateNotifier = React.lazy(() => import("./UpdateNotifier"));
@@ -113,20 +119,21 @@ function App() {
   const refreshRunbooks = useStore((state: AtuinState) => state.refreshRunbooks);
   const currentWorkspaceId = useStore((state: AtuinState) => state.currentWorkspaceId);
   const setCurrentWorkspaceId = useStore((state: AtuinState) => state.setCurrentWorkspaceId);
-  const setCurrentRunbookId = useStore((state: AtuinState) => state.setCurrentRunbookId);
-  const colorMode = useStore((state: AtuinState) => state.functionalColorMode);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showInviteFriends, setShowInviteFriends] = useState(false);
   const serialExecution = useStore((state: AtuinState) => state.serialExecution);
-  const currentRunbookId = useStore((state: AtuinState) => state.currentRunbookId);
-  const setSerialExecution = useStore((state: AtuinState) => state.setSerialExecution);
+  const stopSerialExecution = useStore((state: AtuinState) => state.stopSerialExecution);
   const [runbookIdToDelete, setRunbookIdToDelete] = useState<string | null>(null);
   const selectedOrg = useStore((state: AtuinState) => state.selectedOrg);
   const connectionState = useStore((state: AtuinState) => state.connectionState);
+  const currentTabId = useStore((state: AtuinState) => state.currentTabId);
+  const advanceActiveTab = useStore((state: AtuinState) => state.advanceActiveTab);
+  const openTab = useStore((state: AtuinState) => state.openTab);
+  const closeTab = useStore((state: AtuinState) => state.closeTab);
+  const closeTabs = useStore((state: AtuinState) => state.closeTabs);
+  const undoCloseTab = useStore((state: AtuinState) => state.undoCloseTab);
   const { data: workspaces } = useQuery(allWorkspaces());
 
-  const navigate = useNavigate();
-  const location = useLocation();
   const queryClient = useQueryClient();
   const user = useStore((state: AtuinState) => state.user);
   const isLoggedIn = useStore((state: AtuinState) => state.isLoggedIn);
@@ -139,7 +146,7 @@ function App() {
   let onOpenUrlListener = useRef<UnlistenFn | null>(null);
 
   function onSettingsOpen() {
-    navigate("/settings");
+    openTab("/settings", "Settings", TabIcon.SETTINGS);
   }
 
   useEffect(() => {
@@ -176,9 +183,22 @@ function App() {
     const onKeyDown = (e: KeyboardEvent) => {
       const hotkey = isAppleDevice() ? "metaKey" : "ctrlKey";
 
-      if (e?.key?.toLowerCase() === "," && e[hotkey]) {
+      if (e.key.toLowerCase() === "," && e[hotkey]) {
         e.preventDefault();
         onSettingsOpen();
+      } else if (e.key.toLowerCase() === "t" && e[hotkey] && e.shiftKey) {
+        undoCloseTab();
+      } else if (e.key.toLowerCase() === "w" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        if (currentTabId) {
+          closeTab(currentTabId);
+        }
+      } else if (e.key.toLowerCase() === "tab" && e.ctrlKey && !e.shiftKey) {
+        e.preventDefault();
+        advanceActiveTab(1);
+      } else if (e.key.toLowerCase() === "tab" && e.ctrlKey && e.shiftKey) {
+        e.preventDefault();
+        advanceActiveTab(-1);
       }
     };
 
@@ -187,18 +207,19 @@ function App() {
     return () => {
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, []);
+  }, [currentTabId]);
 
   useEffect(() => {
     const workspaceManager = WorkspaceManager.getInstance();
     const unsub = workspaceManager.onRunbookDeleted(async (runbookId) => {
-      if (runbookId === currentRunbookId) {
-        handleStopAndNavigate(null);
-      }
+      closeTabs((tab) => {
+        const uri = new TabUri(tab.url);
+        return uri.isRunbook() && uri.getRunbookId() === runbookId;
+      });
     });
 
     return unsub;
-  }, [currentRunbookId]);
+  }, [closeTabs]);
 
   async function doUpdateCheck() {
     // An available update will trigger a toast
@@ -255,7 +276,6 @@ function App() {
     track_event("workspace.create");
 
     setCurrentWorkspaceId(workspace.get("id")!);
-    navigate(`/runbooks`);
 
     listRef.current?.scrollWorkspaceIntoView(workspace.get("id")!);
   }
@@ -295,44 +315,6 @@ function App() {
     return () => {};
   }, []);
 
-  const navigation: SidebarItem[] = useMemo(
-    () => [
-      {
-        key: "personal",
-        title: "Personal",
-        items: [
-          {
-            key: "runbooks",
-            icon: "solar:notebook-linear",
-            title: "Runbooks",
-            onPress: () => {
-              navigate("/runbooks");
-            },
-          },
-
-          {
-            key: "history",
-            icon: "solar:history-outline",
-            title: "History",
-            onPress: () => {
-              navigate("/history");
-            },
-          },
-
-          {
-            key: "stats",
-            icon: "solar:chart-linear",
-            title: "Stats",
-            onPress: () => {
-              navigate("/stats");
-            },
-          },
-        ],
-      },
-    ],
-    [colorMode],
-  );
-
   async function logOut() {
     await api.clearHubApiToken();
     SocketManager.setApiToken(null);
@@ -364,48 +346,7 @@ function App() {
     }
   }
 
-  const handleRunbookActivate = async (runbookId: string | null) => {
-    if (serialExecution) {
-      const answer = await new DialogBuilder<"cancel" | "stop_and_navigate">()
-        .title("Stop Current Execution?")
-        .message(
-          "A runbook is currently being executed. Do you want to stop the execution and navigate to the selected runbook?",
-        )
-        .action({
-          label: "Cancel",
-          variant: "flat",
-          value: "cancel",
-        })
-        .action({
-          label: "Stop and Navigate",
-          color: "danger",
-          value: "stop_and_navigate",
-        })
-        .build();
-
-      if (answer === "stop_and_navigate") {
-        handleStopAndNavigate(runbookId);
-      }
-
-      return;
-    }
-
-    navigateToRunbook(runbookId);
-  };
-
-  const handleStopAndNavigate = async (newRunbookId: string | null) => {
-    if (serialExecution !== newRunbookId) {
-      await invoke("workflow_stop", { id: currentRunbookId });
-      setSerialExecution(null);
-    }
-
-    navigateToRunbook(newRunbookId);
-  };
-
   const navigateToRunbook = async (runbookId: string | null) => {
-    // Set runbook ID synchronously so that the observer doesn't try to sync
-    setCurrentRunbookId(runbookId, SET_RUNBOOK_TAG);
-
     let runbook: Runbook | null = null;
     if (runbookId) {
       runbook = await Runbook.load(runbookId);
@@ -417,12 +358,9 @@ function App() {
       });
     }
 
-    if (location.pathname !== "/runbooks") {
-      navigate("/runbooks");
-    }
     if (runbook) {
       setCurrentWorkspaceId(runbook.workspaceId);
-      listRef.current?.scrollWorkspaceIntoView(runbook.workspaceId);
+      openTab(`/runbook/${runbookId}`, undefined, TabIcon.RUNBOOKS);
     }
   };
 
@@ -437,8 +375,9 @@ function App() {
   };
 
   async function doDeleteRunbook(workspaceId: string, runbookId: string) {
-    if (serialExecution === runbookId) {
+    if (serialExecution.includes(runbookId)) {
       await invoke("workflow_stop", { id: runbookId });
+      stopSerialExecution(runbookId);
     }
 
     const workspace = await Workspace.get(workspaceId);
@@ -447,8 +386,6 @@ function App() {
       // TODO
       return;
     }
-
-    if (runbookId === currentRunbookId) handleRunbookActivate(null);
 
     const strategy = getWorkspaceStrategy(workspace);
     const result = await strategy.deleteRunbook(
@@ -470,6 +407,11 @@ function App() {
         .action({ label: "OK", value: "ok", variant: "flat" })
         .build();
     }
+
+    closeTabs((tab) => {
+      const uri = new TabUri(tab.url);
+      return uri.isRunbook() && uri.getRunbookId() === runbookId;
+    });
   }
 
   async function handleStartCreateRunbook(
@@ -480,7 +422,7 @@ function App() {
     if (!workspace) return Err("Workspace not found");
 
     const strategy = getWorkspaceStrategy(workspace);
-    const result = await strategy.createRunbook(parentFolderId, handleRunbookActivate);
+    const result = await strategy.createRunbook(parentFolderId, navigateToRunbook);
     if (result.isErr()) {
       let err = result.unwrapErr();
       let message = "Failed to create runbook";
@@ -872,11 +814,11 @@ function App() {
   return (
     <div
       className="flex w-screen dark:bg-default-50"
-      style={{ maxWidth: "100vw", height: "calc(100dvh - 2rem)" }}
+      style={{ maxWidth: "100vw", height: "100vh" }}
     >
       <RunbookContext.Provider
         value={{
-          activateRunbook: handleRunbookActivate,
+          activateRunbook: navigateToRunbook,
           promptDeleteRunbook: handlePromptDeleteRunbook,
           // runbookDeleted: doDeleteRunbook,
           // runbookCreated: handleRunbookCreated,
@@ -893,33 +835,76 @@ function App() {
         </>
 
         <div className="flex w-full">
-          <div className="relative flex flex-col !border-r-small border-divider transition-width pb-6 pt-4 items-center select-none">
-            <div className="flex items-center gap-0 px-3 justify-center">
+          <div
+            className="relative flex flex-col !border-r-small border-divider transition-width pb-6 pt-6 items-center select-none cursor-move"
+            data-tauri-drag-region
+          >
+            <div
+              className="flex items-center gap-0 px-3 justify-center"
+              style={{ pointerEvents: "none" }}
+            >
               <div className="flex h-8 w-8">
                 <img src={icon} alt="icon" className="h-8 w-8" />
               </div>
             </div>
 
-            <ScrollShadow className="-mr-6 h-full max-h-full pr-6 mt-2">
-              <Sidebar
-                defaultSelectedKey="home"
-                isCompact={true}
-                items={navigation}
-                className="z-50"
-              />
+            <ScrollShadow
+              className="ml-[-6px] h-full max-h-full mt-6 flex flex-col gap-2 items-center"
+              data-tauri-drag-region
+            >
+              {/* <Sidebar /> */}
 
-              <Tooltip content={sidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}>
+              <Tooltip content="History" placement="right">
+                <Button
+                  isIconOnly
+                  onPress={() => openTab("/history", "History", TabIcon.HISTORY)}
+                  size="md"
+                  variant="light"
+                  className="ml-2"
+                >
+                  <HistoryIcon size={24} className="stroke-gray-500" />
+                </Button>
+              </Tooltip>
+
+              <Tooltip content="Stats" placement="right">
+                <Button
+                  isIconOnly
+                  onPress={() => openTab("/stats", "Stats", TabIcon.STATS)}
+                  size="md"
+                  variant="light"
+                  className="ml-2"
+                >
+                  <ChartBarBigIcon size={24} className="stroke-gray-500" />
+                </Button>
+              </Tooltip>
+
+              <Tooltip content="Settings" placement="right">
+                <Button
+                  isIconOnly
+                  onPress={() => openTab("/settings", "Settings", TabIcon.SETTINGS)}
+                  size="md"
+                  variant="light"
+                  className="ml-2"
+                >
+                  <SettingsIcon size={24} className="stroke-gray-500" />
+                </Button>
+              </Tooltip>
+
+              <Tooltip
+                content={sidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
+                placement="right"
+              >
                 <Button
                   isIconOnly
                   onPress={handleSidebarToggle}
                   size="md"
                   variant="light"
-                  className="ml-2"
+                  className="ml-2 mt-6"
                 >
                   {sidebarOpen ? (
-                    <PanelLeftCloseIcon size={20} className="stroke-gray-500" />
+                    <PanelLeftCloseIcon size={24} className="stroke-gray-500" />
                   ) : (
-                    <PanelLeftOpenIcon size={20} className="stroke-gray-500" />
+                    <PanelLeftOpenIcon size={24} className="stroke-gray-500" />
                   )}
                 </Button>
               </Tooltip>
@@ -1055,7 +1040,7 @@ function App() {
             <ResizableHandle className={sidebarOpen ? "" : "hidden"} />
             <ResizablePanel defaultSize={sidebarOpen ? 75 : 100} minSize={60}>
               <div className="flex flex-col h-full overflow-y-auto">
-                <Outlet />
+                <Tabs />
               </div>
             </ResizablePanel>
           </ResizablePanelGroup>

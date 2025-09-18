@@ -6,7 +6,6 @@ import { createReactBlockSpec } from "@blocknote/react";
 import * as LanguageData from "@codemirror/language-data";
 import EditorBlockType from "@/lib/workflow/blocks/editor.ts";
 import track_event from "@/tracking";
-import { useStore } from "@/state/store";
 
 import CodeMirror, { Extension } from "@uiw/react-codemirror";
 
@@ -32,6 +31,7 @@ import { useCodeMirrorValue } from "@/lib/hooks/useCodeMirrorValue";
 import Block from "@/lib/blocks/common/Block";
 import { setTemplateVar } from "@/state/templates";
 import { exportPropMatter } from "@/lib/utils";
+import { useCurrentRunbookId } from "@/context/runbook_id_context";
 
 interface LanguageLoader {
   name: string;
@@ -243,7 +243,7 @@ export default createReactBlockSpec(
     },
     // @ts-ignore
     render: ({ block, editor, code, type }) => {
-      const { currentRunbookId } = useStore();
+      const currentRunbookId = useCurrentRunbookId();
 
       const handleCodeMirrorFocus = () => {
         // Ensure BlockNote knows which block contains the focused CodeMirror

@@ -4,10 +4,12 @@ import { BookLockIcon, BookPlusIcon, BookTextIcon, Terminal } from "lucide-react
 import { NodeRendererProps } from "react-arborist";
 import { useStore } from "@/state/store";
 import { usePtyStore } from "@/state/ptyStore";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { RemoteRunbook } from "@/state/models";
 import { useRunbook } from "@/lib/useRunbook";
 import { OnlineRunbook } from "@/state/runbooks/runbook";
+import { TabUri } from "@/state/store/ui_state";
+import { useCurrentTabRunbookId } from "@/lib/hooks/useCurrentTab";
 
 export interface RunbookRowData {
   type: "runbook";
@@ -25,8 +27,15 @@ export default function RunbookTreeRow(props: RunbookTreeRowProps) {
   const ptys = usePtyStore((state) => state.ptys);
   const count = Object.values(ptys).filter((pty) => pty.runbook === props.node.id).length;
   const sidebarClickStyle = useStore((state) => state.sidebarClickStyle);
-  const currentRunbookId = useStore((state) => state.currentRunbookId);
-  const isActive = currentRunbookId === props.node.id;
+  const tabs = useStore((state) => state.tabs);
+  const currentTabRunbookId = useCurrentTabRunbookId();
+  const isActive = currentTabRunbookId === props.node.id;
+  const isOpenInAnyTab = useMemo(() => {
+    return tabs.some((tab) => {
+      const uri = new TabUri(tab.url);
+      return uri.isRunbook() && uri.getRunbookId() === props.node.id;
+    });
+  }, [tabs, props.node.id]);
   const runbook = useRunbook(props.runbookId);
 
   let lastClick = useRef<number>(0);
@@ -120,10 +129,11 @@ export default function RunbookTreeRow(props: RunbookTreeRowProps) {
           "bg-blue-200 dark:bg-blue-800 border border-1 border-blue-200 hover:bg-blue-100 hover:dark:bg-blue-900":
             props.node.isSelected,
           "border border-1 border-blue-400": props.node.isSelectedEnd,
-          "bg-gray-100 dark:bg-gray-800": isActive,
+          "bg-gray-100 dark:bg-gray-800": isActive || isOpenInAnyTab,
           "bg-blue-200/50 dark:bg-blue-800/50": props.node.isSelected && isActive,
         },
       )}
+      id={`${props.node.data.id}-runbook-tree-row`}
     >
       <div className={cn("flex justify-between items-start ml-1", {})}>
         <h3

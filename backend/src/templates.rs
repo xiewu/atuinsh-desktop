@@ -22,16 +22,19 @@ pub fn flatten_document(doc: &[serde_json::Value]) -> Vec<serde_json::Value> {
     flattened
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PtyTemplateState {
     pub id: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RunbookTemplateState {
     pub id: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AtuinTemplateState {
     pub runbook: RunbookTemplateState,

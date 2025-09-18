@@ -10,9 +10,8 @@ import { init_tracking } from "./tracking";
 import track_event from "./tracking";
 
 import { event } from "@tauri-apps/api";
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import ReactDOM from "react-dom/client";
-import { createHashRouter, RouterProvider } from "react-router-dom";
 import { HeroUIProvider, ToastProvider } from "@heroui/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import "./styles.css";
@@ -23,12 +22,10 @@ import WorkspaceSyncManager from "./lib/sync/workspace_sync_manager";
 import { useStore } from "@/state/store";
 import ServerNotificationManager from "./server_notification_manager";
 import { trackOnlineStatus } from "./lib/online_tracker";
-import AtuinEnv from "./atuin_env";
 import { setupColorModes } from "./lib/color_modes";
 import { setupServerEvents } from "./lib/server_events";
 import { invoke } from "@tauri-apps/api/core";
 import debounce from "lodash.debounce";
-import { getGlobalOptions } from "./lib/global_options";
 import Workspace from "./state/runbooks/workspace";
 import { SharedStateManager } from "./lib/shared_state/manager";
 import { startup as startupOperationProcessor } from "./state/runbooks/operation_processor";
@@ -44,6 +41,7 @@ import EditorBus from "./lib/buses/editor";
 import BlockBus from "./lib/workflow/block_bus";
 import { generateBlocks } from "./lib/ai/block_generator";
 import WorkspaceManager from "./lib/workspaces/manager";
+import Root from "./routes/root/Root";
 
 (async () => {
   try {
@@ -130,45 +128,6 @@ trackOnlineStatus();
 socketManager.onConnect(() => trackOnlineStatus());
 socketManager.onDisconnect(() => trackOnlineStatus());
 
-const LazyRoot = React.lazy(() => import("@/routes/root/Root"));
-const LazyRunbooks = React.lazy(() => import("@/routes/runbooks/Runbooks"));
-const LazyHistory = React.lazy(() => import("@/routes/history/History"));
-const LazyStats = React.lazy(() => import("@/routes/stats/Stats"));
-const LazySettingsPanel = React.lazy(() => import("@/components/Settings/Settings"));
-
-const router = createHashRouter([
-  {
-    path: "/",
-    element: <LazyRoot />,
-    children: [
-      {
-        index: true,
-        element: <LazyRunbooks />,
-      },
-
-      {
-        path: "runbooks",
-        element: <LazyRunbooks />,
-      },
-
-      {
-        path: "history",
-        element: <LazyHistory />,
-      },
-
-      {
-        path: "stats",
-        element: <LazyStats />,
-      },
-
-      {
-        path: "settings",
-        element: <LazySettingsPanel />,
-      },
-    ],
-  },
-]);
-
 const debouncedSaveWindowInfo = debounce(async () => {
   invoke("save_window_info");
 }, 500);
@@ -178,7 +137,6 @@ event.listen("tauri://resize", debouncedSaveWindowInfo);
 
 function Application() {
   const { refreshUser, refreshCollaborations, online, user } = useStore();
-  const globalOptions = getGlobalOptions();
 
   useEffect(() => {
     if (online) {
@@ -201,20 +159,8 @@ function Application() {
       <ToastProvider placement="bottom-center" toastOffset={40} />
       <QueryClientProvider client={queryClient}>
         <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
-        <main className="text-foreground bg-background overflow-hidden">
-          {AtuinEnv.isProd && globalOptions.customTitleBar && (
-            <div data-tauri-drag-region className="w-full min-h-8 z-10 border-b-1" />
-          )}
-          {AtuinEnv.isDev && globalOptions.customTitleBar && (
-            <div
-              data-tauri-drag-region
-              className="w-full min-h-8 z-10 border-b-1 bg-striped dark:bg-dark-striped bg-[length:7px_7px]"
-            />
-          )}
-
-          <div className="z-20 relative">
-            <RouterProvider router={router} />
-          </div>
+        <main className="text-foreground bg-background overflow-hidden z-20 relative">
+          <Root />
         </main>
       </QueryClientProvider>
     </HeroUIProvider>

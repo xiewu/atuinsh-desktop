@@ -38,6 +38,7 @@ import { findAllParentsOfType, findFirstParentOfType, getCurrentDirectory } from
 import Block from "../common/Block.tsx";
 import { default as BlockType } from "@/lib/workflow/blocks/block.ts";
 import PlayButton from "../common/PlayButton.tsx";
+import { useCurrentRunbookId } from "@/context/runbook_id_context.ts";
 
 interface RunBlockProps {
   onChange: (val: string) => void;
@@ -99,7 +100,7 @@ export const RunBlock = ({
   // we write to it.
   const [firstOpen, setFirstOpen] = useState<boolean>(false);
 
-  const [currentRunbookId] = useStore((store: AtuinState) => [store.currentRunbookId]);
+  const currentRunbookId = useCurrentRunbookId();
 
   const pty = usePtyStore((store) => store.ptyForBlock(terminal.id));
   const [sshParent, setSshParent] = useState<any | null>(null);

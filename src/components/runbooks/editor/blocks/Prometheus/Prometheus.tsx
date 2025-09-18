@@ -28,7 +28,6 @@ import { PromLineChart } from "./lineChart";
 import PromSettings, { PrometheusConfig } from "./promSettings";
 import { Settings } from "@/state/settings";
 import { templateString } from "@/state/templates";
-import { useStore } from "@/state/store";
 import { logExecution } from "@/lib/exec_log";
 import { PrometheusBlock as PrometheusBlockType } from "@/lib/workflow/blocks/prometheus";
 import { DependencySpec } from "@/lib/workflow/dependency";
@@ -41,6 +40,7 @@ import ErrorCard from "@/lib/blocks/common/ErrorCard";
 import PlayButton from "@/lib/blocks/common/PlayButton";
 import Block from "@/lib/blocks/common/Block";
 import { exportPropMatter } from "@/lib/utils";
+import { useCurrentRunbookId } from "@/context/runbook_id_context";
 
 interface PromProps {
   setName: (name: string) => void;
@@ -110,7 +110,7 @@ const Prometheus = ({
   setDependency,
 }: PromProps) => {
   let editor = useBlockNoteEditor();
-  const currentRunbookId = useStore((state) => state.currentRunbookId);
+  const currentRunbookId = useCurrentRunbookId();
 
   const [value, setValue] = useState<string>(prometheus.query);
   const [data, setData] = useState<any[]>([]);

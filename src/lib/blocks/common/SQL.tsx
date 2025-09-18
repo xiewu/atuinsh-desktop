@@ -39,7 +39,6 @@ import MaskedInput from "@/components/MaskedInput/MaskedInput";
 import Block from "./Block";
 import { templateString } from "@/state/templates";
 import { useBlockNoteEditor } from "@blocknote/react";
-import { AtuinState, useStore } from "@/state/store";
 import { cn, toSnakeCase } from "@/lib/utils";
 import { logExecution } from "@/lib/exec_log";
 import { DependencySpec } from "@/lib/workflow/dependency";
@@ -48,6 +47,7 @@ import BlockBus from "@/lib/workflow/block_bus";
 import useCodemirrorTheme from "@/lib/hooks/useCodemirrorTheme";
 import { useCodeMirrorValue } from "@/lib/hooks/useCodeMirrorValue";
 import EditableHeading from "@/components/EditableHeading/index";
+import { useCurrentRunbookId } from "@/context/runbook_id_context";
 
 interface SQLProps {
   id: string;
@@ -116,7 +116,7 @@ const SQL = ({
   >([]);
 
   const [error, setError] = useState<string | null>(null);
-  const [currentRunbookId] = useStore((store: AtuinState) => [store.currentRunbookId]);
+  const currentRunbookId = useCurrentRunbookId();
   const elementRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [isFullscreenQueryCollapsed, setIsFullscreenQueryCollapsed] = useState<boolean>(false);

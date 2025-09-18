@@ -54,6 +54,7 @@ export interface AtuinUiState {
   sidebarOpen: boolean;
   sidebarClickStyle: "link" | "explorer";
   lastSidebarDragInfo: { itemIds: string[]; sourceWorkspaceId: string } | undefined;
+  didSidebarSetup: boolean;
 
   tabs: Tab[];
   currentTabId: string | null;
@@ -137,6 +138,7 @@ export const createUiState: StateCreator<AtuinUiState> = (set, get, _store): Atu
   sidebarOpen: true,
   sidebarClickStyle: "link",
   lastSidebarDragInfo: undefined,
+  didSidebarSetup: false,
 
   tabs: [],
   currentTabId: null,

@@ -12,6 +12,7 @@ extra:
 nav:
   - "Home": index.md
   - "Getting Started": getting-started.md
+  - "Workspaces": workspaces.md
   - "Templating": templating.md
   - "Secrets": secrets.md
   - "Blocks":
@@ -40,8 +41,8 @@ nav:
           - "SSH": blocks/network/ssh.md
   - "Atuin Hub":
       - hub/getting-started.md
-      - "Collaborative Editing": hub/collaborative-editing.md
       - "Sharing Runbooks": hub/sharing-runbooks.md
+      - "Collaborative Editing": hub/collaborative-editing.md
 
 theme:
   logo: ./images/icon.svg

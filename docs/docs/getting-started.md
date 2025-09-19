@@ -1,21 +1,87 @@
-# Runbook Basics
+# :material-rocket-launch: Getting Started with Atuin Desktop
 
-A runbook is just a document. It can be as simple as a plain-text guide explaining how to restart a service or a fully automated workflow requiring minimal human input.
+Welcome to Atuin Desktop! This guide will help you understand runbooks and get you up and running quickly.
 
-You can start with plain English and evolve from there. Maybe it’s a simple checklist for junior engineers, or maybe it’s a fully automated disaster recovery plan with embedded scripts and API calls.&#x20;
+## What are Runbooks?
 
-Runbooks adapt to your workflow, not the other way around.
+A runbook is a living document that combines documentation with executable automation. Think of it as your operations playbook that can actually *do* things, not just tell you what to do.
 
-### Markdown
+Start with plain English and evolve your runbooks over time - from simple checklists and documentation, to workflows mixing manual steps with automated scripts, all the way to fully automated processes requiring minimal human intervention.
 
-Our editor supports most Markdown syntax
+Runbooks adapt to your workflow, not the other way around. Whether you're documenting incident response procedures, deployment workflows, or system maintenance tasks, Atuin Desktop scales with your needs.
 
-### Runbook name
+## :material-file-document: Creating Your First Runbook
 
-The name of the Runbook will always be the first text in the document - this could be a heading, or a paragraph.
+### Runbook Structure
 
-### Blocks
+Every runbook starts with a **name** - this is simply the first text in your document, whether it's a heading or paragraph:
 
-To create a new block, type `/`
+```markdown
+# Database Maintenance Workflow
+```
 
-We support a large number of blocks, built as an abstraction on top of your shell
+or
+
+```markdown
+This runbook handles our weekly database cleanup tasks.
+```
+
+### :material-language-markdown: Markdown Support  
+
+Our editor supports most standard Markdown syntax, so you can create rich documentation alongside your executable blocks:
+
+- **Headers** for organization
+- **Lists** for checklists  
+- **Code blocks** for examples
+- **Links** for references
+- **Tables** for structured data
+
+## :material-cube: Working with Blocks
+
+Blocks are the heart of Atuin Desktop - they're interactive components that can execute commands, query databases, make HTTP requests, and much more.
+
+### Creating Blocks
+
+To create a new block, simply type `/` anywhere in your runbook. This opens the block picker where you can choose from our extensive library of blocks organized into categories:
+
+- **:material-play: Executable**: Scripts, terminals, and command execution
+- **:material-database: Databases**: Query MySQL, PostgreSQL, ClickHouse, SQLite
+- **:material-network: Network**: HTTP requests, SSH connections  
+- **:material-monitor: Monitoring**: Prometheus metrics and system monitoring
+
+### Template Variables
+
+Make your runbooks dynamic with template variables:
+
+```handlebars
+{{var.environment}} - References a variable named "environment"
+{{env.DATABASE_URL}} - References an environment variable
+```
+
+For example, you can create flexible database queries:
+
+```sql
+SELECT * FROM users 
+WHERE created_at > '{{var.start_date}}'
+AND status = '{{var.user_status}}';
+```
+
+## :material-play: Serial Execution
+
+One of Atuin Desktop's most powerful features is **serial execution** - run your entire runbook automatically by clicking the play button in the top right.
+
+!!! warning "Terminal Block Caveat"
+    Terminal blocks must explicitly exit (include `exit` in your commands) for serial execution to continue automatically.
+
+## Next Steps
+
+Ready to dive deeper? Explore our comprehensive block documentation:
+
+- [All Blocks Overview](blocks/index.md) - Understand how blocks work and fit together
+- [Database Blocks](blocks/databases/index.md) - Connect to and query databases
+- [Executable Blocks](blocks/executable/README.md) - Run scripts and commands  
+- [Network Blocks](blocks/network/README.md) - Make HTTP requests and SSH connections
+- [Templating System](templating.md) - Create dynamic, reusable runbooks
+- [Secrets Management](secrets.md) - Handle credentials securely
+
+You now have everything you need to create your first runbook. Start simple with some documentation and a few blocks, then gradually add more automation as you become comfortable with the system.

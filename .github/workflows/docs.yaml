@@ -5,6 +5,7 @@ on:
       - main
     paths:
       - "docs/**"
+      - ".github/workflows/docs.yaml"
   workflow_dispatch:
 
 permissions:
@@ -31,10 +32,14 @@ jobs:
         run: uv python install 3.12
 
       - name: Install dependencies
-        run: uv pip install -r ./docs/requirements.txt
+        run: |
+          cd docs
+          uv sync
 
       - name: Build and deploy MkDocs
-        run: mkdocs gh-deploy --config-file docs/mkdocs.yml --force
+        run: |
+          cd docs
+          uv run mkdocs gh-deploy --force
 
   deploy_mkdocs:
     needs: build_mkdocs

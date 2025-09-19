@@ -1,3 +1,7 @@
+---
+description: Share runbooks to Atuin Hub with public, unlisted, or private visibility.
+---
+
 # Sharing Runbooks
 
 Once you're [logged in](getting-started.md) in the Desktop app, you can share any Runbook to Atuin Hub using the share button at the top-right corner of the app. Choose a slug which will become part of the Runbook's URL, and the visibility you want the Runbook to have.

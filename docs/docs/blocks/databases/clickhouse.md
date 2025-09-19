@@ -1,3 +1,7 @@
+---
+description: Connect to ClickHouse databases for real-time analytics queries and time-series analysis over large datasets via HTTP interface
+---
+
 # :simple-clickhouse: ClickHouse
 
 The ClickHouse block allows you to connect to ClickHouse databases and execute queries directly within your runbook.

@@ -1,3 +1,7 @@
+---
+description: Create dynamic, reusable runbooks with MiniJinja templating system.
+---
+
 # Templating
 
 #### **Templates**

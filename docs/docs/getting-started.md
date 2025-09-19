@@ -1,3 +1,7 @@
+---
+description: Create your first executable runbook with blocks, templating, and serial execution.
+---
+
 # :material-rocket-launch: Getting Started with Atuin Desktop
 
 Welcome to Atuin Desktop! This guide will help you understand runbooks and get you up and running quickly.

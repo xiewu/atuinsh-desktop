@@ -1,3 +1,7 @@
+---
+description: Query MySQL databases, and render the results in a runbook
+---
+
 # :simple-mysql: MySQL
 
 The MySQL block allows you to connect to MySQL databases and execute queries directly within your runbook.

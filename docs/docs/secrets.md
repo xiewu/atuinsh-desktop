@@ -1,3 +1,7 @@
+---
+description: Integrate third-party secrets management solutions using executable blocks.
+---
+
 # Secrets
 
 We don't currently have any native integration for secrets storage and management.

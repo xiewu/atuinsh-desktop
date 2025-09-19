@@ -1,3 +1,7 @@
+---
+description: Register for Atuin Hub and connect your Desktop app to share runbooks.
+---
+
 # Getting Started
 
 [Atuin Hub](https://hub.atuin.sh/) (also referred to as "the Hub") is the a website for sharing and collaborating on Runbooks. To get started, register at [https://hub.atuin.sh](https://hub.atuin.sh/) using a username and password, or one of our third-party auth providers.

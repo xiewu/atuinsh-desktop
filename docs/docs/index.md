@@ -1,3 +1,7 @@
+---
+description: Transform operational workflows into collaborative runbooks that execute database queries, API calls, and scripts.
+---
+
 # :material-home: Welcome to Atuin Desktop
 
 Transform your operational workflows from scattered terminal commands into powerful, collaborative runbooks that actually execute.

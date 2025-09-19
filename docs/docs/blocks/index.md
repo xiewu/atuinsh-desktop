@@ -1,3 +1,7 @@
+---
+description: Interactive components that make runbooks executable with database, script, network, and monitoring blocks.
+---
+
 # :material-cube: Blocks
 
 Blocks are the interactive building components that make Atuin Desktop runbooks come alive. They're executable elements designed specifically for operations and automation workflows.

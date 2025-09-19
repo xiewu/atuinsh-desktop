@@ -1,3 +1,7 @@
+---
+description: Connect to local SQLite database files and execute SQL queries
+---
+
 # :simple-sqlite: SQLite
 
 The SQLite block allows you to connect to SQLite databases and execute queries directly within your runbook.

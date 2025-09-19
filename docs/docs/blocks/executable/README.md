@@ -1,3 +1,7 @@
+---
+description: Run scripts, terminal commands, and manage environments with serial execution support.
+---
+
 # :material-play: Executable Blocks
 
 Runbooks support a number of executable blocks. These blocks allow you to run scripts on your local machine, and are the building blocks of most workflows.

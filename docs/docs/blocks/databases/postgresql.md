@@ -1,3 +1,7 @@
+---
+description: Query Postgresql databases, and render the results in a runbook
+---
+
 # :simple-postgresql: PostgreSQL
 
 The PostgreSQL block allows you to connect to PostgreSQL databases and execute queries directly within your runbook.

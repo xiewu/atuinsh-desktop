@@ -1,3 +1,7 @@
+---
+description: Real-time collaborative editing on published runbooks with invited collaborators.
+---
+
 # Collaborative Editing
 
 The Desktop app supports real-time collaborative editing. Once you've [published your Runbook to Atuin Hub](sharing-runbooks.md), you can invite users to collaborate using the same sharing menu.

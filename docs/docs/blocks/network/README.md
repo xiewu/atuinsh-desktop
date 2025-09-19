@@ -1,3 +1,7 @@
+---
+description: Make HTTP requests and SSH connections to remote systems and APIs.
+---
+
 # :material-network: Network Blocks
 
 Network blocks make exploring external systems and services easy. These blocks help you interact with remote services, APIs, and systems over the network.

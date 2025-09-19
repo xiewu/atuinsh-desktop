@@ -1,0 +1,13 @@
+site_name: Atuin Desktop Docs
+site_url: https://man.atuin.sh
+theme:
+  name: material
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.blocks.caption
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.inlinehilite

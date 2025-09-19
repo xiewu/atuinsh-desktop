@@ -34,7 +34,7 @@ export default class WorkspaceManager {
       );
     } else {
       if (this.workspaces.has(workspace.get("id")!)) {
-        throw new Error("Workspace already being watched");
+        await this.unwatchWorkspace(workspace);
       }
 
       await watchWorkspace(workspace.get("folder")!, workspace.get("id")!, async (event) => {
@@ -88,7 +88,8 @@ export default class WorkspaceManager {
       SharedStateManager.stopInstance(`workspace-folder:${workspace.get("id")}`);
     } else {
       if (!this.workspaces.has(workspace.get("id")!)) {
-        throw new Error("Workspace not being watched");
+        console.warn("Workspace not being watched", workspace.get("id")!);
+        return;
       }
 
       await unwatchWorkspace(workspace.get("id")!);

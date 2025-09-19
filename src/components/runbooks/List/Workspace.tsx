@@ -23,6 +23,8 @@ import { Button } from "@heroui/react";
 import ConvertWorkspaceDialog from "./ConvertWorkspaceDialog";
 import { useRunbook } from "@/lib/useRunbook";
 import { useCurrentTabRunbookId } from "@/lib/hooks/useCurrentTab";
+import { open } from "@tauri-apps/plugin-dialog";
+import * as commands from "@/lib/workspaces/commands";
 
 interface WorkspaceProps {
   workspace: Workspace;
@@ -88,7 +90,6 @@ function transformDirEntriesToArboristTree(
   basePath: string,
   runbooks: { [key in string]?: WorkspaceRunbook },
 ): ArboristTree {
-  console.log("Transforming dir entries to arborist tree", entries, basePath);
   entries = entries.filter((entry) => {
     if (entry.is_dir) {
       return true;
@@ -233,7 +234,6 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
   }, [workspaceInfo]);
 
   const [workspaceFolder, doFolderOp] = useWorkspaceFolder(props.workspace.get("id")!);
-  console.log("workspaceFolder", workspaceFolder);
 
   const arboristData = useMemo(() => {
     if (props.workspace.isOnline() || props.workspace.isLegacyHybrid()) {
@@ -251,7 +251,6 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
       );
     }
   }, [workspaceFolder, workspaceInfo]);
-  console.log("abd", arboristData);
 
   useEffect(() => {
     // Update offline workspaces from the FS info
@@ -557,7 +556,6 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
 
     focusWorkspace();
 
-    console.log(props.workspace);
     if (props.workspace.isLegacyHybrid()) {
       return;
     }
@@ -745,6 +743,40 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     },
   }));
 
+  async function handleLocateWorkspace() {
+    const folder = await open({
+      directory: true,
+    });
+
+    if (!folder) {
+      return;
+    }
+
+    const id = await commands.getWorkspaceIdByFolder(folder);
+    if (id.isOk() && id.unwrap() === props.workspace.get("id")!) {
+      props.workspace.set("folder", folder);
+      props.workspace.save();
+    } else if (!id.isOk()) {
+      let err = id.unwrapErr();
+      let message = "An unknown error occurred while reading the directory.";
+      if ("message" in err.data) {
+        message = err.data.message;
+      }
+
+      await new DialogBuilder()
+        .title("Error reading directory")
+        .message(message)
+        .action({ label: "OK", value: "ok" })
+        .build();
+    } else if (id.isOk() && id.unwrap() !== props.workspace.get("id")!) {
+      await new DialogBuilder()
+        .title("Workspace IDs do not match")
+        .message("The workspace in the selected folder does not match the existing workspace ID.")
+        .action({ label: "OK", value: "ok" })
+        .build();
+    }
+  }
+
   function showWorkspaceError(errorType: string, errorText: string, helpText?: string) {
     new DialogBuilder()
       .title(errorType)
@@ -793,19 +825,43 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
         errorText = `An unknown error occurred: ${error.data.message}`;
     }
 
-    errorElem = (
-      <div
-        className="border rounded-md w-full p-3 flex gap-2 cursor-pointer"
-        onClick={() => showWorkspaceError(errorType, errorText, helpText)}
-      >
-        <div>
-          <CircleAlertIcon className="w-8 h-8 stroke-gray-500 dark:stroke-gray-400" />
+    if (error.type === "WorkspaceReadError") {
+      errorElem = (
+        <div className="flex flex-col gap-2 items-center mb-2">
+          <div
+            className="border rounded-md w-full p-3 flex gap-2 cursor-pointer"
+            onClick={() => showWorkspaceError(errorType, errorText, helpText)}
+          >
+            <div>
+              <CircleAlertIcon className="w-8 h-8 stroke-gray-500 dark:stroke-gray-400" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              The workspace folder could not be read. If the workspace directory has changed, you
+              can locate the workspace folder to continue.
+            </p>
+          </div>
+          <div>
+            <Button variant="flat" size="sm" color="primary" onPress={handleLocateWorkspace}>
+              Locate Workspace
+            </Button>
+          </div>
         </div>
-        <p className="text-sm text-muted-foreground">
-          There is an error with this workspace. Click to see more information.
-        </p>
-      </div>
-    );
+      );
+    } else {
+      errorElem = (
+        <div
+          className="border rounded-md w-full p-3 flex gap-2 cursor-pointer"
+          onClick={() => showWorkspaceError(errorType, errorText, helpText)}
+        >
+          <div>
+            <CircleAlertIcon className="w-8 h-8 stroke-gray-500 dark:stroke-gray-400" />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            There is an error with this workspace. Click to see more information.
+          </p>
+        </div>
+      );
+    }
   }
 
   let migrationElem = <></>;

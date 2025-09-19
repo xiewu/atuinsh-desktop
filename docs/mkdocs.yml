@@ -6,6 +6,9 @@ repo_name: atuinsh/desktop
 repo_url: https://github.com/atuinsh/desktop
 edit_uri: edit/main/docs/docs/
 
+extra:
+  homepage: https://atuin.sh
+
 nav:
   - "Home": index.md
   - "Getting Started": getting-started.md
@@ -41,6 +44,7 @@ nav:
       - "Sharing Runbooks": hub/sharing-runbooks.md
 
 theme:
+  logo: ./images/icon.svg
   name: material
   features:
     - navigation.sections
@@ -49,7 +53,7 @@ theme:
     - content.action.view
   palette:
     - scheme: default
-      primary: indigo
+      primary: blue-grey
       accent: indigo
       toggle:
         icon: material/brightness-7

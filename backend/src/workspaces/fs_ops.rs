@@ -293,6 +293,17 @@ impl FsOps {
         Ok(())
     }
 
+    pub async fn get_workspace_config_by_folder(
+        folder: impl AsRef<Path>,
+    ) -> Result<WorkspaceConfig, FsOpsError> {
+        let config_path = folder.as_ref().join("atuin.toml");
+        if !config_path.exists() {
+            return Err(FsOpsError::FileMissingError("atuin.toml".to_string()));
+        }
+        let config = WorkspaceConfig::from_file(config_path).await?;
+        Ok(config)
+    }
+
     pub async fn run(&mut self, mut rx: Receiver<FsOpsInstruction>) {
         while let Some(instruction) = rx.recv().await {
             match instruction {

@@ -64,6 +64,12 @@ export async function renameWorkspace(
   return promiseResult<undefined, WorkspaceError>(invoke("rename_workspace", { id, name }));
 }
 
+export async function getWorkspaceIdByFolder(
+  folder: string,
+): Promise<Result<string, WorkspaceError>> {
+  return promiseResult<string, WorkspaceError>(invoke("get_workspace_id_by_folder", { folder }));
+}
+
 export async function getWorkspaceInfo(
   workspace: Workspace,
 ): Promise<Result<WorkspaceDirInfo, WorkspaceError>> {

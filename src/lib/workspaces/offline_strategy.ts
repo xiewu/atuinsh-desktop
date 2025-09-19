@@ -102,6 +102,11 @@ export default class OfflineStrategy implements WorkspaceStrategy {
       const type = error.unwrap().type;
       switch (type) {
         case "not_empty":
+          if (this.workspace.get("id")) {
+            // We'll be opening this existing workspace, so no need to prompt.
+            break;
+          }
+
           const notEmptyAnswer = await new DialogBuilder()
             .title("Selected directory is not empty")
             .icon("warning")

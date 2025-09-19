@@ -72,6 +72,7 @@ import WorkspaceWatcher from "./WorkspaceWatcher";
 import WorkspaceManager from "@/lib/workspaces/manager";
 import Tabs from "./Tabs";
 import { TabIcon, TabUri } from "@/state/store/ui_state";
+import * as commands from "@/lib/workspaces/commands";
 
 const Onboarding = React.lazy(() => import("@/components/Onboarding/Onboarding"));
 const UpdateNotifier = React.lazy(() => import("./UpdateNotifier"));
@@ -246,7 +247,29 @@ function App() {
   }
 
   async function createNewWorkspace(name: string, online: boolean, folder: Option<string>) {
+    let maybeExistingLocalWorkspaceId = undefined;
+    if (folder.isSome() && !online) {
+      const result = await commands.getWorkspaceIdByFolder(folder.unwrap());
+      if (result.isOk()) {
+        maybeExistingLocalWorkspaceId = result.unwrap();
+      }
+    }
+
+    if (maybeExistingLocalWorkspaceId) {
+      const workspace = await Workspace.get(maybeExistingLocalWorkspaceId);
+      if (workspace) {
+        await new DialogBuilder()
+          .title("Workspace already exists")
+          .icon("error")
+          .message("The workspace in the selected folder has already been added to Atuin Desktop.")
+          .action({ label: "OK", value: "ok", variant: "flat" })
+          .build();
+        return;
+      }
+    }
+
     const unsavedWorkspace = new Workspace({
+      id: maybeExistingLocalWorkspaceId,
       name,
       online: online ? 1 : 0,
       orgId: selectedOrg || null,

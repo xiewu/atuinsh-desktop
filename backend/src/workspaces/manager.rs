@@ -338,6 +338,19 @@ impl WorkspaceManager {
         workspace.get_dir_info().await
     }
 
+    pub async fn get_workspace_id_by_folder(
+        &mut self,
+        folder: &Path,
+    ) -> Result<String, WorkspaceError> {
+        let config = FsOps::get_workspace_config_by_folder(folder)
+            .await
+            .map_err(|e| WorkspaceError::WorkspaceReadError {
+                path: folder.to_path_buf(),
+                message: e.to_string(),
+            })?;
+        Ok(config.workspace.id)
+    }
+
     async fn rescan_workspace(&self, workspace_id: &str) -> Result<WorkspaceState, WorkspaceError> {
         if let Some(workspace) = self.workspaces.get(workspace_id) {
             workspace.rescan().await

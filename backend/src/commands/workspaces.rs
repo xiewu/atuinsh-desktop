@@ -83,8 +83,19 @@ pub async fn read_dir(
     state: State<'_, AtuinState>,
 ) -> Result<WorkspaceDirInfo, WorkspaceError> {
     let mut manager = state.workspaces.lock().await;
-    let manager = manager.as_mut().expect("Workspace not found in state");
+    let manager = manager.as_mut().expect("Workspaces not found in state");
     manager.get_dir_info(&workspace_id).await
+}
+
+#[tauri::command]
+pub async fn get_workspace_id_by_folder(
+    folder: String,
+    state: State<'_, AtuinState>,
+) -> Result<String, WorkspaceError> {
+    let mut manager = state.workspaces.lock().await;
+    let manager = manager.as_mut().expect("Workspaces not found in state");
+    let folder = PathBuf::from(folder);
+    manager.get_workspace_id_by_folder(&folder).await
 }
 
 #[tauri::command]
@@ -96,7 +107,7 @@ pub async fn save_runbook(
     state: State<'_, AtuinState>,
 ) -> Result<String, WorkspaceError> {
     let mut manager = state.workspaces.lock().await;
-    let manager = manager.as_mut().expect("Workspace not found in state");
+    let manager = manager.as_mut().expect("Workspaces not found in state");
     manager
         .save_runbook(&workspace_id, &runbook_id, &name, content)
         .await
@@ -109,7 +120,7 @@ pub async fn delete_runbook(
     state: State<'_, AtuinState>,
 ) -> Result<(), WorkspaceError> {
     let mut manager = state.workspaces.lock().await;
-    let manager = manager.as_mut().expect("Workspace not found in state");
+    let manager = manager.as_mut().expect("Workspaces not found in state");
     manager.delete_runbook(&workspace_id, &runbook_id).await
 }
 
@@ -121,7 +132,7 @@ pub async fn create_folder(
     state: State<'_, AtuinState>,
 ) -> Result<String, WorkspaceError> {
     let mut manager = state.workspaces.lock().await;
-    let manager = manager.as_mut().expect("Workspace not found in state");
+    let manager = manager.as_mut().expect("Workspaces not found in state");
     manager
         .create_folder(&workspace_id, parent_path.as_deref(), &name)
         .await
@@ -136,7 +147,7 @@ pub async fn rename_folder(
     state: State<'_, AtuinState>,
 ) -> Result<(), WorkspaceError> {
     let mut manager = state.workspaces.lock().await;
-    let manager = manager.as_mut().expect("Workspace not found in state");
+    let manager = manager.as_mut().expect("Workspaces not found in state");
     manager
         .rename_folder(&workspace_id, &folder_id, &new_name)
         .await

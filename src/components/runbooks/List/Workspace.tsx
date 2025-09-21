@@ -4,7 +4,12 @@ import TreeView, { SortBy, TreeRowData } from "./TreeView";
 import { JSX, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { NodeApi, TreeApi } from "react-arborist";
 import { useStore } from "@/state/store";
-import { createFolderMenu, createRunbookMenu, createWorkspaceMenu } from "./menus";
+import {
+  createFolderMenu,
+  createMultiItemMenu,
+  createRunbookMenu,
+  createWorkspaceMenu,
+} from "./menus";
 import { cn } from "@/lib/utils";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
 import InlineInput from "./TreeView/InlineInput";
@@ -648,27 +653,25 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
         menu.close();
       }
     } else {
-      // TODO: temporairly disabled after workspace sync
-      //
-      // // more than 1 item selected
-      // const menu = await createMultiItemMenu(
-      //   selectedNodes.map((node) => node.id),
-      //   orgs,
-      //   props.workspace.get("orgId")!,
-      //   props.workspace.get("id")!,
-      //   {
-      //     onMoveToWorkspace: (targetWorkspaceId, targetParentId) => {
-      //       props.onStartMoveItemsToWorkspace(
-      //         selectedNodes.map((node) => node.id),
-      //         props.workspace.get("id")!,
-      //         targetWorkspaceId,
-      //         targetParentId,
-      //       );
-      //     },
-      //   },
-      // );
-      // await menu.popup();
-      // menu.close();
+      // more than 1 item selected
+      const menu = await createMultiItemMenu(
+        selectedNodes.map((node) => node.id),
+        orgs,
+        props.workspace.get("orgId")!,
+        props.workspace.get("id")!,
+        {
+          onMoveToWorkspace: (targetWorkspaceId, targetParentId) => {
+            props.onStartMoveItemsToWorkspace(
+              selectedNodes.map((node) => node.id),
+              props.workspace.get("id")!,
+              targetWorkspaceId,
+              targetParentId,
+            );
+          },
+        },
+      );
+      await menu.popup();
+      menu.close();
     }
   }
 

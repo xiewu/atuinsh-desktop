@@ -555,7 +555,9 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
       return;
     }
 
-    const workspaces = await Workspace.all();
+    let workspaces = await Workspace.all();
+    workspaces = workspaces.filter((ws) => ws.get("online") === props.workspace.get("online"));
+
     const workspaceFolders = await Promise.all(
       workspaces.map(async (ws) => {
         const stateId = `workspace-folder:${ws.get("id")}`;

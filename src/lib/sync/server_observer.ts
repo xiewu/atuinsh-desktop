@@ -371,6 +371,10 @@ class OrgWorkspaceObserver {
 
   private async deleteRunbook(runbookId: string) {
     const runbook = await Runbook.load(runbookId);
+    if (runbook && runbook.workspaceId !== this.workspaceId) {
+      return;
+    }
+
     if (runbook) {
       await runbook.delete();
     }

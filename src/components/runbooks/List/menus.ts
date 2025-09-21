@@ -108,9 +108,9 @@ function buildFolderItems(
  * @returns a menu with the actions for the folder
  */
 export async function createFolderMenu(
-  _orgs: OrgsWithWorkspaces[],
-  _currentOrgId: string | null,
-  _sourceWorkspaceId: string,
+  orgs: OrgsWithWorkspaces[],
+  currentOrgId: string | null,
+  sourceWorkspaceId: string,
   actions: {
     onNewFolder: Handler;
     onRenameFolder: Handler;
@@ -119,12 +119,12 @@ export async function createFolderMenu(
     onMoveToWorkspace: (targetWorkspaceId: string, targetParentId: string | null) => void;
   },
 ) {
-  // const moveToItems = createMoveToMenu(
-  //   orgs,
-  //   currentOrgId,
-  //   sourceWorkspaceId,
-  //   actions.onMoveToWorkspace,
-  // );
+  const moveToItems = createMoveToMenu(
+    orgs,
+    currentOrgId,
+    sourceWorkspaceId,
+    actions.onMoveToWorkspace,
+  );
 
   const menu = await new MenuBuilder()
     .item(
@@ -145,12 +145,12 @@ export async function createFolderMenu(
         .action(() => actions.onDeleteFolder())
         .accelerator("CmdOrCtrl+Delete"),
     )
-    // .item(
-    //   new ItemBuilder()
-    //     .text("Move To...")
-    //     .items(moveToItems as AtuinMenuItem[])
-    //     .build(),
-    // )
+    .item(
+      new ItemBuilder()
+        .text("Move To...")
+        .items(moveToItems as AtuinMenuItem[])
+        .build(),
+    )
     .separator()
     .item(
       new ItemBuilder()
@@ -164,20 +164,20 @@ export async function createFolderMenu(
 }
 
 export async function createRunbookMenu(
-  _orgs: OrgsWithWorkspaces[],
-  _workspaceOrgId: string | null,
-  _workspaceId: string,
+  orgs: OrgsWithWorkspaces[],
+  workspaceOrgId: string | null,
+  workspaceId: string,
   actions: {
     onDeleteRunbook: Handler;
     onMoveToWorkspace: (targetWorkspaceId: string, targetParentId: string | null) => void;
   },
 ) {
-  // const moveToItems = createMoveToMenu(
-  //   orgs,
-  //   workspaceOrgId,
-  //   workspaceId,
-  //   actions.onMoveToWorkspace,
-  // );
+  const moveToItems = createMoveToMenu(
+    orgs,
+    workspaceOrgId,
+    workspaceId,
+    actions.onMoveToWorkspace,
+  );
 
   const menu = await new MenuBuilder()
     .item(
@@ -187,40 +187,40 @@ export async function createRunbookMenu(
         .accelerator("D"),
     )
     .separator()
-    // .item(
-    //   new ItemBuilder()
-    //     .text("Move To...")
-    //     .items(moveToItems as AtuinMenuItem[])
-    //     .build(),
-    // )
+    .item(
+      new ItemBuilder()
+        .text("Move To...")
+        .items(moveToItems as AtuinMenuItem[])
+        .build(),
+    )
     .build();
 
   return menu;
 }
 
 export async function createMultiItemMenu(
-  _items: string[],
-  _orgs: OrgsWithWorkspaces[],
-  _currentOrgId: string | null,
-  _sourceWorkspaceId: string,
-  _actions: {
+  items: string[],
+  orgs: OrgsWithWorkspaces[],
+  currentOrgId: string | null,
+  sourceWorkspaceId: string,
+  actions: {
     onMoveToWorkspace: (targetWorkspaceId: string, targetParentId: string | null) => void;
   },
 ) {
-  // const moveToItems = createMoveToMenu(
-  //   orgs,
-  //   currentOrgId,
-  //   sourceWorkspaceId,
-  //   actions.onMoveToWorkspace,
-  // );
+  const moveToItems = createMoveToMenu(
+    orgs,
+    currentOrgId,
+    sourceWorkspaceId,
+    actions.onMoveToWorkspace,
+  );
 
   const menu = await new MenuBuilder()
-    // .item(
-    //   new ItemBuilder()
-    //     .text("Move To...")
-    //     .items(moveToItems as AtuinMenuItem[])
-    //     .build(),
-    // )
+    .item(
+      new ItemBuilder()
+        .text("Move To...")
+        .items(moveToItems as AtuinMenuItem[])
+        .build(),
+    )
     .build();
 
   return menu;
@@ -266,76 +266,76 @@ export async function createWorkspaceMenu(actions: {
   return menu;
 }
 
-// function createMoveToMenu(
-//   orgs: OrgsWithWorkspaces[],
-//   currentOrgId: string | null,
-//   sourceWorkspaceId: string,
-//   onSelectMove: (workspaceId: string, parentFolderId: string | null) => void,
-// ): (AtuinMenuItem | ItemBuilder)[] {
-//   const currentOrg = orgs.find((org) => org.id === currentOrgId)!;
-//   const otherOrgs = orgs.filter((org) => org.id !== currentOrgId);
+function createMoveToMenu(
+  orgs: OrgsWithWorkspaces[],
+  currentOrgId: string | null,
+  sourceWorkspaceId: string,
+  onSelectMove: (workspaceId: string, parentFolderId: string | null) => void,
+): (AtuinMenuItem | ItemBuilder)[] {
+  const currentOrg = orgs.find((org) => org.id === currentOrgId)!;
+  const otherOrgs = orgs.filter((org) => org.id !== currentOrgId);
 
-//   let currentOrgMoveToChoices = currentOrg?.workspaces
-//     // can only move to a different workspace
-//     .filter((ws) => ws.workspace.get("id") !== sourceWorkspaceId)
-//     .map((ws) => {
-//       return new ItemBuilder()
-//         .text(ws.workspace.get("name")!)
-//         .items(
-//           buildWorkspaceItems(ws.workspace, ws.folder, (workspaceId, parentFolderId) => {
-//             return [
-//               new ItemBuilder()
-//                 .text("Move Here")
-//                 .action(() => onSelectMove(workspaceId, parentFolderId))
-//                 .build(),
-//             ];
-//           }),
-//         )
-//         .build();
-//     });
+  let currentOrgMoveToChoices = currentOrg?.workspaces
+    // can only move to a different workspace
+    .filter((ws) => ws.workspace.get("id") !== sourceWorkspaceId)
+    .map((ws) => {
+      return new ItemBuilder()
+        .text(ws.workspace.get("name")!)
+        .items(
+          buildWorkspaceItems(ws.workspace, ws.folder, (workspaceId, parentFolderId) => {
+            return [
+              new ItemBuilder()
+                .text("Move Here")
+                .action(() => onSelectMove(workspaceId, parentFolderId))
+                .build(),
+            ];
+          }),
+        )
+        .build();
+    });
 
-//   if (currentOrgMoveToChoices.length === 0) {
-//     currentOrgMoveToChoices = [
-//       new ItemBuilder()
-//         .text("No workspaces available")
-//         .action(() => {})
-//         .enabled(false)
-//         .build(),
-//     ];
-//   }
+  if (currentOrgMoveToChoices.length === 0) {
+    currentOrgMoveToChoices = [
+      new ItemBuilder()
+        .text("No workspaces available")
+        .action(() => {})
+        .enabled(false)
+        .build(),
+    ];
+  }
 
-//   const currentOrgMoveToItem = new ItemBuilder()
-//     .text(currentOrg?.name || "Personal")
-//     .items(currentOrgMoveToChoices)
-//     .build();
+  const currentOrgMoveToItem = new ItemBuilder()
+    .text(currentOrg?.name || "Personal")
+    .items(currentOrgMoveToChoices)
+    .build();
 
-//   return [
-//     currentOrgMoveToItem,
-//     ...(otherOrgs.length > 0 ? ([{ item: "Separator" }] as const) : []),
-//     ...otherOrgs.map((org) => {
-//       return new ItemBuilder()
-//         .text(org.name)
-//         .items(
-//           org.workspaces.map((ws) => {
-//             return new ItemBuilder()
-//               .text(ws.workspace.get("name")!)
-//               .items(
-//                 buildWorkspaceItems(ws.workspace, ws.folder, (workspaceId, parentFolderId) => {
-//                   return [
-//                     new ItemBuilder()
-//                       .text("Move Here")
-//                       .action(() => onSelectMove(workspaceId, parentFolderId))
-//                       .build(),
-//                   ];
-//                 }),
-//               )
-//               .build();
-//           }),
-//         )
-//         .build();
-//     }),
-//   ];
-// }
+  return [
+    currentOrgMoveToItem,
+    ...(otherOrgs.length > 0 ? ([{ item: "Separator" }] as const) : []),
+    ...otherOrgs.map((org) => {
+      return new ItemBuilder()
+        .text(org.name)
+        .items(
+          org.workspaces.map((ws) => {
+            return new ItemBuilder()
+              .text(ws.workspace.get("name")!)
+              .items(
+                buildWorkspaceItems(ws.workspace, ws.folder, (workspaceId, parentFolderId) => {
+                  return [
+                    new ItemBuilder()
+                      .text("Move Here")
+                      .action(() => onSelectMove(workspaceId, parentFolderId))
+                      .build(),
+                  ];
+                }),
+              )
+              .build();
+          }),
+        )
+        .build();
+    }),
+  ];
+}
 
 export async function createRootMenu(actions: { onNewWorkspace: Handler }) {
   const menu = await new MenuBuilder()

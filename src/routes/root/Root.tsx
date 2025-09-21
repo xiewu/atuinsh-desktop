@@ -681,7 +681,36 @@ function App() {
       return;
     }
 
-    // Step 4: Remove the items from the old workspace, using delete cascade
+    // Step 4: Update the runbook models to point to the new workspace
+    //
+    // IMPORTANT: this MUST be done before removing the items from the old workspace,
+    // to prevent the server observer from noticing the delete and deleting the local runbook
+    const topLevelRunbooksMoved = moveBundles
+      .filter((bundle) => bundle.type === "runbook")
+      .map((bundle) => bundle.id);
+
+    const descendantRunbooksMoved = moveBundles
+      .filter((bundle) => bundle.type === "folder")
+      .flatMap((bundle) => bundle.descendants)
+      .filter((descendant) => descendant.type === "runbook")
+      .map((descendant) => descendant.id);
+
+    const runbooksMoved = topLevelRunbooksMoved.concat(descendantRunbooksMoved);
+    const runbooksMovedWithName = [];
+
+    for (const runbookId of runbooksMoved) {
+      const runbook = await Runbook.load(runbookId);
+      if (runbook) {
+        runbook.workspaceId = newWorkspaceId;
+        runbooksMovedWithName.push({
+          id: runbookId,
+          name: runbook.name,
+        });
+        await runbook.save();
+      }
+    }
+
+    // Step 5: Remove the items from the old workspace, using delete cascade
     const deleteChangeRef = await oldManager.updateOptimistic((data) => {
       const wsf = WorkspaceFolder.fromJS(data);
 
@@ -710,33 +739,16 @@ function App() {
         .action({ label: "OK", value: "ok", variant: "flat" })
         .build();
 
-      return;
-    }
-
-    // Step 5: Update the runbook models to point to the new workspace
-    const topLevelRunbooksMoved = moveBundles
-      .filter((bundle) => bundle.type === "runbook")
-      .map((bundle) => bundle.id);
-
-    const descendantRunbooksMoved = moveBundles
-      .filter((bundle) => bundle.type === "folder")
-      .flatMap((bundle) => bundle.descendants)
-      .filter((descendant) => descendant.type === "runbook")
-      .map((descendant) => descendant.id);
-
-    const runbooksMoved = topLevelRunbooksMoved.concat(descendantRunbooksMoved);
-    const runbooksMovedWithName = [];
-
-    for (const runbookId of runbooksMoved) {
-      const runbook = await Runbook.load(runbookId);
-      if (runbook) {
-        runbook.workspaceId = newWorkspaceId;
-        runbooksMovedWithName.push({
-          id: runbookId,
-          name: runbook.name,
-        });
-        await runbook.save();
+      // If the move fails, we need to revert the runbook models to point to the old workspace
+      for (const runbookId of runbooksMoved) {
+        const runbook = await Runbook.load(runbookId);
+        if (runbook) {
+          runbook.workspaceId = oldWorkspaceId;
+          await runbook.save();
+        }
       }
+
+      return;
     }
 
     try {

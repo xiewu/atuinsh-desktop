@@ -522,13 +522,8 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
           .build();
       }
     } else {
-      // TODO: handle moving between workspaces
-      props.onStartMoveItemsToWorkspace(
-        ids,
-        sourceWorkspaceId,
-        props.workspace.get("id")!,
-        parentId,
-      );
+      // Moving items between workspaces via drag and drop currently disabled
+      return;
     }
   }
 

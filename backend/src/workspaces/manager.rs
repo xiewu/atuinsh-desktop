@@ -602,20 +602,35 @@ impl WorkspaceManager {
                         }
                     }
 
+                    let mut watched_dirs = HashSet::new();
                     for entry in updated.entries.iter() {
-                        log::debug!(
-                            "Adding watcher for directory found during rescan: {}",
-                            entry.path.display()
-                        );
-                        if let Err(e) = workspace
-                            ._debouncer
-                            .watch(&entry.path, RecursiveMode::NonRecursive)
-                        {
-                            log::warn!(
-                                "Failed to watch new directory {}: {}",
-                                entry.path.display(),
-                                e
+                        if !entry.path.is_dir() {
+                            continue;
+                        }
+
+                        let parent_path = entry.path.parent().unwrap_or(&workspace.path);
+                        if watched_dirs.contains(&parent_path) {
+                            continue;
+                        }
+
+                        let gitignore = create_ignore_matcher(parent_path).ok();
+                        if !should_ignore_path(&entry.path, &workspace.path, gitignore.as_ref()) {
+                            log::debug!(
+                                "Adding watcher for directory found during rescan: {}",
+                                entry.path.display()
                             );
+                            if let Err(e) = workspace
+                                ._debouncer
+                                .watch(&parent_path, RecursiveMode::NonRecursive)
+                            {
+                                log::warn!(
+                                    "Failed to watch new directory {}: {}",
+                                    parent_path.display(),
+                                    e
+                                );
+                            } else {
+                                watched_dirs.insert(parent_path);
+                            }
                         }
                     }
 

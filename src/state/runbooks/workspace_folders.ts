@@ -1,5 +1,6 @@
 import { Tree, TreeData, Node, DeleteStrategy, TraversalOrder } from "@/lib/tree";
 import { Some, Option } from "@binarymuse/ts-stdlib";
+import { uuidv4 } from "uuidv7";
 
 export type Folder = TreeData<FolderItem>;
 
@@ -184,9 +185,17 @@ export default class WorkspaceFolder {
 
     const parentNode = parent.unwrap();
 
+    // Move items to a temporary node in case nodes are moving inside their current parent
+    const tempNode = this.root.createChild(uuidv4(), 0);
+    for (const node of nodes.toReversed()) {
+      node.moveTo(tempNode, 0);
+    }
+
     for (const node of nodes.toReversed()) {
       node.moveTo(parentNode, index);
     }
+
+    tempNode.delete(DeleteStrategy.Cascade);
 
     return true;
   }

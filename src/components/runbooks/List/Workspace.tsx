@@ -510,7 +510,20 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     parentId: string | null,
     index: number,
   ) {
+    if (ids.length === 0) {
+      return;
+    }
+
     if (sourceWorkspaceId === props.workspace.get("id")!) {
+      let selectedItemNodes = ids.map((id) => {
+        return treeRef.current!.get(id)!;
+      });
+
+      const offset = selectedItemNodes.filter(
+        (node) => node.childIndex <= index && node.parent?.id === parentId,
+      ).length;
+      index -= offset;
+
       const strategy = getWorkspaceStrategy(props.workspace);
       const result = await strategy.moveItems(doFolderOp, ids, parentId, index);
 

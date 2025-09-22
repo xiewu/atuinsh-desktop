@@ -45,10 +45,11 @@ jobs:
         working-directory: backend
         run: |
           set -e
+          cargo test || { echo "cargo test failed"; TEST_FAILED=1; }
           cargo check --no-default-features || { echo "cargo check failed"; CHECK_FAILED=1; }
           cargo clippy -- -D warnings || { echo "cargo clippy failed"; CLIPPY_FAILED=1; }
           cargo fmt -- --check || { echo "cargo fmt failed"; FMT_FAILED=1; }
-          if [ "$CHECK_FAILED" -o "$CLIPPY_FAILED" -o "$FMT_FAILED" ]; then
+          if [ "$TEST_FAILED" -o "$CHECK_FAILED" -o "$CLIPPY_FAILED" -o "$FMT_FAILED" ]; then
             echo "One or more checks failed."
             exit 1
           fi

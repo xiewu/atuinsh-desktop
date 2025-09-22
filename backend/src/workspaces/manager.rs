@@ -621,7 +621,7 @@ impl WorkspaceManager {
                             );
                             if let Err(e) = workspace
                                 ._debouncer
-                                .watch(&parent_path, RecursiveMode::NonRecursive)
+                                .watch(parent_path, RecursiveMode::NonRecursive)
                             {
                                 log::warn!(
                                     "Failed to watch new directory {}: {}",

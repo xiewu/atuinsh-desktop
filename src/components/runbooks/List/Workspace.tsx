@@ -30,6 +30,7 @@ import { useRunbook } from "@/lib/useRunbook";
 import { useCurrentTabRunbookId } from "@/lib/hooks/useCurrentTab";
 import { open } from "@tauri-apps/plugin-dialog";
 import * as commands from "@/lib/workspaces/commands";
+import WorkspaceManager from "@/lib/workspaces/manager";
 
 interface WorkspaceProps {
   workspace: Workspace;
@@ -578,6 +579,21 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
           return { id: ws.get("id")!, folder: folder.toArborist() };
         }),
       );
+    } else {
+      const manager = WorkspaceManager.getInstance();
+      workspaceFolders = workspaces.map((ws) => {
+        const infoOpt = manager.getWorkspaceInfo(ws.get("id")!);
+        if (infoOpt.isNone() || infoOpt.unwrap().isErr()) {
+          return { id: ws.get("id")!, folder: [] };
+        }
+
+        const info = infoOpt.unwrap().unwrap();
+
+        return {
+          id: ws.get("id")!,
+          folder: transformDirEntriesToArboristTree(info.entries, ws.get("folder")!, info.runbooks),
+        };
+      });
     }
     const userOrgs = useStore.getState().userOrgs.map((org) => ({
       name: org.name,

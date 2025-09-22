@@ -478,7 +478,7 @@ const NoteSidebar = forwardRef((props: NotesSidebarProps, ref: React.ForwardedRe
             </div>
           </div>
           <div
-            className="p-1 flex-grow overflow-y-scroll cursor-default"
+            className="p-1 flex-grow overflow-y-auto cursor-default"
             onContextMenu={handleBaseContextMenu}
           >
             <DndProvider backend={HTML5Backend}>

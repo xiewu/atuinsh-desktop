@@ -607,7 +607,8 @@ pub fn find_unique_path(path: impl AsRef<Path>) -> Result<PathBuf, FsOpsError> {
         .as_ref()
         .extension()
         .map(|s| s.to_string_lossy().to_string())
-        .map(|s| format!(".{s}"));
+        .map(|s| format!(".{s}"))
+        .unwrap_or_default();
     let parent = path.as_ref().parent().ok_or(FsOpsError::FileMissingError(
         "path has no parent".to_string(),
     ))?;
@@ -618,12 +619,8 @@ pub fn find_unique_path(path: impl AsRef<Path>) -> Result<PathBuf, FsOpsError> {
     while target.exists() {
         suffix = Some(suffix.unwrap_or(0) + 1);
         target = parent.join(format!(
-            "{stem}{}{}",
-            suffix.map_or(String::new(), |s| format!("-{s}")),
-            extension
-                .as_ref()
-                .map(|e| format!(".{e}"))
-                .unwrap_or_default()
+            "{stem}{}{extension}",
+            suffix.map_or(String::new(), |s| format!("-{s}"))
         ));
     }
 

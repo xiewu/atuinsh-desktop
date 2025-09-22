@@ -602,6 +602,23 @@ impl WorkspaceManager {
                         }
                     }
 
+                    for entry in updated.entries.iter() {
+                        log::debug!(
+                            "Adding watcher for directory found during rescan: {}",
+                            entry.path.display()
+                        );
+                        if let Err(e) = workspace
+                            ._debouncer
+                            .watch(&entry.path, RecursiveMode::NonRecursive)
+                        {
+                            log::warn!(
+                                "Failed to watch new directory {}: {}",
+                                entry.path.display(),
+                                e
+                            );
+                        }
+                    }
+
                     workspace.state = Ok(updated);
                     (workspace.on_event)(workspace.state.clone().into());
                 }

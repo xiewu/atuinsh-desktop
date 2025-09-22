@@ -153,3 +153,19 @@ export async function getRunbook(
 ): Promise<Result<RustOfflineRunbook, WorkspaceError>> {
   return promiseResult<RustOfflineRunbook, WorkspaceError>(invoke("get_runbook", { runbookId }));
 }
+
+export async function moveItemsBetweenWorkspaces(
+  itemIds: string[],
+  oldWorkspaceId: string,
+  newWorkspaceId: string,
+  newParentFolderId: string | null,
+): Promise<Result<undefined, WorkspaceError>> {
+  return promiseResult<undefined, WorkspaceError>(
+    invoke("move_items_between_workspaces", {
+      itemIds,
+      oldWorkspaceId,
+      newWorkspaceId,
+      newParentFolderId,
+    }),
+  );
+}

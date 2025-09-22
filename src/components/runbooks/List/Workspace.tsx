@@ -563,19 +563,22 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
     let workspaces = await Workspace.all();
     workspaces = workspaces.filter((ws) => ws.get("online") === props.workspace.get("online"));
 
-    const workspaceFolders = await Promise.all(
-      workspaces.map(async (ws) => {
-        const stateId = `workspace-folder:${ws.get("id")}`;
-        const manager = SharedStateManager.getInstance<Folder>(
-          stateId,
-          new AtuinSharedStateAdapter(stateId),
-        );
-        const data = await manager.getDataOnce();
-        const folder = WorkspaceFolder.fromJS(data);
-        Rc.dispose(manager);
-        return { id: ws.get("id")!, folder: folder.toArborist() };
-      }),
-    );
+    let workspaceFolders: { id: string; folder: ArboristTree }[] = [];
+    if (props.workspace.isOnline()) {
+      workspaceFolders = await Promise.all(
+        workspaces.map(async (ws) => {
+          const stateId = `workspace-folder:${ws.get("id")}`;
+          const manager = SharedStateManager.getInstance<Folder>(
+            stateId,
+            new AtuinSharedStateAdapter(stateId),
+          );
+          const data = await manager.getDataOnce();
+          const folder = WorkspaceFolder.fromJS(data);
+          Rc.dispose(manager);
+          return { id: ws.get("id")!, folder: folder.toArborist() };
+        }),
+      );
+    }
     const userOrgs = useStore.getState().userOrgs.map((org) => ({
       name: org.name,
       id: org.id,
@@ -583,7 +586,7 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
         .filter((ws) => ws.get("orgId") === org.id)
         .map((ws) => ({
           workspace: ws,
-          folder: workspaceFolders.find((folder) => folder.id === ws.get("id"))!.folder,
+          folder: workspaceFolders.find((folder) => folder.id === ws.get("id"))?.folder ?? [],
         })),
     }));
     let orgs = [
@@ -594,7 +597,7 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
           .filter((ws) => ws.get("orgId") === null)
           .map((ws) => ({
             workspace: ws,
-            folder: workspaceFolders.find((folder) => folder.id === ws.get("id"))!.folder,
+            folder: workspaceFolders.find((folder) => folder.id === ws.get("id"))?.folder ?? [],
           })),
       },
       ...userOrgs,

@@ -533,6 +533,48 @@ function App() {
       return;
     }
 
+    if (oldWorkspace.isOnline() !== newWorkspace.isOnline()) {
+      await new DialogBuilder()
+        .title("Cannot Move Items")
+        .icon("error")
+        .message("Moving items between online and offline workspaces is not yet supported.")
+        .action({
+          label: "OK",
+          variant: "flat",
+          value: "ok",
+        })
+        .build();
+
+      return;
+    }
+
+    // Step 0: If both workspaces are offline, we can just move the items and be done.
+    if (!oldWorkspace.isOnline() && !newWorkspace.isOnline()) {
+      const result = await commands.moveItemsBetweenWorkspaces(
+        items,
+        oldWorkspaceId,
+        newWorkspaceId,
+        newParentFolderId,
+      );
+
+      if (result.isErr()) {
+        const err = result.unwrapErr();
+        let message = "Failed to move items";
+        if ("message" in err.data) {
+          message = err.data.message;
+        }
+
+        await new DialogBuilder()
+          .title("Failed to move items")
+          .icon("error")
+          .message(message)
+          .action({ label: "OK", value: "ok", variant: "flat" })
+          .build();
+      }
+
+      return;
+    }
+
     const oldStateId = `workspace-folder:${oldWorkspace.get("id")}`;
     const newStateId = `workspace-folder:${newWorkspace.get("id")}`;
     const oldManager = SharedStateManager.getInstance<Folder>(

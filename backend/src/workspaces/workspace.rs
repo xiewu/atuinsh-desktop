@@ -12,7 +12,7 @@ use serde_yaml::Value;
 use ts_rs::TS;
 
 use crate::workspaces::{
-    fs_ops::{FsOpsHandle, WorkspaceDirInfo},
+    fs_ops::{find_unique_path, FsOpsHandle, WorkspaceDirInfo},
     hash_history::HashHistory,
     manager::OnEvent,
     offline_runbook::OfflineRunbook,
@@ -367,6 +367,66 @@ impl Workspace {
                 path: self.path.clone(),
                 message: e.to_string(),
             })
+    }
+
+    pub async fn move_into_workspace(
+        &mut self,
+        paths_to_move: &[impl AsRef<Path>],
+        previous_root: impl AsRef<Path>,
+        new_parent_folder_id: Option<PathBuf>,
+    ) -> Result<(), WorkspaceError> {
+        let mut moved_runbooks: Vec<(PathBuf, PathBuf)> = Vec::with_capacity(paths_to_move.len());
+
+        let mut success = true;
+        for path in paths_to_move {
+            let filename = path.as_ref().file_name();
+            if filename.is_none() {
+                success = false;
+                break;
+            }
+
+            let filename = filename.unwrap();
+
+            let path_without_root = path.as_ref().strip_prefix(previous_root.as_ref());
+            if path_without_root.is_err() {
+                success = false;
+                break;
+            }
+
+            let mut new_path = new_parent_folder_id
+                .as_ref()
+                .unwrap_or(&self.path)
+                .join(filename);
+
+            if new_path.exists() {
+                let new_path_result = find_unique_path(&new_path);
+                if new_path_result.is_err() {
+                    success = false;
+                    break;
+                }
+                new_path = new_path_result.unwrap();
+            }
+
+            let result = tokio::fs::rename(&path, &new_path).await;
+            if result.is_err() {
+                success = false;
+                break;
+            }
+
+            moved_runbooks.push((new_path, path.as_ref().to_path_buf()));
+        }
+
+        if !success {
+            for moved in moved_runbooks {
+                let _ = tokio::fs::rename(moved.0, moved.1).await;
+            }
+
+            return Err(WorkspaceError::GenericWorkspaceError {
+                message: "Failed to move items".to_string(),
+            });
+        }
+
+        Ok(())
     }
 }
 

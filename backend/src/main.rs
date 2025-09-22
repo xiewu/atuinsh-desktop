@@ -498,6 +498,7 @@ fn main() {
             commands::workspaces::rename_folder,
             commands::workspaces::delete_folder,
             commands::workspaces::move_items,
+            commands::workspaces::move_items_between_workspaces,
             shared_state::get_shared_state_document,
             shared_state::push_optimistic_update,
             shared_state::update_shared_state_document,

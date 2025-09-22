@@ -230,7 +230,7 @@ impl WorkspaceManager {
     }
 
     pub async fn rename_workspace(&mut self, id: &str, name: &str) -> Result<(), WorkspaceError> {
-        let workspace = self.get_workspace(id)?;
+        let workspace = self.get_workspace_mut(id)?;
         workspace.rename(name).await
     }
 
@@ -241,7 +241,7 @@ impl WorkspaceManager {
         name: &str,
         content: &Value,
     ) -> Result<String, WorkspaceError> {
-        let workspace = self.get_workspace(workspace_id)?;
+        let workspace = self.get_workspace_mut(workspace_id)?;
         workspace
             .create_runbook(parent_folder_id, name, content)
             .await
@@ -254,7 +254,7 @@ impl WorkspaceManager {
         name: &str,
         content: Value,
     ) -> Result<String, WorkspaceError> {
-        let workspace = self.get_workspace(workspace_id)?;
+        let workspace = self.get_workspace_mut(workspace_id)?;
         workspace
             .save_runbook(runbook_id, name, &content, None::<&Path>)
             .await
@@ -265,7 +265,7 @@ impl WorkspaceManager {
         workspace_id: &str,
         runbook_id: &str,
     ) -> Result<(), WorkspaceError> {
-        let workspace = self.get_workspace(workspace_id)?;
+        let workspace = self.get_workspace_mut(workspace_id)?;
         workspace.delete_runbook(runbook_id).await
     }
 
@@ -295,7 +295,7 @@ impl WorkspaceManager {
         parent_path: Option<&str>,
         name: &str,
     ) -> Result<PathBuf, WorkspaceError> {
-        let workspace = self.get_workspace(workspace_id)?;
+        let workspace = self.get_workspace_mut(workspace_id)?;
         workspace
             .create_folder(parent_path.map(Path::new), name)
             .await
@@ -307,7 +307,7 @@ impl WorkspaceManager {
         folder_id: &str,
         new_name: &str,
     ) -> Result<(), WorkspaceError> {
-        let workspace = self.get_workspace(workspace_id)?;
+        let workspace = self.get_workspace_mut(workspace_id)?;
         workspace.rename_folder(folder_id, new_name).await
     }
 
@@ -316,7 +316,7 @@ impl WorkspaceManager {
         workspace_id: &str,
         folder_id: &str,
     ) -> Result<(), WorkspaceError> {
-        let workspace = self.get_workspace(workspace_id)?;
+        let workspace = self.get_workspace_mut(workspace_id)?;
         workspace.delete_folder(folder_id).await
     }
 
@@ -326,15 +326,51 @@ impl WorkspaceManager {
         item_ids: &[String],
         new_parent: Option<&str>,
     ) -> Result<(), WorkspaceError> {
-        let workspace = self.get_workspace(workspace_id)?;
+        let workspace = self.get_workspace_mut(workspace_id)?;
         workspace.move_items(item_ids, new_parent).await
+    }
+
+    pub async fn move_items_between_workspaces(
+        &mut self,
+        item_ids: &[String],
+        old_workspace_id: &str,
+        new_workspace_id: &str,
+        new_parent_folder_id: Option<&str>,
+    ) -> Result<(), WorkspaceError> {
+        let (old_root, paths_to_move) = {
+            let old_workspace = self.get_workspace(old_workspace_id)?;
+
+            if old_workspace.state.is_err() {
+                return Err(WorkspaceError::GenericWorkspaceError {
+                    message: "Old workspace is in an error state".to_string(),
+                });
+            }
+
+            let old_root = old_workspace.path.clone();
+            let paths_to_move = old_workspace
+                .state
+                .as_ref()
+                .unwrap()
+                .calculate_toplevel_paths(item_ids);
+
+            (old_root, paths_to_move)
+        };
+
+        let new_workspace = self.get_workspace_mut(new_workspace_id)?;
+        new_workspace
+            .move_into_workspace(
+                &paths_to_move,
+                &old_root,
+                new_parent_folder_id.map(PathBuf::from),
+            )
+            .await
     }
 
     pub async fn get_dir_info(
         &mut self,
         workspace_id: &str,
     ) -> Result<WorkspaceDirInfo, WorkspaceError> {
-        let workspace = self.get_workspace(workspace_id)?;
+        let workspace = self.get_workspace_mut(workspace_id)?;
         workspace.get_dir_info().await
     }
 
@@ -566,6 +602,38 @@ impl WorkspaceManager {
                         }
                     }
 
+                    let mut watched_dirs = HashSet::new();
+                    for entry in updated.entries.iter() {
+                        if !entry.path.is_dir() {
+                            continue;
+                        }
+
+                        let parent_path = entry.path.parent().unwrap_or(&workspace.path);
+                        if watched_dirs.contains(&parent_path) {
+                            continue;
+                        }
+
+                        let gitignore = create_ignore_matcher(parent_path).ok();
+                        if !should_ignore_path(&entry.path, &workspace.path, gitignore.as_ref()) {
+                            log::debug!(
+                                "Adding watcher for directory found during rescan: {}",
+                                entry.path.display()
+                            );
+                            if let Err(e) = workspace
+                                ._debouncer
+                                .watch(parent_path, RecursiveMode::NonRecursive)
+                            {
+                                log::warn!(
+                                    "Failed to watch new directory {}: {}",
+                                    parent_path.display(),
+                                    e
+                                );
+                            } else {
+                                watched_dirs.insert(parent_path);
+                            }
+                        }
+                    }
+
                     workspace.state = Ok(updated);
                     (workspace.on_event)(workspace.state.clone().into());
                 }
@@ -594,7 +662,15 @@ impl WorkspaceManager {
         self.reset();
     }
 
-    fn get_workspace(&mut self, id: &str) -> Result<&mut Workspace, WorkspaceError> {
+    fn get_workspace(&mut self, id: &str) -> Result<&Workspace, WorkspaceError> {
+        self.workspaces
+            .get(id)
+            .ok_or(WorkspaceError::WorkspaceNotWatched {
+                workspace_id: id.to_string(),
+            })
+    }
+
+    fn get_workspace_mut(&mut self, id: &str) -> Result<&mut Workspace, WorkspaceError> {
         self.workspaces
             .get_mut(id)
             .ok_or(WorkspaceError::WorkspaceNotWatched {

@@ -595,7 +595,7 @@ pub async fn read_dir_recursive(path: impl AsRef<Path>) -> Result<Vec<DirEntry>,
     Ok(contents)
 }
 
-fn find_unique_path(path: impl AsRef<Path>) -> Result<PathBuf, FsOpsError> {
+pub fn find_unique_path(path: impl AsRef<Path>) -> Result<PathBuf, FsOpsError> {
     let stem = path
         .as_ref()
         .file_stem()

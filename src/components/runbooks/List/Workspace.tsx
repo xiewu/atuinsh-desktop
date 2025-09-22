@@ -4,7 +4,12 @@ import TreeView, { SortBy, TreeRowData } from "./TreeView";
 import { JSX, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { NodeApi, TreeApi } from "react-arborist";
 import { useStore } from "@/state/store";
-import { createFolderMenu, createRunbookMenu, createWorkspaceMenu } from "./menus";
+import {
+  createFolderMenu,
+  createMultiItemMenu,
+  createRunbookMenu,
+  createWorkspaceMenu,
+} from "./menus";
 import { cn } from "@/lib/utils";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
 import InlineInput from "./TreeView/InlineInput";
@@ -25,6 +30,7 @@ import { useRunbook } from "@/lib/useRunbook";
 import { useCurrentTabRunbookId } from "@/lib/hooks/useCurrentTab";
 import { open } from "@tauri-apps/plugin-dialog";
 import * as commands from "@/lib/workspaces/commands";
+import WorkspaceManager from "@/lib/workspaces/manager";
 
 interface WorkspaceProps {
   workspace: Workspace;
@@ -522,13 +528,8 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
           .build();
       }
     } else {
-      // TODO: handle moving between workspaces
-      props.onStartMoveItemsToWorkspace(
-        ids,
-        sourceWorkspaceId,
-        props.workspace.get("id")!,
-        parentId,
-      );
+      // Moving items between workspaces via drag and drop currently disabled
+      return;
     }
   }
 
@@ -560,20 +561,40 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
       return;
     }
 
-    const workspaces = await Workspace.all();
-    const workspaceFolders = await Promise.all(
-      workspaces.map(async (ws) => {
-        const stateId = `workspace-folder:${ws.get("id")}`;
-        const manager = SharedStateManager.getInstance<Folder>(
-          stateId,
-          new AtuinSharedStateAdapter(stateId),
-        );
-        const data = await manager.getDataOnce();
-        const folder = WorkspaceFolder.fromJS(data);
-        Rc.dispose(manager);
-        return { id: ws.get("id")!, folder: folder.toArborist() };
-      }),
-    );
+    let workspaces = await Workspace.all();
+    workspaces = workspaces.filter((ws) => ws.get("online") === props.workspace.get("online"));
+
+    let workspaceFolders: { id: string; folder: ArboristTree }[] = [];
+    if (props.workspace.isOnline()) {
+      workspaceFolders = await Promise.all(
+        workspaces.map(async (ws) => {
+          const stateId = `workspace-folder:${ws.get("id")}`;
+          const manager = SharedStateManager.getInstance<Folder>(
+            stateId,
+            new AtuinSharedStateAdapter(stateId),
+          );
+          const data = await manager.getDataOnce();
+          const folder = WorkspaceFolder.fromJS(data);
+          Rc.dispose(manager);
+          return { id: ws.get("id")!, folder: folder.toArborist() };
+        }),
+      );
+    } else {
+      const manager = WorkspaceManager.getInstance();
+      workspaceFolders = workspaces.map((ws) => {
+        const infoOpt = manager.getWorkspaceInfo(ws.get("id")!);
+        if (infoOpt.isNone() || infoOpt.unwrap().isErr()) {
+          return { id: ws.get("id")!, folder: [] };
+        }
+
+        const info = infoOpt.unwrap().unwrap();
+
+        return {
+          id: ws.get("id")!,
+          folder: transformDirEntriesToArboristTree(info.entries, ws.get("folder")!, info.runbooks),
+        };
+      });
+    }
     const userOrgs = useStore.getState().userOrgs.map((org) => ({
       name: org.name,
       id: org.id,
@@ -581,7 +602,7 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
         .filter((ws) => ws.get("orgId") === org.id)
         .map((ws) => ({
           workspace: ws,
-          folder: workspaceFolders.find((folder) => folder.id === ws.get("id"))!.folder,
+          folder: workspaceFolders.find((folder) => folder.id === ws.get("id"))?.folder ?? [],
         })),
     }));
     let orgs = [
@@ -592,7 +613,7 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
           .filter((ws) => ws.get("orgId") === null)
           .map((ws) => ({
             workspace: ws,
-            folder: workspaceFolders.find((folder) => folder.id === ws.get("id"))!.folder,
+            folder: workspaceFolders.find((folder) => folder.id === ws.get("id"))?.folder ?? [],
           })),
       },
       ...userOrgs,
@@ -651,27 +672,25 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
         menu.close();
       }
     } else {
-      // TODO: temporairly disabled after workspace sync
-      //
-      // // more than 1 item selected
-      // const menu = await createMultiItemMenu(
-      //   selectedNodes.map((node) => node.id),
-      //   orgs,
-      //   props.workspace.get("orgId")!,
-      //   props.workspace.get("id")!,
-      //   {
-      //     onMoveToWorkspace: (targetWorkspaceId, targetParentId) => {
-      //       props.onStartMoveItemsToWorkspace(
-      //         selectedNodes.map((node) => node.id),
-      //         props.workspace.get("id")!,
-      //         targetWorkspaceId,
-      //         targetParentId,
-      //       );
-      //     },
-      //   },
-      // );
-      // await menu.popup();
-      // menu.close();
+      // more than 1 item selected
+      const menu = await createMultiItemMenu(
+        selectedNodes.map((node) => node.id),
+        orgs,
+        props.workspace.get("orgId")!,
+        props.workspace.get("id")!,
+        {
+          onMoveToWorkspace: (targetWorkspaceId, targetParentId) => {
+            props.onStartMoveItemsToWorkspace(
+              selectedNodes.map((node) => node.id),
+              props.workspace.get("id")!,
+              targetWorkspaceId,
+              targetParentId,
+            );
+          },
+        },
+      );
+      await menu.popup();
+      menu.close();
     }
   }
 

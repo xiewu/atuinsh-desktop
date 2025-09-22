@@ -51,6 +51,7 @@ export default function TreeView(props: TreeViewProps) {
   const { ref: resizeRef, width } = useResizeObserver();
   const [divElement, setDivElement] = useState<HTMLDivElement | null>(null);
   const treeRef = useRef<TreeApi<TreeRowData> | null>(null);
+  const lastSidebarDragInfo = useStore((state) => state.lastSidebarDragInfo);
 
   // See https://github.com/brimdata/react-arborist/issues/230#issuecomment-2404208311
   const dragDropManager = useDragDropManager();
@@ -225,7 +226,10 @@ export default function TreeView(props: TreeViewProps) {
         onToggle={handleToggle}
         dndManager={dragDropManager}
         disableDrag={props.workspaceLegacyHybrid}
-        disableDrop={props.workspaceLegacyHybrid}
+        disableDrop={
+          props.workspaceLegacyHybrid ||
+          lastSidebarDragInfo?.sourceWorkspaceId !== props.workspaceId
+        }
         disableEdit={props.workspaceLegacyHybrid}
         disableMultiSelection={props.workspaceLegacyHybrid}
       >

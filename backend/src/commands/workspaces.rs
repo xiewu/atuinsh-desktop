@@ -202,3 +202,23 @@ pub async fn get_runbook(
     let manager = manager.as_mut().expect("Workspace not found in state");
     manager.get_runbook(&runbook_id).await
 }
+
+#[tauri::command]
+pub async fn move_items_between_workspaces(
+    item_ids: Vec<String>,
+    old_workspace_id: String,
+    new_workspace_id: String,
+    new_parent_folder_id: Option<String>,
+    state: State<'_, AtuinState>,
+) -> Result<(), WorkspaceError> {
+    let mut manager = state.workspaces.lock().await;
+    let manager = manager.as_mut().expect("Workspace not found in state");
+    manager
+        .move_items_between_workspaces(
+            &item_ids,
+            &old_workspace_id,
+            &new_workspace_id,
+            new_parent_folder_id.as_deref(),
+        )
+        .await
+}

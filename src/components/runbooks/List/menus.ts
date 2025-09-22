@@ -199,7 +199,7 @@ export async function createRunbookMenu(
 }
 
 export async function createMultiItemMenu(
-  items: string[],
+  _items: string[],
   orgs: OrgsWithWorkspaces[],
   currentOrgId: string | null,
   sourceWorkspaceId: string,

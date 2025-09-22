@@ -342,7 +342,7 @@ impl WorkspaceManager {
 
             if old_workspace.state.is_err() {
                 return Err(WorkspaceError::GenericWorkspaceError {
-                    message: format!("Old workspace is in an error state"),
+                    message: "Old workspace is in an error state".to_string(),
                 });
             }
 

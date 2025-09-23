@@ -112,7 +112,6 @@ function useEditState<T>(
         dispatch({ type: "edit" });
         setTimeout(() => {
           if (inputRef?.current) {
-            console.log("focusing", inputRef.current);
             inputRef.current.focus();
           }
         }, 10);

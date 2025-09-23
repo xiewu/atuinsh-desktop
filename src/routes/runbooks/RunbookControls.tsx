@@ -213,7 +213,6 @@ export default function RunbookControls(props: RunbookControlsProps) {
   );
 
   function handleVisibilityChange(keys: SharedSelection) {
-    console.log("handleVisibilityChange", keys, keys.currentKey);
     visibilityApi.setValue(keys.currentKey as RunbookVisibility);
   }
 

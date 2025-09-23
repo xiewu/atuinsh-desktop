@@ -24,6 +24,8 @@
 
 Atuin Desktop is currently in **open beta**. We're actively collecting feedback and improving the experience based on real-world usage.
 
+Read the [announcement post](https://blog.atuin.sh/atuin-desktop-runbooks-that-run/)
+
 ## What is Atuin Desktop?
 
 Most infrastructure is held together by five commands someone remembers when things go wrong. Documentation is out of date (if it exists at all), and the real answers are buried in Slack threads, rotting in Notion, or trapped in someone's shell history.

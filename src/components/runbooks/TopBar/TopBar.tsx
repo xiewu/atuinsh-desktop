@@ -1,12 +1,11 @@
 import Runbook from "@/state/runbooks/runbook";
 import RelativeTime from "@/components/relative_time.tsx";
-import SharePopover from "./SharePopover";
 import TagSelector from "./TagSelector";
 import ColorAvatar from "@/components/ColorAvatar";
 import { DateTime } from "luxon";
 import { addToast, Avatar, AvatarGroup, Button, Tooltip } from "@heroui/react";
 import { RemoteRunbook } from "@/state/models";
-import { BookTextIcon, CopyIcon, PencilOffIcon, TrashIcon } from "lucide-react";
+import { BookTextIcon, CopyIcon, PencilOffIcon, SettingsIcon, TrashIcon } from "lucide-react";
 import { PresenceUserInfo } from "@/lib/phoenix_provider";
 import { useQuery } from "@tanstack/react-query";
 import { workspaceById } from "@/lib/queries/workspaces";
@@ -17,6 +16,7 @@ import track_event from "@/tracking";
 import PlayButton from "@/lib/blocks/common/PlayButton";
 import AtuinEnv from "@/atuin_env";
 import { open } from "@tauri-apps/plugin-shell";
+import { cn } from "@/lib/utils";
 
 type TopbarProps = {
   runbook: Runbook;
@@ -34,6 +34,8 @@ type TopbarProps = {
   onCloseTagMenu: () => void;
   onShareToHub: () => void;
   onDeleteFromHub: () => void;
+  onToggleSettings: () => void;
+  isSettingsOpen: boolean;
 };
 
 function openHubRunbook(e: React.MouseEvent<HTMLAnchorElement>) {
@@ -196,16 +198,20 @@ export default function Topbar(props: TopbarProps) {
               />
             ))}
           </AvatarGroup>
-          {((!remoteRunbook && workspace?.isUserOwned() && runbook.isOnline()) ||
-            owner?.type === "user") && (
-            <SharePopover
-              onShareToHub={props.onShareToHub}
-              onDeleteFromHub={props.onDeleteFromHub}
-              runbook={runbook}
-              remoteRunbook={props.remoteRunbook}
-            />
-          )}
         </div>
+        <Tooltip content="Toggle runbook settings" placement="left" showArrow>
+          <Button
+            isIconOnly
+            variant="flat"
+            size="sm"
+            className={cn("mt-1 ml-2", props.isSettingsOpen && "bg-gray-400 dark:bg-gray-400")}
+            onPress={props.onToggleSettings}
+          >
+            <SettingsIcon
+              className={cn("h-4 w-4", props.isSettingsOpen && "stroke-white dark:stroke-gray-800")}
+            />
+          </Button>
+        </Tooltip>
         <PlayButton
           className="mt-1 ml-2"
           isRunning={serialExecution.includes(runbook.id)}

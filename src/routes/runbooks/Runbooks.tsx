@@ -22,6 +22,7 @@ import { useParams } from "react-router-dom";
 import { TabsContext } from "../root/Tabs";
 import RunbookIdContext from "@/context/runbook_id_context";
 import { invoke } from "@tauri-apps/api/core";
+import RunbookControls from "./RunbookControls";
 
 const Editor = React.lazy(() => import("@/components/runbooks/editor/Editor"));
 const Topbar = React.lazy(() => import("@/components/runbooks/TopBar/TopBar"));
@@ -58,6 +59,7 @@ export default function Runbooks() {
   // Key used to re-render editor when making major changes to runbook
   const [editorKey, setEditorKey] = useState<boolean>(false);
   const [showTagMenu, setShowTagMenu] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(() => {
     let tag = currentRunbook ? getLastTagForRunbook(currentRunbook.id) : null;
     if (tag == "(no tag)") tag = null;
@@ -407,7 +409,17 @@ export default function Runbooks() {
               onDeleteTag={handleDeleteTag}
               onShareToHub={handleSharedToHub}
               onDeleteFromHub={handleDeletedFromHub}
+              onToggleSettings={() => setShowSettings((show) => !show)}
+              isSettingsOpen={showSettings}
             />
+            {showSettings && runbookWorkspace && (
+              <RunbookControls
+                runbook={currentRunbook}
+                remoteRunbook={remoteRunbook || undefined}
+                isOrgOwned={runbookWorkspace.isOrgOwned()}
+                onClose={() => setShowSettings(false)}
+              />
+            )}
             <Sentry.ErrorBoundary showDialog={false}>
               {!hasNoTags && (
                 <Editor

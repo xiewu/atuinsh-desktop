@@ -14,8 +14,29 @@ env:
   NODE_ENV: production
 
 jobs:
-  draft:
+  generate-changelog:
+    name: Generate changelog
     runs-on: depot-ubuntu-24.04
+    outputs:
+      release_body: ${{ steps.git-cliff.outputs.content }}
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: generate changelog
+        id: git-cliff
+        uses: orhun/git-cliff-action@v4
+        with:
+          version: latest
+          args: -vv --latest --no-exec --github-repo ${{ github.repository }}
+
+  draft:
+    name: Draft releases
+    runs-on: depot-ubuntu-24.04
+    needs: generate-changelog
     permissions:
       contents: write
 
@@ -33,9 +54,10 @@ jobs:
         id: create_gh_release
         with:
           draft: true
-          generate_release_notes: false
+          body: ${{ needs.generate-changelog.outputs.release_body }}
 
   build:
+    name: Build releases
     needs: draft
 
     permissions:

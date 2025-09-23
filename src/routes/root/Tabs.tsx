@@ -132,6 +132,7 @@ export default function Tabs() {
           className="flex flex-row w-full min-h-[40px] border-b overflow-x-auto tab-scrollbar overflow-y-hidden pt-2 px-1"
           onWheel={handleWheel}
           onContextMenu={handleTabBarContextMenu}
+          data-tauri-drag-region
         >
           <SortableContext items={tabs} strategy={horizontalListSortingStrategy}>
             {tabs.map((tab, index) => (

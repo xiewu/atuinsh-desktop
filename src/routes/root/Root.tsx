@@ -383,8 +383,9 @@ function App() {
 
     if (runbook) {
       setCurrentWorkspaceId(runbook.workspaceId);
-      openTab(`/runbook/${runbookId}`, undefined, TabIcon.RUNBOOKS);
     }
+
+    openTab(`/runbook/${runbookId}`, undefined, TabIcon.RUNBOOKS);
   };
 
   const handlePromptDeleteRunbook = async (runbookId: string) => {

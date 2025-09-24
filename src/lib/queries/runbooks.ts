@@ -64,22 +64,25 @@ export function allRunbookIds() {
   });
 }
 
-export function remoteRunbook(runbook?: Runbook) {
+export function remoteRunbook(runbookOrId?: Runbook | string) {
   return queryOptions<RemoteRunbook | null>({
     staleTime: 1000 * 30,
-    queryKey: ["remote_runbook", runbook?.id],
+    queryKey: ["remote_runbook", typeof runbookOrId === "string" ? runbookOrId : runbookOrId?.id],
     queryFn: async () => {
-      if (runbook) {
+      if (typeof runbookOrId === "string") {
+        const rb = await getRunbookID(runbookOrId);
+        return rb;
+      } else if (runbookOrId) {
         try {
-          const rb = await getRunbookID(runbook.id);
+          const rb = await getRunbookID(runbookOrId.id);
           return rb;
         } catch (err: any) {
           if (
             (err instanceof HttpResponseError &&
               err.code === 404 &&
               // Only clear out the cache on 404 if the runbook is from our environment or was created locally
-              runbook.source === AtuinEnv.hubRunbookSource) ||
-            runbook.source === "local"
+              runbookOrId.source === AtuinEnv.hubRunbookSource) ||
+            runbookOrId.source === "local"
           ) {
             return null;
           } else {
@@ -91,8 +94,10 @@ export function remoteRunbook(runbook?: Runbook) {
       }
     },
     initialData:
-      runbook?.isOnline() && (runbook as OnlineRunbook).remoteInfo
-        ? (JSON.parse((runbook as OnlineRunbook).remoteInfo!) as RemoteRunbook)
+      typeof runbookOrId !== "string" &&
+      runbookOrId?.isOnline() &&
+      (runbookOrId as OnlineRunbook).remoteInfo
+        ? (JSON.parse((runbookOrId as OnlineRunbook).remoteInfo!) as RemoteRunbook)
         : undefined,
     refetchOnMount: "always",
   });

@@ -22,6 +22,7 @@ import { useParams } from "react-router-dom";
 import { TabsContext } from "../root/Tabs";
 import RunbookIdContext from "@/context/runbook_id_context";
 import { invoke } from "@tauri-apps/api/core";
+import RunbookSynchronizer from "@/lib/sync/runbook_synchronizer";
 import RunbookControls from "./RunbookControls";
 
 const Editor = React.lazy(() => import("@/components/runbooks/editor/Editor"));
@@ -45,7 +46,9 @@ export default function Runbooks() {
   const refreshRunbooks = useStore((store) => store.refreshRunbooks);
   const getLastTagForRunbook = useStore((store) => store.getLastTagForRunbook);
   const setLastTagForRunbook = useStore((store) => store.selectTag);
-  const { data: currentRunbook } = useQuery(runbookById(runbookId));
+  const { data: currentRunbook, isLoading: currentRunbookLoading } = useQuery(
+    runbookById(runbookId),
+  );
   const { data: runbookWorkspace } = useQuery(workspaceById(currentRunbook?.workspaceId || null));
   const lastRunbookRef = useMemory(currentRunbook);
   const [presences, setPresences] = useState<PresenceUserInfo[]>([]);
@@ -55,7 +58,10 @@ export default function Runbooks() {
   const stopSerialExecution = useStore((store) => store.stopSerialExecution);
   const { setTitle, tab } = useContext(TabsContext);
   const registerTabOnClose = useStore((store) => store.registerTabOnClose);
+  const setCurrentWorkspaceId = useStore((store) => store.setCurrentWorkspaceId);
 
+  const [syncingRunbook, setSyncingRunbook] = useState(false);
+  const [failedToSyncRunbook, setFailedToSyncRunbook] = useState(false);
   // Key used to re-render editor when making major changes to runbook
   const [editorKey, setEditorKey] = useState<boolean>(false);
   const [showTagMenu, setShowTagMenu] = useState(false);
@@ -66,6 +72,36 @@ export default function Runbooks() {
 
     return tag;
   });
+
+  useEffect(
+    function syncRunbookIfNotSynced() {
+      if (currentRunbookLoading) return;
+      if (currentRunbook) return;
+      if (!runbookId) return;
+
+      (async function syncRunbook() {
+        setSyncingRunbook(true);
+        // If the runbook wasn't synced when this tab was loaded,
+        // we don't know the workspace ID.
+        const sync = new RunbookSynchronizer(runbookId, null, user);
+        try {
+          await sync.sync(false); // yjs sync will happen on open
+          const runbook = await Runbook.load(runbookId);
+          if (runbook) {
+            // If the runbook wasn't synced when this tab was loaded,
+            // we need to set the workspace ID.
+            setCurrentWorkspaceId(runbook.workspaceId);
+          }
+        } catch (err) {
+          setFailedToSyncRunbook(true);
+          console.error("Error syncing runbook", err);
+        } finally {
+          setSyncingRunbook(false);
+        }
+      })();
+    },
+    [currentRunbookLoading, currentRunbook, runbookId, user],
+  );
 
   useEffect(() => {
     if (!tab || !currentRunbook) {
@@ -438,9 +474,21 @@ export default function Runbooks() {
           </div>
         )}
 
-        {!currentRunbook && (
+        {!currentRunbook && !syncingRunbook && !failedToSyncRunbook && (
           <div className="flex align-middle justify-center flex-col h-screen w-full">
             <h1 className="text-center">Select or create a runbook</h1>
+          </div>
+        )}
+
+        {!currentRunbook && !syncingRunbook && failedToSyncRunbook && (
+          <div className="flex align-middle justify-center flex-col h-screen w-full">
+            <h1 className="text-center">We were unable to sync this runbook</h1>
+          </div>
+        )}
+
+        {!currentRunbook && syncingRunbook && (
+          <div className="flex align-middle justify-center flex-col h-screen w-full">
+            <h1 className="text-center">Runbook is syncing, please wait...</h1>
           </div>
         )}
       </div>

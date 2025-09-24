@@ -11,6 +11,9 @@
   <em>Runbooks that Run. A local-first, executable runbook editor for real terminal workflows. Atuin Desktop looks like a doc, but runs like your terminal.</em>
 </p>
 
+<p align="center">
+  <a href="https://github.com/atuinsh/desktop/releases">download</a> | <a href="https://man.atuin.sh">documentation</a> | <a href="https://hub.atuin.sh/">hub</a>
+</p>
 
 
 <p align="center">
@@ -72,9 +75,9 @@ Teams are already using Atuin Desktop for:
 
 ## Getting Started
 
-### Project Status
-
-Atuin Desktop is currently in open beta.
+1. Download a package for your platform [on our releases page](https://github.com/atuinsh/desktop/releases)
+2. Sign up for an account [on Atuin Hub](https://hub.atuin.sh/)
+3. [Log into Atuin Desktop](https://man.atuin.sh/hub/getting-started/) and create your first runbook
 
 ## Feedback & Support
 

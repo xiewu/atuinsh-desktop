@@ -4,12 +4,14 @@ import { BookLockIcon, BookPlusIcon, BookTextIcon, Terminal } from "lucide-react
 import { NodeRendererProps } from "react-arborist";
 import { useStore } from "@/state/store";
 import { usePtyStore } from "@/state/ptyStore";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { RemoteRunbook } from "@/state/models";
-import { useRunbook } from "@/lib/useRunbook";
 import { OnlineRunbook } from "@/state/runbooks/runbook";
 import { TabUri } from "@/state/store/ui_state";
 import { useCurrentTabRunbookId } from "@/lib/hooks/useCurrentTab";
+import { useQuery } from "@tanstack/react-query";
+import { runbookById } from "@/lib/queries/runbooks";
+import { getRunbookID } from "@/api/api";
 
 export interface RunbookRowData {
   type: "runbook";
@@ -36,7 +38,34 @@ export default function RunbookTreeRow(props: RunbookTreeRowProps) {
       return uri.isRunbook() && uri.getRunbookId() === props.node.id;
     });
   }, [tabs, props.node.id]);
-  const runbook = useRunbook(props.runbookId);
+  const { data: runbook, isLoading: localRunbookLoading } = useQuery(runbookById(props.runbookId));
+  const localRunbookName = useMemo(() => {
+    return runbook?.name ?? null;
+  }, [runbook]);
+
+  // Normally, we get the runbook name from the local runbook.
+  // However, if the user has background sync turned off, we don't have a local runbook to pull from.
+  // In that case, we get the runbook name from the remote runbook.
+  const [remoteRunbookName, setRemoteRunbookName] = useState<string | null>(null);
+  useEffect(
+    function getRemoteRunbookName() {
+      let active = true;
+
+      if (!localRunbookLoading && !runbook) {
+        (async function getName() {
+          const remoteRunbook = await getRunbookID(props.runbookId);
+          if (active) {
+            setRemoteRunbookName(remoteRunbook.name);
+          }
+        })();
+      }
+
+      return () => {
+        active = false;
+      };
+    },
+    [runbook, localRunbookLoading],
+  );
 
   let lastClick = useRef<number>(0);
 
@@ -159,7 +188,12 @@ export default function RunbookTreeRow(props: RunbookTreeRowProps) {
               "text-gray-900 dark:text-gray-100": runbook && !runbook.viewed_at,
             })}
           >
-            {!runbook && !props.useProvidedName && <span className="italic">Loading...</span>}
+            {!localRunbookName && !props.useProvidedName && !remoteRunbookName && (
+              <span className="italic">Loading...</span>
+            )}
+            {!localRunbookName && !props.useProvidedName && remoteRunbookName && (
+              <span>{remoteRunbookName}</span>
+            )}
             {props.useProvidedName && <span>{props.node.data.name}</span>}
             {!props.useProvidedName && runbook && (runbook.name || "Untitled")}
           </span>

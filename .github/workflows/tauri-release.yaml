@@ -14,33 +14,10 @@ env:
   NODE_ENV: production
 
 jobs:
-  generate-changelog:
-    name: Generate changelog
-    runs-on: depot-ubuntu-24.04
-    outputs:
-      release_body: ${{ steps.git-cliff.outputs.content }}
-
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: generate changelog
-        id: git-cliff
-        uses: orhun/git-cliff-action@v4
-        with:
-          version: latest
-          args: -vv --latest --no-exec --github-repo ${{ github.repository }}
-
   draft:
-    name: Draft releases
     runs-on: depot-ubuntu-24.04
-    needs: generate-changelog
     permissions:
       contents: write
-    outputs:
-      upload_url: ${{ steps.create_gh_release.outputs.upload_url }}
 
     steps:
       - uses: actions/checkout@v4
@@ -53,13 +30,11 @@ jobs:
 
       - name: create draft github release
         uses: softprops/action-gh-release@v2
-        id: create_gh_release
         with:
           draft: true
-          body: ${{ needs.generate-changelog.outputs.release_body }}
+          generate_release_notes: true
 
   build:
-    name: Build releases
     needs: draft
 
     permissions:
@@ -128,9 +103,7 @@ jobs:
         with:
           args: ${{ matrix.args }}
 
-      - name: Rename Linux files and upload to GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Rename Linux files and prepare artifact paths
         run: |
           # Get the artifact paths from tauri-action output
           echo "Artifact paths: ${{ steps.tauri-action.outputs.artifactPaths }}"
@@ -139,7 +112,10 @@ jobs:
           paths_str=$(echo "${{ steps.tauri-action.outputs.artifactPaths }}" | sed 's/^\[//;s/\]$//')
           IFS=',' read -ra paths <<< "$paths_str"
 
-          # Rename .deb and .rpm files to remove spaces and upload to GitHub release
+          # Initialize artifact paths file
+          > artifact_paths.txt
+
+          # Rename .deb and .rpm files to remove spaces and build artifact paths file
           for file in "${paths[@]}"; do
             echo "Checking file: $file"
             if [[ "$file" == *.deb ]] || [[ "$file" == *.rpm ]]; then
@@ -155,18 +131,18 @@ jobs:
                 new_path="$dir/$new_filename"
                 echo "Renaming: $file -> $new_path"
                 mv "$file" "$new_path"
-                gh release upload "${{ github.ref_name }}" "$new_path" --clobber
+                echo "$new_path" >> artifact_paths.txt
               else
                 echo "No rename needed for: $filename"
-                gh release upload "${{ github.ref_name }}" "$file" --clobber
+                echo "$file" >> artifact_paths.txt
               fi
-            elif [[ "$file" == *.app ]]; then
-              # skip this file
-              echo "Skipping raw .app bundle: $file"
             else
-              gh release upload "${{ github.ref_name }}" "$file" --clobber
+              echo "$file" >> artifact_paths.txt
             fi
           done
+
+          echo "Final artifact paths for GitHub release:"
+          cat artifact_paths.txt
 
       - name: upload assets to cloudnebula
         uses: crabnebula-dev/cloud-release@v0.1.0
@@ -174,3 +150,10 @@ jobs:
           command: release upload ${{ env.CN_APP_SLUG }} --framework tauri
           api-key: ${{ secrets.CN_API_KEY }}
           path: ./backend
+
+      - name: upload assets to github releases
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            $(cat artifact_paths.txt)

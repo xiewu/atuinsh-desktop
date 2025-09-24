@@ -4,14 +4,13 @@ import { BookLockIcon, BookPlusIcon, BookTextIcon, Terminal } from "lucide-react
 import { NodeRendererProps } from "react-arborist";
 import { useStore } from "@/state/store";
 import { usePtyStore } from "@/state/ptyStore";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 import { RemoteRunbook } from "@/state/models";
 import { OnlineRunbook } from "@/state/runbooks/runbook";
 import { TabUri } from "@/state/store/ui_state";
 import { useCurrentTabRunbookId } from "@/lib/hooks/useCurrentTab";
 import { useQuery } from "@tanstack/react-query";
 import { runbookById } from "@/lib/queries/runbooks";
-import { getRunbookID } from "@/api/api";
 import { remoteRunbook as remoteRunbookQuery } from "@/lib/queries/runbooks";
 
 export interface RunbookRowData {

@@ -42,6 +42,7 @@ import BlockBus from "./lib/workflow/block_bus";
 import { generateBlocks } from "./lib/ai/block_generator";
 import WorkspaceManager from "./lib/workspaces/manager";
 import Root from "./routes/root/Root";
+import RunbookBus from "./lib/app/runbook_bus";
 
 (async () => {
   try {
@@ -60,6 +61,7 @@ const notificationManager = ServerNotificationManager.get();
 const workspaceSyncManager = WorkspaceSyncManager.get(useStore);
 const queryClient = useStore.getState().queryClient;
 const serverObserver = new ServerObserver(useStore, notificationManager);
+RunbookBus.initialize();
 
 const stateProxy = new Proxy(
   {},

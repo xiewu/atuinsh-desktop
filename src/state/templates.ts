@@ -43,3 +43,10 @@ export async function setTemplateVar(runbookId: string, name: string, value: str
   const bus = RunbookBus.get(runbookId);
   bus.emitVariableChanged(name, value);
 }
+
+export async function getTemplateVar(runbookId: string, name: string) {
+  return invoke<string>("get_template_var", {
+    runbook: runbookId,
+    name,
+  });
+}

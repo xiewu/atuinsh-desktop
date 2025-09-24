@@ -12,6 +12,7 @@ import { useCurrentTabRunbookId } from "@/lib/hooks/useCurrentTab";
 import { useQuery } from "@tanstack/react-query";
 import { runbookById } from "@/lib/queries/runbooks";
 import { getRunbookID } from "@/api/api";
+import { remoteRunbook as remoteRunbookQuery } from "@/lib/queries/runbooks";
 
 export interface RunbookRowData {
   type: "runbook";
@@ -46,26 +47,10 @@ export default function RunbookTreeRow(props: RunbookTreeRowProps) {
   // Normally, we get the runbook name from the local runbook.
   // However, if the user has background sync turned off, we don't have a local runbook to pull from.
   // In that case, we get the runbook name from the remote runbook.
-  const [remoteRunbookName, setRemoteRunbookName] = useState<string | null>(null);
-  useEffect(
-    function getRemoteRunbookName() {
-      let active = true;
-
-      if (!localRunbookLoading && !runbook) {
-        (async function getName() {
-          const remoteRunbook = await getRunbookID(props.runbookId);
-          if (active) {
-            setRemoteRunbookName(remoteRunbook.name);
-          }
-        })();
-      }
-
-      return () => {
-        active = false;
-      };
-    },
-    [runbook, localRunbookLoading],
-  );
+  const { data: remoteRunbook } = useQuery({
+    ...remoteRunbookQuery(props.runbookId),
+    enabled: !localRunbookLoading && !runbook,
+  });
 
   let lastClick = useRef<number>(0);
 
@@ -188,11 +173,11 @@ export default function RunbookTreeRow(props: RunbookTreeRowProps) {
               "text-gray-900 dark:text-gray-100": runbook && !runbook.viewed_at,
             })}
           >
-            {!localRunbookName && !props.useProvidedName && !remoteRunbookName && (
+            {!localRunbookName && !props.useProvidedName && !remoteRunbook && (
               <span className="italic">Loading...</span>
             )}
-            {!localRunbookName && !props.useProvidedName && remoteRunbookName && (
-              <span>{remoteRunbookName}</span>
+            {!localRunbookName && !props.useProvidedName && remoteRunbook && (
+              <span>{remoteRunbook.name}</span>
             )}
             {props.useProvidedName && <span>{props.node.data.name}</span>}
             {!props.useProvidedName && runbook && (runbook.name || "Untitled")}

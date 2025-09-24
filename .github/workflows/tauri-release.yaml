@@ -1,9 +1,7 @@
 name: publish
 
 on:
-  push:
-    tags:
-      - "v*.*.*"
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,8 +14,6 @@ env:
 jobs:
   draft:
     runs-on: depot-ubuntu-24.04
-    permissions:
-      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -27,12 +23,6 @@ jobs:
         with:
           command: release draft ${{ env.CN_APP_SLUG }} --framework tauri
           api-key: ${{ secrets.CN_API_KEY }}
-
-      - name: create draft github release
-        uses: softprops/action-gh-release@v2
-        with:
-          draft: true
-          generate_release_notes: true
 
   build:
     needs: draft
@@ -103,7 +93,8 @@ jobs:
         with:
           args: ${{ matrix.args }}
 
-      - name: Rename Linux files and prepare artifact paths
+      - name: Rename Linux files
+        if: matrix.platform == 'depot-ubuntu-22.04-4'
         run: |
           # Get the artifact paths from tauri-action output
           echo "Artifact paths: ${{ steps.tauri-action.outputs.artifactPaths }}"
@@ -112,10 +103,7 @@ jobs:
           paths_str=$(echo "${{ steps.tauri-action.outputs.artifactPaths }}" | sed 's/^\[//;s/\]$//')
           IFS=',' read -ra paths <<< "$paths_str"
 
-          # Initialize artifact paths file
-          > artifact_paths.txt
-
-          # Rename .deb and .rpm files to remove spaces and build artifact paths file
+          # Rename .deb and .rpm files to remove spaces
           for file in "${paths[@]}"; do
             echo "Checking file: $file"
             if [[ "$file" == *.deb ]] || [[ "$file" == *.rpm ]]; then
@@ -131,29 +119,15 @@ jobs:
                 new_path="$dir/$new_filename"
                 echo "Renaming: $file -> $new_path"
                 mv "$file" "$new_path"
-                echo "$new_path" >> artifact_paths.txt
               else
                 echo "No rename needed for: $filename"
-                echo "$file" >> artifact_paths.txt
               fi
-            else
-              echo "$file" >> artifact_paths.txt
             fi
           done
 
-          echo "Final artifact paths for GitHub release:"
-          cat artifact_paths.txt
-
-      - name: upload assets to cloudnebula
+      - name: upload assets
         uses: crabnebula-dev/cloud-release@v0.1.0
         with:
           command: release upload ${{ env.CN_APP_SLUG }} --framework tauri
           api-key: ${{ secrets.CN_API_KEY }}
           path: ./backend
-
-      - name: upload assets to github releases
-        uses: softprops/action-gh-release@v2
-        with:
-          draft: true
-          files: |
-            $(cat artifact_paths.txt)

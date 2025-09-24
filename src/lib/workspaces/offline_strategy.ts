@@ -269,6 +269,11 @@ export default class OfflineStrategy implements WorkspaceStrategy {
 
     const runbook = result.unwrap();
     activateRunbook(runbook!.id);
+
+    track_event("runbooks.create", {
+      workspaceType: "offline",
+    });
+
     return Ok(runbook!.id);
   }
 

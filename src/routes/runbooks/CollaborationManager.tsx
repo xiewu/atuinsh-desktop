@@ -11,6 +11,7 @@ import * as api from "@/api/api";
 interface CollaborationManagerProps {
   runbook: Runbook;
   remoteRunbook: RemoteRunbook;
+  disabled: boolean;
 }
 
 interface CreateCollabMutationArgs {
@@ -98,35 +99,6 @@ export default function CollaborationManager(props: CollaborationManagerProps) {
 
   return (
     <>
-      <hr />
-      <h2 className="uppercase text-gray-500 mb-2">Manage Collaborators</h2>
-      <ul className="max-h-[300px] overflow-y-auto">
-        {props.remoteRunbook.collaborations.map((collaboration) => (
-          <li key={collaboration.id} className="flex flex-row gap-2 justify-between mb-2">
-            <div className="flex flex-row gap-2 items-center">
-              <Avatar
-                alt={collaboration.user.display_name || collaboration.user.username}
-                src={collaboration.user.avatar_url}
-                className="w-6 h-6"
-              />
-              <span>{collaboration.user.username}</span>
-            </div>
-            <div className="flex flex-row text-sm text-gray-500 items-center">
-              <span>{collaboration.accepted ? "Accepted" : "Pending"}</span>
-              <Button
-                size="sm"
-                variant="flat"
-                color="danger"
-                className="ml-2"
-                isIconOnly
-                onClick={() => handleDeleteClicked(collaboration.id)}
-              >
-                <TrashIcon size={16} />
-              </Button>
-            </div>
-          </li>
-        ))}
-      </ul>
       <form className="flex flex-row gap-2" onSubmit={handleSubmit}>
         <Autocomplete
           label="Username"
@@ -137,7 +109,7 @@ export default function CollaborationManager(props: CollaborationManagerProps) {
           variant="bordered"
           onInputChange={list.setFilterText}
           onSelectionChange={handleUserSelect}
-          isDisabled={mutationInProgress}
+          isDisabled={mutationInProgress || props.disabled}
         >
           {(user: RemoteUser) => (
             <AutocompleteItem
@@ -160,11 +132,39 @@ export default function CollaborationManager(props: CollaborationManagerProps) {
           color="success"
           size="sm"
           className="py-4 px-8 h-full mt-1"
-          isDisabled={!selectedUser || mutationInProgress}
+          isDisabled={!selectedUser || mutationInProgress || props.disabled}
         >
           Invite Collaborator
         </Button>
       </form>
+      <ul className="max-h-[200px] overflow-y-auto mt-2">
+        {props.remoteRunbook.collaborations.map((collaboration) => (
+          <li key={collaboration.id} className="flex flex-row gap-2 justify-between mb-2">
+            <div className="flex flex-row gap-2 items-center">
+              <Avatar
+                alt={collaboration.user.display_name || collaboration.user.username}
+                src={collaboration.user.avatar_url}
+                className="w-6 h-6"
+              />
+              <span>{collaboration.user.username}</span>
+            </div>
+            <div className="flex flex-row text-sm text-gray-500 items-center">
+              <span>{collaboration.accepted ? "Accepted" : "Pending"}</span>
+              <Button
+                size="sm"
+                variant="flat"
+                color="danger"
+                className="ml-2"
+                isIconOnly
+                onPress={() => handleDeleteClicked(collaboration.id)}
+                isDisabled={props.disabled}
+              >
+                <TrashIcon size={16} />
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
     </>
   );
 }

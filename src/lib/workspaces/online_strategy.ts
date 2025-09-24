@@ -59,6 +59,11 @@ export default class OnlineStrategy implements WorkspaceStrategy {
       }
     }
 
+    let type = this.workspace.isOrgOwned() ? "online-org" : "online-user";
+    track_event("workspace.create", {
+      type,
+    });
+
     return Ok(this.workspace);
   }
 

@@ -29,13 +29,13 @@ export default class RunbookSynchronizer {
   public isSyncing: boolean = false;
   public syncStarted: Date | null = null;
   private currentUser: User;
-  private workspaceId: string;
+  private workspaceId: string | null;
   private provider: PhoenixSynchronizer | null = null;
   private resolve: Function | null = null;
   private reject: Function | null = null;
   private logger: Logger;
 
-  constructor(runbookId: string, workspaceId: string, currentUser: User) {
+  constructor(runbookId: string, workspaceId: string | null, currentUser: User) {
     this.runbookId = runbookId;
     this.workspaceId = workspaceId;
     this.currentUser = currentUser;

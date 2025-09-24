@@ -39,6 +39,8 @@ jobs:
     needs: generate-changelog
     permissions:
       contents: write
+    outputs:
+      upload_url: ${{ steps.create_gh_release.outputs.upload_url }}
 
     steps:
       - uses: actions/checkout@v4
@@ -142,7 +144,7 @@ jobs:
               -H "Content-Type: application/octet-stream" \
               --data-urlencode "name=$filename" \
               --data-binary "@$file_path" \
-              "${{ steps.create_gh_release.outputs.upload_url }}"
+              "${{ needs.draft.outputs.upload_url }}"
           }
 
           # Get the artifact paths from tauri-action output

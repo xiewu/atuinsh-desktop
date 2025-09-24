@@ -311,10 +311,6 @@ export default class OnlineStrategy implements WorkspaceStrategy {
 
     activateRunbook(runbook.id);
 
-    track_event("runbooks.create", {
-      workspacType: "online",
-    });
-
     doWorkspaceFolderOp(
       workspace.get("id")!,
       (wsf) => {

@@ -79,13 +79,15 @@ export default function Runbooks() {
 
       (async function syncRunbook() {
         setSyncingRunbook(true);
+        // If the runbook wasn't synced when this tab was loaded,
+        // we don't know the workspace ID.
         const sync = new RunbookSynchronizer(runbookId, null, user);
         try {
           await sync.sync(false); // yjs sync will happen on open
           const runbook = await Runbook.load(runbookId);
           if (runbook) {
             // If the runbook wasn't synced when this tab was loaded,
-            // we didn't set the workspace ID because we didn't know it.
+            // we need to set the workspace ID.
             setCurrentWorkspaceId(runbook.workspaceId);
           }
         } catch (err) {
@@ -96,7 +98,7 @@ export default function Runbooks() {
         }
       })();
     },
-    [currentRunbookLoading, currentRunbook],
+    [currentRunbookLoading, currentRunbook, runbookId, user],
   );
 
   useEffect(() => {

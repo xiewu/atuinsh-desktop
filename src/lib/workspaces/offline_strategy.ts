@@ -10,6 +10,7 @@ import * as commands from "./commands";
 import { WorkspaceError } from "@/rs-bindings/WorkspaceError";
 import { NodeApi } from "react-arborist";
 import { TreeRowData } from "@/components/runbooks/List/TreeView";
+import track_event from "@/tracking";
 
 interface WorkspaceFolderError {
   fatal: boolean;
@@ -207,6 +208,10 @@ export default class OfflineStrategy implements WorkspaceStrategy {
     if (result.isErr()) {
       return Err(result.unwrapErr());
     }
+
+    track_event("workspace.create", {
+      type: "offline",
+    });
 
     return Ok(this.workspace);
   }

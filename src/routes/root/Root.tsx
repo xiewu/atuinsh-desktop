@@ -296,8 +296,6 @@ function App() {
 
     const workspace = result.unwrap();
 
-    track_event("workspace.create");
-
     setCurrentWorkspaceId(workspace.get("id")!);
 
     listRef.current?.scrollWorkspaceIntoView(workspace.get("id")!);

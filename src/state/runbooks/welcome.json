@@ -6,7 +6,8 @@
       "textColor": "default",
       "backgroundColor": "default",
       "textAlignment": "left",
-      "level": 1
+      "level": 1,
+      "isToggleable": false
     },
     "content": [
       {
@@ -80,7 +81,8 @@
       "textColor": "default",
       "backgroundColor": "default",
       "textAlignment": "left",
-      "level": 2
+      "level": 2,
+      "isToggleable": false
     },
     "content": [
       {
@@ -118,7 +120,7 @@
       },
       {
         "type": "text",
-        "text": " to sync your runbook! ",
+        "text": " to sync your runbooks! ",
         "styles": {}
       }
     ],
@@ -187,7 +189,7 @@
     "children": []
   },
   {
-    "id": "0c2ef3dd-c4ef-4d3b-bd9c-7e862b195a7d",
+    "id": "8ee1e389-d406-49c5-ac76-c5ca4fbf6d50",
     "type": "paragraph",
     "props": {
       "textColor": "default",
@@ -195,6 +197,25 @@
       "textAlignment": "left"
     },
     "content": [],
+    "children": []
+  },
+  {
+    "id": "d6c90a76-09ae-45da-bb96-0a678b1fe958",
+    "type": "heading",
+    "props": {
+      "textColor": "default",
+      "backgroundColor": "default",
+      "textAlignment": "left",
+      "level": 2,
+      "isToggleable": false
+    },
+    "content": [
+      {
+        "type": "text",
+        "text": "Teams",
+        "styles": {}
+      }
+    ],
     "children": []
   },
   {
@@ -208,19 +229,8 @@
     "content": [
       {
         "type": "text",
-        "text": "We’re working on team features and will be releasing them soon. If you have thoughts you want to share, please do not hesitate to ",
+        "text": "We support team collaboration via the creation of organizations. Create an org via the dropdown on the left sidebar. Orgs allow realtime sharing between many users.",
         "styles": {}
-      },
-      {
-        "type": "link",
-        "href": "https://atuin.sh/contact",
-        "content": [
-          {
-            "type": "text",
-            "text": "get in touch",
-            "styles": {}
-          }
-        ]
       }
     ],
     "children": []
@@ -282,7 +292,8 @@
       "textColor": "default",
       "backgroundColor": "default",
       "textAlignment": "left",
-      "level": 2
+      "level": 2,
+      "isToggleable": false
     },
     "content": [
       {
@@ -502,7 +513,8 @@
       "textColor": "default",
       "backgroundColor": "default",
       "textAlignment": "left",
-      "level": 2
+      "level": 2,
+      "isToggleable": false
     },
     "content": [
       {
@@ -679,7 +691,8 @@
       "textColor": "default",
       "backgroundColor": "default",
       "textAlignment": "left",
-      "level": 3
+      "level": 3,
+      "isToggleable": false
     },
     "content": [
       {
@@ -809,7 +822,8 @@
       "textColor": "default",
       "backgroundColor": "default",
       "textAlignment": "left",
-      "level": 3
+      "level": 3,
+      "isToggleable": false
     },
     "content": [
       {
@@ -900,7 +914,8 @@
       "textColor": "default",
       "backgroundColor": "default",
       "textAlignment": "left",
-      "level": 3
+      "level": 3,
+      "isToggleable": false
     },
     "content": [
       {
@@ -1062,7 +1077,8 @@
       "textColor": "default",
       "backgroundColor": "default",
       "textAlignment": "left",
-      "level": 2
+      "level": 2,
+      "isToggleable": false
     },
     "content": [
       {

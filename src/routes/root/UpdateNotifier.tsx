@@ -41,18 +41,29 @@ export default function UpdateNotifier() {
     }
 
     setUpdating(Some(update.version));
-    await update.downloadAndInstall((progress) => {
-      switch (progress.event) {
-        case "Started":
-          if (progress.data.contentLength) {
-            setContentLength(Some(progress.data.contentLength));
-          }
-          break;
-        case "Progress":
-          setDownloadedBytes((n) => n + progress.data.chunkLength);
-          break;
-      }
-    });
+    try {
+      await update.downloadAndInstall((progress) => {
+        switch (progress.event) {
+          case "Started":
+            if (progress.data.contentLength) {
+              setContentLength(Some(progress.data.contentLength));
+            }
+            break;
+          case "Progress":
+            setDownloadedBytes((n) => n + progress.data.chunkLength);
+            break;
+        }
+      });
+    } catch (err) {
+      console.error("UpdateNotifier: error downloading and installing update", err);
+      setUpdating(None);
+      addToast({
+        title: "Error",
+        description: "There was an error updating the app. Please try again later.",
+        color: "danger",
+        shouldShowTimeoutProgress: true,
+      });
+    }
     setRelaunching(true);
     setTimeout(() => {
       relaunch();

@@ -190,7 +190,7 @@ const EditorBlock = ({
                   <Button
                     variant="flat"
                     size="sm"
-                    className="capitalize"
+                    className="capitalize min-w-[200px]"
                     endContent={<ChevronDownIcon size={16} />}
                   >
                     {selected ? selected.name : "Select a language"}

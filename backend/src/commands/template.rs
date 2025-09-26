@@ -16,8 +16,7 @@ pub async fn set_template_var(
     let mut vars = state.runbook_output_variables.write().await;
     let entry = vars.entry(runbook).or_insert(HashMap::new());
 
-    let current = entry.get(&name);
-    if current.map(|v| v == &value).unwrap_or(false) {
+    if entry.get(&name).map(|v| v == &value).unwrap_or(false) {
         return Ok(false);
     }
 

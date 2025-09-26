@@ -30,9 +30,9 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ImperativePanelHandle } from "react-resizable-panels";
 import { isAppleDevice } from "@react-aria/utils";
 import { useTauriEvent } from "@/lib/tauri";
-// import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
+import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 
-// import handleDeepLink from "./deep";
+import handleDeepLink from "./deep";
 import * as api from "@/api/api";
 import SocketManager from "@/socket";
 import type { ListApi } from "@/components/runbooks/List/List";
@@ -59,7 +59,7 @@ import { AtuinSharedStateAdapter } from "@/lib/shared_state/adapter";
 import { SharedStateManager } from "@/lib/shared_state/manager";
 import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
 import { TraversalOrder } from "@/lib/tree";
-// import DevConsole from "@/lib/dev/dev_console";
+import DevConsole from "@/lib/dev/dev_console";
 import InviteFriendsModal from "./InviteFriendsModal";
 import AtuinEnv from "@/atuin_env";
 import { ConnectionState } from "@/state/store/user_state";
@@ -162,15 +162,14 @@ function App() {
   useEffect(() => {
     (async () => {
       // TODO[mkt]: handle deep links with the new workspace setup
-      //
-      // const unlisten = await onOpenUrl((urls) => {
-      //   if (urls.length === 0) return;
-      //   handleDeepLink(urls[0], handleRunbookCreated);
-      // });
-      // DevConsole.addAppObject("handleDeepLink", (url: string) =>
-      //   handleDeepLink(url, handleRunbookCreated),
-      // );
-      // onOpenUrlListener.current = unlisten;
+      const unlisten = await onOpenUrl((urls) => {
+        if (urls.length === 0) return;
+        handleDeepLink(urls[0], navigateToRunbook);
+      });
+      DevConsole.addAppObject("handleDeepLink", (url: string) =>
+        handleDeepLink(url, navigateToRunbook),
+      );
+      onOpenUrlListener.current = unlisten;
     })();
 
     return () => {

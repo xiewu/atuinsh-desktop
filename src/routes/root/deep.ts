@@ -1,4 +1,5 @@
 import { me, HttpResponseError, getRunbookID } from "@/api/api";
+import { DialogBuilder } from "@/components/Dialogs/dialog";
 import RunbookSynchronizer, { SyncResult } from "@/lib/sync/runbook_synchronizer";
 import Runbook from "@/state/runbooks/runbook";
 import { useStore } from "@/state/store";
@@ -41,15 +42,7 @@ async function createRunbookFromHub(id: string): Promise<Option<SyncResult>> {
   return None;
 }
 
-const handleDeepLink = (
-  url: string,
-  runbookCreated: (
-    runbookId: string,
-    workspaceId: string,
-    parentFolderId: string | null,
-    activate?: boolean,
-  ) => void,
-): void | null => {
+const handleDeepLink = (url: string, openRunbook: (id: string) => void): void | null => {
   const routes: Routes = {
     // New "Open in desktop" from the hub
     "^atuin://runbook/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$": async (
@@ -57,19 +50,15 @@ const handleDeepLink = (
     ) => {
       const [id] = params;
 
-      let result = await createRunbookFromHub(id);
-
-      if (result.isSome()) {
-        let runbook = await Runbook.load(result.unwrap().runbookId);
-        if (!runbook) {
-          console.error("Unable to open runbook from hub");
-          return;
-        }
-        runbookCreated(runbook.id, runbook.workspaceId, null, true);
-
-        useStore.getState().refreshRunbooks();
+      const runbook = await Runbook.load(id);
+      if (runbook) {
+        openRunbook(runbook.id);
       } else {
-        console.error("Unable to open runbook from hub");
+        await new DialogBuilder()
+          .title("Runbook not found")
+          .message("The runbook you are trying to open was not found on this machine.")
+          .action({ label: "OK", value: "ok", variant: "flat" })
+          .build();
       }
     },
 

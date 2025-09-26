@@ -1,7 +1,7 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde_yaml::Value;
-use tauri::{ipc::Channel, State};
+use tauri::{ipc::Channel, path::BaseDirectory, AppHandle, Manager, State};
 
 use crate::{
     state::AtuinState,
@@ -10,6 +10,32 @@ use crate::{
         workspace::WorkspaceError,
     },
 };
+
+#[tauri::command]
+pub async fn copy_welcome_workspace(app: AppHandle) -> Result<String, String> {
+    let welcome_path = app
+        .path()
+        .resolve("resources/welcome", BaseDirectory::Resource)
+        .map_err(|e| e.to_string())?;
+
+    let documents_path = app.path().document_dir().map_err(|e| e.to_string())?;
+
+    let mut target_path = documents_path
+        .join("Atuin Runbooks")
+        .join("Welcome to Atuin");
+    let mut suffix: Option<u32> = None;
+    while target_path.exists() {
+        suffix = Some(suffix.unwrap_or(0) + 1);
+        target_path = target_path
+            .parent()
+            .unwrap()
+            .join(format!("Welcome to Atuin {}", suffix.unwrap()));
+    }
+
+    copy_dir_all(&welcome_path, &target_path).map_err(|e| e.to_string())?;
+
+    Ok(target_path.to_string_lossy().to_string())
+}
 
 #[tauri::command]
 pub async fn reset_workspaces(state: State<'_, AtuinState>) -> Result<(), WorkspaceError> {
@@ -221,4 +247,18 @@ pub async fn move_items_between_workspaces(
             new_parent_folder_id.as_deref(),
         )
         .await
+}
+
+fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> std::io::Result<()> {
+    std::fs::create_dir_all(&dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        if ty.is_dir() {
+            copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        } else {
+            std::fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        }
+    }
+    Ok(())
 }

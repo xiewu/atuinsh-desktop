@@ -1,5 +1,7 @@
 # Contributing to Atuin Desktop
 
+*Note:* This repository contains a `runbooks/` folder, which contains an offline Atuin Desktop workspace with runbooks that can be useful for development and testing. Create a new offline workspace and choose the `runbooks/` folder as the workspace directory to open it. We will be expanding this workspace with more runbooks and information over time.
+
 ## Prerequisites
 
 Developing on Atuin Desktop requires:
@@ -89,3 +91,19 @@ A global `app` object lives on the `window`. Items can be added to it via `DevCo
 * `app.handleDeepLink` - function to handle deep links
 * `app.setHubCredentials` - function to set hub credentials in development
 * `app.editor` - the BlockNote editor instance (when available)
+
+## Common Issues
+
+### Node.js runs out of memory running `pnpm tauri build`
+
+You can increase the memory limit by setting the `NODE_OPTIONS` environment variable to `--max-old-space-size=5120`. For example:
+
+```
+NODE_OPTIONS=--max-old-space-size=5120 pnpm tauri build
+```
+
+This repository contains an `.envrc` file that sets this for you if you use [direnv](https://direnv.net/).
+
+### I can't create online workspaces or runbooks
+
+Creating online workspaces and runbooks requires the user to be logged in to Atuin Hub. Atuin Hub is not currently open source, but we are exploring options to make it possible to work on this part of the app without it.

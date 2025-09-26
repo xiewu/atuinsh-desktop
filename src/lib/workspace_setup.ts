@@ -2,7 +2,7 @@ import Workspace from "@/state/runbooks/workspace";
 import { useStore } from "@/state/store";
 import * as api from "@/api/api";
 import Operation from "@/state/runbooks/operation";
-import Runbook, { OfflineRunbook, OnlineRunbook } from "@/state/runbooks/runbook";
+import { OnlineRunbook } from "@/state/runbooks/runbook";
 import LegacyWorkspace from "@/state/runbooks/legacy_workspace";
 import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
 import { SharedStateManager } from "./shared_state/manager";
@@ -10,12 +10,9 @@ import { AtuinSharedStateAdapter } from "./shared_state/adapter";
 import { uuidv7 } from "uuidv7";
 import Logger from "./logger";
 import { Rc } from "@binarymuse/ts-stdlib";
-import welcome from "@/state/runbooks/welcome.json";
-import { documentDir } from "@tauri-apps/api/path";
-import { exists, mkdir } from "@tauri-apps/plugin-fs";
-import { join } from "@tauri-apps/api/path";
 import { createWorkspace } from "./workspaces/commands";
 import { TabIcon } from "@/state/store/ui_state";
+import { invoke } from "@tauri-apps/api/core";
 
 const logger = new Logger("WorkspaceMigration");
 
@@ -58,26 +55,27 @@ export default async function doWorkspaceSetup(): Promise<void> {
     } catch (err) {
       logger.info("Unable to fetch workspaces from server; creating default workspace");
 
-      const documentsPath = await documentDir();
-      const defaultFolder = await join(documentsPath, "Atuin Runbooks", "Welcome Workspace");
-
-      const folderExists = await exists(defaultFolder);
-
-      if (!folderExists) {
-        await mkdir(defaultFolder, { recursive: true });
-      }
+      const workspacePath = await invoke<string>("copy_welcome_workspace");
 
       let name = "Welcome to Atuin";
       let id = uuidv7();
       workspace = new Workspace({
         id: id,
         name: name,
-        folder: defaultFolder,
+        folder: workspacePath,
         online: 0,
       });
-      await createWorkspace(defaultFolder, id, name);
+      await createWorkspace(workspacePath, id, name);
       await workspace.save();
     }
+
+    useStore
+      .getState()
+      .openTab(
+        "/runbook/01998818-ecf4-7993-817b-cc7dcfa180c4",
+        "Welcome to Atuin!",
+        TabIcon.RUNBOOKS,
+      );
 
     workspaces.push(workspace);
 
@@ -133,27 +131,5 @@ export default async function doWorkspaceSetup(): Promise<void> {
     setCurrentWorkspaceId(workspaces[0].get("id")!);
   }
 
-  const allRbIds = await Runbook.allIdsInAllWorkspaces();
-  if (allRbIds.length === 0) {
-    const workspace = workspaces.filter((ws) => !ws.isOnline() && !!ws.get("folder"))[0];
-    if (workspace) {
-      let runbook = await OfflineRunbook.create(
-        workspace,
-        null,
-        true,
-        "Welcome to Atuin!",
-        welcome,
-      );
-
-      if (runbook === null) {
-        console.error("Failed to create welcome runbook");
-        return;
-      }
-
-      useStore.getState().openTab(`/runbook/${runbook.id}`, runbook.name, TabIcon.RUNBOOKS);
-    }
-
-    useStore.getState().refreshRunbooks();
-    resolve?.();
-  }
+  resolve?.();
 }

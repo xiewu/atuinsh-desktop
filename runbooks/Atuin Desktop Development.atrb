@@ -178,7 +178,7 @@ content:
   props:
     type: bash
     name: JS tests
-    code: pnpm test-once
+    code: pnpm test
     pty: ''
     global: false
     outputVisible: true

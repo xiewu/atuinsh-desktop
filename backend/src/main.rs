@@ -484,6 +484,7 @@ fn main() {
             commands::mysql::mysql_query,
             commands::mysql::mysql_execute,
             commands::kubernetes::kubernetes_get_execute,
+            commands::workspaces::copy_welcome_workspace,
             commands::workspaces::reset_workspaces,
             commands::workspaces::watch_workspace,
             commands::workspaces::unwatch_workspace,

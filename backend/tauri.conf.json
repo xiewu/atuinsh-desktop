@@ -47,7 +47,8 @@
           "width": 660
         }
       }
-    }
+    },
+    "resources": { "../resources/welcome/": "resources/welcome/" }
   },
   "identifier": "sh.atuin.app",
   "plugins": {

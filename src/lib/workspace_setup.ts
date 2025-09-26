@@ -2,7 +2,7 @@ import Workspace from "@/state/runbooks/workspace";
 import { useStore } from "@/state/store";
 import * as api from "@/api/api";
 import Operation from "@/state/runbooks/operation";
-import Runbook, { OfflineRunbook, OnlineRunbook } from "@/state/runbooks/runbook";
+import { OnlineRunbook } from "@/state/runbooks/runbook";
 import LegacyWorkspace from "@/state/runbooks/legacy_workspace";
 import WorkspaceFolder, { Folder } from "@/state/runbooks/workspace_folders";
 import { SharedStateManager } from "./shared_state/manager";
@@ -130,4 +130,6 @@ export default async function doWorkspaceSetup(): Promise<void> {
   if (!currentWorkspaceId || !workspaces.some((ws) => ws.get("id") === currentWorkspaceId)) {
     setCurrentWorkspaceId(workspaces[0].get("id")!);
   }
+
+  resolve?.();
 }

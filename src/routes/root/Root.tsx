@@ -373,17 +373,17 @@ function App() {
       runbook = await Runbook.load(runbookId);
     }
 
-    if (runbookId) {
-      track_event("runbooks.open", {
-        total: await Runbook.count(),
-      });
-    }
-
     if (runbook) {
       setCurrentWorkspaceId(runbook.workspaceId);
     }
 
-    openTab(`/runbook/${runbookId}`, undefined, TabIcon.RUNBOOKS);
+    if (runbookId) {
+      track_event("runbooks.open", {
+        total: await Runbook.count(),
+      });
+
+      openTab(`/runbook/${runbookId}`, undefined, TabIcon.RUNBOOKS);
+    }
   };
 
   const handlePromptDeleteRunbook = async (runbookId: string) => {

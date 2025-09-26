@@ -32,7 +32,7 @@ export default interface WorkspaceStrategy {
   createWorkspace(): Promise<Result<Workspace, WorkspaceError>>;
   createRunbook(
     parentFolderId: string | null,
-    activateRunbook: (runbookId: string) => void,
+    activateRunbook: (runbookId: string) => Promise<void>,
   ): Promise<Result<string, WorkspaceError>>;
   deleteRunbook(
     doFolderOp: DoFolderOp,

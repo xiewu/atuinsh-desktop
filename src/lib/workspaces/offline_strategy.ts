@@ -237,7 +237,7 @@ export default class OfflineStrategy implements WorkspaceStrategy {
 
   async createRunbook(
     parentFolderId: string | null,
-    activateRunbook: (runbookId: string) => void,
+    activateRunbook: (runbookId: string) => Promise<void>,
   ): Promise<Result<string, WorkspaceError>> {
     let result = await Ok.from<Runbook | null, WorkspaceError>(
       OfflineRunbook.create(this.workspace, parentFolderId),
@@ -268,7 +268,7 @@ export default class OfflineStrategy implements WorkspaceStrategy {
     }
 
     const runbook = result.unwrap();
-    activateRunbook(runbook!.id);
+    await activateRunbook(runbook!.id);
 
     track_event("runbooks.create", {
       workspaceType: "offline",

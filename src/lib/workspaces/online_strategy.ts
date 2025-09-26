@@ -104,7 +104,7 @@ export default class OnlineStrategy implements WorkspaceStrategy {
 
   async createRunbook(
     parentFolderId: string | null,
-    activateRunbook: (runbookId: string) => void,
+    activateRunbook: (runbookId: string) => Promise<void>,
   ): Promise<Result<string, WorkspaceError>> {
     const rb = await OnlineRunbook.createUntitled(this.workspace, true);
     await this.onRunbookCreated(rb, parentFolderId, activateRunbook);
@@ -251,7 +251,7 @@ export default class OnlineStrategy implements WorkspaceStrategy {
   private async onRunbookCreated(
     runbook: Runbook,
     parentFolderId: string | null,
-    activateRunbook: (runbookId: string) => void,
+    activateRunbook: (runbookId: string) => Promise<void>,
   ): Promise<void> {
     // NOTE [mkt]:
     // This API call is made here instead of through the operation processor
@@ -259,23 +259,17 @@ export default class OnlineStrategy implements WorkspaceStrategy {
     // before opening it; this is so the server observer doesn't create an
     // observer for the runbook and cause a YJS sync conflict.
     //
-    // Note that this requires `currentRunbookId` to be set synchronously,
+    // Note that this requires the new runbook to be opened immediately,
     // so that we create a PhoenixProvider via RunbookEditor,
-    // which is why we call `handleRunbookActivate` before updating
+    // which is why we call `activateRunbook` before updating
     // the workspace folder (which would trigger the server observer).
+    //
+    // Otherwise, the server observer would hold the lock to the
+    // runbook provider and prevent the runbook from opening for several seconds.
     const workspace = await Workspace.get(runbook.workspaceId);
     if (!workspace) {
       return;
     }
-
-    // if (!runbook) {
-    //   new DialogBuilder()
-    //     .title("Could not load runbook")
-    //     .message("We were unable to load the runbook.")
-    //     .action({ label: "OK", value: "ok", variant: "flat" })
-    //     .build();
-    //   return;
-    // }
 
     let startedSyncIndicator = false;
     try {
@@ -309,7 +303,7 @@ export default class OnlineStrategy implements WorkspaceStrategy {
       }
     }
 
-    activateRunbook(runbook.id);
+    await activateRunbook(runbook.id);
 
     doWorkspaceFolderOp(
       workspace.get("id")!,

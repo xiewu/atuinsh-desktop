@@ -1,9 +1,7 @@
-import { me, HttpResponseError, getRunbookID } from "@/api/api";
+import { me, HttpResponseError } from "@/api/api";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
-import RunbookSynchronizer, { SyncResult } from "@/lib/sync/runbook_synchronizer";
 import Runbook from "@/state/runbooks/runbook";
 import { useStore } from "@/state/store";
-import { None, Option, Some } from "@binarymuse/ts-stdlib";
 
 interface RouteHandler {
   (params: string[]): void;
@@ -11,35 +9,6 @@ interface RouteHandler {
 
 interface Routes {
   [pattern: string]: RouteHandler;
-}
-
-async function createRunbookFromHub(id: string): Promise<Option<SyncResult>> {
-  try {
-    // If the runbook already exists locally, just return it
-    const runbook = await Runbook.load(id);
-    if (runbook) {
-      return Some<SyncResult>({
-        runbookId: runbook.id,
-        action: "nothing",
-      });
-    }
-
-    await getRunbookID(id);
-    // It exists; kick off a sync
-    const user = useStore.getState().user;
-    const currentWorkspaceId = useStore.getState().currentWorkspaceId;
-    const sync = new RunbookSynchronizer(id, currentWorkspaceId, user);
-    const syncedRunbook = await sync.sync();
-    return Some(syncedRunbook);
-  } catch (err) {
-    if (err instanceof HttpResponseError) {
-      console.error("Failed to fetch runbook from hub:", err.code);
-    } else {
-      console.error("Failed to fetch runbook from hub:", err);
-    }
-  }
-
-  return None;
 }
 
 const handleDeepLink = (url: string, openRunbook: (id: string) => void): void | null => {

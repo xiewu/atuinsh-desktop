@@ -30,7 +30,7 @@ content:
     styles:
       italic: true
   - type: text
-    text: ' have been added to help explain the different parts.'
+    text: ' have been added to provide additional context.'
     styles: {}
   children: []
 - id: db03956a-4166-46a4-b389-a6110adedf09
@@ -209,12 +209,16 @@ content:
   props:
     path: '{{ var.dir }}'
   children: []
-- id: ce7f2f00-8e70-44af-a4ed-50e8eb9d8707
-  type: paragraph
+- id: b67e736c-77b1-4345-b9d7-863575c56a80
+  type: var_display
+  props:
+    name: dir
+  children: []
+- id: a4067ad5-f9de-4379-8b86-abe48d568596
+  type: quote
   props:
     textColor: default
     backgroundColor: default
-    textAlignment: left
   content:
   - type: text
     text: 'The Script block stores the output of '
@@ -324,11 +328,10 @@ content:
     name: new_version
   children: []
 - id: f36e4563-ea46-40f0-b69d-344b48bbbbd0
-  type: paragraph
+  type: quote
   props:
     textColor: default
     backgroundColor: default
-    textAlignment: left
   content:
   - type: text
     text: 'Once again, we run a command to extract the new version number from '
@@ -419,7 +422,7 @@ content:
     textAlignment: left
   content:
   - type: text
-    text: Once the release workflow is complete, run the block below to populate the auto-generated release notes. Clean up any duplicates and items that shouldn’t be included, and add information where appropriate. In the case of duplicates, prefer lines that include the PR link.
+    text: Once the release workflow is complete, run the block below to populate the auto-generated release notes in the editor. Clean up any duplicates and items that shouldn’t be included, and add information where appropriate. In the case of duplicates, prefer lines that include the PR link.
     styles: {}
   children: []
 - id: 5a23fd8f-b153-46d8-b78b-50829c494aed
@@ -436,22 +439,19 @@ content:
   type: editor
   props:
     name: Release notes
-    code: |+
-      failed to run git: fatal: not a git repository (or any of the parent directories): .git
-
+    code: ''
     language: markdown
     variableName: release_notes
     syncVariable: true
   children: []
 - id: d9d5261d-6c4c-4843-b0a4-768b445e24de
-  type: paragraph
+  type: quote
   props:
     textColor: default
     backgroundColor: default
-    textAlignment: left
   content:
   - type: text
-    text: The Script block above fetches the current release notes from the GitHub Release that CI created and stores it in a variable, and the Editor block below it is set to use the same variable. With the toggle next to the variable name enabled, the content of the Editor updates automatically whenever the variable content changes.
+    text: The Script block above fetches the current release notes from the GitHub Release that CI created and stores it in a variable, and the Editor block below it is set to use the same variable. With the toggle next to the variable name enabled, the content of the Editor block updates automatically whenever the variable content changes.
     styles:
       italic: true
   children: []
@@ -471,7 +471,7 @@ content:
     textAlignment: left
   content:
   - type: text
-    text: Once you’re happy with the release notes, use the block below to update the release from the content above and generate the Tauri update file.
+    text: Once you’re happy with the release notes, use the block below to update the GH Release from the content above, and generate the Tauri auto-update file.
     styles: {}
   children: []
 - id: c0088e54-4dc0-4168-a235-289613c2a7f5
@@ -582,15 +582,7 @@ content:
     text: Once verified, publish both releases. You’re done!
     styles: {}
   children: []
-- id: 6ccc51d7-32ac-4d78-b180-665255afb96a
-  type: paragraph
-  props:
-    textColor: default
-    backgroundColor: default
-    textAlignment: left
-  content: []
-  children: []
-- id: 574d36b4-6960-441f-9c2e-8e5080f5925a
+- id: 2321ffb0-a313-4be6-a345-a22e590e098c
   type: paragraph
   props:
     textColor: default

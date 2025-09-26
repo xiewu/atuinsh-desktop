@@ -4,7 +4,7 @@ use tauri_plugin_http::reqwest::{Client, Response};
 pub async fn send_feedback(feedback: String, email: Option<String>) -> Result<(), String> {
     let uniq_id = uuid::Uuid::new_v4();
 
-    make_request(&serde_json::json!({
+    let response = make_request(&serde_json::json!({
         "api_key": "phc_EOWZsUljQ4HdvlGgoVAhhjktfDDDqYf4lKxzZ1wDkJv",
         "event": "survey sent",
         "distinct_id": uniq_id.to_string(),
@@ -26,7 +26,10 @@ pub async fn send_feedback(feedback: String, email: Option<String>) -> Result<()
     }))
     .await?;
 
-    Ok(())
+    match response.error_for_status() {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 async fn make_request(body: &serde_json::Value) -> Result<Response, String> {

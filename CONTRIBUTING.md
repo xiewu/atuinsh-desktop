@@ -1,6 +1,6 @@
 # Contributing to Atuin Desktop
 
-*Note:* This repository contains a `workspace/` folder, which contains an offline Atuin Desktop workspace with runbooks that can be useful for development and testing. Create a new offline workspace and choose the `workspace/` folder as the workspace directory to open it. We will be expanding this workspace with more runbooks and information over time.
+*Note:* This repository contains a `runbooks/` folder, which contains an offline Atuin Desktop workspace with runbooks that can be useful for development and testing. Create a new offline workspace and choose the `runbooks/` folder as the workspace directory to open it. We will be expanding this workspace with more runbooks and information over time.
 
 ## Prerequisites
 

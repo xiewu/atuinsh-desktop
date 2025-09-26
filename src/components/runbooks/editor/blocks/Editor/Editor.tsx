@@ -142,7 +142,7 @@ const EditorBlock = ({
         }
       });
     }
-  }, [syncVariable, currentRunbookId, variableName]);
+  }, [syncVariable, currentRunbookId, variableName, onChange]);
 
   const themeObj = useCodemirrorTheme();
 

@@ -3,23 +3,27 @@ use std::collections::HashMap;
 /// Set a template variable for a runbook
 ///
 /// This stores the variable in the state so it can be accessed by the template engine
+///
+/// Returns true if the variable was changed, false if it was already set to the same value
 #[tauri::command]
 pub async fn set_template_var(
     state: tauri::State<'_, crate::state::AtuinState>,
     runbook: String,
     name: String,
     value: String,
-) -> Result<(), String> {
+) -> Result<bool, String> {
     // Store the variable in the state
-    state
-        .runbook_output_variables
-        .write()
-        .await
-        .entry(runbook)
-        .or_insert(HashMap::new())
-        .insert(name, value);
+    let mut vars = state.runbook_output_variables.write().await;
+    let entry = vars.entry(runbook).or_insert(HashMap::new());
 
-    Ok(())
+    let current = entry.get(&name);
+    if current.is_some() && current.unwrap() == &value {
+        return Ok(false);
+    }
+
+    entry.insert(name, value);
+
+    Ok(true)
 }
 
 /// Get a template variable for a runbook

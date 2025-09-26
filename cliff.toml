@@ -7,7 +7,14 @@
 # See https://keats.github.io/tera/docs/#introduction
 body = """
 {% if version %}\
-    ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+    ## Atuin Desktop v{{ version | trim_start_matches(pat="v") }} - {{ timestamp | date(format="%Y-%m-%d") }}
+
+    ### 🔗 Downloads
+    - [macOS](https://github.com/atuinsh/desktop/releases/download/v{{ version | trim_start_matches(pat="v") }}/Atuin_{{ version | trim_start_matches(pat="v") }}_aarch64.dmg)
+    - [Linux .deb](https://github.com/atuinsh/desktop/releases/download/v{{ version | trim_start_matches(pat="v") }}/Atuin_Desktop_{{ version | trim_start_matches(pat="v") }}_amd64.deb)
+    - [Linux .rpm](https://github.com/atuinsh/desktop/releases/download/v{{ version | trim_start_matches(pat="v") }}/Atuin_Desktop-{{ version | trim_start_matches(pat="v") }}-1.x86_64.rpm)
+
+    ## Changelog
 {% else %}\
     ## [unreleased]
 {% endif %}\
@@ -27,7 +34,7 @@ render_always = true
 # An array of regex based postprocessors to modify the changelog.
 postprocessors = [
     # Replace the placeholder <REPO> with a URL.
-    { pattern = '<REPO>', replace = "https://github.com/atuinsh/desktop-src" },
+    { pattern = '<REPO>', replace = "https://github.com/atuinsh/desktop" },
 ]
 # render body even when there are no releases to process
 # render_always = true

@@ -593,10 +593,6 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
           getItems={async (query: any) =>
             filterSuggestionItems(
               [
-                ...getDefaultReactSlashMenuItems(editor),
-                // AI group (only if enabled)
-                ...(aiEnabledState ? [insertAIGenerate(editor, showAIPopup)] : []),
-
                 // Execute group
                 insertTerminal(editor as any),
                 insertKubernetes(editor as any),
@@ -628,6 +624,10 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
 
                 // Misc group
                 insertEditor(schema)(editor),
+
+                ...getDefaultReactSlashMenuItems(editor),
+                // AI group (only if enabled)
+                ...(aiEnabledState ? [insertAIGenerate(editor, showAIPopup)] : []),
               ],
               query,
             )

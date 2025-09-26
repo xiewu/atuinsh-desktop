@@ -480,6 +480,7 @@ fn main() {
             commands::stats::command_stats,
             commands::template::set_template_var,
             commands::template::get_template_var,
+            commands::feedback::send_feedback,
             commands::mysql::mysql_query,
             commands::mysql::mysql_execute,
             commands::kubernetes::kubernetes_get_execute,

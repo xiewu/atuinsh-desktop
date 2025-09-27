@@ -10,7 +10,18 @@ description: Register for Atuin Hub and connect your Desktop app to share runboo
 
 To log into your Hub account in the Desktop app, click the avatar icon in the lower-left corner of the app and choose the "Log in" option.
 
-<figure><img src="../../images/image (2).png" alt=""><figcaption></figcaption></figure>
+<figure class="img-light">
+  <picture>
+    <img src="../../images/desktop-login-light.png" alt="Desktop app login button">
+  </picture>
+  <figcaption></figcaption>
+</figure>
+<figure class="img-dark">
+  <picture>
+    <img src="../../images/desktop-login-dark.png" alt="Desktop app login button">
+  </picture>
+  <figcaption></figcaption>
+</figure>
 
 The app will open your default browser to the [Desktop Connect](https://hub.atuin.sh/settings/desktop-connect) page, where you can create a token for use in the Desktop app. We will be refining this flow in the near future.
 

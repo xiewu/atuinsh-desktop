@@ -26,6 +26,59 @@ content:
     text: This example demonstrates using a Dropdown block populated with command output (click the button on the left of the Dropdown block to see the command). The selected release is then used by the Script block to fetch the release notes, and populate the Editor block with the contents.
     styles: {}
   children: []
+- id: 8a6fe381-5810-42ed-a20e-d3682352253e
+  type: paragraph
+  props:
+    textColor: default
+    backgroundColor: default
+    textAlignment: left
+  content: []
+  children: []
+- id: 3abd9849-3fa7-486b-8b4b-591134f6f2d6
+  type: paragraph
+  props:
+    textColor: default
+    backgroundColor: default
+    textAlignment: left
+  content:
+  - type: text
+    text: 'This runbook requires the following dependencies:'
+    styles: {}
+  children: []
+- id: 32062fc4-d632-4d4a-9c69-c167ee200eb7
+  type: bulletListItem
+  props:
+    textColor: default
+    backgroundColor: default
+    textAlignment: left
+  content:
+  - type: text
+    text: 'gh: '
+    styles: {}
+  - type: link
+    href: https://cli.github.com/
+    content:
+    - type: text
+      text: https://cli.github.com/
+      styles: {}
+  children: []
+- id: b2f9b5ea-88d8-42c7-8658-5becb693356d
+  type: bulletListItem
+  props:
+    textColor: default
+    backgroundColor: default
+    textAlignment: left
+  content:
+  - type: text
+    text: 'jq: '
+    styles: {}
+  - type: link
+    href: https://jqlang.org/
+    content:
+    - type: text
+      text: https://jqlang.org/
+      styles: {}
+  children: []
 - id: d66cc915-c11d-4717-87d4-1b4089e785d0
   type: paragraph
   props:
@@ -92,10 +145,10 @@ content:
   type: dropdown
   props:
     name: release
-    options: gh release list --json name,tagName | jq -r '.[] | .name + ":" + .tagName'
+    options: gh release list --json name,tagName --jq '.[] | .name + ":" + .tagName'
     fixedOptions: ''
     variableOptions: ''
-    commandOptions: gh release list --json name,tagName | jq -r '.[] | .name + ":" + .tagName'
+    commandOptions: gh release list --json name,tagName --jq '.[] | .name + ":" + .tagName'
     value: v0.0.106
     optionsType: command
     interpreter: bash
@@ -123,7 +176,7 @@ content:
   props:
     name: Release notes
     code: ''
-    language: ''
+    language: markdown
     variableName: release_notes
     syncVariable: true
   children: []
@@ -135,7 +188,7 @@ content:
     textAlignment: left
   content: []
   children: []
-- id: 9fbbfc89-8c2a-442c-a9a7-4105a1a95c7c
+- id: fb958cb0-babc-423a-be42-c29e3ec890cc
   type: paragraph
   props:
     textColor: default

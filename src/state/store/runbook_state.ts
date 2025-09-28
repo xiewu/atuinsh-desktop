@@ -45,7 +45,7 @@ export const createRunbookState: StateCreator<AtuinRunbookState> = (
   runbooks: [],
   lastTagForRunbook: {},
   serialExecution: [],
-  backgroundSync: false,
+  backgroundSync: true,
   syncConcurrency: 1,
 
   importRunbooks: async (): Promise<string[]> => {

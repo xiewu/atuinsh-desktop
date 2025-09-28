@@ -23,6 +23,4 @@ To log into your Hub account in the Desktop app, click the avatar icon in the lo
   <figcaption></figcaption>
 </figure>
 
-The app will open your default browser to the [Desktop Connect](https://hub.atuin.sh/settings/desktop-connect) page, where you can create a token for use in the Desktop app. We will be refining this flow in the near future.
-
-<figure><img src="../../images/image (3).png" alt=""><figcaption></figcaption></figure>
+The app will open your default browser to the [Desktop Connect](https://hub.atuin.sh/settings/desktop-connect) page, where you can click a button to open the app and log in, or copy your API key and log in manually via the settings menu in the app.

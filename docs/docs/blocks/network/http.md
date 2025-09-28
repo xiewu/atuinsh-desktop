@@ -1,6 +1,17 @@
 # :material-web: HTTP
 
-<figure><img src="../../../images/CleanShot 2025-02-06 at 23.45.00@2x.png" alt=""><figcaption></figcaption></figure>
+<figure class="img-light">
+  <picture>
+    <img src="../../../images/http-light.png" alt="HTTP Block">
+  </picture>
+  <figcaption></figcaption>
+</figure>
+<figure class="img-dark">
+  <picture>
+    <img src="../../../images/http-dark.png" alt="HTTP Block">
+  </picture>
+  <figcaption></figcaption>
+</figure>
 
 The HTTP block allows you to make HTTP requests to APIs, web services, and external systems. The HTTP block supports all standard HTTP methods: GET, POST, PUT, DELETE, PATCH, HEAD, and OPTIONS.
 

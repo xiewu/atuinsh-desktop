@@ -48,7 +48,15 @@ First, give a block a name. Click the pencil icon next to the default name in th
 
 Then, it can be referred to via the `{{ doc.named }}`map, within the template system
 
-<figure>
-  <img src="../images/CleanShot 2025-02-06 at 23.41.02@2x.png" alt=""/>
+<figure class="img-light">
+  <picture>
+    <img src="../../images/templating-light.png" alt="Collaborations">
+  </picture>
+  <figcaption>An example using an editor block's content from another block, via the template system</figcaption>
+</figure>
+<figure class="img-dark">
+  <picture>
+    <img src="../../images/templating-dark.png" alt="Collaborations">
+  </picture>
   <figcaption>An example using an editor block's content from another block, via the template system</figcaption>
 </figure>

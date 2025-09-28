@@ -4,8 +4,16 @@ description: Workspaces are the highest level container for runbooks
 
 Workspaces are the highest level container for runbooks. They can be found in the left sidebar in the Desktop app.
 
-<figure>
-  <img src="../images/workspaces.png" alt="" style="max-width: 600px" />
+<figure class="img-light">
+  <picture>
+    <img src="../../images/workspaces-light.png" alt="Collaborations">
+  </picture>
+  <figcaption>Operations, Internal Infra, and Meetings are all workspaces</figcaption>
+</figure>
+<figure class="img-dark">
+  <picture>
+    <img src="../../images/workspaces-dark.png" alt="Collaborations">
+  </picture>
   <figcaption>Operations, Internal Infra, and Meetings are all workspaces</figcaption>
 </figure>
 

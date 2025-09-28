@@ -8,6 +8,8 @@ edit_uri: edit/main/docs/docs/
 
 extra:
   homepage: https://atuin.sh
+extra_css:
+  - style.css
 
 nav:
   - "Home": index.md

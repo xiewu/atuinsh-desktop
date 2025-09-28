@@ -1,6 +1,17 @@
 # Terminal
 
-<figure><img src="../../../images/CleanShot 2025-02-06 at 23.25.35@2x.png" alt=""><figcaption></figcaption></figure>
+<figure class="img-light">
+  <picture>
+    <img src="../../../images/terminal-light.png" alt="Terminal block">
+  </picture>
+  <figcaption></figcaption>
+</figure>
+<figure class="img-dark">
+  <picture>
+    <img src="../../../images/terminal-dark.png" alt="Terminal block">
+  </picture>
+  <figcaption></figcaption>
+</figure>
 
 The Terminal block provides a fully functional, **interactive** shell directly within your Runbook. It behaves just like your local terminal, respecting your system configuration, environment variables, and shell preferences.
 

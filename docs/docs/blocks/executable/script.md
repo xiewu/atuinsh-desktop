@@ -1,6 +1,17 @@
 # :material-script: Script
 
-<figure><img src="../../../images/CleanShot 2025-02-06 at 23.26.45@2x.png" alt=""><figcaption></figcaption></figure>
+<figure class="img-light">
+  <picture>
+    <img src="../../../images/script-basic-light.png" alt="Script block">
+  </picture>
+  <figcaption></figcaption>
+</figure>
+<figure class="img-dark">
+  <picture>
+    <img src="../../../images/script-basic-dark.png" alt="Script block">
+  </picture>
+  <figcaption></figcaption>
+</figure>
 
 The script block is a lot like a terminal block, except non-interactive. This is essentially your normal bash script, with some superpowers. Script blocks run without user interaction, making them perfect for automation and batch processing.
 
@@ -24,6 +35,17 @@ Set the "output variable" name in the header of the block. You can refer to the 
 {{var.variable_name}}
 ```
 
-<figure><img src="../../../images/CleanShot 2025-02-06 at 22.56.05@2x.png" alt=""><figcaption><p>A simple example of script block + variable usage</p></figcaption></figure>
+<figure class="img-light">
+  <picture>
+    <img src="../../../images/script-light.png" alt="Script block with variables">
+  </picture>
+  <figcaption></figcaption>
+</figure>
+<figure class="img-dark">
+  <picture>
+    <img src="../../../images/script-dark.png" alt="Script block with variables">
+  </picture>
+  <figcaption></figcaption>
+</figure>
 
 See the [templating](../../templating.md) section for full information on template variables.

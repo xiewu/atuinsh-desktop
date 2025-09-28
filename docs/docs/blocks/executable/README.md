@@ -12,7 +12,19 @@ While the execution context + state of a script or terminal block is isolated an
 
 Runbooks also support "serial execution". Click the play button in the top right, and runbooks will execute each block in sequence automatically.
 
-<figure><img src="../../../images/CleanShot 2025-04-29 at 15.30.07@2x.png" alt=""><figcaption></figcaption></figure>
+<figure class="img-light">
+  <picture>
+    <img src="../../images/serial-light.png" alt="Serial execution">
+  </picture>
+  <figcaption></figcaption>
+</figure>
+<figure class="img-dark">
+  <picture>
+    <img src="../../images/serial-dark.png" alt="Serial execution">
+  </picture>
+  <figcaption></figcaption>
+</figure>
+
 
 !!! warning "Terminal Block Completion"
     There is one small caveat for terminal blocks - they must exit. We cannot automatically determine if a terminal block has completed. You must either click the stop button yourself, or include "exit" somewhere in your input.

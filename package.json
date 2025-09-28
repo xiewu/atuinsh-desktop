@@ -11,7 +11,8 @@
     "test": "vitest",
     "test-once": "vitest run",
     "test-rs": "cd backend && cargo test",
-    "generate-bindings": "cd backend && cargo test export_bindings"
+    "generate-bindings": "cd backend && cargo test export_bindings",
+    "docs": "cd docs && uv run mkdocs serve"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",

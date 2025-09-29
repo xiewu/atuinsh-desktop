@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/atuinsh/desktop/releases">download</a> | <a href="https://man.atuin.sh">documentation</a> | <a href="https://hub.atuin.sh/">hub</a>
+  <a href="https://github.com/atuinsh/desktop/releases">download</a> | <a href="https://man.atuin.sh">documentation</a> | <a href="https://hub.atuin.sh/">hub</a> | <a href="https://discord.gg/Fq8bJSKPHh">discord</a>
 </p>
 
 

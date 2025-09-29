@@ -15,8 +15,11 @@ export async function checkForAppUpdates(manualActivation: boolean = false): Pro
 
     let body = update.body;
     if (body) {
+      let changelog = body;
       const index = body.indexOf("## Changelog");
-      const changelog = body.slice(index + 12).trim();
+      if (index === -1) {
+        changelog = body.slice(index + 12).trim();
+      }
       body = micromark(changelog, {
         extensions: [gfm()],
         htmlExtensions: [gfmHtml()],

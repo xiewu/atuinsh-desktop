@@ -60,7 +60,7 @@ pub struct DocumentTemplateState {
     /// only really makes sense if we're running a template from a Pty.
     /// We can use the pty map to lookup the metadata for the pty, and from there figure
     /// out the block ID
-    pub previous: BlockState,
+    pub previous: Option<BlockState>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -268,7 +268,7 @@ pub async fn template_str(
         })
         .collect();
 
-    let previous = previous.unwrap_or_default();
+    let previous = previous.map(serialized_block_to_state);
     let var = output_vars
         .get(&runbook)
         .map_or(HashMap::new(), |v| v.clone());
@@ -280,7 +280,7 @@ pub async fn template_str(
 
     let doc_state = if !doc.is_empty() {
         Some(DocumentTemplateState {
-            previous: serialized_block_to_state(previous),
+            previous,
             first: serialized_block_to_state(doc.first().unwrap().clone()),
             last: serialized_block_to_state(doc.last().unwrap().clone()),
             content: doc.into_iter().map(serialized_block_to_state).collect(),

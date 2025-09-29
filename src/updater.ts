@@ -13,22 +13,16 @@ export async function checkForAppUpdates(manualActivation: boolean = false): Pro
   if (update?.available) {
     logger.info("Update available!");
 
-    let body = update.body;
-    if (body) {
-      let changelog = body;
-      const index = body.indexOf("## Changelog");
-      if (index === -1) {
-        changelog = body.slice(index + 12).trim();
-      }
-      body = micromark(changelog, {
+    if (update.body) {
+      // Fetch everything after the first instance of "Changelog" (with any heading level)
+      let changelog = /\#{1,6}\s*Changelog\n(.*)$/gms.exec(update.body)?.[1] || update.body;
+      update.body = micromark(changelog, {
         extensions: [gfm()],
         htmlExtensions: [gfmHtml()],
       });
     } else {
-      body = "*No changelog available*";
+      update.body = "*No changelog available*";
     }
-
-    update.body = body;
 
     if (!manualActivation && AtuinEnv.isDev) {
       logger.info("Skipping update prompt in dev for automatic checks");

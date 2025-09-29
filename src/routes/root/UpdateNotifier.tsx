@@ -176,11 +176,12 @@ export default function UpdateNotifier() {
     return (
       <Modal isOpen={true} onClose={dismiss} size="2xl">
         <ModalContent>
-          <ModalHeader>Atuin Desktop {availableUpdate.version} Release Notes</ModalHeader>
+          <ModalHeader>Atuin Desktop v{availableUpdate.version} Release Notes</ModalHeader>
           <ModalBody>
             <div className="max-h-[300px] overflow-y-auto bg-gray-100 dark:bg-gray-800 rounded-md p-2">
               <div
                 className="github-release-notes"
+                // micromark markdown conversion handles HTML sanitization for us
                 dangerouslySetInnerHTML={{ __html: availableUpdate.body! }}
                 onClick={handleNotesClick}
               />
@@ -198,7 +199,7 @@ export default function UpdateNotifier() {
               Close
             </Button>
             <Button onPress={() => doUpdate(availableUpdate)} color="primary">
-              {getGlobalOptions().os === "macos" ? "Update Now" : "Download from GitHub"}
+              Update Now
             </Button>
           </ModalFooter>
         </ModalContent>

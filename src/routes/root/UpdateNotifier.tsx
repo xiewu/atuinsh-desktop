@@ -73,15 +73,8 @@ export default function UpdateNotifier() {
     }, 3000);
   }
 
-  async function downloadOrOpenPage() {
-    if (!availableUpdate) return;
-
-    if (getGlobalOptions().os === "macos") {
-      doUpdate(availableUpdate);
-    } else {
-      await open("https://github.com/atuinsh/desktop/releases/latest");
-      return;
-    }
+  function browseToDownloads(version: string) {
+    open(`https://github.com/atuinsh/desktop/releases/v${version}`);
   }
 
   useEffect(() => {
@@ -142,10 +135,10 @@ export default function UpdateNotifier() {
               className="p-2"
               onPress={() => {
                 closeToast(toastId);
-                setViewUpdateNotes(true);
+                browseToDownloads(update.version);
               }}
             >
-              Update
+              Download
             </Button>
           ),
         })!;
@@ -204,7 +197,7 @@ export default function UpdateNotifier() {
             >
               Close
             </Button>
-            <Button onPress={() => downloadOrOpenPage()} color="primary">
+            <Button onPress={() => doUpdate(availableUpdate)} color="primary">
               {getGlobalOptions().os === "macos" ? "Update Now" : "Download from GitHub"}
             </Button>
           </ModalFooter>

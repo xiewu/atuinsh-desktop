@@ -19,9 +19,6 @@ import AtuinEnv from "@/atuin_env";
 import { getGlobalOptions } from "@/lib/global_options";
 import { Update } from "@tauri-apps/plugin-updater";
 
-const micromark = import("micromark");
-const gfm = import("micromark-extension-gfm");
-
 export default function UpdateNotifier() {
   const [relaunching, setRelaunching] = useState(false);
   const [showingUpdate, setShowingUpdate] = useState(false);

@@ -29,6 +29,7 @@ import ConvertWorkspaceDialog from "./ConvertWorkspaceDialog";
 import { useRunbook } from "@/lib/useRunbook";
 import { useCurrentTabRunbookId } from "@/lib/hooks/useCurrentTab";
 import { open } from "@tauri-apps/plugin-dialog";
+import { openPath } from "@tauri-apps/plugin-opener";
 import * as commands from "@/lib/workspaces/commands";
 import WorkspaceManager from "@/lib/workspaces/manager";
 
@@ -751,6 +752,13 @@ export default function WorkspaceComponent(props: WorkspaceProps) {
           handleDeleteWorkspace();
         }
       },
+      onOpenFolder: props.workspace.get("folder")
+        ? () => {
+            if (props.workspace.get("folder")) {
+              openPath(props.workspace.get("folder")!);
+            }
+          }
+        : undefined,
     });
 
     await menu.popup();

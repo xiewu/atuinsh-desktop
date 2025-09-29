@@ -1,5 +1,6 @@
 /** @ts-ignore */
 
+import { getGlobalOptions } from "@/lib/global_options";
 import { MenuBuilder, ItemBuilder, AtuinMenuItem } from "@/lib/menu_builder";
 import Workspace from "@/state/runbooks/workspace";
 import { ArboristNode, ArboristTree } from "@/state/runbooks/workspace_folders";
@@ -129,6 +130,13 @@ export async function createFolderMenu(
   const menu = await new MenuBuilder()
     .item(
       new ItemBuilder()
+        .text("New Runbook")
+        .action(() => actions.onNewRunbook())
+        .accelerator("Shift+N"),
+    )
+    .separator()
+    .item(
+      new ItemBuilder()
         .text("New Folder")
         .action(() => actions.onNewFolder())
         .accelerator("N"),
@@ -150,13 +158,6 @@ export async function createFolderMenu(
         .text("Move To...")
         .items(moveToItems as AtuinMenuItem[])
         .build(),
-    )
-    .separator()
-    .item(
-      new ItemBuilder()
-        .text("New Runbook")
-        .action(() => actions.onNewRunbook())
-        .accelerator("Shift+N"),
     )
     .build();
 
@@ -232,15 +233,9 @@ export async function createWorkspaceMenu(actions: {
   onNewWorkspace: Handler;
   onRenameWorkspace: Handler;
   onDeleteWorkspace: Handler;
+  onOpenFolder?: Handler;
 }) {
   const menu = await new MenuBuilder()
-    .item(
-      new ItemBuilder()
-        .text("New Folder")
-        .action(() => actions.onNewFolder())
-        .accelerator("N"),
-    )
-    .separator()
     .item(
       new ItemBuilder()
         .text("New Runbook")
@@ -250,20 +245,36 @@ export async function createWorkspaceMenu(actions: {
     .separator()
     .item(
       new ItemBuilder()
+        .text("New Folder")
+        .action(() => actions.onNewFolder())
+        .accelerator("N"),
+    )
+    .separator()
+    .item(
+      new ItemBuilder()
         .text("Rename Workspace")
         .action(() => actions.onRenameWorkspace())
         .accelerator("R"),
     )
-    .separator()
     .item(
       new ItemBuilder()
         .text("Delete Workspace")
         .action(() => actions.onDeleteWorkspace())
         .accelerator("CmdOrCtrl+Delete"),
-    )
-    .build();
+    );
 
-  return menu;
+  if (actions.onOpenFolder) {
+    const opts = getGlobalOptions();
+
+    menu.separator().item(
+      new ItemBuilder()
+        .text(opts.os === "macos" ? "Show in Finder" : "Show in File Explorer")
+        .action(() => actions.onOpenFolder!())
+        .accelerator("CmdOrCtrl+O"),
+    );
+  }
+
+  return menu.build();
 }
 
 function createMoveToMenu(

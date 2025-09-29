@@ -70,6 +70,14 @@
     {
       "identifier": "fs:scope",
       "allow": ["**/*"]
+    },
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [
+        {
+          "path": "**/*"
+        }
+      ]
     }
   ],
   "platforms": ["linux", "macOS", "windows"]

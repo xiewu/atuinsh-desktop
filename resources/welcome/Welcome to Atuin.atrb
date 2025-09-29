@@ -718,7 +718,45 @@ content:
       text: docs
       styles: {}
   - type: text
-    text: ', and explore the examples we’ve included in the examples folder of this workspace to get an idea of what Atuin Desktop is capable of.'
+    text: ', and explore the examples we’ve included in the examples folder of this workspace to get an idea of what Atuin Desktop is capable of:'
+    styles: {}
+  children: []
+- id: afc02783-c9f5-4770-adbc-efa94b73fe9f
+  type: paragraph
+  props:
+    textColor: default
+    backgroundColor: default
+    textAlignment: left
+  content: []
+  children: []
+- id: e415f49b-2048-4e30-b012-7cf5d66dab11
+  type: bulletListItem
+  props:
+    textColor: default
+    backgroundColor: default
+    textAlignment: left
+  content:
+  - type: runbook-link
+    props:
+      runbookId: 01998c07-fd5c-76c2-8307-38705d872242
+      runbookName: Fetch Release Notes
+  - type: text
+    text: ' '
+    styles: {}
+  children: []
+- id: e41ad742-0708-465a-84ca-c0caabde23c2
+  type: bulletListItem
+  props:
+    textColor: default
+    backgroundColor: default
+    textAlignment: left
+  content:
+  - type: runbook-link
+    props:
+      runbookId: 01998822-b94b-74a3-bdf6-c2ddefa03d02
+      runbookName: Atuin Desktop Release
+  - type: text
+    text: ' '
     styles: {}
   children: []
 - id: ddedef89-b538-43b0-a104-024b042c1d54

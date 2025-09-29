@@ -76,11 +76,10 @@ content:
   props: {}
   children: []
 - id: 75d7f280-6bdc-4217-a344-139410adfa3c
-  type: paragraph
+  type: quote
   props:
     textColor: default
     backgroundColor: default
-    textAlignment: left
   content:
   - type: text
     text: This is a Local Directory block; the path you choose is only stored on your machine. Perfect for sharing runbooks with a team!

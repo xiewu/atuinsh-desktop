@@ -3,10 +3,12 @@ import { useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-shell";
 import {
   addToast,
+  closeToast,
   Button,
   Modal,
   ModalBody,
   ModalContent,
+  ModalFooter,
   ModalHeader,
   Progress,
 } from "@heroui/react";
@@ -17,9 +19,13 @@ import AtuinEnv from "@/atuin_env";
 import { getGlobalOptions } from "@/lib/global_options";
 import { Update } from "@tauri-apps/plugin-updater";
 
+const micromark = import("micromark");
+const gfm = import("micromark-extension-gfm");
+
 export default function UpdateNotifier() {
   const [relaunching, setRelaunching] = useState(false);
   const [showingUpdate, setShowingUpdate] = useState(false);
+  const [viewUpdateNotes, setViewUpdateNotes] = useState(false);
   const showedUpdatePrompt = useStore((state) => state.showedUpdatePrompt);
   const setShowedUpdatePrompt = useStore((state) => state.setShowedUpdatePrompt);
   const [contentLength, setContentLength] = useState<Option<number>>(None);
@@ -70,8 +76,15 @@ export default function UpdateNotifier() {
     }, 3000);
   }
 
-  async function openDownloadPage() {
-    await open(AtuinEnv.url("/download"));
+  async function downloadOrOpenPage() {
+    if (!availableUpdate) return;
+
+    if (getGlobalOptions().os === "macos") {
+      doUpdate(availableUpdate);
+    } else {
+      await open("https://github.com/atuinsh/desktop/releases/latest");
+      return;
+    }
   }
 
   useEffect(() => {
@@ -99,7 +112,8 @@ export default function UpdateNotifier() {
       } as const;
 
       if (getGlobalOptions().os === "macos") {
-        addToast({
+        let toastId: string = "";
+        toastId = addToast({
           ...baseOptions,
           endContent: (
             <Button
@@ -107,14 +121,18 @@ export default function UpdateNotifier() {
               variant="flat"
               color="primary"
               className="p-2"
-              onPress={() => doUpdate(update)}
+              onPress={() => {
+                closeToast(toastId);
+                setViewUpdateNotes(true);
+              }}
             >
               Update
             </Button>
           ),
-        });
+        })!;
       } else {
-        addToast({
+        let toastId: string = "";
+        toastId = addToast({
           ...baseOptions,
           classNames: {
             base: cn(["flex flex-col items-center gap-2"]),
@@ -125,15 +143,78 @@ export default function UpdateNotifier() {
               variant="flat"
               color="primary"
               className="p-2"
-              onPress={() => openDownloadPage()}
+              onPress={() => {
+                closeToast(toastId);
+                setViewUpdateNotes(true);
+              }}
             >
-              Download from Atuin Hub
+              Update
             </Button>
           ),
+        })!;
+      }
+    }
+  }, [
+    availableUpdate,
+    updating.unwrapOr("v<unknown>"),
+    showedUpdatePrompt,
+    showingUpdate,
+    setViewUpdateNotes,
+    setShowingUpdate,
+  ]);
+
+  function handleNotesClick(e: React.MouseEvent<HTMLDivElement>) {
+    const target = e.target as HTMLElement;
+    const link = target.closest("a");
+    if (link) {
+      e.preventDefault();
+      const href = link.getAttribute("href");
+      if (href) {
+        import("@tauri-apps/plugin-shell").then((shell) => {
+          shell.open(href);
         });
       }
     }
-  }, [availableUpdate, updating.unwrapOr("v<unknown>"), showedUpdatePrompt, showingUpdate]);
+  }
+
+  function dismiss() {
+    setViewUpdateNotes(false);
+    setShowingUpdate(false);
+  }
+
+  if (availableUpdate && viewUpdateNotes && updating.isNone()) {
+    return (
+      <Modal isOpen={true} onClose={dismiss} size="2xl">
+        <ModalContent>
+          <ModalHeader>Atuin Desktop {availableUpdate.version} Release Notes</ModalHeader>
+          <ModalBody>
+            <div className="max-h-[300px] overflow-y-auto bg-gray-100 dark:bg-gray-800 rounded-md p-2">
+              <div
+                className="github-release-notes"
+                dangerouslySetInnerHTML={{ __html: availableUpdate.body! }}
+                onClick={handleNotesClick}
+              />
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              onPress={() => {
+                setViewUpdateNotes(false);
+                setShowingUpdate(false);
+              }}
+              variant="flat"
+              color="default"
+            >
+              Close
+            </Button>
+            <Button onPress={() => downloadOrOpenPage()} color="primary">
+              {getGlobalOptions().os === "macos" ? "Update Now" : "Download from GitHub"}
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    );
+  }
 
   if (availableUpdate && updating.isSome()) {
     return (

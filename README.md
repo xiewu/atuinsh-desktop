@@ -27,7 +27,7 @@
 
 Atuin Desktop is currently in **open beta**. We're actively collecting feedback and improving the experience based on real-world usage.
 
-Read the [announcement post](https://blog.atuin.sh/atuin-desktop-runbooks-that-run/)
+Read the [announcement post](https://blog.atuin.sh/atuin-desktop-open-source/)
 
 ## What is Atuin Desktop?
 

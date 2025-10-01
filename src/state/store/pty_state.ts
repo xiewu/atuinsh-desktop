@@ -23,6 +23,7 @@ export class TerminalData extends Emittery {
   unlisten: UnlistenFn | null;
 
   startTime: number | null;
+  hasRunInitialScript: boolean;
 
   constructor(pty: string, terminal: Terminal, fit: FitAddon) {
     super();
@@ -32,6 +33,7 @@ export class TerminalData extends Emittery {
     this.pty = pty;
     this.startTime = null;
     this.unlisten = null;
+    this.hasRunInitialScript = false;
 
     this.disposeResize = this.terminal.onResize((e) => this.onResize(e));
     this.disposeOnData = this.terminal.onData((e) => this.onData(e));

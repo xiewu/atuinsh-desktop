@@ -94,11 +94,7 @@ export const RunBlock = ({
     return colorMode === "dark" ? darkModeEditorTheme : lightModeEditorTheme;
   }, [colorMode, lightModeEditorTheme, darkModeEditorTheme]);
 
-  // This ensures that the first time we run a block, it executes the code. But subsequent mounts of an already-existing pty
-  // don't run the code again.
-  // We have to write to the pty from the terminal component atm, because it needs to be listening for data from the pty before
-  // we write to it.
-  const [firstOpen, setFirstOpen] = useState<boolean>(false);
+
 
   const currentRunbookId = useCurrentRunbookId();
 
@@ -265,7 +261,6 @@ export const RunBlock = ({
       try {
         let p = await openPty();
         setIsLoading(false);
-        setFirstOpen(true);
 
         if (onRun) onRun(p);
       } catch (error) {
@@ -473,7 +468,6 @@ export const RunBlock = ({
                 block_id={terminal.id}
                 pty={pty.pid}
                 script={terminal.code}
-                runScript={firstOpen}
                 setCommandRunning={setCommandRunning}
                 setExitCode={setExitCode}
                 setCommandDuration={setCommandDuration}
@@ -529,7 +523,6 @@ export const RunBlock = ({
                 block_id={terminal.id}
                 pty={pty.pid}
                 script={terminal.code}
-                runScript={false}
                 setCommandRunning={setCommandRunning}
                 setExitCode={setExitCode}
                 setCommandDuration={setCommandDuration}

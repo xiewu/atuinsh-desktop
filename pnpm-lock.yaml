@@ -345,8 +345,8 @@ importers:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.17)
       ts-tiny-activerecord:
-        specifier: github:atuinsh/ts-tiny-activerecord#v0.0.6
-        version: git+https://git@github.com:atuinsh/ts-tiny-activerecord.git#9199016411c42d8b83f47f93f962eb00211ea6e9
+        specifier: git+https://github.com/atuinsh/ts-tiny-activerecord#v0.0.6
+        version: https://codeload.github.com/atuinsh/ts-tiny-activerecord/tar.gz/9199016411c42d8b83f47f93f962eb00211ea6e9
       use-resize-observer:
         specifier: ^9.1.0
         version: 9.1.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -5167,8 +5167,8 @@ packages:
   ts-interface-checker@0.1.13:
     resolution: {integrity: sha512-Y/arvbn+rrz3JCKl9C4kVNfTfSm2/mEp5FSz5EsZSANGPSlQrpRI5M4PKF+mJnE52jOO90PnPSc3Ur3bTQw0gA==}
 
-  ts-tiny-activerecord@git+https://git@github.com:atuinsh/ts-tiny-activerecord.git#9199016411c42d8b83f47f93f962eb00211ea6e9:
-    resolution: {commit: 9199016411c42d8b83f47f93f962eb00211ea6e9, repo: git@github.com:atuinsh/ts-tiny-activerecord.git, type: git}
+  ts-tiny-activerecord@https://codeload.github.com/atuinsh/ts-tiny-activerecord/tar.gz/9199016411c42d8b83f47f93f962eb00211ea6e9:
+    resolution: {tarball: https://codeload.github.com/atuinsh/ts-tiny-activerecord/tar.gz/9199016411c42d8b83f47f93f962eb00211ea6e9}
     version: 0.0.6
 
   tsconfck@3.1.5:
@@ -11888,7 +11888,7 @@ snapshots:
 
   ts-interface-checker@0.1.13: {}
 
-  ts-tiny-activerecord@git+https://git@github.com:atuinsh/ts-tiny-activerecord.git#9199016411c42d8b83f47f93f962eb00211ea6e9:
+  ts-tiny-activerecord@https://codeload.github.com/atuinsh/ts-tiny-activerecord/tar.gz/9199016411c42d8b83f47f93f962eb00211ea6e9:
     dependencies:
       typescript: 5.8.2
 

@@ -255,10 +255,12 @@ async fn history_calendar(
     // probs don't want to iterate _this_ many times, but it's only the last year. so 365
     // iterations at max. should be quick.
 
+    // Handle case where calendar is empty (can happen on Linux with XDG dir issues)
+    let default_entry = (String::new(), 0);
     let max = calendar
         .iter()
         .max_by_key(|d| d.1)
-        .expect("Can't find max count");
+        .unwrap_or(&default_entry);
 
     let ret = calendar
         .iter()

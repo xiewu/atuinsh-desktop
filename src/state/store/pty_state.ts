@@ -23,6 +23,13 @@ export class TerminalData extends Emittery {
   unlisten: UnlistenFn | null;
 
   startTime: number | null;
+  /**
+   * Flag to prevent the initial command from being re-run across component remounts.
+   * This is set to true after the initial script is run, and should only be reset
+   * when a new PTY/TerminalData instance is created (i.e., when a new terminal session starts).
+   * Ensures that the initial command is not executed multiple times for the same session.
+   */
+  hasRunInitialScript: boolean;
 
   constructor(pty: string, terminal: Terminal, fit: FitAddon) {
     super();
@@ -32,6 +39,7 @@ export class TerminalData extends Emittery {
     this.pty = pty;
     this.startTime = null;
     this.unlisten = null;
+    this.hasRunInitialScript = false;
 
     this.disposeResize = this.terminal.onResize((e) => this.onResize(e));
     this.disposeOnData = this.terminal.onData((e) => this.onData(e));

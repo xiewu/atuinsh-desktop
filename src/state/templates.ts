@@ -7,12 +7,18 @@ import { invoke } from "@tauri-apps/api/core";
 import { addToast } from "@heroui/react";
 import RunbookBus from "@/lib/app/runbook_bus";
 
+export enum TemplateErrorBehavior {
+  TOAST_ON_ERROR = "toast_on_error",
+  SUPPRESS_ERROR = "suppress_error",
+}
+
 /// Expects the string to template, and the current Blocknote document
 export async function templateString(
   id: string,
   input: string,
   doc: any[],
   runbook: string | null,
+  errorBehavior: TemplateErrorBehavior = TemplateErrorBehavior.TOAST_ON_ERROR,
 ): Promise<string> {
   let normalized = normalizeInput(input);
 
@@ -26,12 +32,14 @@ export async function templateString(
 
     return templated;
   } catch (error) {
-    // Show error toast for template parsing errors
-    addToast({
-      title: "Template Error",
-      description: `${error}`,
-      color: "danger",
-    });
+    if (errorBehavior === TemplateErrorBehavior.TOAST_ON_ERROR) {
+      // Show error toast for template parsing errors
+      addToast({
+        title: "Template Error",
+        description: `${error}`,
+        color: "danger",
+      });
+    }
 
     return normalized; // Return original input when template fails
   }

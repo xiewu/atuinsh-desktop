@@ -45,7 +45,19 @@ export async function templateString(
   }
 }
 
-export async function setTemplateVar(runbookId: string, name: string, value: string) {
+export async function getDependentVariables(input: string): Promise<string[]> {
+  let normalized = normalizeInput(input);
+
+  try {
+    let dependent: string[] = await invoke("get_dependent_variables", {
+      source: normalized,
+    });
+
+    return dependent;
+  } catch (error) {
+    return [];
+  }
+}
 
 export async function setTemplateVar(runbookId: string, name: string, value: string, source?: any) {
   const changed = await invoke("set_template_var", {

@@ -38,6 +38,8 @@ export async function templateString(
 }
 
 export async function setTemplateVar(runbookId: string, name: string, value: string) {
+
+export async function setTemplateVar(runbookId: string, name: string, value: string, source?: any) {
   const changed = await invoke("set_template_var", {
     runbook: runbookId,
     name,
@@ -46,7 +48,7 @@ export async function setTemplateVar(runbookId: string, name: string, value: str
 
   if (changed) {
     const bus = RunbookBus.get(runbookId);
-    bus.emitVariableChanged(name, value);
+    bus.emitVariableChanged(name, value, source);
   }
 
   return changed;

@@ -187,8 +187,6 @@ jobs:
                   new_filename=$(echo "$filename" | sed "s/\.app\.tar\.gz\.sig$/${platform_suffix}.app.tar.gz.sig/")
                 elif [[ "$file" == *.app.tar.gz ]]; then
                   new_filename=$(echo "$filename" | sed "s/\.app\.tar\.gz$/${platform_suffix}.app.tar.gz/")
-                elif [[ "$file" == *.dmg ]]; then
-                  new_filename=$(echo "$filename" | sed "s/\.dmg$/${platform_suffix}.dmg/")
                 fi
                 
                 new_path="$dir/$new_filename"

@@ -566,9 +566,18 @@ fn main() {
                 .app_config_dir()
                 .expect("Failed to get app config dir");
 
+            let use_hub_updater_service = env::var("USE_HUB_UPDATER_SERVICE").is_ok();
+            if use_hub_updater_service {
+                log::info!("Using Hub updater service");
+            }
+
             let handle_clone = handle.clone();
             run_async_command(async move {
-                handle.manage(state::AtuinState::new(dev_prefix, app_path));
+                handle.manage(state::AtuinState::new(
+                    dev_prefix,
+                    app_path,
+                    use_hub_updater_service,
+                ));
                 handle
                     .state::<state::AtuinState>()
                     .init(&handle_clone)

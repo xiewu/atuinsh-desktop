@@ -71,6 +71,9 @@ pub(crate) struct AtuinState {
 
     pub app_path: PathBuf,
 
+    // Whether to use the Hub updater service
+    pub use_hub_updater_service: bool,
+
     // Map of runbook -> output variable -> output value
     // All strings
     // I'd like to store the output of all executions in a local sqlite next, but
@@ -79,7 +82,11 @@ pub(crate) struct AtuinState {
 }
 
 impl AtuinState {
-    pub fn new(dev_prefix: Option<String>, app_path: PathBuf) -> Self {
+    pub fn new(
+        dev_prefix: Option<String>,
+        app_path: PathBuf,
+        use_hub_updater_service: bool,
+    ) -> Self {
         Self {
             pty_store: Mutex::new(None),
             exec_log: Mutex::new(None),
@@ -95,6 +102,7 @@ impl AtuinState {
             runbook_output_variables: Default::default(),
             dev_prefix,
             app_path,
+            use_hub_updater_service,
         }
     }
     pub async fn init(&self, app: &AppHandle) -> Result<()> {

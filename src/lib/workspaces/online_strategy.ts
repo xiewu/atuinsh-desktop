@@ -115,6 +115,18 @@ export default class OnlineStrategy implements WorkspaceStrategy {
     doFolderOp: DoFolderOp,
     runbookId: string,
   ): Promise<Result<undefined, WorkspaceError>> {
+    // First, try to load and delete the runbook from the database
+    const runbook = await OnlineRunbook.load(runbookId);
+    if (runbook) {
+      try {
+        await runbook.delete();
+      } catch (err) {
+        console.error("Failed to delete runbook from database", err);
+        // Continue anyway to remove from folder tree
+      }
+    }
+
+    // Remove the runbook from the workspace folder tree
     const success = await doFolderOp(
       (wsf) => {
         return wsf.deleteRunbook(runbookId);

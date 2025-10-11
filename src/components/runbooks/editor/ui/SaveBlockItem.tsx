@@ -1,29 +1,27 @@
 import { DragHandleMenuProps, useBlockNoteEditor, useComponentsContext } from "@blocknote/react";
-import { CopyIcon } from "lucide-react";
-import { uuidv7 } from "uuidv7";
+import { SaveIcon } from "lucide-react";
+import { useStore } from "@/state/store";
 
-export function DuplicateBlockItem(props: DragHandleMenuProps) {
+export function SaveBlockItem(props: DragHandleMenuProps) {
   const editor = useBlockNoteEditor();
-
   const Components = useComponentsContext()!;
 
   return (
     <Components.Generic.Menu.Item
-      icon={<CopyIcon size={16} />}
+      icon={<SaveIcon size={16} />}
       onClick={() => {
         // HACK [mkt]: For some blocks using CodeMirror, it seems that `props.block`
         // is missing the code in its props. However, `editor.document` has the correct
         // value in the block's props. So, we use `editor.document` to get the block.
+        //
+        // This is the same workaround as in DuplicateBlockItem.
         let block = editor.getBlock(props.block.id) || props.block;
         block = structuredClone(block);
 
-        let id = uuidv7();
-        block.id = id;
-
-        editor.insertBlocks([block], props.block.id, "after");
+        useStore.getState().setSavingBlock(block);
       }}
     >
-      Duplicate
+      Save Block
     </Components.Generic.Menu.Item>
   );
 }

@@ -272,7 +272,7 @@ export default class RunbookEditor {
   }
 
   async _save(runbookArg: Runbook | undefined, _editorArg: BlockNoteEditor) {
-    // Note [MKT]: As of BlockNote 0.0.39, `editorArg` is no longer === to this.editor.
+    // Note [MKT]: As of BlockNote 0.39.x, `editorArg` is no longer === to this.editor.
     if (!runbookArg) return;
     if (runbookArg.id !== this.runbook.id) {
       this.logger.warn(

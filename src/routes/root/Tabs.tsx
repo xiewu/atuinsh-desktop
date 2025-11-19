@@ -25,11 +25,15 @@ import { Badge } from "@heroui/react";
 export const TabsContext = React.createContext<{
   tab: TabType | null;
   setTitle: (title: string) => void;
-  setBadge: (badge: string | null) => void;
+  setPtyCount: (ptyCount: number) => void;
+  incrementBadge: (number: number) => void;
+  decrementBadge: (number: number) => void;
 }>({
   tab: null,
   setTitle: () => {},
-  setBadge: () => {},
+  setPtyCount: () => {},
+  incrementBadge: () => {},
+  decrementBadge: () => {},
 });
 
 export default function Tabs() {
@@ -39,13 +43,15 @@ export default function Tabs() {
     openTab,
     closeTab,
     setTabTitle,
-    setTabBadge,
     moveTab,
     closeAllTabs,
     closeOtherTabs,
     closeLeftTabs,
     closeRightTabs,
     undoCloseTab,
+    setTabPtyCount,
+    incrementTabBadgeCount,
+    decrementTabBadgeCount,
   } = useStore((state: AtuinState) => ({
     tabs: state.tabs,
     currentTabId: state.currentTabId,
@@ -58,7 +64,9 @@ export default function Tabs() {
     closeRightTabs: state.closeRightTabs,
     undoCloseTab: state.undoCloseTab,
     setTabTitle: state.setTabTitle,
-    setTabBadge: state.setTabBadge,
+    setTabPtyCount: state.setTabPtyCount,
+    incrementTabBadgeCount: state.incrementTabBadgeCount,
+    decrementTabBadgeCount: state.decrementTabBadgeCount,
   }));
 
   const listRef = useRef<HTMLUListElement>(null);
@@ -192,8 +200,14 @@ export default function Tabs() {
             setTitle: (title: string) => {
               setTabTitle(tab.id, title);
             },
-            setBadge: (badge: string | null) => {
-              setTabBadge(tab.id, badge);
+            setPtyCount: (ptyCount: number) => {
+              setTabPtyCount(tab.id, ptyCount);
+            },
+            incrementBadge: (number: number = 1) => {
+              incrementTabBadgeCount(tab.id, number);
+            },
+            decrementBadge: (number: number = 1) => {
+              decrementTabBadgeCount(tab.id, number);
             },
           }}
         >

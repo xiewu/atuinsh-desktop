@@ -55,9 +55,6 @@ import RunbookEditor from "@/lib/runbook_editor";
 import { useStore } from "@/state/store";
 import { usePromise } from "@/lib/utils";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import BlockBus from "@/lib/workflow/block_bus";
-import { invoke } from "@tauri-apps/api/core";
-import { convertBlocknoteToAtuin } from "@/lib/workflow/blocks/convert";
 import track_event from "@/tracking";
 import {
   saveScrollPosition,
@@ -263,7 +260,6 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
   const fontSize = useStore((state) => state.fontSize);
   const fontFamily = useStore((state) => state.fontFamily);
   const copiedBlock = useStore((state) => state.copiedBlock);
-  const serialExecuteRef = useRef<(() => void) | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [aiPopupVisible, setAiPopupVisible] = useState(false);
   const [aiPopupPosition, setAiPopupPosition] = useState({ x: 0, y: 0 });
@@ -414,12 +410,12 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
       if (!insertionAnchorRef.current) {
         insertionAnchorRef.current = editor.getTextCursorPosition().block.id;
       }
-      
+
       // Insert after the last inserted block, or after anchor if this is the first
       const insertAfterId = lastInsertedBlockRef.current || insertionAnchorRef.current;
-      
+
       const insertedBlocks = editor.insertBlocks([block], insertAfterId, "after");
-      
+
       // Track the last inserted block for the next one
       if (insertedBlocks && insertedBlocks.length > 0) {
         lastInsertedBlockRef.current = insertedBlocks[0].id;
@@ -433,36 +429,6 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
     lastInsertedBlockRef.current = null;
     closeAIPopup();
   }, [closeAIPopup]);
-
-  const serialExecuteCallback = useCallback(async () => {
-    if (!editor || !runbook) {
-      return;
-    }
-
-    let workflow = editor.document
-      .map(convertBlocknoteToAtuin)
-      .filter((block) => block !== null)
-      .map((block) => ({ type: block.typeName, ...block.object() }));
-    console.log(workflow);
-    await invoke("workflow_serial", { id: runbook.id, workflow });
-  }, [editor, runbook]);
-
-  useEffect(() => {
-    if (!editor || !runbook || serialExecuteRef.current) {
-      return;
-    }
-
-    serialExecuteRef.current = BlockBus.get().subscribeStartWorkflow(
-      runbook.id,
-      serialExecuteCallback,
-    );
-
-    return () => {
-      if (serialExecuteRef.current) {
-        BlockBus.get().unsubscribeStartWorkflow(runbook.id, serialExecuteRef.current);
-      }
-    };
-  }, [editor, runbook]);
 
   // Add keyboard shortcuts
   useEffect(() => {
@@ -718,7 +684,9 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
                 insertRunbookLink(editor as any, showRunbookLinkPopup),
                 insertSavedBlock(editor as any, showSavedBlockPopup),
                 insertHorizontalRule(editor as any),
-                ...(copiedBlock.isSome() ? [insertPastedBlock(editor as any, copiedBlock.unwrap())] : []),
+                ...(copiedBlock.isSome()
+                  ? [insertPastedBlock(editor as any, copiedBlock.unwrap())]
+                  : []),
 
                 // Monitoring group
                 insertPrometheus(schema)(editor),

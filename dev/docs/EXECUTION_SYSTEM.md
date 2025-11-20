@@ -10,8 +10,6 @@ This document provides a comprehensive overview of how the Atuin Desktop backend
 - [Context Management](#context-management)
 - [Serial Execution](#serial-execution)
 - [Cancellation & Error Handling](#cancellation--error-handling)
-- [Developer Guide](#developer-guide)
-- [Examples & Patterns](#examples--patterns)
 
 ## Architecture Overview
 

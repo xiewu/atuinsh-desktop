@@ -3,7 +3,7 @@ import useRemoteRunbook from "@/lib/useRemoteRunbook";
 import { usePtyStore } from "@/state/ptyStore";
 import { useStore } from "@/state/store";
 import Snapshot from "@/state/runbooks/snapshot";
-import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { timeoutPromise, useMemory } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "@/api/api";
@@ -24,9 +24,12 @@ import RunbookIdContext from "@/context/runbook_id_context";
 import { invoke } from "@tauri-apps/api/core";
 import RunbookSynchronizer from "@/lib/sync/runbook_synchronizer";
 import RunbookControls from "./RunbookControls";
-import { DocumentBridge, DocumentBridgeContext } from "@/lib/hooks/useDocumentBridge";
+import {
+  DocumentBridge,
+  DocumentBridgeContext,
+  useBlockContext,
+} from "@/lib/hooks/useDocumentBridge";
 import DebugWindow from "@/lib/dev/DebugWindow";
-import { ResolvedContext } from "@/rs-bindings/ResolvedContext";
 import { useSerialExecution } from "@/lib/hooks/useSerialExecution";
 import { Button, Spinner } from "@heroui/react";
 
@@ -132,27 +135,11 @@ export default function Runbooks() {
     setDocumentBridge(new DocumentBridge(currentRunbook.id));
   }, [currentRunbook?.id]);
 
-  const [blockContext, setBlockContext] = useState<ResolvedContext | null>(null);
-  const onBlockFocus = useCallback(
-    (blockId: string) => {
-      console.log("Block focus", blockId);
-
-      if (!documentBridge || !currentRunbook?.id) {
-        return;
-      }
-
-      invoke<ResolvedContext>("get_flattened_block_context", {
-        documentId: currentRunbook.id,
-        blockId,
-      })
-        .then((context) => {
-          console.log("Block context", context);
-          setBlockContext(context);
-        })
-        .catch((_error) => {});
-    },
-    [documentBridge, currentRunbook?.id],
-  );
+  const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
+  const onBlockFocus = (blockId: string) => {
+    console.log("block focus", blockId);
+    setFocusedBlockId(blockId);
+  };
 
   useEffect(() => {
     if (!runbookEditor) {
@@ -504,9 +491,9 @@ export default function Runbooks() {
     <RunbookIdContext.Provider value={currentRunbook?.id || null}>
       <DocumentBridgeContext.Provider value={documentBridge}>
         <div className="flex !w-full !max-w-full flex-row overflow-hidden h-full">
-          <DebugWindow title="Block Context" id={`block-context-${currentRunbook?.id}`}>
-            <pre>{JSON.stringify(blockContext, null, 2)}</pre>
-          </DebugWindow>
+          {runbookId && focusedBlockId && (
+            <BlockContextDebug runbookId={runbookId} blockId={focusedBlockId} />
+          )}
           {currentRunbook && readyToRender && (
             <div className="flex w-full max-w-full overflow-hidden flex-col">
               <Topbar
@@ -580,5 +567,15 @@ export default function Runbooks() {
         </div>
       </DocumentBridgeContext.Provider>
     </RunbookIdContext.Provider>
+  );
+}
+
+function BlockContextDebug({ runbookId, blockId }: { runbookId: string; blockId: string }) {
+  const blockContext = useBlockContext(blockId);
+
+  return (
+    <DebugWindow title="Block Context" id={`block-context-${runbookId}`}>
+      <pre>{JSON.stringify(blockContext, null, 2)}</pre>
+    </DebugWindow>
   );
 }

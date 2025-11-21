@@ -121,7 +121,7 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         id: tauri-action
         env:
-          CI: true
+          TAURI_BUNDLER_DMG_IGNORE_CI: false
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}

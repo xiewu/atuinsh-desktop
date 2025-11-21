@@ -4,7 +4,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import "@xterm/xterm/css/xterm.css";
 import { Settings } from "@/state/settings.ts";
-import debounce from "lodash.debounce";
+import useResizeObserver from "use-resize-observer";
 
 interface XtermProps {
   className?: string;
@@ -18,6 +18,7 @@ export interface XtermHandle {
 const Xterm = forwardRef<XtermHandle, XtermProps>(({ className = "min-h-[200px] w-full" }, ref) => {
   const [terminal, setTerminal] = useState<Terminal | null>(null);
   const [fitAddon, setFitAddon] = useState<FitAddon | null>(null);
+  const [readyToAttach, setReadyToAttach] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
   const writeBuffer = useRef<(string | Uint8Array)[]>([]);
   const clearPending = useRef(false);
@@ -49,6 +50,9 @@ const Xterm = forwardRef<XtermHandle, XtermProps>(({ className = "min-h-[200px] 
 
   // Initialize terminal on mount
   useEffect(() => {
+    let fitAddon: FitAddon | null = null;
+    let webglAddon: WebglAddon | null = null;
+
     const initializeTerminal = async () => {
       const term = new Terminal({
         fontFamily: "FiraCode, monospace",
@@ -56,14 +60,14 @@ const Xterm = forwardRef<XtermHandle, XtermProps>(({ className = "min-h-[200px] 
         convertEol: true,
       });
 
-      const fit = new FitAddon();
-      term.loadAddon(fit);
+      fitAddon = new FitAddon();
+      term.loadAddon(fitAddon);
 
       // Add WebGL support if enabled in settings
       const useWebGL = await Settings.terminalGL();
       if (useWebGL) {
         try {
-          const webglAddon = new WebglAddon();
+          webglAddon = new WebglAddon();
           term.loadAddon(webglAddon);
         } catch (e) {
           console.warn("WebGL addon failed to load", e);
@@ -71,7 +75,7 @@ const Xterm = forwardRef<XtermHandle, XtermProps>(({ className = "min-h-[200px] 
       }
 
       setTerminal(term);
-      setFitAddon(fit);
+      setFitAddon(fitAddon);
     };
 
     initializeTerminal();
@@ -79,6 +83,8 @@ const Xterm = forwardRef<XtermHandle, XtermProps>(({ className = "min-h-[200px] 
     // Cleanup on unmount
     return () => {
       terminal?.dispose();
+      fitAddon?.dispose();
+      webglAddon?.dispose();
     };
   }, []);
 
@@ -93,28 +99,30 @@ const Xterm = forwardRef<XtermHandle, XtermProps>(({ className = "min-h-[200px] 
     }
 
     // Flush buffered writes
-    if (writeBuffer.current.length > 0) {
-      writeBuffer.current.forEach((data) => terminal.write(data));
-      writeBuffer.current = [];
-    }
+    writeBuffer.current.forEach((data) => terminal.write(data));
+    writeBuffer.current = [];
   }, [terminal]);
 
   // Handle terminal attachment and resizing
   useEffect(() => {
-    if (!terminal || !terminalRef.current) return;
+    if (!readyToAttach || !fitAddon || !terminal) return;
 
-    terminal.open(terminalRef.current);
-    fitAddon?.fit();
+    terminal.open(terminalRef.current!);
+  }, [terminal, fitAddon, readyToAttach]);
 
-    const handleResize = debounce(() => fitAddon?.fit(), 100);
-    window.addEventListener("resize", handleResize);
+  const compositeRef = (elem: HTMLDivElement) => {
+    terminalRef.current = elem;
+    resizeRef(elem);
+    setReadyToAttach(true);
+  };
 
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
-  }, [terminal, fitAddon]);
+  const { ref: resizeRef } = useResizeObserver({
+    onResize: () => {
+      fitAddon?.fit();
+    },
+  });
 
-  return <div ref={terminalRef} className={className} />;
+  return <div ref={compositeRef} className={className} />;
 });
 
 Xterm.displayName = "Xterm";

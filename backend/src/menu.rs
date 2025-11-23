@@ -3,8 +3,6 @@ use tauri::{
     menu::{AboutMetadata, Menu, MenuItem, MenuItemBuilder, PredefinedMenuItem, Submenu},
     AppHandle, Emitter, Manager, Runtime,
 };
-use tauri_plugin_deep_link::DeepLinkExt;
-use tauri_plugin_opener::OpenerExt;
 
 #[allow(dead_code)]
 fn update_check<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {

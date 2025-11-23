@@ -4,8 +4,8 @@ use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
 };
+use tauri::ipc::Channel;
 use tauri::{async_runtime::RwLock, AppHandle};
-use tauri::{ipc::Channel, Emitter};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use uuid::Uuid;
 
@@ -19,7 +19,7 @@ use atuin_desktop_runtime::{
     execution::ExecutionHandle,
     pty::PtyStoreHandle,
     ssh::SshPoolHandle,
-    workflow::{ExecutorHandle, WorkflowCommand, WorkflowEvent},
+    workflow::{ExecutorHandle, WorkflowEvent},
 };
 
 pub(crate) struct AtuinState {
@@ -107,7 +107,7 @@ impl AtuinState {
             use_hub_updater_service,
         }
     }
-    pub async fn init(&self, app: &AppHandle) -> Result<()> {
+    pub async fn init(&self, _app: &AppHandle) -> Result<()> {
         let path = if let Some(ref prefix) = self.dev_prefix {
             self.app_path.join(format!("{prefix}_exec_log.db"))
         } else {
@@ -140,66 +140,15 @@ impl AtuinState {
         // Hence, we pass in the sender and not a receiver
         // This is a BROADCAST channel, not a normal mpsc!
         // TODO: handle broadcast channel lag
-        let (event_sender, mut event_receiver) = tokio::sync::broadcast::channel(24);
-        let (cmd_sender, mut cmd_receiver) = mpsc::channel(8);
+        //
+        // Used by the executor for sending workflow events,
+        // but not currently used in the application after the 0.2.0 runtime update.
+        let (event_sender, mut _event_receiver) = tokio::sync::broadcast::channel(24);
+        let (cmd_sender, mut _cmd_receiver) = mpsc::channel(8);
 
+        // NOTE: The executor is currently not doing anything post runtime update.
+        // It may still do so in the future for dependency-based workflows.
         let executor = ExecutorHandle::new(event_sender.clone(), cmd_sender);
-
-        let app_clone = app.clone();
-        tauri::async_runtime::spawn(async move {
-            log::info!("starting executor command loop");
-
-            while let Some(event) = cmd_receiver.recv().await {
-                match event {
-                    WorkflowCommand::RunBlock { id } => {
-                        println!("emitting start block event {id}");
-                        app_clone
-                            .emit("start-block", id)
-                            .expect("Failed to emit start block event");
-                    }
-                    WorkflowCommand::StopBlock { id } => {
-                        println!("emitting stop block event {id}");
-                        app_clone
-                            .emit("stop-block", id)
-                            .expect("Failed to emit stop block event");
-                    }
-                }
-            }
-        });
-
-        let app_clone = app.clone();
-        let executor_clone = executor.clone();
-        tauri::async_runtime::spawn(async move {
-            while let Ok(event) = event_receiver.recv().await {
-                match event {
-                    WorkflowEvent::BlockStarted { id } => {
-                        println!("block {id} started");
-                        app_clone
-                            .emit("block-started", id)
-                            .expect("Failed to emit block started event");
-                    }
-                    WorkflowEvent::BlockFinished { id } => {
-                        println!("block {id} finished");
-                        app_clone
-                            .emit("block-finished", id)
-                            .expect("Failed to emit block finished event");
-                    }
-                    WorkflowEvent::WorkflowStarted { id } => {
-                        println!("workflow {id} started");
-                        app_clone
-                            .emit("workflow-started", id)
-                            .expect("Failed to emit workflow started event");
-                    }
-                    WorkflowEvent::WorkflowFinished { id } => {
-                        println!("workflow {id} finished");
-                        executor_clone.stop_workflow(id).await;
-                        app_clone
-                            .emit("workflow-finished", id)
-                            .expect("Failed to emit workflow finished event");
-                    }
-                }
-            }
-        });
 
         self.executor.lock().unwrap().replace(executor);
         self.event_sender.lock().unwrap().replace(event_sender);

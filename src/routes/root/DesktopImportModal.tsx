@@ -30,6 +30,8 @@ export default function DesktopImportModal(props: DesktopImportModalProps) {
   const currentWorkspaceId = useStore((state) => state.currentWorkspaceId);
   const workspaces = useQuery(allWorkspaces());
   const remoteRunbookQuery = useQuery(remoteRunbook(props.runbookId));
+  const cannotImport =
+    connectionState !== ConnectionState.Online && connectionState !== ConnectionState.LoggedOut;
 
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(currentWorkspaceId);
   const selectedWorkspace = useMemo(() => {
@@ -91,7 +93,13 @@ export default function DesktopImportModal(props: DesktopImportModalProps) {
 
   let body: React.ReactNode | null = null;
 
-  if (importing) {
+  if (cannotImport) {
+    body = (
+      <p>
+        Cannot connect to Atuin Hub. Ensure your Internet connection is good, or try again later.
+      </p>
+    );
+  } else if (importing) {
     body = (
       <div className="flex flex-col items-center justify-center gap-2">
         <p>Importing runbook...</p>
@@ -104,33 +112,19 @@ export default function DesktopImportModal(props: DesktopImportModalProps) {
       </p>
     );
   } else if (failed) {
-    if (
-      connectionState !== ConnectionState.Online &&
-      connectionState !== ConnectionState.LoggedOut
-    ) {
-      body = <p>You must be online to import a runbook from Atuin Hub.</p>;
-    } else {
-      body = (
-        <p>
-          Failed to load runbook information. The runbook may not exist or you may not have
-          permission to access it.
-        </p>
-      );
-    }
+    body = (
+      <p>
+        Failed to load runbook information. The runbook may not exist or you may not have permission
+        to access it.
+      </p>
+    );
   } else if (!ready) {
-    if (
-      connectionState !== ConnectionState.Online &&
-      connectionState !== ConnectionState.LoggedOut
-    ) {
-      body = <p>You must be online to import a runbook from Atuin Hub.</p>;
-    } else {
-      body = (
-        <div className="flex flex-col items-center justify-center gap-2">
-          <Spinner />
-          <p>Loading runbook information...</p>
-        </div>
-      );
-    }
+    body = (
+      <div className="flex flex-col items-center justify-center gap-2">
+        <Spinner />
+        <p>Loading runbook information...</p>
+      </div>
+    );
   }
 
   return (
@@ -161,7 +155,7 @@ export default function DesktopImportModal(props: DesktopImportModalProps) {
               <Button
                 onPress={confirmImportRunbook}
                 color="primary"
-                isDisabled={failed || !ready || !selectedWorkspaceId || importing}
+                isDisabled={failed || !ready || !selectedWorkspaceId || importing || cannotImport}
                 isLoading={importing}
               >
                 Import

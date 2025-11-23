@@ -30,7 +30,6 @@ export function useKvValue<T>(
     (async () => {
       const db = await KVStore.open_default();
       const value = await db.get<T>(key);
-      console.log(">>> value of key ", key, " is ", value);
       if (value !== null) {
         setValue(value);
       } else {

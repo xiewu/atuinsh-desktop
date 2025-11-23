@@ -3,6 +3,8 @@ use tauri::{
     menu::{AboutMetadata, Menu, MenuItem, MenuItemBuilder, PredefinedMenuItem, Submenu},
     AppHandle, Emitter, Manager, Runtime,
 };
+use tauri_plugin_deep_link::DeepLinkExt;
+use tauri_plugin_opener::OpenerExt;
 
 #[allow(dead_code)]
 fn update_check<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
@@ -144,6 +146,22 @@ fn link_menu_item<R: Runtime>(
     Ok(link)
 }
 
+fn open_new_runtime_explainer_runbook<R: Runtime>(handle: &AppHandle<R>) -> Result<MenuItem<R>> {
+    let open_new_runtime_explainer_runbook =
+        MenuItemBuilder::new("Open New Runbook Execution Engine Docs")
+            .id("open-new-runtime-explainer-runbook")
+            .build(handle)?;
+
+    let handle_clone = handle.clone();
+    handle.on_menu_event(move |_, event| {
+        if event.id().0 == "open-new-runtime-explainer-runbook" {
+            let _ = handle_clone.emit("open-new-runtime-explainer-runbook", 0);
+        }
+    });
+
+    Ok(open_new_runtime_explainer_runbook)
+}
+
 pub fn menu<R: Runtime>(app_handle: &AppHandle<R>) -> Result<Menu<R>> {
     // Totally just ripped the default menu from the Tauri source, and edited
     // Easier than screwing around with the API 🤫
@@ -177,8 +195,8 @@ pub fn menu<R: Runtime>(app_handle: &AppHandle<R>) -> Result<Menu<R>> {
         "Help",
         true,
         &[
-            #[cfg(not(target_os = "macos"))]
-            &PredefinedMenuItem::about(app_handle, None, Some(about_metadata))?,
+            &open_new_runtime_explainer_runbook(app_handle)?,
+            &PredefinedMenuItem::separator(app_handle)?,
             &link_menu_item(
                 "twitter",
                 "Atuin Twitter",
@@ -191,6 +209,8 @@ pub fn menu<R: Runtime>(app_handle: &AppHandle<R>) -> Result<Menu<R>> {
                 "https://hachyderm.io/@atuin",
                 app_handle,
             )?,
+            #[cfg(not(target_os = "macos"))]
+            &PredefinedMenuItem::about(app_handle, None, Some(about_metadata))?,
         ],
     )?;
 

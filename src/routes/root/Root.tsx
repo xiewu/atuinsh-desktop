@@ -80,6 +80,7 @@ import SaveBlockModal from "./SaveBlockModal";
 import SavedBlock from "@/state/runbooks/saved_block";
 import { uuidv7 } from "uuidv7";
 import DesktopImportModal from "./DesktopImportModal";
+import RuntimeUpdateNotice from "./RuntimeUpdateNotice";
 
 const globalOptions = getGlobalOptions();
 const UPDATE_CHECK_INTERVAL = globalOptions.channel === "edge" ? 1000 * 60 * 5 : 1000 * 60 * 60;
@@ -93,6 +94,10 @@ const DesktopConnect = React.lazy(() => import("@/components/DesktopConnect/Desk
 const DeleteRunbookModal = React.lazy(() => import("./DeleteRunbookModal"));
 const RunbookSearchIndex = React.lazy(() => import("@/components/CommandMenu/RunbookSearchIndex"));
 const List = React.lazy(() => import("@/components/runbooks/List/List"));
+
+const NEW_RUNTIME_RUNBOOK_ID = AtuinEnv.isProd
+  ? "019ab28f-5e41-7944-a893-c34add764b45"
+  : "019ab25e-4ec7-7dea-af4c-8844a7071ef2";
 
 type MoveBundleDescendant =
   | {
@@ -318,6 +323,7 @@ function App() {
   }
 
   useTauriEvent("update-check", doUpdateCheck);
+  useTauriEvent("open-new-runtime-explainer-runbook", handleOpenRuntimeExplainerRunbook);
   useEffect(() => {
     window.addEventListener("update-check", doUpdateCheck);
 
@@ -928,6 +934,11 @@ function App() {
     return () => window.removeEventListener("resize", handleResize);
   }, [sidebarOpen, setSidebarOpen]);
 
+  function handleOpenRuntimeExplainerRunbook() {
+    const atuinUrl = `atuin://runbook/${NEW_RUNTIME_RUNBOOK_ID}`;
+    handleDeepLink(atuinUrl, navigateToRunbook);
+  }
+
   return (
     <div
       className="flex w-screen dark:bg-default-50"
@@ -946,6 +957,7 @@ function App() {
         <CommandPalette />
         <RunbookSearchIndex index={runbookIndex} />
         <UpdateNotifier />
+        <RuntimeUpdateNotice openRunbookImport={handleOpenRuntimeExplainerRunbook} />
         <>
           {workspaces?.map((workspace) => (
             <WorkspaceWatcher key={workspace.get("id")} workspace={workspace} />

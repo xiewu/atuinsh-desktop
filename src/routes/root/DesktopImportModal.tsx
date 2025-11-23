@@ -108,14 +108,14 @@ export default function DesktopImportModal(props: DesktopImportModalProps) {
       connectionState !== ConnectionState.Online &&
       connectionState !== ConnectionState.LoggedOut
     ) {
+      body = <p>You must be online to import a runbook from Atuin Hub.</p>;
+    } else {
       body = (
         <p>
           Failed to load runbook information. The runbook may not exist or you may not have
           permission to access it.
         </p>
       );
-    } else {
-      body = <p>You must be online to import a runbook from Atuin Hub.</p>;
     }
   } else if (!ready) {
     if (

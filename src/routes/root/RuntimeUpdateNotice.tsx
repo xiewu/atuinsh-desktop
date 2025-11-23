@@ -40,7 +40,6 @@ export default function RuntimeUpdateNotice(props: RuntimeUpdateNoticeProps) {
     true,
     Some(false),
   );
-  console.log(">>> dismissedNewRuntimeAlert", dismissedNewRuntimeAlert);
 
   function handleRuntimeExpainerRunbookClick(_e: PressEvent) {
     props.openRunbookImport();

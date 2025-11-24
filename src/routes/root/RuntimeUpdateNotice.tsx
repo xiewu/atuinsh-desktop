@@ -1,30 +1,8 @@
-import { AtuinStore } from "@/state/store";
 import { Alert, Button, PressEvent } from "@heroui/react";
 import { InfoIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { invoke } from "@tauri-apps/api/core";
-import { DialogBuilder } from "@/components/Dialogs/dialog";
 import { useKvValue } from "@/lib/hooks/useKvValue";
 import { useState } from "react";
-
-function getRuntimeExplainerLocation() {
-  return invoke<string>("get_runtime_explainer_location");
-}
-
-export async function openRuntimeExpainerRunbook(store: AtuinStore) {
-  try {
-    const runtimeExplainerLocation = await getRuntimeExplainerLocation();
-    store.getState().openTab(`/runbooks/dummy?file=${runtimeExplainerLocation}`);
-  } catch (error) {
-    console.error("Failed to get runtime explainer location", error);
-    await new DialogBuilder()
-      .title("Failed to open explainer runbook")
-      .message("We were unable to determine the location of the explainer runbook on disk.")
-      .action({ label: "OK", value: undefined, variant: "flat" })
-      .build();
-    return;
-  }
-}
 
 interface RuntimeUpdateNoticeProps {
   openRunbookImport: () => void;

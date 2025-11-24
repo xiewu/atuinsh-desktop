@@ -9,11 +9,16 @@ import { useEffect, useState } from "react";
  * can be notified when the value changes.
  *
  * @param key The key to fetch the value from.
- * @param defaultValue The default value to use if the value is not found.
+ * @param initialValue The value to use before the value is fetched from the KV store.
+ * @param valueIfNotFound The value to use if the value is not found in the KV store; if not provided, the initial value will be used.
  * @returns A tuple containing the current value and a function to update the value.
  */
-export function useKvValue<T>(key: string, defaultValue: T): [T, (value: T) => Promise<void>] {
-  const [value, setValue] = useState<T>(defaultValue);
+export function useKvValue<T>(
+  key: string,
+  initialValue: T,
+  valueIfNotFound: Option<T> = None,
+): [T, (value: T) => Promise<void>] {
+  const [value, setValue] = useState<T>(initialValue);
 
   const updateValue = async (value: T) => {
     setValue(value);
@@ -25,8 +30,12 @@ export function useKvValue<T>(key: string, defaultValue: T): [T, (value: T) => P
     (async () => {
       const db = await KVStore.open_default();
       const value = await db.get<T>(key);
-      if (value) {
+      if (value !== null) {
         setValue(value);
+      } else {
+        if (valueIfNotFound.isSome()) {
+          setValue(valueIfNotFound.unwrap());
+        }
       }
     })();
   }, [key]);

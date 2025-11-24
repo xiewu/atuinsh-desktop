@@ -207,4 +207,3 @@ jobs:
         with:
           command: release upload ${{ env.CN_APP_SLUG }} --framework tauri
           api-key: ${{ secrets.CN_API_KEY }}
-          path: ./backend

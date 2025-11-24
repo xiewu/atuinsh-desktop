@@ -470,6 +470,18 @@ export class OnlineRunbook extends Runbook {
     return runbooks;
   }
 
+  static async allForkedFrom(runbookId: string): Promise<OnlineRunbook[]> {
+    const db = await AtuinDB.load("runbooks");
+
+    const res = await db.select<any[]>(
+      "select id, name, source, source_info, created, updated, workspace_id, legacy_workspace_id, forked_from, remote_info, viewed_at from runbooks " +
+        "where forked_from = $1 order by updated desc",
+      [runbookId],
+    );
+
+    return res.map((row) => OnlineRunbook.fromRow(row) as OnlineRunbook);
+  }
+
   public async save(): Promise<string | undefined> {
     const db = await AtuinDB.load("runbooks");
     logger.info("Saving runbook", this.id, this.name, this._ydoc);
@@ -696,6 +708,22 @@ export class OfflineRunbook extends Runbook {
       .filter((result) => result !== null);
   }
 
+  public static async allForkedFrom(runbookId: string): Promise<OfflineRunbook[]> {
+    const manager = WorkspaceManager.getInstance();
+    const workspaces = manager.getWorkspaces();
+    const forkedRunbookIds = workspaces.flatMap((workspace) => {
+      return Object.values(workspace.runbooks)
+        .filter((runbook) => runbook?.forked_from === runbookId)
+        .map((runbook) => runbook!.id);
+    });
+
+    const runbooks = await Promise.allSettled(forkedRunbookIds.map((id) => OfflineRunbook.load(id)));
+    return runbooks
+      .filter((result) => result.status === "fulfilled")
+      .map((result) => result.value)
+      .filter((result) => result !== null);
+  }
+
   public static async count(): Promise<number> {
     const manager = WorkspaceManager.getInstance();
     const workspaces = manager.getWorkspaces();
@@ -710,6 +738,7 @@ export class OfflineRunbook extends Runbook {
     persist: boolean = true,
     name: string = "Untitled",
     content: any = [],
+    forkedFrom: string | null = null,
   ): Promise<OfflineRunbook | null> {
     if (!persist) {
       throw new Error("Cannot create offline runbook without persisting");
@@ -720,6 +749,7 @@ export class OfflineRunbook extends Runbook {
       parentFolderId,
       name,
       content,
+      forkedFrom,
     );
     if (idResult.isErr()) {
       console.error("Failed to create runbook", idResult.unwrapErr());

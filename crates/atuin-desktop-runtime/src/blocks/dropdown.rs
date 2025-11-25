@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
@@ -41,10 +42,12 @@ pub struct DropdownOption {
 
 impl DropdownOption {
     pub fn vec_from_str(value: &str) -> Result<Vec<Self>, String> {
-        value
-            // Split on ",", ", ", or newlines using regex
-            .split([',', '\n'])
-            .flat_map(|part| part.split(", ")) // extra split for ", " if not caught by the char ','
+        if value.trim().is_empty() {
+            return Ok(vec![]);
+        }
+
+        let re = Regex::new(r",\s*|\r?\n").unwrap();
+        re.split(value)
             .map(|part| part.trim())
             .filter(|part| !part.is_empty())
             .map(|part| part.try_into())
@@ -112,15 +115,23 @@ impl Dropdown {
                 let value = context
                     .context_resolver
                     .get_var(&self.variable_options)
-                    .ok_or("Variable not found")?;
-                let options = DropdownOption::vec_from_str(value)?;
+                    .map(|v| v.to_string())
+                    .unwrap_or_default();
+                let options = DropdownOption::vec_from_str(&value)?;
                 Ok(options)
             }
             DropdownOptionType::Command => {
                 let command = context
                     .context_resolver
                     .resolve_template(&self.command_options)?;
+
+                let cwd = context.context_resolver.cwd().to_string();
+                let envs = context.context_resolver.env_vars().clone();
+                log::trace!("Running dropdown command in directory {cwd}");
+
                 let output = Command::new(&self.interpreter)
+                    .current_dir(cwd)
+                    .envs(envs)
                     .arg("-c")
                     .arg(&command)
                     .output()
@@ -238,9 +249,16 @@ impl BlockBehavior for Dropdown {
         self,
         context: ExecutionContext,
     ) -> Result<Option<ExecutionHandle>, Box<dyn std::error::Error + Send + Sync>> {
+        let _ = context.block_started().await;
+
         let resolved_options = self.resolve_options(&context).await?;
+        log::trace!(
+            "Resolved options for dropdown block {id}: {options:?}",
+            id = self.id,
+            options = resolved_options
+        );
         context
-            .update_block_state::<DropdownState, _>(self.id, |state| {
+            .update_block_state::<DropdownState, _>(self.id, move |state| {
                 state.resolved = Some(ResolvedDropdownState {
                     options: resolved_options,
                 });

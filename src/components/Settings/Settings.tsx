@@ -1236,8 +1236,10 @@ const SettingsPanel = () => {
         aria-label="Settings"
         color="primary"
         classNames={{
-          base: "sticky top-0 start-0 z-20 pt-2 pb-4 backdrop-blur-sm bg-background/30",
+          tabList: "sticky top-4 start-0 z-20 pt-2 pb-4",
+          panel: "w-full",
         }}
+        isVertical
       >
         <Tab key="general" title="General">
           <div className="flex flex-col gap-4">

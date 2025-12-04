@@ -11,6 +11,7 @@ use tauri::{http, App, AppHandle, Manager, RunEvent};
 use tauri_plugin_log::fern::colors::{Color, ColoredLevelConfig};
 use time::format_description::well_known::Rfc3339;
 
+mod advanced_settings;
 mod blocks;
 mod db;
 mod dotfiles;
@@ -43,6 +44,7 @@ use atuin_history::stats as atuin_stats;
 use db::{GlobalStats, HistoryDB, UIHistory};
 use dotfiles::aliases::aliases;
 
+use crate::advanced_settings::AdvancedSettings;
 use crate::menu::TabItem;
 
 #[derive(Debug, serde::Serialize)]
@@ -501,6 +503,7 @@ fn main() {
             get_app_version,
             get_platform_info,
             update_window_menu_tabs,
+            advanced_settings::get_advanced_settings,
             run::pty::pty_write,
             run::pty::pty_resize,
             run::shell::check_binary_exists,
@@ -626,19 +629,34 @@ fn main() {
             }
         })
         .setup(|app| {
+            let advanced_settings_path = app
+                .path()
+                .app_config_dir()
+                .expect("Failed to get app config dir")
+                .join("advanced_settings");
+
+            let advanced_settings = AdvancedSettings::load(&advanced_settings_path)?;
+            app.manage(advanced_settings.clone());
+
             // Load login shell environment early in startup
             // This is best-effort only and should never crash the app
             #[cfg(unix)]
-            run_async_command(async {
-                match crate::util::load_login_shell_environment().await {
-                    Ok(()) => {
-                        log::info!("Successfully loaded login shell environment");
+            if advanced_settings.copy_shell_env {
+                run_async_command(async {
+                    match crate::util::load_login_shell_environment().await {
+                        Ok(()) => {
+                            log::info!("Successfully loaded login shell environment");
+                        }
+                        Err(e) => {
+                            log::warn!("Failed to load login shell environment: {}", e);
+                        }
                     }
-                    Err(e) => {
-                        log::warn!("Failed to load login shell environment: {}", e);
-                    }
-                }
-            });
+                });
+            } else {
+                log::warn!(
+                    "Skipping login shell environment copy due to advanced configuration settings"
+                );
+            }
 
             backup_databases(app)?;
 

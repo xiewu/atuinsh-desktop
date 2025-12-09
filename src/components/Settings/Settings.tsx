@@ -789,7 +789,8 @@ const AuthTokenModal = (props: AuthTokenModalProps) => {
   const [validToken, setValidToken] = useState(false);
 
   useEffect(() => {
-    const valid = token.length == 54 && token.startsWith("atapi_");
+    const trimmed = token.trim();
+    const valid = trimmed.startsWith("atapi_") && trimmed.length >= 20;
     setValidToken(valid);
   }, [token]);
 
@@ -810,7 +811,7 @@ const AuthTokenModal = (props: AuthTokenModalProps) => {
             isDisabled={!validToken}
             color="success"
             variant="flat"
-            onPress={() => props.onSubmit(token)}
+            onPress={() => props.onSubmit(token.trim())}
           >
             Submit
           </Button>
@@ -1149,73 +1150,34 @@ const NotificationSettings = () => {
 };
 
 const AISettings = () => {
-  const [aiEnabled, setAiEnabled, enabledLoading] = useSettingsState(
-    "ai_enabled",
-    false,
-    Settings.aiEnabled,
-    Settings.aiEnabled,
-  );
-  const [aiApiKey, setAiApiKey, keyLoading] = useSettingsState(
-    "ai_api_key",
-    "",
-    Settings.aiApiKey,
-    Settings.aiApiKey,
-  );
-  const [aiApiEndpoint, setAiApiEndpoint, endpointLoading] = useSettingsState(
-    "ai_api_endpoint",
-    "",
-    Settings.aiApiEndpoint,
-    Settings.aiApiEndpoint,
-  );
-  const [aiModel, setAiModel, modelLoading] = useSettingsState(
-    "ai_model",
-    "",
-    Settings.aiModel,
-    Settings.aiModel,
-  );
-
-  if (enabledLoading || keyLoading || endpointLoading || modelLoading) return <Spinner />;
+  const aiEnabled = useStore((state) => state.aiEnabled);
+  const aiShareContext = useStore((state) => state.aiShareContext);
+  const setAiEnabled = useStore((state) => state.setAiEnabled);
+  const setAiShareContext = useStore((state) => state.setAiShareContext);
 
   return (
     <Card shadow="sm">
       <CardBody className="flex flex-col gap-4">
-        <h2 className="text-xl font-semibold">AI Integration</h2>
-        <p className="text-sm text-default-500">Configure AI-powered runbook generation</p>
+        <h2 className="text-xl font-semibold">AI</h2>
+        <p className="text-sm text-default-500">
+          Configure AI-powered features in runbooks
+        </p>
 
         <SettingSwitch
           label="Enable AI features"
           isSelected={aiEnabled}
           onValueChange={setAiEnabled}
-          description="Enable AI-powered runbook generation and assistance"
+          description="Enable AI block generation and editing (Cmd+Enter, Cmd+K)"
         />
 
         {aiEnabled && (
-          <>
-            <SettingInput
-              type="password"
-              label="API Key"
-              value={aiApiKey || ""}
-              onChange={setAiApiKey}
-              placeholder="sk-..."
-              description="Your OpenRouter/OpenAI API key"
-            />
-            <SettingInput
-              type="text"
-              label="API Endpoint"
-              value={aiApiEndpoint || ""}
-              onChange={setAiApiEndpoint}
-              placeholder="https://openrouter.ai/api/v1"
-              description="OpenAI-compatible API endpoint (default: OpenRouter)"
-            />
-            <SettingInput
-              type="text"
-              label="Model"
-              value={aiModel || ""}
-              onChange={setAiModel}
-              placeholder="anthropic/claude-sonnet-4"
-              description="Model name (e.g., anthropic/claude-sonnet-4, openai/gpt-4)"
-            />
-          </>
+          <SettingSwitch
+            className="ml-4"
+            label="Share document context"
+            isSelected={aiShareContext}
+            onValueChange={setAiShareContext}
+            description="Send document content to improve AI suggestions. Disable for sensitive documents."
+          />
         )}
       </CardBody>
     </Card>

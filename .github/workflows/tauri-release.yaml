@@ -119,6 +119,11 @@ jobs:
         # If you don't have `beforeBuildCommand` configured you may want to build your frontend here too.
         run: pnpm install # change this to npm or pnpm depending on which one you use.
 
+      - name: Set release version
+        # we need to remove the "v" prefix from the version for Sentry
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
       - uses: tauri-apps/tauri-action@v0
         id: tauri-action
         env:
@@ -131,7 +136,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_RELEASE: ${{ github.ref_name }}
+          SENTRY_RELEASE: ${{ steps.version.outputs.version }}
           NODE_OPTIONS: "--max-old-space-size=6144"
         with:
           args: ${{ matrix.args }}

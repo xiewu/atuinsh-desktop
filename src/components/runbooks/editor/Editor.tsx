@@ -66,6 +66,7 @@ import {
   getScrollPosition,
 } from "@/utils/scroll-position";
 import { insertDropdown } from "./blocks/Dropdown/Dropdown";
+import { insertPause } from "./blocks/Pause";
 import { insertTerminal } from "@/lib/blocks/terminal";
 import { insertKubernetes } from "@/lib/blocks/kubernetes";
 import { insertLocalDirectory } from "@/lib/blocks/localdirectory";
@@ -866,6 +867,7 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
                 insertDirectory(editor as any),
                 insertLocalDirectory(editor as any),
                 insertDropdown(schema)(editor),
+                insertPause(schema)(editor),
 
                 // Content group
                 insertMarkdownRender(editor as any),

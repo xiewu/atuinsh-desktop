@@ -2,14 +2,15 @@ import "./index.css";
 
 import { Spinner, addToast } from "@heroui/react";
 
-import { filterSuggestionItems } from "@blocknote/core";
+import { filterSuggestionItems } from "@blocknote/core/extensions";
 
 import {
   SuggestionMenuController,
   getDefaultReactSlashMenuItems,
   SideMenu,
   SideMenuController,
-  DragHandleMenu,
+  AddBlockButton,
+  DragHandleButton,
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 
@@ -25,6 +26,7 @@ import {
   BlocksIcon,
   MinusIcon,
   ClipboardPasteIcon,
+  AlertCircleIcon,
 } from "lucide-react";
 
 import { AIGeneratePopup } from "./AIGeneratePopup";
@@ -58,7 +60,7 @@ import { schema } from "./create_editor";
 import RunbookEditor from "@/lib/runbook_editor";
 import { useStore } from "@/state/store";
 import { usePromise } from "@/lib/utils";
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import track_event from "@/tracking";
 import {
   saveScrollPosition,
@@ -78,6 +80,7 @@ import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { SaveBlockItem } from "./ui/SaveBlockItem";
 import { SavedBlockPopup } from "./ui/SavedBlockPopup";
 import { DeleteBlockItem } from "./ui/DeleteBlockItem";
+import { BlockNoteEditor } from "@blocknote/core";
 
 // Fix for react-dnd interference with BlockNote drag-and-drop
 // React-dnd wraps dataTransfer in a proxy that blocks access during drag operations
@@ -261,7 +264,7 @@ type EditorProps = {
 };
 
 export default function Editor({ runbook, editable, runbookEditor }: EditorProps) {
-  const editor = usePromise(runbookEditor.getEditor());
+  const [editor, editorError] = usePromise<BlockNoteEditor, Error>(runbookEditor.getEditor());
   const colorMode = useStore((state) => state.functionalColorMode);
   const fontSize = useStore((state) => state.fontSize);
   const fontFamily = useStore((state) => state.fontFamily);
@@ -442,9 +445,7 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
       const currentBlockIndex = blocks.findIndex((b: any) => b.id === currentBlockId);
 
       // Export document as markdown to save tokens (only if sharing context is enabled)
-      const documentMarkdown = aiShareContext
-        ? await editor.blocksToMarkdownLossy()
-        : undefined;
+      const documentMarkdown = aiShareContext ? await editor.blocksToMarkdownLossy() : undefined;
 
       return {
         documentMarkdown,
@@ -540,8 +541,8 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
           error instanceof AIFeatureDisabledError
             ? "AI feature is not enabled for your account"
             : error instanceof Error
-              ? error.message
-              : "Failed to generate blocks";
+            ? error.message
+            : "Failed to generate blocks";
 
         addToast({
           title: "Generation failed",
@@ -559,7 +560,7 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
         originalPromptRef.current = null;
       }
     },
-    [editor, getEditorContext, getBlockText]
+    [editor, getEditorContext, getBlockText],
   );
 
   // Clear post-generation mode
@@ -573,7 +574,8 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
 
   // Handle edit submission for follow-up adjustments
   const handleEditSubmit = useCallback(async () => {
-    if (!editor || !postGenerationBlockId || !editPrompt.trim() || generatedBlockIds.length === 0) return;
+    if (!editor || !postGenerationBlockId || !editPrompt.trim() || generatedBlockIds.length === 0)
+      return;
 
     const blockToEditId = generatedBlockIds[0];
 
@@ -631,14 +633,11 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
   }, [editor, postGenerationBlockId, editPrompt, generatedBlockIds, getEditorContext]);
 
   // Callback for showing the edit popup
-  const handleShowEditPopup = useCallback(
-    (position: { x: number; y: number }, block: any) => {
-      setAiEditPopupPosition(position);
-      setIsAIEditPopupOpen(true);
-      setCurrentEditBlock(block);
-    },
-    []
-  );
+  const handleShowEditPopup = useCallback((position: { x: number; y: number }, block: any) => {
+    setAiEditPopupPosition(position);
+    setIsAIEditPopupOpen(true);
+    setCurrentEditBlock(block);
+  }, []);
 
   // AI keyboard shortcuts (Cmd+K, Cmd+Enter, Tab, Escape, E)
   useAIKeyboardShortcuts({
@@ -696,12 +695,41 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
         clearTimeout(timeoutRef.current);
       }
       timeoutRef.current = window.setTimeout(() => {
-        console.log("saving scroll position for runbook", runbook.id);
         saveScrollPosition(runbook.id, target.scrollTop);
       }, 100);
     },
     [runbook?.id],
   );
+
+  const [unsupportedBlocks, setUnsupportedBlocks] = useState<string[]>([]);
+  useEffect(() => {
+    if (!runbookEditor) return;
+
+    return runbookEditor.onUnsupportedBlock((unknownTypes: string[]) => {
+      console.log(">> unsupported block", unknownTypes);
+      setUnsupportedBlocks(unknownTypes);
+    });
+  }, [runbookEditor]);
+
+  if (editorError) {
+    return (
+      <div className="flex w-full h-full flex-col justify-center items-center gap-4">
+        <AlertCircleIcon className="text-danger size-10" />
+        <p className="text-danger max-w-lg text-center">{editorError.message}</p>
+      </div>
+    );
+  }
+
+  if (unsupportedBlocks.length > 0) {
+    return (
+      <div className="flex w-full h-full flex-col justify-center items-center gap-4">
+        <AlertCircleIcon className="text-danger size-10" />
+        <p className="text-danger max-w-lg text-center">
+          This document contains blocks that your version of Atuin Desktop does not support.
+        </p>
+      </div>
+    );
+  }
 
   if (!editor || !runbook) {
     return (
@@ -905,19 +933,16 @@ export default function Editor({ runbook, editable, runbookEditor }: EditorProps
         />
 
         <SideMenuController
-          sideMenu={(props: any) => (
-            <SideMenu
-              {...props}
-              style={{ zIndex: 0 }}
-              dragHandleMenu={(props) => (
-                <DragHandleMenu {...props}>
-                  <DeleteBlockItem {...props} />
-                  <DuplicateBlockItem {...props} />
-                  <CopyBlockItem {...props} />
-                  <SaveBlockItem {...props} />
-                </DragHandleMenu>
-              )}
-            ></SideMenu>
+          sideMenu={() => (
+            <SideMenu>
+              <AddBlockButton />
+              <DragHandleButton>
+                <DeleteBlockItem />
+                <DuplicateBlockItem />
+                <CopyBlockItem />
+                <SaveBlockItem />
+              </DragHandleButton>
+            </SideMenu>
           )}
         />
       </BlockNoteView>

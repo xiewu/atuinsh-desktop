@@ -2,61 +2,118 @@ use minijinja::{
     value::{Enumerator, Object},
     Value,
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::{collections::HashMap, sync::Arc};
 
-/// Flatten a document to include nested blocks (like those in ToggleHeading children)
-/// This creates a linear execution order regardless of UI nesting structure
-pub fn flatten_document(doc: &[serde_json::Value]) -> Vec<serde_json::Value> {
-    let mut flattened = Vec::with_capacity(doc.len());
-    for block in doc {
-        flattened.push(block.clone());
-        if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
-            if !children.is_empty() {
-                flattened.extend(flatten_document(children));
-            }
-        }
+use crate::context::BlockExecutionOutput;
+
+#[derive(Debug)]
+struct OutputWrapper(Arc<dyn BlockExecutionOutput>);
+
+impl Object for OutputWrapper {
+    fn get_value(self: &Arc<Self>, key: &Value) -> Option<Value> {
+        self.0.get_template_value(key.as_str()?)
     }
-    flattened
+
+    fn enumerate(self: &Arc<Self>) -> Enumerator {
+        self.0.enumerate_template_keys()
+    }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PtyTemplateState {
     pub id: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct RunbookTemplateState {
     pub id: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct WorkspaceTemplateState {
     /// The root path of the workspace containing atuin.toml
     /// None for online workspaces (no concept of root)
     pub root: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct AtuinTemplateState {
     pub runbook: RunbookTemplateState,
     pub workspace: WorkspaceTemplateState,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct BlockTemplateState {
     /// Name it something that's not just type lol
     pub block_type: String,
     pub content: String,
     pub props: HashMap<String, String>,
+    pub output: Option<Arc<dyn BlockExecutionOutput>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl Object for BlockTemplateState {
+    fn get_value(self: &Arc<Self>, key: &Value) -> Option<Value> {
+        tracing::debug!("BlockTemplateState::get_value: {key}", key = key.as_str()?);
+        match key.as_str()? {
+            "block_type" => Some(Value::from_serialize(&self.block_type)),
+            "content" => Some(Value::from_serialize(&self.content)),
+            "props" => Some(Value::from_serialize(&self.props)),
+            "output" => self
+                .output
+                .as_ref()
+                .map(|o| Value::from_object(OutputWrapper(o.clone()))),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct VecBlockTemplateState(Vec<BlockTemplateState>);
+
+impl Object for VecBlockTemplateState {
+    fn get_value(self: &Arc<Self>, key: &Value) -> Option<Value> {
+        let n = key.as_usize()?;
+        self.0.get(n).cloned().map(Value::from_object)
+    }
+
+    fn enumerate(self: &Arc<Self>) -> Enumerator {
+        Enumerator::Seq(self.0.len())
+    }
+}
+
+impl FromIterator<BlockTemplateState> for VecBlockTemplateState {
+    fn from_iter<T: IntoIterator<Item = BlockTemplateState>>(iter: T) -> Self {
+        Self(iter.into_iter().collect())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct HashMapBlockTemplateState(HashMap<String, BlockTemplateState>);
+
+impl Object for HashMapBlockTemplateState {
+    fn get_value(self: &Arc<Self>, key: &Value) -> Option<Value> {
+        let k = key.as_str()?;
+        self.0.get(k).cloned().map(Value::from_object)
+    }
+
+    fn enumerate(self: &Arc<Self>) -> Enumerator {
+        Enumerator::Values(self.0.keys().map(|k| Value::from(k.clone())).collect())
+    }
+}
+
+impl FromIterator<(String, BlockTemplateState)> for HashMapBlockTemplateState {
+    fn from_iter<T: IntoIterator<Item = (String, BlockTemplateState)>>(iter: T) -> Self {
+        Self(iter.into_iter().collect())
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct DocumentTemplateState {
     pub first: BlockTemplateState,
     pub last: BlockTemplateState,
-    pub content: Vec<BlockTemplateState>,
-    pub named: HashMap<String, BlockTemplateState>,
+    pub content: VecBlockTemplateState,
+    pub named: HashMapBlockTemplateState,
 
     /// The block previous to the current block
     /// This is, of course, contextual to what is presently executing - and
@@ -67,12 +124,16 @@ pub struct DocumentTemplateState {
 }
 
 impl DocumentTemplateState {
-    pub fn new(doc: &[serde_json::Value], active_block_id: Option<&str>) -> Option<Self> {
-        if doc.is_empty() {
+    pub fn new(
+        flattened_doc: &[serde_json::Value],
+        active_block_id: Option<&str>,
+        block_outputs: HashMap<String, Option<Arc<dyn BlockExecutionOutput>>>,
+    ) -> Option<Self> {
+        if flattened_doc.is_empty() {
             return None;
         }
 
-        let flattened_doc = flatten_document(doc);
+        tracing::debug!("block_outputs: {block_outputs:?}",);
 
         let named = flattened_doc
             .iter()
@@ -91,23 +152,65 @@ impl DocumentTemplateState {
                         }
                     });
 
-                name.map(|name| (name, serialized_block_to_state(block)))
+                let mut state = serialized_block_to_state(block);
+                state.output = block_outputs
+                    .get(block.get("id").unwrap().as_str().unwrap())
+                    .cloned()
+                    .flatten();
+                name.map(|name| (name, state))
             })
-            .collect();
+            .collect::<HashMap<String, BlockTemplateState>>();
 
-        let first = serialized_block_to_state(flattened_doc.first().unwrap());
-        let last = serialized_block_to_state(flattened_doc.last().unwrap());
+        let mut first = serialized_block_to_state(flattened_doc.first().unwrap());
+        first.output = block_outputs
+            .get(
+                flattened_doc
+                    .first()
+                    .unwrap()
+                    .get("id")
+                    .unwrap()
+                    .as_str()
+                    .unwrap(),
+            )
+            .cloned()
+            .flatten();
+        let mut last = serialized_block_to_state(flattened_doc.last().unwrap());
+        last.output = block_outputs
+            .get(
+                flattened_doc
+                    .last()
+                    .unwrap()
+                    .get("id")
+                    .unwrap()
+                    .as_str()
+                    .unwrap(),
+            )
+            .cloned()
+            .flatten();
         let content = flattened_doc
             .iter()
-            .map(serialized_block_to_state)
-            .collect();
+            .map(|block| {
+                let mut state = serialized_block_to_state(block);
+                state.output = block_outputs
+                    .get(block.get("id").unwrap().as_str().unwrap())
+                    .cloned()
+                    .flatten();
+                state
+            })
+            .collect::<Vec<BlockTemplateState>>();
 
         let previous = if let Some(active_block_id) = active_block_id {
             flattened_doc
                 .iter()
                 .position(|block| block.get("id").unwrap().as_str().unwrap() == active_block_id)
-                .and_then(|active_index| flattened_doc.get(active_index - 1))
-                .map(serialized_block_to_state)
+                .and_then(|active_index| active_index.checked_sub(1))
+                .and_then(|prev_index| flattened_doc.get(prev_index))
+                .map(|prev_block| {
+                    let mut state = serialized_block_to_state(prev_block);
+                    let prev_block_id = prev_block.get("id").unwrap().as_str().unwrap();
+                    state.output = block_outputs.get(prev_block_id).cloned().flatten();
+                    state
+                })
         } else {
             None
         };
@@ -115,8 +218,8 @@ impl DocumentTemplateState {
         Some(Self {
             first,
             last,
-            content,
-            named,
+            content: VecBlockTemplateState(content),
+            named: HashMapBlockTemplateState(named),
             previous,
         })
     }
@@ -124,12 +227,16 @@ impl DocumentTemplateState {
 
 impl Object for DocumentTemplateState {
     fn get_value(self: &Arc<Self>, key: &Value) -> Option<Value> {
+        tracing::debug!(
+            "DocumentTemplateState::get_value: {key}",
+            key = key.as_str()?
+        );
         match key.as_str()? {
-            "first" => Some(Value::from_serialize(&self.first)),
-            "last" => Some(Value::from_serialize(&self.last)),
-            "content" => Some(Value::from_serialize(&self.content)),
-            "named" => Some(Value::from_serialize(&self.named)),
-            "previous" => self.previous.clone().map(|p| Value::from_serialize(&p)),
+            "first" => Some(Value::from_object(self.first.clone())),
+            "last" => Some(Value::from_object(self.last.clone())),
+            "content" => Some(Value::from_object(self.content.clone())),
+            "named" => Some(Value::from_object(self.named.clone())),
+            "previous" => self.previous.clone().map(Value::from_object),
             _ => None,
         }
     }
@@ -139,7 +246,7 @@ impl Object for DocumentTemplateState {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct TemplateState {
     // In the case where a document is empty, we have no document state.
     pub doc: Option<DocumentTemplateState>,
@@ -149,6 +256,7 @@ pub struct TemplateState {
 
 impl Object for TemplateState {
     fn get_value(self: &Arc<Self>, key: &Value) -> Option<Value> {
+        tracing::debug!("TemplateState::get_value: {key}", key = key.as_str()?);
         match key.as_str()? {
             "var" => Some(Value::make_object_map(
                 self.clone(),
@@ -156,10 +264,7 @@ impl Object for TemplateState {
                 |this, key| this.var.get(key.as_str()?).cloned(),
             )),
 
-            "doc" => self
-                .doc
-                .as_ref()
-                .map(|doc| Value::from_serialize(doc.clone())),
+            "doc" => self.doc.as_ref().map(|doc| Value::from_object(doc.clone())),
 
             "workspace" => Some(Value::from_serialize(&self.workspace)),
 
@@ -181,6 +286,7 @@ pub fn serialized_block_to_state(block: &serde_json::Value) -> BlockTemplateStat
                 block_type: "unknown".to_string(),
                 content: String::new(),
                 props: HashMap::new(),
+                output: None,
             };
         }
     };
@@ -256,5 +362,6 @@ pub fn serialized_block_to_state(block: &serde_json::Value) -> BlockTemplateStat
         block_type: block_type.to_string(),
         props,
         content: content.to_string(),
+        output: None,
     }
 }

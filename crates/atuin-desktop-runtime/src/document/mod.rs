@@ -184,8 +184,14 @@ impl Document {
                 updated_blocks.push(existing);
             } else {
                 // New block - create it
-                let document_block =
-                    DocumentBlock::new(new_block.clone(), BlockContext::new(), None, None, None);
+                let block_state = new_block.create_state();
+                let document_block = DocumentBlock::new(
+                    new_block.clone(),
+                    BlockContext::new(),
+                    None,
+                    block_state,
+                    None,
+                );
                 updated_blocks.push(document_block);
 
                 // Mark rebuild from this position

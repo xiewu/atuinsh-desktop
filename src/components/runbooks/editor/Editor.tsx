@@ -38,7 +38,6 @@ import { AIHint, incrementAIHintUseCount } from "./ui/AIHint";
 import { RunbookLinkPopup } from "./ui/RunbookLinkPopup";
 import AIAssistant, { AIContext } from "./ui/AIAssistant";
 import { SparklesIcon } from "lucide-react";
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 
 import { insertSQLite } from "@/components/runbooks/editor/blocks/SQLite/SQLite";
 import { insertPostgres } from "@/components/runbooks/editor/blocks/Postgres/Postgres";
@@ -63,6 +62,7 @@ import RunbookEditor from "@/lib/runbook_editor";
 import { useStore } from "@/state/store";
 import { usePromise } from "@/lib/utils";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useResizable } from "@/lib/hooks/useResizable";
 import track_event from "@/tracking";
 import {
   saveScrollPosition,
@@ -332,6 +332,18 @@ export default function Editor({
   const username = user?.username?.toLowerCase() ?? "";
   const showAiHint = ["ellie", "binarymuse"].includes(username);
   const aiEnabledState = isLoggedIn() && aiEnabled;
+
+  // AI panel width for resizable panel
+  const aiPanelWidth = useStore((state) => state.aiPanelWidth);
+  const setAiPanelWidth = useStore((state) => state.setAiPanelWidth);
+
+  const { onResizeStart: handleAiPanelResizeStart } = useResizable({
+    width: aiPanelWidth,
+    onWidthChange: setAiPanelWidth,
+    minWidth: 300,
+    maxWidth: 600,
+    edge: "left",
+  });
 
   const documentBridge = useDocumentBridge();
 
@@ -816,9 +828,9 @@ export default function Editor({
 
   // Renders the editor instance.
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-full w-full min-h-0">
+    <div className="flex h-full w-full min-h-0">
       {/* Main editor area */}
-      <ResizablePanel defaultSize={isAIAssistantOpen ? 70 : 100} minSize={40}>
+      <div className="flex-1 min-w-0 h-full">
         <div
           ref={scrollContainerRef}
           className="overflow-y-scroll editor h-full min-h-0 pt-3 relative"
@@ -1097,13 +1109,19 @@ export default function Editor({
 
           {/* AI Assistant toggle button */}
         </div>
-      </ResizablePanel>
+      </div>
 
       {/* AI Assistant sidebar */}
       {aiEnabledState && isAIAssistantOpen && (
-        <>
-          <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={30} minSize={20} maxSize={100}>
+        <div className="relative h-full flex-shrink-0" style={{ width: aiPanelWidth }}>
+          {/* Resize handle */}
+          <div
+            onMouseDown={handleAiPanelResizeStart}
+            className="absolute top-0 left-0 w-2 h-full cursor-col-resize group z-10"
+          >
+            <div className="absolute top-0 left-0 w-0.5 h-full bg-transparent group-hover:bg-gray-300 dark:group-hover:bg-gray-600 transition-colors duration-150" />
+          </div>
+          <div className="h-full border-l border-default-200 dark:border-default-100">
             <AIAssistant
               runbookId={runbook.id}
               editor={editor}
@@ -1112,9 +1130,9 @@ export default function Editor({
               chargeTarget={chargeTarget}
               onClose={closeAIAssistant}
             />
-          </ResizablePanel>
-        </>
+          </div>
+        </div>
       )}
-    </ResizablePanelGroup>
+    </div>
   );
 }

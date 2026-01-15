@@ -50,13 +50,13 @@ body.resizing, body.resizing a:hover, body.resizing * {
     }
 
     .dark {
-        --background: 0 0% 3.9%;
+        --background: 240 6% 10%;
         --foreground: 0 0% 98%;
 
-        --card: 0 0% 3.9%;
+        --card: 240 6% 10%;
         --card-foreground: 0 0% 98%;
 
-        --popover: 0 0% 3.9%;
+        --popover: 240 5% 15%;
         --popover-foreground: 0 0% 98%;
 
         --primary: 0 0% 98%;
@@ -89,9 +89,27 @@ body.resizing, body.resizing a:hover, body.resizing * {
     * {
         @apply border-border;
     }
-    body {
-        @apply bg-background text-foreground;
+    /* Only apply transparent background on macOS where vibrancy effect is available */
+    html[data-platform="macos"], html[data-platform="macos"] body, html[data-platform="macos"] #root {
+        background: transparent !important;
     }
+    /* Non-macOS platforms get solid backgrounds */
+    html:not([data-platform="macos"]), html:not([data-platform="macos"]) body, html:not([data-platform="macos"]) #root {
+        @apply bg-background;
+    }
+    body {
+        @apply text-foreground;
+    }
+}
+
+/* Platform-conditional sidebar backgrounds */
+/* On macOS: semi-transparent for vibrancy effect */
+html[data-platform="macos"] .sidebar-bg {
+    @apply bg-gray-100/80 dark:bg-zinc-800/80;
+}
+/* On other platforms: solid backgrounds */
+html:not([data-platform="macos"]) .sidebar-bg {
+    @apply bg-gray-50 dark:bg-zinc-900;
 }
 
 /* CodeMirror scrollbar improvements */

@@ -50,6 +50,7 @@ import { insertSshConnect } from "@/components/runbooks/editor/blocks/ssh/SshCon
 import { insertHostSelect } from "@/components/runbooks/editor/blocks/Host";
 import { insertLocalVar } from "@/components/runbooks/editor/blocks/LocalVar";
 import { insertMarkdownRender } from "@/components/runbooks/editor/blocks/MarkdownRender";
+import { insertTableOfContents } from "@/components/runbooks/editor/blocks/TableOfContents";
 
 import Runbook from "@/state/runbooks/runbook";
 import { insertHttp } from "@/lib/blocks/http";
@@ -998,6 +999,7 @@ export default function Editor({
 
                     // Content group
                     insertMarkdownRender(editor as any),
+                    insertTableOfContents(schema)(editor),
                     insertRunbookLink(editor as any, showRunbookLinkPopup),
                     insertSavedBlock(editor as any, showSavedBlockPopup),
                     insertHorizontalRule(editor as any),

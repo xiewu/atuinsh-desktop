@@ -288,7 +288,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # Find built artifacts in target directory
-          artifact_dir="backend/target/aarch64-apple-darwin/release/bundle"
+          artifact_dir="target/aarch64-apple-darwin/release/bundle"
 
           echo "Looking for artifacts in: $artifact_dir"
 
@@ -305,9 +305,8 @@ jobs:
               fi
 
               echo "Uploading: $filename as $new_filename"
-              gh release upload "edge" "$file" --clobber --repo "${{ github.repository }}" || \
-                (mv "$file" "$(dirname "$file")/$new_filename" && \
-                 gh release upload "edge" "$(dirname "$file")/$new_filename" --clobber --repo "${{ github.repository }}")
+              mv "$file" "$(dirname "$file")/$new_filename"
+              gh release upload "edge" "$(dirname "$file")/$new_filename" --clobber --repo "${{ github.repository }}"
             fi
           done
 
@@ -315,7 +314,8 @@ jobs:
           for file in "$artifact_dir/dmg"/*.dmg; do
             if [[ -f "$file" ]]; then
               filename=$(basename "$file")
-              new_filename=$(echo "$filename" | sed 's/\.dmg$/-cef-aarch64.dmg/')
+              # DMG already has _aarch64 in name, just add -cef suffix
+              new_filename=$(echo "$filename" | sed 's/\.dmg$/-cef.dmg/')
 
               echo "Uploading DMG: $filename as $new_filename"
               mv "$file" "$(dirname "$file")/$new_filename"

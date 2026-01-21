@@ -257,23 +257,18 @@ impl Agent {
     }
 
     /// Push accumulated tool results to conversation as tool response messages.
+    /// Each tool response becomes a separate message with ChatRole::Tool.
     fn push_tool_results_to_conversation(&mut self) {
-        if !self.context.tool_results.is_empty() {
-            let tool_result_parts = self
-                .context
-                .tool_results
-                .drain(..)
-                .map(|result| {
-                    let result_str = match result.output {
-                        ToolOutput::Success(s) => s,
-                        ToolOutput::Error(e) => format!("Error: {}", e),
-                    };
-                    ContentPart::ToolResponse(ToolResponse::new(result.call_id, result_str))
-                })
-                .collect::<Vec<ContentPart>>();
-            let tool_result_content = MessageContent::from_parts(tool_result_parts);
-            let tool_result_message = ChatMessage::user(tool_result_content);
-            self.context.conversation.push(tool_result_message);
+        for result in self.context.tool_results.drain(..) {
+            let result_str = match result.output {
+                ToolOutput::Success(s) => s,
+                ToolOutput::Error(e) => format!("Error: {}", e),
+            };
+            let tool_response = ToolResponse::new(result.call_id, result_str);
+            // ChatMessage::from(ToolResponse) creates a message with ChatRole::Tool
+            self.context
+                .conversation
+                .push(ChatMessage::from(tool_response));
         }
     }
 
@@ -824,7 +819,7 @@ mod tests {
         assert_eq!(t.effects, vec![Effect::Cancelled]);
         assert!(agent.context().pending_tools.is_empty());
         // Tool results were pushed to conversation as error responses
-        // Conversation: user msg, assistant msg, tool response (with 2 cancelled results)
-        assert_eq!(agent.context().conversation.len(), 3);
+        // Conversation: user msg, assistant msg, tool response, tool response
+        assert_eq!(agent.context().conversation.len(), 4);
     }
 }

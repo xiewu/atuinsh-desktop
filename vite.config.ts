@@ -22,7 +22,8 @@ export default defineConfig(async () => ({
       org: "atuin",
       project: "desktop-frontend",
       telemetry: false,
-      debug: true,
+      disable: process.env.CI && process.platform !== 'linux',
+      debug: false,
       sourcemaps: {
         // keep sourcemaps for edge builds in the final bundle
         filesToDeleteAfterUpload: process.env.IS_EDGE_BUILD ? [] : ["./dist/assets/*.map"],
@@ -38,6 +39,9 @@ export default defineConfig(async () => ({
     rollupOptions: {
       output: {
         experimentalMinChunkSize: 100_000,
+        manualChunks: {
+          'lucide': ['lucide-react'],
+        },
       },
     },
   },

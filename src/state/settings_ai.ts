@@ -46,7 +46,7 @@ export async function getModelSelection(provider: string): Promise<Result<ModelS
       type: "ollama",
       data: {
         model: settings.model,
-        uri: joinUrlParts([settings.endpoint, "v1/"]),
+        uri: joinUrlParts([settings.endpoint, "v1/"], true),
       }
     }) as Result<ModelSelection, string>
   } else {
@@ -60,6 +60,20 @@ export async function getModelSelection(provider: string): Promise<Result<ModelS
   }
 }
 
-function joinUrlParts(parts: string[]): string {
-  return parts.map(p => p.replace(/\/+$/, '')).join('/').replace(/([^:]\/)\/+/g, '$1');
+function joinUrlParts(parts: string[], trailingSlash: boolean = false): string {
+  parts = parts.filter(p => !!p);
+
+  if (parts.length === 0) {
+    return "";
+  }
+
+  let result = parts.map(p => p.replace(/\/+$/, '')).join('/');
+  result = result.replace(/([^:]\/)\/+/g, '$1');
+
+  if (trailingSlash && !result.endsWith("/")) {
+    return result + "/";
+  }
+
+  console.info("joinUrlParts result", result);
+  return result;
 }

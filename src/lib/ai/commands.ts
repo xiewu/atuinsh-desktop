@@ -2,6 +2,7 @@ import { invoke, Channel } from "@tauri-apps/api/core";
 import type { SessionEvent } from "../../rs-bindings/SessionEvent";
 import { ModelSelection } from "@/rs-bindings/ModelSelection";
 import { ChargeTarget } from "@/rs-bindings/ChargeTarget";
+import { BlockInfo } from "@/rs-bindings/BlockInfo";
 
 /**
  * Create or restore an AI session for a runbook.
@@ -12,8 +13,8 @@ import { ChargeTarget } from "@/rs-bindings/ChargeTarget";
  */
 export async function createSession(
   runbookId: string,
-  blockTypes: string[],
-  blockSummary: string,
+  model: Option<ModelSelection>,
+  blockInfos: Array<BlockInfo>,
   desktopUsername: string,
   chargeTarget: ChargeTarget,
   hubEndpoint: string,
@@ -21,8 +22,8 @@ export async function createSession(
 ): Promise<string> {
   return await invoke<string>("ai_create_session", {
     runbookId,
-    blockTypes,
-    blockSummary,
+    model: model.unwrapOr(undefined),
+    blockInfos,
     desktopUsername,
     chargeTarget,
     hubEndpoint,
@@ -70,8 +71,8 @@ export async function changeUser(sessionId: string, user: string): Promise<void>
 /**
  * Send a user message to an AI session.
  */
-export async function sendMessage(sessionId: string, message: string, model?: ModelSelection): Promise<void> {
-  await invoke("ai_send_message", { sessionId, message, model });
+export async function sendMessage(sessionId: string, message: string): Promise<void> {
+  await invoke("ai_send_message", { sessionId, message });
 }
 
 /**

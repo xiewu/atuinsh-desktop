@@ -48,6 +48,7 @@ import { ChargeTarget } from "@/rs-bindings/ChargeTarget";
 import AtuinEnv from "@/atuin_env";
 import { getModelSelection } from "@/state/settings_ai";
 import { DialogBuilder } from "@/components/Dialogs/dialog";
+import { ModelSelection } from "@/rs-bindings/ModelSelection";
 
 const ALL_TOOL_NAMES = [
   "get_runbook_document",
@@ -502,8 +503,8 @@ export default function AIAssistant({
 
     createSession(
       runbookId,
-      blockRegistry.getBlockTypes(),
-      blockRegistry.getBlockSummary(),
+      None,
+      blockRegistry.getBlockInfos(),
       user.username,
       chargeTarget,
       AtuinEnv.url("/api/ai/proxy/"),
@@ -551,6 +552,7 @@ export default function AIAssistant({
     pendingToolCalls,
     error,
     sendMessage,
+    changeModel,
     addToolOutput,
     cancel,
   } = chat;
@@ -636,10 +638,23 @@ export default function AIAssistant({
     const input = inputValue.trim();
     setInputValue("");
 
-    const aiProvider = await Settings.aiAgentProvider();
-    const modelSelection = await getModelSelection(aiProvider);
-    if (modelSelection.isErr()) {
-      const err = modelSelection.unwrapErr();
+    let modelSelection: Result<ModelSelection, string> | null = null;
+    try {
+      const aiProvider = await Settings.aiAgentProvider();
+      modelSelection = await getModelSelection(aiProvider);
+
+      if (modelSelection.isErr()) {
+        const err = modelSelection.unwrapErr();
+        await new DialogBuilder()
+          .title("AI Provider Error")
+          .icon("error")
+          .message("There was an error setting up your selected AI provider: " + err)
+          .action({ label: "OK", value: undefined, variant: "flat" })
+          .build();
+        return;
+      }
+    } catch (err) {
+      console.error("Failed to get model selection:", err);
       await new DialogBuilder()
         .title("AI Provider Error")
         .icon("error")
@@ -650,7 +665,8 @@ export default function AIAssistant({
     }
 
     // TODO: Allow buffering one message while streaming
-    sendMessage(input, modelSelection.unwrap());
+    await changeModel(modelSelection.unwrap());
+    sendMessage(input);
   }, [inputValue, isStreaming, sessionId, sendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -709,8 +725,8 @@ export default function AIAssistant({
       setIsCreatingSession(true);
       createSession(
         runbookId,
-        blockRegistry.getBlockTypes(),
-        blockRegistry.getBlockSummary(),
+        None,
+        blockRegistry.getBlockInfos(),
         user.username,
         chargeTarget,
         AtuinEnv.url("/api/ai/proxy/"),

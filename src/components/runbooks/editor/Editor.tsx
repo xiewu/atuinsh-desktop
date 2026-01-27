@@ -1,6 +1,6 @@
 import "./index.css";
 
-import { Spinner, addToast } from "@heroui/react";
+import { Spinner } from "@heroui/react";
 
 import { filterSuggestionItems } from "@blocknote/core/extensions";
 
@@ -29,15 +29,9 @@ import {
   AlertCircleIcon,
 } from "lucide-react";
 
-import { AIGeneratePopup } from "./AIGeneratePopup";
-import { AIFeatureDisabledError, AIQuotaExceededError } from "@/lib/ai/block_generator";
-import AIPopup from "./ui/AIPopup";
-import { AILoadingOverlay } from "./ui/AILoadingBlock";
-import { AIFocusOverlay } from "./ui/AIFocusOverlay";
-import { AIHint, incrementAIHintUseCount } from "./ui/AIHint";
 import { RunbookLinkPopup } from "./ui/RunbookLinkPopup";
+import { EditorAIFeatures, EditorAIFeaturesHandle, createAIGenerateMenuItem } from "./EditorAIFeatures";
 import AIAssistant, { AIContext } from "./ui/AIAssistant";
-import { SparklesIcon } from "lucide-react";
 
 import { insertSQLite } from "@/components/runbooks/editor/blocks/SQLite/SQLite";
 import { insertPostgres } from "@/components/runbooks/editor/blocks/Postgres/Postgres";
@@ -76,8 +70,7 @@ import { insertSubRunbook } from "./blocks/SubRunbook";
 import { insertTerminal } from "@/lib/blocks/terminal";
 import { insertKubernetes } from "@/lib/blocks/kubernetes";
 import { insertLocalDirectory } from "@/lib/blocks/localdirectory";
-import { calculateAIPopupPosition, calculateLinkPopupPosition } from "./utils/popupPositioning";
-import { useAIKeyboardShortcuts } from "./hooks/useAIKeyboardShortcuts";
+import { calculateLinkPopupPosition } from "./utils/popupPositioning";
 import { useTauriEvent } from "@/lib/tauri";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
@@ -86,7 +79,6 @@ import { SavedBlockPopup } from "./ui/SavedBlockPopup";
 import { DeleteBlockItem } from "./ui/DeleteBlockItem";
 import { BlockNoteEditor } from "@blocknote/core";
 import useDocumentBridge from "@/lib/hooks/useDocumentBridge";
-import { AISingleBlockResponse } from "@/api/ai";
 import { ChargeTarget } from "@/rs-bindings/ChargeTarget";
 
 // Fix for react-dnd interference with BlockNote drag-and-drop
@@ -247,23 +239,6 @@ const insertPastedBlock = (editor: typeof schema.BlockNoteEditor, copiedBlock: a
   group: "Content",
 });
 
-// AI Generate function
-const insertAIGenerate = (
-  editor: any,
-  showAIPopup: (position: { x: number; y: number }) => void,
-) => ({
-  title: "AI Generate",
-  subtext: "Generate blocks from a natural language prompt (or press ⌘K)",
-  onItemClick: () => {
-    track_event("runbooks.ai.slash_menu_popup");
-    const position = calculateAIPopupPosition(editor);
-    showAIPopup(position);
-  },
-  icon: <SparklesIcon size={18} />,
-  aliases: ["ai", "generate", "prompt"],
-  group: "AI",
-});
-
 type EditorProps = {
   runbook: Runbook | null;
   editable: boolean;
@@ -287,11 +262,7 @@ export default function Editor({
   const fontFamily = useStore((state) => state.fontFamily);
   const copiedBlock = useStore((state) => state.copiedBlock);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [aiPopupVisible, setAiPopupVisible] = useState(false);
-  const [aiPopupPosition, setAiPopupPosition] = useState({ x: 0, y: 0 });
-  const [isAIEditPopupOpen, setIsAIEditPopupOpen] = useState(false);
-  const [currentEditBlock, setCurrentEditBlock] = useState<any>(null);
-  const [aiEditPopupPosition, setAiEditPopupPosition] = useState({ x: 0, y: 0 });
+  const aiRef = useRef<EditorAIFeaturesHandle>(null);
   const [isVisible, setIsVisible] = useState(true);
   const [runbookLinkPopupVisible, setRunbookLinkPopupVisible] = useState(false);
   const [runbookLinkPopupPosition, setRunbookLinkPopupPosition] = useState({ x: 0, y: 0 });
@@ -307,31 +278,13 @@ export default function Editor({
     return "user";
   }, [owningOrgId]);
 
-  // Inline AI generation state
-  const [isGeneratingInline, setIsGeneratingInline] = useState(false);
-  const [generatingBlockId, setGeneratingBlockId] = useState<string | null>(null);
-  const [loadingStatus, setLoadingStatus] = useState<"loading" | "cancelled">("loading");
-  const generatingBlockIdRef = useRef<string | null>(null); // For cancellation check
-  const originalPromptRef = useRef<string | null>(null); // For cancellation detection
-  const errorToastShownRef = useRef(false); // Prevent duplicate error toasts
-
-  // Post-generation mode state - after AI generates a block, user can Cmd+Enter to run or Tab to continue
-  const [postGenerationBlockId, setPostGenerationBlockId] = useState<string | null>(null);
-  const [generatedBlockIds, setGeneratedBlockIds] = useState<string[]>([]);
-  const [generatedBlockCount, setGeneratedBlockCount] = useState(0);
-
-  // Edit mode state for follow-up adjustments
-  const [isEditingGenerated, setIsEditingGenerated] = useState(false);
-  const [editPrompt, setEditPrompt] = useState("");
-  const isProgrammaticEditRef = useRef(false);
-
   // AI is enabled for logged-in Hub users when AI setting is on
   const isLoggedIn = useStore((state) => state.isLoggedIn);
   const aiEnabled = useStore((state) => state.aiEnabled);
   const aiShareContext = useStore((state) => state.aiShareContext);
   const user = useStore((state) => state.user);
-  const username = user?.username?.toLowerCase() ?? "";
-  const showAiHint = ["ellie", "binarymuse"].includes(username);
+  const username = user?.username ?? "";
+  const showAiHint = aiEnabled;
   const aiEnabledState = isLoggedIn() && aiEnabled;
 
   // AI panel width for resizable panel
@@ -347,15 +300,6 @@ export default function Editor({
   });
 
   const documentBridge = useDocumentBridge();
-
-  const showAIPopup = useCallback((position: { x: number; y: number }) => {
-    setAiPopupPosition(position);
-    setAiPopupVisible(true);
-  }, []);
-
-  const closeAIPopup = useCallback(() => {
-    setAiPopupVisible(false);
-  }, []);
 
   const showRunbookLinkPopup = useCallback((position: { x: number; y: number }) => {
     setRunbookLinkPopupPosition(position);
@@ -444,62 +388,6 @@ export default function Editor({
     [editor, closeSavedBlockPopup],
   );
 
-  const insertionAnchorRef = useRef<string | null>(null);
-  const lastInsertedBlockRef = useRef<string | null>(null);
-
-  const handleBlockGenerated = useCallback(
-    (block: any) => {
-      if (!editor) return;
-
-      // On first block, store the anchor (cursor position) and insert after it
-      if (!insertionAnchorRef.current) {
-        insertionAnchorRef.current = editor.getTextCursorPosition().block.id;
-      }
-
-      // Insert after the last inserted block, or after anchor if this is the first
-      const insertAfterId = lastInsertedBlockRef.current || insertionAnchorRef.current;
-
-      const insertedBlocks = editor.insertBlocks([block], insertAfterId, "after");
-
-      // Track the last inserted block for the next one
-      if (insertedBlocks && insertedBlocks.length > 0) {
-        lastInsertedBlockRef.current = insertedBlocks[0].id;
-      }
-    },
-    [editor],
-  );
-
-  const handleGenerateComplete = useCallback(() => {
-    insertionAnchorRef.current = null;
-    lastInsertedBlockRef.current = null;
-    closeAIPopup();
-  }, [closeAIPopup]);
-
-  // Get editor context for AI operations (document as markdown + current position)
-  const getEditorContext = useCallback(async () => {
-    if (!editor) return undefined;
-
-    try {
-      const cursorPosition = editor.getTextCursorPosition();
-      const blocks = editor.document;
-      const currentBlockId = cursorPosition.block.id;
-      const currentBlockIndex = blocks.findIndex((b: any) => b.id === currentBlockId);
-
-      // Export document as markdown to save tokens (only if sharing context is enabled)
-      const documentMarkdown = aiShareContext ? await editor.blocksToMarkdownLossy() : undefined;
-
-      return {
-        documentMarkdown,
-        currentBlockId,
-        currentBlockIndex: currentBlockIndex >= 0 ? currentBlockIndex : 0,
-        runbookId: runbook?.id,
-      };
-    } catch (error) {
-      console.warn("Failed to get editor context:", error);
-      return undefined;
-    }
-  }, [editor, aiShareContext, runbook?.id]);
-
   // Get context for AI Assistant channel
   const getAIAssistantContext = useCallback(async (): Promise<AIContext> => {
     const lastBlockContext = await documentBridge?.getLastBlockContext();
@@ -523,225 +411,6 @@ export default function Editor({
       ssh_host: lastBlockContext?.sshHost || null,
     };
   }, [editor, documentBridge]);
-
-  // Extract plain text from a BlockNote block's content
-  const getBlockText = useCallback((block: any): string => {
-    if (!block.content || !Array.isArray(block.content)) return "";
-    return block.content
-      .filter((item: any) => item.type === "text")
-      .map((item: any) => item.text || "")
-      .join("");
-  }, []);
-
-  // Handle inline AI generation from a paragraph block
-  const handleInlineGenerate = useCallback(
-    async (block: any) => {
-      const prompt = getBlockText(block);
-      if (!prompt.trim() || !editor) return;
-
-      // Set up generation state
-      setIsGeneratingInline(true);
-      setGeneratingBlockId(block.id);
-      setLoadingStatus("loading");
-      generatingBlockIdRef.current = block.id;
-      originalPromptRef.current = prompt;
-      errorToastShownRef.current = false;
-
-      try {
-        const context = await getEditorContext();
-        const { generateBlocks } = await import("@/lib/ai/block_generator");
-        const lastBlockContext = await documentBridge?.getLastBlockContext();
-        console.log("lastBlockContext", lastBlockContext);
-
-        const result = await generateBlocks({
-          prompt,
-          documentMarkdown: context?.documentMarkdown,
-          insertAfterIndex: context?.currentBlockIndex,
-          runbookId: context?.runbookId,
-          context: {
-            variables: Object.keys(lastBlockContext?.variables ?? {}),
-            named_blocks: [], // TODO: Implement named blocks
-            environment_variables: Object.keys(lastBlockContext?.envVars ?? {}),
-            working_directory: lastBlockContext?.cwd || null,
-            ssh_host: lastBlockContext?.sshHost || null,
-          },
-        });
-
-        // Check if the block was edited during generation (cancellation)
-        const currentBlock = editor.document.find((b: any) => b.id === block.id);
-        const currentBlockText = getBlockText(currentBlock);
-        if (currentBlockText !== prompt) {
-          // Block was edited, show cancelled state briefly then hide
-          setLoadingStatus("cancelled");
-          track_event("runbooks.ai.inline_generate_cancelled", {
-            reason: "block_edited",
-          });
-          // Show "Cancelled" for 1.5 seconds
-          await new Promise((resolve) => setTimeout(resolve, 1500));
-          return;
-        }
-
-        // Cap at 3 blocks
-        const blocksToInsert = result.blocks.slice(0, 3);
-
-        let lastInsertedId = block.id;
-        const insertedIds: string[] = [];
-        for (const newBlock of blocksToInsert) {
-          const inserted = editor.insertBlocks([newBlock as any], lastInsertedId, "after");
-          if (inserted?.[0]?.id) {
-            lastInsertedId = inserted[0].id;
-            insertedIds.push(inserted[0].id);
-          }
-        }
-
-        // Move cursor to after the last inserted block
-        if (lastInsertedId !== block.id) {
-          editor.setTextCursorPosition(lastInsertedId, "end");
-        }
-
-        // Enter post-generation mode - user can Cmd+Enter to run or Tab to continue
-        if (blocksToInsert.length > 0) {
-          setPostGenerationBlockId(lastInsertedId);
-          setGeneratedBlockIds(insertedIds);
-          setGeneratedBlockCount(blocksToInsert.length);
-        }
-
-        track_event("runbooks.ai.inline_generate_success", {
-          prompt_length: prompt.length,
-          blocks_generated: blocksToInsert.length,
-        });
-
-        // Increment usage count for AI hint dismissal
-        incrementAIHintUseCount();
-      } catch (error) {
-        // Prevent duplicate error toasts
-        if (errorToastShownRef.current) {
-          console.log("[AI] Duplicate toast prevented", new Error().stack);
-          return;
-        }
-        errorToastShownRef.current = true;
-        console.log("[AI] Showing error toast", new Error().stack);
-
-        const message =
-          error instanceof AIFeatureDisabledError
-            ? "AI feature is not enabled for your account"
-            : error instanceof AIQuotaExceededError
-            ? "AI quota exceeded"
-            : error instanceof Error
-            ? error.message
-            : "Failed to generate blocks";
-
-        addToast({
-          title: error instanceof AIQuotaExceededError ? "Quota exceeded" : "Generation failed",
-          description: message,
-          color: "danger",
-        });
-
-        track_event("runbooks.ai.inline_generate_error", {
-          error: message,
-        });
-      } finally {
-        setIsGeneratingInline(false);
-        setGeneratingBlockId(null);
-        generatingBlockIdRef.current = null;
-        originalPromptRef.current = null;
-      }
-    },
-    [editor, getEditorContext, getBlockText],
-  );
-
-  // Clear post-generation mode
-  const clearPostGenerationMode = useCallback(() => {
-    setPostGenerationBlockId(null);
-    setGeneratedBlockIds([]);
-    setGeneratedBlockCount(0);
-    setIsEditingGenerated(false);
-    setEditPrompt("");
-  }, []);
-
-  // Handle edit submission for follow-up adjustments
-  const handleEditSubmit = useCallback(async () => {
-    if (!editor || !postGenerationBlockId || !editPrompt.trim() || generatedBlockIds.length === 0)
-      return;
-
-    const blockToEditId = generatedBlockIds[0];
-
-    // Use the same loading overlay as initial generation
-    setIsEditingGenerated(false);
-    setIsGeneratingInline(true);
-    setGeneratingBlockId(blockToEditId);
-    setLoadingStatus("loading");
-
-    try {
-      // Get the current block to edit
-      const currentBlock = editor.document.find((b: any) => b.id === blockToEditId);
-      if (!currentBlock) {
-        throw new Error("Block not found");
-      }
-
-      const context = await getEditorContext();
-      const { generateOrEditBlock } = await import("@/api/ai");
-
-      const result = (await generateOrEditBlock({
-        action: "edit",
-        block: currentBlock,
-        instruction: editPrompt,
-        document_markdown: context?.documentMarkdown,
-        runbook_id: context?.runbookId,
-      })) as AISingleBlockResponse;
-
-      // Replace the block with the edited version
-      const newBlock = { ...result.block, id: currentBlock.id };
-      isProgrammaticEditRef.current = true;
-      editor.updateBlock(currentBlock.id, newBlock as any);
-      // Reset after microtask to ensure onChange has fired
-      queueMicrotask(() => {
-        isProgrammaticEditRef.current = false;
-      });
-
-      // Reset edit prompt but stay in post-generation mode
-      setEditPrompt("");
-
-      track_event("runbooks.ai.post_generation_edit", {
-        blockType: currentBlock.type,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to edit block";
-      addToast({
-        title: "Edit failed",
-        description: message,
-        color: "danger",
-      });
-      track_event("runbooks.ai.post_generation_edit_error", { error: message });
-    } finally {
-      // Clear loading state - this will show the focus overlay again
-      setIsGeneratingInline(false);
-      setGeneratingBlockId(null);
-    }
-  }, [editor, postGenerationBlockId, editPrompt, generatedBlockIds, getEditorContext]);
-
-  // Callback for showing the edit popup
-  const handleShowEditPopup = useCallback((position: { x: number; y: number }, block: any) => {
-    setAiEditPopupPosition(position);
-    setIsAIEditPopupOpen(true);
-    setCurrentEditBlock(block);
-  }, []);
-
-  // AI keyboard shortcuts (Cmd+K, Cmd+Enter, Tab, Escape, E)
-  useAIKeyboardShortcuts({
-    editor,
-    runbookId: runbook?.id,
-    postGenerationBlockId,
-    generatedBlockIds,
-    generatedBlockCount,
-    isEditingGenerated,
-    isGeneratingInline,
-    onShowAIPopup: showAIPopup,
-    onShowEditPopup: handleShowEditPopup,
-    onInlineGenerate: handleInlineGenerate,
-    onClearPostGeneration: clearPostGenerationMode,
-    onStartEditing: () => setIsEditingGenerated(true),
-  });
 
   // Handle visibility and scroll restoration when runbook changes
   useLayoutEffect(() => {
@@ -923,8 +592,8 @@ export default function Editor({
           }}
           onClick={(e) => {
             // Clear post-generation mode on any click
-            if (postGenerationBlockId) {
-              clearPostGenerationMode();
+            if (aiRef.current?.hasGeneratedBlocks()) {
+              aiRef.current.clearPostGenerationMode();
             }
 
             // Don't interfere with AG-Grid clicks
@@ -968,11 +637,12 @@ export default function Editor({
             slashMenu={false}
             className="pb-[200px]"
             sideMenu={false}
+            onKeyDownCapture={(e) => aiRef.current?.handleKeyDown(e)}
             onChange={() => {
               runbookEditor.save(runbook, editor);
               // Clear post-generation mode when user edits anything (but not programmatic edits)
-              if (postGenerationBlockId && !isProgrammaticEditRef.current) {
-                clearPostGenerationMode();
+              if (aiRef.current?.hasGeneratedBlocks() && !aiRef.current?.getIsProgrammaticEdit()) {
+                aiRef.current.clearPostGenerationMode();
               }
             }}
             theme={colorMode === "dark" ? "dark" : "light"}
@@ -1026,7 +696,9 @@ export default function Editor({
 
                     ...getDefaultReactSlashMenuItems(editor),
                     // AI group (only if enabled)
-                    ...(aiEnabledState ? [insertAIGenerate(editor, showAIPopup)] : []),
+                    ...(aiEnabledState && aiRef.current?.showAIPopup
+                      ? [createAIGenerateMenuItem(editor, aiRef.current.showAIPopup)]
+                      : []),
                   ],
                   query,
                 )
@@ -1048,50 +720,17 @@ export default function Editor({
             />
           </BlockNoteView>
 
-          {/* AI popup positioned relative to editor container (only if AI is enabled) */}
+          {/* AI features (popup, hints, overlays) */}
           {aiEnabledState && (
-            <AIGeneratePopup
-              isVisible={aiPopupVisible}
-              position={aiPopupPosition}
-              onBlockGenerated={handleBlockGenerated}
-              onGenerateComplete={handleGenerateComplete}
-              onClose={closeAIPopup}
-              getEditorContext={getEditorContext}
-            />
-          )}
-
-          {/* AI edit popup for modifying existing blocks */}
-          {aiEnabledState && (
-            <AIPopup
-              isOpen={isAIEditPopupOpen}
-              onClose={() => setIsAIEditPopupOpen(false)}
+            <EditorAIFeatures
+              ref={aiRef}
               editor={editor}
-              currentBlock={currentEditBlock}
-              position={aiEditPopupPosition}
-              getEditorContext={getEditorContext}
-            />
-          )}
-
-          {/* Subtle hint for AI generation */}
-          {aiEnabledState && showAiHint && !postGenerationBlockId && (
-            <AIHint editor={editor} isGenerating={isGeneratingInline} aiEnabled={aiEnabledState} />
-          )}
-
-          {/* Inline generation loading overlay */}
-          {isGeneratingInline && generatingBlockId && (
-            <AILoadingOverlay blockId={generatingBlockId} editor={editor} status={loadingStatus} />
-          )}
-
-          {/* Post-generation focus overlay - shows after AI generates a block */}
-          {postGenerationBlockId && !isGeneratingInline && (
-            <AIFocusOverlay
-              blockId={postGenerationBlockId}
-              editor={editor}
-              isEditing={isEditingGenerated}
-              editValue={editPrompt}
-              onEditChange={setEditPrompt}
-              onEditSubmit={handleEditSubmit}
-              onEditCancel={() => setIsEditingGenerated(false)}
+              runbookId={runbook?.id}
+              documentBridge={documentBridge}
+              aiShareContext={aiShareContext}
+              username={username}
+              chargeTarget={chargeTarget}
+              showHint={showAiHint}
             />
           )}
 

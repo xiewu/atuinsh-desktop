@@ -151,6 +151,7 @@ impl AISessionManager {
             block_infos,
             current_document,
             insert_after,
+            is_initial_generation: true,
         };
 
         self.create_session(kind, config, false).await
@@ -186,7 +187,7 @@ impl AISessionManager {
                 output_tx,
                 self.secret_cache.clone(),
                 self.storage.clone(),
-            );
+            )?;
 
             (session, handle, Some(replay), info)
         } else {
@@ -200,7 +201,8 @@ impl AISessionManager {
                 output_tx,
                 self.secret_cache.clone(),
                 self.storage.clone(),
-            );
+            )?;
+
             // Update info with actual session id
             let info = SessionInfo {
                 id: session.id(),

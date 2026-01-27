@@ -7,7 +7,9 @@
 
 use std::collections::{HashMap, VecDeque};
 
-use genai::chat::{ChatMessage, ContentPart, MessageContent, ToolCall, ToolResponse};
+use genai::chat::{
+    ChatMessage, ChatRole, ContentPart, MessageContent, MessageOptions, ToolCall, ToolResponse,
+};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -102,6 +104,10 @@ pub enum Event {
 
     /// User explicitly cancelled the current operation.
     Cancel,
+
+    /// Update the system prompt (replaces conversation[0]).
+    /// Used when transitioning from initial generation to edit mode.
+    UpdateSystemPrompt(ChatMessage),
 }
 
 // ============================================================================
@@ -214,15 +220,46 @@ pub struct Agent {
 
 impl Agent {
     /// Create a new agent in Idle state.
-    pub fn new() -> Self {
+    pub fn new(mut system_prompt: ChatMessage) -> Self {
+        system_prompt.options = Some(MessageOptions {
+            cache_control: Some(genai::chat::CacheControl::Ephemeral),
+        });
+
+        let context = Context {
+            conversation: vec![system_prompt],
+            ..Context::default()
+        };
+
         Agent {
             state: State::Idle,
-            context: Context::default(),
+            context,
         }
     }
 
     /// Create an agent from saved state.
-    pub fn from_saved(state: State, context: Context) -> Self {
+    pub fn from_saved(state: State, mut context: Context, mut system_prompt: ChatMessage) -> Self {
+        system_prompt.options = Some(MessageOptions {
+            cache_control: Some(genai::chat::CacheControl::Ephemeral),
+        });
+
+        // Ensure the provided system_prompt is present as the first message in conversation.
+        if let Some(first) = context.conversation.get_mut(0) {
+            let first_role = WrappedChatRole(first.role.clone());
+
+            if first_role == WrappedChatRole(ChatRole::System) {
+                *first = system_prompt.clone();
+            } else {
+                // Role doesn't match, so prepend
+                let mut new_conversation = vec![system_prompt.clone()];
+                new_conversation.extend(context.conversation.clone());
+                // Replace context.conversation with new one
+                context.conversation = new_conversation;
+            }
+        } else {
+            // conversation is empty, just insert
+            context.conversation.push(system_prompt.clone());
+        }
+
         Agent { state, context }
     }
 
@@ -434,8 +471,39 @@ impl Agent {
                 Transition::single(Effect::Cancelled)
             }
 
+            // ================================================================
+            // Update system prompt
+            // ================================================================
+            (_, Event::UpdateSystemPrompt(msg)) => {
+                // Replace conversation[0] with the new system prompt
+                if !self.context.conversation.is_empty() {
+                    self.context.conversation[0] = msg;
+                }
+                Transition::none()
+            }
+
             (_, _) => Transition::none(),
         }
+    }
+}
+
+struct WrappedChatRole(genai::chat::ChatRole);
+
+impl PartialEq for WrappedChatRole {
+    fn eq(&self, other: &Self) -> bool {
+        use genai::chat::ChatRole;
+
+        fn eq_chat_role(a: &ChatRole, b: &ChatRole) -> bool {
+            matches!(
+                (a, b),
+                (ChatRole::System, ChatRole::System)
+                    | (ChatRole::User, ChatRole::User)
+                    | (ChatRole::Assistant, ChatRole::Assistant)
+                    | (ChatRole::Tool, ChatRole::Tool)
+            )
+        }
+
+        eq_chat_role(&self.0, &other.0)
     }
 }
 
@@ -463,19 +531,19 @@ mod tests {
 
     #[test]
     fn idle_to_sending_on_user_message() {
-        let mut agent = Agent::new();
+        let mut agent = Agent::new(ChatMessage::system("you are a helpful assistant"));
         assert_eq!(agent.state(), &State::Idle);
 
         let t = agent.handle(Event::UserMessage(user_msg("hello")));
 
         assert_eq!(agent.state(), &State::Sending);
         assert_eq!(t.effects, vec![Effect::StartRequest]);
-        assert_eq!(agent.context().conversation.len(), 1);
+        assert_eq!(agent.context().conversation.len(), 2); // system + user
     }
 
     #[test]
     fn messages_queued_during_sending() {
-        let mut agent = Agent::new();
+        let mut agent = Agent::new(ChatMessage::system("you are a helpful assistant"));
         agent.handle(Event::UserMessage(user_msg("first")));
 
         let t = agent.handle(Event::UserMessage(user_msg("second")));
@@ -487,7 +555,7 @@ mod tests {
 
     #[test]
     fn sending_to_streaming_on_stream_start() {
-        let mut agent = Agent::new();
+        let mut agent = Agent::new(ChatMessage::system("you are a helpful assistant"));
         agent.handle(Event::UserMessage(user_msg("hello")));
 
         let t = agent.handle(Event::StreamStart);
@@ -498,7 +566,7 @@ mod tests {
 
     #[test]
     fn streaming_emits_chunks() {
-        let mut agent = Agent::new();
+        let mut agent = Agent::new(ChatMessage::system("you are a helpful assistant"));
         agent.handle(Event::UserMessage(user_msg("hello")));
         agent.handle(Event::StreamStart);
 
@@ -518,7 +586,7 @@ mod tests {
 
     #[test]
     fn stream_end_no_tools_goes_idle() {
-        let mut agent = Agent::new();
+        let mut agent = Agent::new(ChatMessage::system("you are a helpful assistant"));
         agent.handle(Event::UserMessage(user_msg("hello")));
         agent.handle(Event::StreamStart);
         agent.handle(Event::StreamChunk(StreamChunk {
@@ -529,12 +597,12 @@ mod tests {
 
         assert_eq!(agent.state(), &State::Idle);
         assert_eq!(t.effects, vec![Effect::ResponseComplete]);
-        assert_eq!(agent.context().conversation.len(), 2); // user + assistant
+        assert_eq!(agent.context().conversation.len(), 3); // system + user + assistant
     }
 
     #[test]
     fn stream_end_with_queued_message_goes_sending() {
-        let mut agent = Agent::new();
+        let mut agent = Agent::new(ChatMessage::system("you are a helpful assistant"));
         agent.handle(Event::UserMessage(user_msg("first")));
         agent.handle(Event::UserMessage(user_msg("second"))); // queued
         agent.handle(Event::StreamStart);
@@ -550,12 +618,12 @@ mod tests {
             vec![Effect::ResponseComplete, Effect::StartRequest]
         );
         assert!(agent.context().queued_messages.is_empty());
-        assert_eq!(agent.context().conversation.len(), 3); // first + response + second
+        assert_eq!(agent.context().conversation.len(), 4); // system + first + response + second
     }
 
     #[test]
     fn stream_end_with_tools_goes_to_pending_tools() {
-        let mut agent = Agent::new();
+        let mut agent = Agent::new(ChatMessage::system("you are a helpful assistant"));
         agent.handle(Event::UserMessage(user_msg("what time is it?")));
         agent.handle(Event::StreamStart);
         agent.handle(Event::StreamChunk(StreamChunk {
@@ -580,7 +648,7 @@ mod tests {
 
     #[test]
     fn tool_result_completes_and_starts_request() {
-        let mut agent = Agent::new();
+        let mut agent = Agent::new(ChatMessage::system("you are a helpful assistant"));
         agent.handle(Event::UserMessage(user_msg("what time is it?")));
         agent.handle(Event::StreamStart);
         agent.handle(Event::StreamEnd {
@@ -600,13 +668,13 @@ mod tests {
         assert!(agent.context().pending_tools.is_empty());
         // Tool results are now pushed to conversation as ToolResponse messages
         assert!(agent.context().tool_results.is_empty());
-        // Conversation: user msg, assistant msg (with tool call), tool response
-        assert_eq!(agent.context().conversation.len(), 3);
+        // Conversation: system, user msg, assistant msg (with tool call), tool response
+        assert_eq!(agent.context().conversation.len(), 4);
     }
 
     #[test]
     fn multiple_tools_waits_for_all() {
-        let mut agent = Agent::new();
+        let mut agent = Agent::new(ChatMessage::system("you are a helpful assistant"));
         agent.handle(Event::UserMessage(user_msg("query")));
         agent.handle(Event::StreamStart);
         agent.handle(Event::StreamEnd {
@@ -640,7 +708,7 @@ mod tests {
 
     #[test]
     fn cancel_from_streaming() {
-        let mut agent = Agent::new();
+        let mut agent = Agent::new(ChatMessage::system("you are a helpful assistant"));
         agent.handle(Event::UserMessage(user_msg("hello")));
         agent.handle(Event::StreamStart);
 
@@ -652,7 +720,7 @@ mod tests {
 
     #[test]
     fn request_failed_goes_idle() {
-        let mut agent = Agent::new();
+        let mut agent = Agent::new(ChatMessage::system("you are a helpful assistant"));
         agent.handle(Event::UserMessage(user_msg("hello")));
 
         let t = agent.handle(Event::RequestFailed {
@@ -670,7 +738,7 @@ mod tests {
 
     #[test]
     fn assistant_message_contains_tool_calls() {
-        let mut agent = Agent::new();
+        let mut agent = Agent::new(ChatMessage::system("you are a helpful assistant"));
         agent.handle(Event::UserMessage(user_msg("what time is it?")));
         agent.handle(Event::StreamStart);
         agent.handle(Event::StreamChunk(StreamChunk {
@@ -683,7 +751,8 @@ mod tests {
         });
 
         // Check the assistant message in conversation has both text and tool call
-        let assistant_msg = &agent.context().conversation[1];
+        // conversation[0] = system, [1] = user, [2] = assistant
+        let assistant_msg = &agent.context().conversation[2];
         assert!(matches!(assistant_msg.role, ChatRole::Assistant));
         let parts = assistant_msg.content.clone().into_parts();
         assert_eq!(parts.len(), 2);
@@ -695,7 +764,7 @@ mod tests {
 
     #[test]
     fn queued_messages_stay_queued_until_tools_complete() {
-        let mut agent = Agent::new();
+        let mut agent = Agent::new(ChatMessage::system("you are a helpful assistant"));
         agent.handle(Event::UserMessage(user_msg("first")));
         agent.handle(Event::UserMessage(user_msg("second"))); // queued
         agent.handle(Event::StreamStart);
@@ -711,8 +780,8 @@ mod tests {
         // Messages stay queued until tools complete
         assert_eq!(agent.state(), &State::PendingTools);
         assert_eq!(agent.context().queued_messages.len(), 1);
-        // Conversation: first msg, assistant msg
-        assert_eq!(agent.context().conversation.len(), 2);
+        // Conversation: system, first msg, assistant msg
+        assert_eq!(agent.context().conversation.len(), 3);
 
         // Tool completes - now queued messages are drained
         agent.handle(Event::ToolResult(ToolResult {
@@ -722,16 +791,16 @@ mod tests {
 
         assert_eq!(agent.state(), &State::Sending);
         assert!(agent.context().queued_messages.is_empty());
-        // Conversation: first msg, assistant msg, tool response, second msg
-        assert_eq!(agent.context().conversation.len(), 4);
-        // Verify the fourth message is the queued "second"
-        let fourth_msg = &agent.context().conversation[3];
-        assert!(matches!(fourth_msg.role, ChatRole::User));
+        // Conversation: system, first msg, assistant msg, tool response, second msg
+        assert_eq!(agent.context().conversation.len(), 5);
+        // Verify the fifth message is the queued "second"
+        let fifth_msg = &agent.context().conversation[4];
+        assert!(matches!(fifth_msg.role, ChatRole::User));
     }
 
     #[test]
     fn user_message_during_pending_tools_gets_queued() {
-        let mut agent = Agent::new();
+        let mut agent = Agent::new(ChatMessage::system("you are a helpful assistant"));
         agent.handle(Event::UserMessage(user_msg("query")));
         agent.handle(Event::StreamStart);
         agent.handle(Event::StreamEnd {
@@ -761,13 +830,13 @@ mod tests {
             vec![Effect::ToolResultReceived, Effect::StartRequest]
         );
         assert!(agent.context().queued_messages.is_empty());
-        // Conversation: user msg, assistant msg, tool response, queued msg
-        assert_eq!(agent.context().conversation.len(), 4);
+        // Conversation: system, user msg, assistant msg, tool response, queued msg
+        assert_eq!(agent.context().conversation.len(), 5);
     }
 
     #[test]
     fn cancel_pending_tools_generates_cancelled_responses() {
-        let mut agent = Agent::new();
+        let mut agent = Agent::new(ChatMessage::system("you are a helpful assistant"));
         agent.handle(Event::UserMessage(user_msg("query")));
         agent.handle(Event::StreamStart);
         agent.handle(Event::StreamEnd {
@@ -787,7 +856,7 @@ mod tests {
         assert_eq!(t.effects, vec![Effect::Cancelled]);
         assert!(agent.context().pending_tools.is_empty());
         // Tool results were pushed to conversation as error responses
-        // Conversation: user msg, assistant msg, tool response, tool response
-        assert_eq!(agent.context().conversation.len(), 4);
+        // Conversation: system, user msg, assistant msg, tool response, tool response
+        assert_eq!(agent.context().conversation.len(), 5);
     }
 }

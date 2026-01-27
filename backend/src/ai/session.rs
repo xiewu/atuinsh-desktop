@@ -3,7 +3,9 @@
 use std::sync::Arc;
 
 use futures_util::stream::StreamExt;
-use genai::chat::{ChatMessage, ChatOptions, ChatRequest, ChatStreamEvent, ToolCall};
+use genai::chat::{
+    CacheControl, ChatMessage, ChatOptions, ChatRequest, ChatStreamEvent, MessageOptions, ToolCall,
+};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, watch, RwLock};
 use ts_rs::TS;
@@ -60,6 +62,15 @@ pub enum SessionEvent {
         #[serde(rename = "pendingToolCalls")]
         #[ts(rename = "pendingToolCalls")]
         pending_tool_calls: Vec<AIToolCall>,
+    },
+    /// Blocks were generated via submit_blocks tool (for InlineBlockGeneration sessions).
+    /// The session remains in PendingTools state until the frontend sends a tool result
+    /// (either via edit request or acceptance/cancellation).
+    BlocksGenerated {
+        blocks: Vec<serde_json::Value>,
+        #[serde(rename = "toolCallId")]
+        #[ts(rename = "toolCallId")]
+        tool_call_id: String,
     },
 }
 
@@ -135,6 +146,62 @@ impl SessionHandle {
             .await
             .map_err(|_| AISessionError::ChannelClosed)
     }
+
+    /// Send an edit request for InlineBlockGeneration sessions.
+    /// This updates the system prompt to edit mode, responds to the pending submit_blocks call,
+    /// and sends the user's edit prompt to continue generation.
+    pub async fn send_edit_request(
+        &self,
+        edit_prompt: String,
+        tool_call_id: String,
+    ) -> Result<(), AISessionError> {
+        // 1. Update kind to is_initial_generation: false
+        {
+            let mut kind = self.kind.write().await;
+            if let SessionKind::InlineBlockGeneration {
+                is_initial_generation,
+                ..
+            } = &mut *kind
+            {
+                *is_initial_generation = false;
+            }
+        }
+
+        // 2. Generate new system prompt and send UpdateSystemPrompt event
+        let new_system_prompt = {
+            let kind = self.kind.read().await;
+            kind.system_prompt()
+                .map_err(AISessionError::SystemPromptError)?
+        };
+        let system_msg = ChatMessage::system(new_system_prompt).with_options(MessageOptions {
+            cache_control: Some(CacheControl::Ephemeral),
+        });
+        self.event_tx
+            .send(Event::UpdateSystemPrompt(system_msg))
+            .await
+            .map_err(|_| AISessionError::ChannelClosed)?;
+
+        // 3. Send user message with edit prompt first (gets queued while in PendingTools)
+        let user_msg = ChatMessage::user(edit_prompt);
+        self.event_tx
+            .send(Event::UserMessage(user_msg))
+            .await
+            .map_err(|_| AISessionError::ChannelClosed)?;
+
+        // 4. Send tool result for submit_blocks - this completes PendingTools,
+        //    drains the queued edit prompt, and triggers a single LLM request
+        self.event_tx
+            .send(Event::ToolResult(ToolResult {
+                call_id: tool_call_id,
+                output: ToolOutput::Success(
+                    "Blocks shown to user. User has requested changes.".to_string(),
+                ),
+            }))
+            .await
+            .map_err(|_| AISessionError::ChannelClosed)?;
+
+        Ok(())
+    }
 }
 
 /// The AI session driver.
@@ -164,10 +231,14 @@ impl AISession {
         output_tx: mpsc::Sender<SessionEvent>,
         secret_cache: Arc<SecretCache>,
         storage: Arc<AISessionStorage>,
-    ) -> (Self, SessionHandle) {
+    ) -> Result<(Self, SessionHandle), AISessionError> {
         let client = AtuinAIClient::new(secret_cache.clone());
         let (event_tx, event_rx) = mpsc::channel(32);
         let (cancel_tx, _cancel_rx) = watch::channel(false);
+
+        let system_prompt = kind
+            .system_prompt()
+            .map_err(AISessionError::SystemPromptError)?;
 
         let config = Arc::new(RwLock::new(config));
         let kind = Arc::new(RwLock::new(kind));
@@ -177,7 +248,7 @@ impl AISession {
             config: config.clone(),
             kind: kind.clone(),
             client,
-            agent: Arc::new(RwLock::new(Agent::new())),
+            agent: Arc::new(RwLock::new(Agent::new(ChatMessage::system(system_prompt)))),
             event_tx: event_tx.clone(),
             event_rx,
             output_tx,
@@ -193,7 +264,7 @@ impl AISession {
             kind,
         };
 
-        (session, handle)
+        Ok((session, handle))
     }
 
     /// Get the session ID.
@@ -208,17 +279,27 @@ impl AISession {
         output_tx: mpsc::Sender<SessionEvent>,
         secret_cache: Arc<SecretCache>,
         storage: Arc<AISessionStorage>,
-    ) -> (Self, SessionHandle) {
+    ) -> Result<(Self, SessionHandle), AISessionError> {
         let client = AtuinAIClient::new(secret_cache.clone());
         let (event_tx, event_rx) = mpsc::channel(32);
         let (cancel_tx, _cancel_rx) = watch::channel(false);
 
         // Restore agent with saved state and context
         log::debug!("Restoring session {} from storage", saved.id);
-        let agent = Agent::from_saved(saved.agent_state, saved.agent_context);
+
+        let system_prompt = saved
+            .kind
+            .system_prompt()
+            .map_err(AISessionError::SystemPromptError)?;
 
         let config = Arc::new(RwLock::new(saved.config));
         let kind = Arc::new(RwLock::new(saved.kind));
+
+        let agent = Agent::from_saved(
+            saved.agent_state,
+            saved.agent_context,
+            ChatMessage::system(system_prompt),
+        );
 
         let session = Self {
             id: saved.id,
@@ -241,7 +322,7 @@ impl AISession {
             kind,
         };
 
-        (session, handle)
+        Ok((session, handle))
     }
 
     /// Save the current session state to storage if the session is meant to be persisted.
@@ -334,12 +415,42 @@ impl AISession {
                 }
             }
             Effect::ExecuteTools { calls } => {
-                // Convert genai ToolCall to AIToolCall for frontend
-                let ai_calls: Vec<AIToolCall> = calls.into_iter().map(|c| c.into()).collect();
-                let _ = self
-                    .output_tx
-                    .send(SessionEvent::ToolsRequested { calls: ai_calls })
-                    .await;
+                // Check for submit_blocks tool call (used by InlineBlockGeneration sessions)
+                if let Some(submit_call) = calls.iter().find(|c| c.fn_name == "submit_blocks") {
+                    // Extract blocks from arguments and emit BlocksGenerated event
+                    if let Some(blocks) = submit_call.fn_arguments.get("blocks") {
+                        let blocks_vec = blocks.as_array().cloned().unwrap_or_default();
+                        let _ = self
+                            .output_tx
+                            .send(SessionEvent::BlocksGenerated {
+                                blocks: blocks_vec,
+                                tool_call_id: submit_call.call_id.clone(),
+                            })
+                            .await;
+                    }
+
+                    // Filter out submit_blocks from the calls sent to frontend as ToolsRequested
+                    // (submit_blocks is handled specially via BlocksGenerated)
+                    let other_calls: Vec<AIToolCall> = calls
+                        .into_iter()
+                        .filter(|c| c.fn_name != "submit_blocks")
+                        .map(|c| c.into())
+                        .collect();
+
+                    if !other_calls.is_empty() {
+                        let _ = self
+                            .output_tx
+                            .send(SessionEvent::ToolsRequested { calls: other_calls })
+                            .await;
+                    }
+                } else {
+                    // Normal tool execution path
+                    let ai_calls: Vec<AIToolCall> = calls.into_iter().map(|c| c.into()).collect();
+                    let _ = self
+                        .output_tx
+                        .send(SessionEvent::ToolsRequested { calls: ai_calls })
+                        .await;
+                }
                 // Save state when entering PendingTools
                 self.save_if_persisted().await;
             }
@@ -422,12 +533,28 @@ impl AISession {
                     },
                 ))?;
 
+            let action = match kind {
+                SessionKind::InlineBlockGeneration {
+                    is_initial_generation,
+                    ..
+                } => {
+                    if is_initial_generation {
+                        "generate"
+                    } else {
+                        "edit"
+                    }
+                }
+                SessionKind::AssistantChat { .. } => "proxy",
+            };
+
             let api_key_header = "x-atuin-hub-api-key".to_string();
             let api_charge_header = "x-atuin-charge-to".to_string();
+            let api_action_header = "x-atuin-action".to_string();
 
             let extra_headers = vec![
                 (api_key_header, secret),
                 (api_charge_header, config.charge_target.to_string()),
+                (api_action_header, action.to_string()),
             ];
 
             chat_options = chat_options.with_extra_headers(extra_headers);

@@ -548,7 +548,7 @@ dependencies = [
 
 [[package]]
 name = "atuin-desktop"
-version = "0.2.19"
+version = "0.2.20"
 dependencies = [
  "async-trait",
  "atuin-client",
@@ -621,7 +621,7 @@ dependencies = [
 
 [[package]]
 name = "atuin-desktop-runtime"
-version = "0.2.19"
+version = "0.2.20"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -692,7 +692,7 @@ dependencies = [
 
 [[package]]
 name = "atuin-run"
-version = "0.2.19"
+version = "0.2.20"
 dependencies = [
  "async-trait",
  "atuin-desktop-runtime",
